@@ -1,5 +1,5 @@
 name: Rhino Test
-on: push
+on: []
 permissions:
   contents: read
 jobs:
