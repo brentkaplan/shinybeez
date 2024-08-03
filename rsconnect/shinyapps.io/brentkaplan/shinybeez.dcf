@@ -1,0 +1,13 @@
+name: shinybeez
+title: shinybeez
+username: brentkaplan
+account: brentkaplan
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 12336420
+bundleId: 8885526
+url: https://brentkaplan.shinyapps.io/shinybeez/
+version: 1
+asMultiple: FALSE
+asStatic: FALSE
+ignoredFiles: debugging.R|other|shinybeez.code-workspace|ms
