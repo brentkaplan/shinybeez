@@ -10,4 +10,4 @@ url: https://brentkaplan.shinyapps.io/shinybeez/
 version: 1
 asMultiple: FALSE
 asStatic: FALSE
-ignoredFiles: debugging.R|other|shinybeez.code-workspace|ms
+ignoredFiles: debugging.R|other|shinybeez.code-workspace|manuscript
