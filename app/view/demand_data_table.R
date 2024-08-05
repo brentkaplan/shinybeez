@@ -98,18 +98,18 @@ server <- function(id, isgroup = NULL, data_r) {
         DT$datatable(
           data_r$data_d,
           rownames = FALSE,
-          extensions = c('Buttons', "Scroller", "FixedColumns"),
+          extensions = c("Buttons", "Scroller", "FixedColumns"),
           fillContainer = FALSE,
           options = list(
             autoWidth = TRUE,
             ordering = TRUE,
-            dom = 'Bti',
+            dom = "Bti",
             buttons = list(
-              list(extend = 'copy'),
-              list(extend = 'print'),
-              list(extend = 'csv', filename = "ShinyBeez_Demand_Data", title = NULL),
-              list(extend = 'excel', filename = "ShinyBeez_Demand_Data", title = NULL),
-              list(extend = 'pdf', filename = "ShinyBeez_Demand_Data", title = NULL)
+              list(extend = "copy"),
+              list(extend = "print"),
+              list(extend = "csv", filename = "ShinyBeez_Demand_Data", title = NULL),
+              list(extend = "excel", filename = "ShinyBeez_Demand_Data", title = NULL),
+              list(extend = "pdf", filename = "ShinyBeez_Demand_Data", title = NULL)
               ),
             fixedColumns = list(leftColumns = 1),
             deferRender = TRUE,
@@ -158,18 +158,18 @@ server <- function(id, isgroup = NULL, data_r) {
         DT$datatable(
           descriptives,
           rownames = FALSE,
-          extensions = c('Buttons', "Scroller"),
+          extensions = c("Buttons", "Scroller"),
           fillContainer = FALSE,
           options = list(
             autoWidth = TRUE,
             ordering = TRUE,
-            dom = 'Bti',
+            dom = "Bti",
             buttons = list(
-              list(extend = 'copy'),
-              list(extend = 'print'),
-              list(extend = 'csv', filename = "ShinyBeez_Demand_Descriptives", title = NULL),
-              list(extend = 'excel', filename = "ShinyBeez_Demand_Descriptives", title = NULL),
-              list(extend = 'pdf', filename = "ShinyBeez_Demand_Descriptives", title = NULL)
+              list(extend = "copy"),
+              list(extend = "print"),
+              list(extend = "csv", filename = "ShinyBeez_Demand_Descriptives", title = NULL),
+              list(extend = "excel", filename = "ShinyBeez_Demand_Descriptives", title = NULL),
+              list(extend = "pdf", filename = "ShinyBeez_Demand_Descriptives", title = NULL)
             ),
             deferRender = TRUE,
             scrollY = 250,
@@ -235,18 +235,18 @@ server <- function(id, isgroup = NULL, data_r) {
         DT$datatable(
           empirical,
           rownames = FALSE,
-          extensions = c('Buttons', "Scroller"),
+          extensions = c("Buttons", "Scroller"),
           fillContainer = FALSE,
           options = list(
             autoWidth = TRUE,
             ordering = TRUE,
-            dom = 'Bti',
+            dom = "Bti",
             buttons = list(
-              list(extend = 'copy'),
-              list(extend = 'print'),
-              list(extend = 'csv', filename = "ShinyBeez_Demand_Empirical_Measures", title = NULL),
-              list(extend = 'excel', filename = "ShinyBeez_Demand_Empirical_Measures", title = NULL),
-              list(extend = 'pdf', filename = "ShinyBeez_Demand_Empirical_Measures", title = NULL)
+              list(extend = "copy"),
+              list(extend = "print"),
+              list(extend = "csv", filename = "ShinyBeez_Demand_Empirical_Measures", title = NULL),
+              list(extend = "excel", filename = "ShinyBeez_Demand_Empirical_Measures", title = NULL),
+              list(extend = "pdf", filename = "ShinyBeez_Demand_Empirical_Measures", title = NULL)
             ),
             deferRender = TRUE,
             scrollY = 250,
@@ -296,18 +296,18 @@ server <- function(id, isgroup = NULL, data_r) {
         DT$datatable(
           systematic,
           rownames = FALSE,
-          extensions = c('Buttons', "Scroller", "FixedColumns"),
+          extensions = c("Buttons", "Scroller", "FixedColumns"),
           fillContainer = FALSE,
           options = list(
             autoWidth = FALSE,
             ordering = TRUE,
-            dom = 'Bti',
+            dom = "Bti",
             buttons = list(
-              list(extend = 'copy'),
-              list(extend = 'print'),
-              list(extend = 'csv', filename = "ShinyBeez_Demand_Systematic_Criteria", title = NULL),
-              list(extend = 'excel', filename = "ShinyBeez_Demand_Systematic_Criteria", title = NULL),
-              list(extend = 'pdf', filename = "ShinyBeez_Demand_Systematic_Criteria", title = NULL)
+              list(extend = "copy"),
+              list(extend = "print"),
+              list(extend = "csv", filename = "ShinyBeez_Demand_Systematic_Criteria", title = NULL),
+              list(extend = "excel", filename = "ShinyBeez_Demand_Systematic_Criteria", title = NULL),
+              list(extend = "pdf", filename = "ShinyBeez_Demand_Systematic_Criteria", title = NULL)
             ),
             deferRender = TRUE,
             scrollY = 250,

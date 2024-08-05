@@ -83,7 +83,10 @@ server <- function(
                   svg = htmltools$tagList(esquisse$ph("browsers"), "SVG"),
                   jpeg = htmltools$tagList(esquisse$ph("image"), "JPEG"),
                   pptx = NULL,
-                  more = htmltools$tagList(esquisse$ph("gear"), esquisse$i18n("More options"))
+                  more = htmltools$tagList(
+                    esquisse$ph("gear"),
+                    esquisse$i18n("More options")
+                  )
                 )
               ),
             ),
@@ -99,7 +102,10 @@ server <- function(
                   svg = htmltools$tagList(esquisse$ph("browsers"), "SVG"),
                   jpeg = htmltools$tagList(esquisse$ph("image"), "JPEG"),
                   pptx = NULL,
-                  more = htmltools$tagList(esquisse$ph("gear"), esquisse$i18n("More options"))
+                  more = htmltools$tagList(
+                    esquisse$ph("gear"),
+                    esquisse$i18n("More options")
+                  )
                 )
               ),
             )
@@ -134,16 +140,30 @@ server <- function(
           res$data <- data_r$data_d
         } else if (imputation() == "GGM") {
           rhino$log$info("Calculating MCQ27 with GGM imputation")
-          res$results <- score_mcq27(data_r$data_d, impute_method = "GGM", trans = trans)
+          res$results <- score_mcq27(
+            data_r$data_d,
+            impute_method = "GGM",
+            trans = trans
+          )
           res$data <- data_r$data_d
         } else if (imputation() == "INN") {
           rhino$log$info("Calculating MCQ27 with INN imputation")
-          result <- score_mcq27(data_r$data_d, impute_method = "INN", return_data = TRUE, trans = trans)
+          result <- score_mcq27(data_r$data_d,
+            impute_method = "INN",
+            return_data = TRUE,
+            trans = trans
+          )
           res$results <- result$results
           res$data <- result$data
         } else if (imputation() == "INN_random") {
           rhino$log$info("Calculating MCQ27 with INN random imputation")
-          result <- score_mcq27(data_r$data_d, impute_method = "INN", random = TRUE, return_data = TRUE, trans = trans)
+          result <- score_mcq27(
+            data_r$data_d,
+            impute_method = "INN",
+            random = TRUE,
+            return_data = TRUE,
+            trans = trans
+          )
           res$results <- result$results
           res$data <- result$data
         }
@@ -193,7 +213,7 @@ server <- function(
 
     output$results_table <- DT$renderDT(server = FALSE, {
       shiny$req(res$results)
-      if (type() == "27-Item MCQ"){
+      if (type() == "27-Item MCQ") {
         DT$datatable(
           res$results,
           rownames = FALSE,
@@ -206,9 +226,21 @@ server <- function(
             buttons = list(
               list(extend = 'copy'),
               list(extend = 'print'),
-              list(extend = 'csv', filename = "ShinyBeez_Discounting_Results", title = NULL),
-              list(extend = 'excel', filename = "ShinyBeez_Discounting_Results", title = NULL),
-              list(extend = 'pdf', filename = "ShinyBeez_Discounting_Results", title = NULL)
+              list(
+                extend = 'csv',
+                filename = "ShinyBeez_Discounting_Results",
+                title = NULL
+              ),
+              list(
+                extend = 'excel',
+                filename = "ShinyBeez_Discounting_Results",
+                title = NULL
+              ),
+              list(
+                extend = 'pdf',
+                filename = "ShinyBeez_Discounting_Results",
+                title = NULL
+              )
             ),
             deferRender = TRUE,
             scrollY = 300,
@@ -240,9 +272,21 @@ server <- function(
             buttons = list(
               list(extend = 'copy'),
               list(extend = 'print'),
-              list(extend = 'csv', filename = "ShinyBeez_Discounting_Results", title = NULL),
-              list(extend = 'excel', filename = "ShinyBeez_Discounting_Results", title = NULL),
-              list(extend = 'pdf', filename = "ShinyBeez_Discounting_Results", title = NULL)
+              list(
+                extend = 'csv',
+                filename = "ShinyBeez_Discounting_Results",
+                title = NULL
+              ),
+              list(
+                extend = 'excel',
+                filename = "ShinyBeez_Discounting_Results",
+                title = NULL
+              ),
+              list(
+                extend = 'pdf',
+                filename = "ShinyBeez_Discounting_Results",
+                title = NULL
+              )
             ),
             deferRender = FALSE,
             scrollY = 300,
@@ -262,7 +306,6 @@ server <- function(
         rownames = FALSE,
         extensions = c('Buttons', "Scroller"),
         fillContainer = FALSE,
-        autoHideNavigation = TRUE,
         options = list(
           autoWidth = TRUE,
           ordering = TRUE,
@@ -274,9 +317,21 @@ server <- function(
           buttons = list(
             list(extend = 'copy'),
             list(extend = 'print'),
-            list(extend = 'csv', filename = "ShinyBeez_Discounting_Summary", title = NULL),
-            list(extend = 'excel', filename = "ShinyBeez_Discounting_Summary", title = NULL),
-            list(extend = 'pdf', filename = "ShinyBeez_Discounting_Summary", title = NULL)
+            list(
+              extend = 'csv',
+              filename = "ShinyBeez_Discounting_Summary",
+              title = NULL
+            ),
+            list(
+              extend = 'excel',
+              filename = "ShinyBeez_Discounting_Summary",
+              title = NULL
+            ),
+            list(
+              extend = 'pdf',
+              filename = "ShinyBeez_Discounting_Summary",
+              title = NULL
+            )
           ),
           deferRender = TRUE,
           scrollY = 250,
@@ -316,9 +371,21 @@ server <- function(
           buttons = list(
             list(extend = 'copy'),
             list(extend = 'print'),
-            list(extend = 'csv', filename = "ShinyBeez_Discounting_Summary", title = NULL),
-            list(extend = 'excel', filename = "ShinyBeez_Discounting_Summary", title = NULL),
-            list(extend = 'pdf', filename = "ShinyBeez_Discounting_Summary", title = NULL)
+            list(
+              extend = 'csv',
+              filename = "ShinyBeez_Discounting_Summary",
+              title = NULL
+            ),
+            list(
+              extend = 'excel',
+              filename = "ShinyBeez_Discounting_Summary",
+              title = NULL
+            ),
+            list(
+              extend = 'pdf',
+              filename = "ShinyBeez_Discounting_Summary",
+              title = NULL
+            )
           ),
           deferRender = TRUE,
           scrollY = 200,
@@ -346,9 +413,21 @@ server <- function(
               buttons = list(
                 list(extend = 'copy'),
                 list(extend = 'print'),
-                list(extend = 'csv', filename = "ShinyBeez_Discounting_Imputed_Data", title = NULL),
-                list(extend = 'excel', filename = "ShinyBeez_Discounting_Imputed_Data", title = NULL),
-                list(extend = 'pdf', filename = "ShinyBeez_Discounting_Imputed_Data", title = NULL)
+                list(
+                  extend = 'csv',
+                  filename = "ShinyBeez_Discounting_Imputed_Data",
+                  title = NULL
+                ),
+                list(
+                  extend = 'excel',
+                  filename = "ShinyBeez_Discounting_Imputed_Data",
+                  title = NULL
+                ),
+                list(
+                  extend = 'pdf',
+                  filename = "ShinyBeez_Discounting_Imputed_Data",
+                  title = NULL
+                )
               ),
               deferRender = TRUE,
               scrollY = 250,
