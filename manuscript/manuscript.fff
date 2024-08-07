@@ -1,0 +1,76 @@
+\begin{figure*}[hbt]
+\ifnextchar[{\eatarg}{}
+[!htbp]
+
+{\caption{{Demand Plot Settings}{\label{fig-plotsettings}}}}
+
+\includegraphics[width=0.49\textwidth,height=\textheight]{assets/demand-plot-settings.png}
+
+{\noindent \emph{Note.} Customizable settings for demand plots}
+
+\end{figure*}
+\efloatseparator
+ 
+\begin{figure*}[hbt]
+\ifnextchar[{\eatarg}{}
+[!htbp]
+
+{\caption{{Fit to Group (Pooled)}{\label{fig-pooled}}}}
+
+\includegraphics[width=0.49\textwidth,height=\textheight]{assets/demand-fit-to-pooled-no-group.png}
+
+{\noindent \emph{Note.} Fit to Group (pooled) with no group specified}
+
+\end{figure*}
+\efloatseparator
+ 
+\begin{figure*}[hbt]
+\ifnextchar[{\eatarg}{}
+[!htbp]
+
+{\caption{{Fit to Group (Pooled) with Group}{\label{fig-pooledgroup}}}}
+
+\includegraphics[width=0.49\textwidth,height=\textheight]{assets/demand-fit-to-pooled-group.png}
+
+{\noindent \emph{Note.} Fit to Group (pooled) with group specified}
+
+\end{figure*}
+\efloatseparator
+ 
+\begin{figure*}[hbt]
+\ifnextchar[{\eatarg}{}
+[!htbp]
+
+{\caption{{Fit to Group (Mean)}{\label{fig-average}}}}
+
+\includegraphics[width=0.49\textwidth,height=\textheight]{assets/demand-fit-to-mean-no-group.png}
+
+{\noindent \emph{Note.} Fit to Group (mean) with no group specified}
+
+\end{figure*}
+\efloatseparator
+ 
+\begin{figure*}[hbt]
+\ifnextchar[{\eatarg}{}
+[!htbp]
+
+{\caption{{Fit to Group (Mean) with Group}{\label{fig-averagegroup}}}}
+
+\includegraphics[width=0.49\textwidth,height=\textheight]{assets/demand-fit-to-mean-group.png}
+
+{\noindent \emph{Note.} Fit to Group (mean) with group specified}
+
+\end{figure*}
+\efloatseparator
+ 
+\begin{figure*}[hbt]
+\ifnextchar[{\eatarg}{}
+[!htbp]
+
+{\caption{{Two Stage}{\label{fig-twostage}}}}
+
+\includegraphics[width=0.49\textwidth,height=\textheight]{assets/demand-two-stage-lt50.png}
+
+{\noindent \emph{Note.} Two Stage with 50 or fewer IDs}
+
+\end{figure*}

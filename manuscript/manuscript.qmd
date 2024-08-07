@@ -1,0 +1,565 @@
+---
+title: "*shinybeez*: A Shiny App for Behavioral Economic Easy Demand and Discounting"
+shorttitle: "Shinybeez"
+author:
+  - name: Brent A. Kaplan
+    corresponding: true
+    orcid: 0000-0002-3758-6776
+    email: bkaplan.ku@gmail.com
+    affiliations:
+      - id: id1
+        name: USA
+        department: ~
+        address: ~
+        city: ~
+        region: ~
+        country: ~
+        postal-code: ~
+  - name:  Derek D. Reed
+    corresponding: false
+    orcid: 0000-0002-5854-3425
+    email: dreed@irbinc.com
+    affiliations:
+      - id: id2
+        name: Institutes for Behavior Resources, Inc.
+        department:
+        address: 2104 Maryland Avenue
+        city: Baltimore
+        region: MD
+        country: USA
+        postal-code: 21218
+author-note:
+  status-changes:
+    affiliation-change: ~
+    deceased: ~
+  disclosures:
+    study-registration: ~
+    data-sharing: The code to recreate this manuscript, the source code for *shinybeez*, and the most current URLs to access *shinybeez* is located at [https://github.com/brentkaplan/shinybeez](https://github.com/brentkaplan/shinybeez). The URL (at the time of publication) to access the *shinybeez* app is [https://brentkaplan.shinyapps.io/shinybeez/](https://brentkaplan.shinyapps.io/shinybeez/).
+    related-report: ~
+    conflict-of-interest: The authors have no conflict of interest to declare.
+    financial-support: ~
+    gratitude: ~
+    authorship-agreements: ~
+abstract: This paper introduces *shinybeez*, a free and open-source web application designed to streamline behavioral economic analyses of demand and discounting data. Behavioral economic methods have grown in popularity and while quantitative modeling of these phenomena has led to translational successes in clinical practice and policy, complex analyses has remained a barrier for many researchers and practitioners. *shinybeez* addresses this gap by providing an intuitive interface for conducting descriptive and inferential analyses without requiring programming expertise. The app integrates features previously scattered across multiple tools, allowing users to upload data, calculate empirical measures, identify systematic datasets, fit nonlinear models, and visualize results - all within a single platform. *shinybeez* supports various analysis types for demand data and can score multiple discounting tasks, including the 27-Item Monetary Choice Questionnaire. Built on R Shiny and leveraging existing R packages, the app ensures consistency with underlying analytical methods while remaining flexible for future enhancements. Key advantages of *shinybeez* include its accessibility through web browsers or local installation, ability to handle large datasets, and customizable data visualization options. By consolidating behavioral economic tools into a user-friendly interface, *shinybeez* aims to broaden the reach of these analytical techniques and facilitate their application in addressing societal issues.
+keywords: [R Shiny, behavioral economics, demand, discounting, free and open-source software]
+floatsintext: false
+numbered-lines: false
+bibliography: shinybeez.bib
+suppress-title-page: false
+link-citations: true
+format:
+  apaquarto-docx: default
+  apaquarto-html: default
+  apaquarto-typst:
+    keep-typ: true
+  apaquarto-pdf:
+    # Can be jou (journal), man (manuscript), stu (student), or doc (document)
+    documentmode: jou
+    keep-tex: true
+---
+
+Operant behavioral economics is an umbrella term that subsumes various
+approaches to studying organisms’ allocation of behavior amidst
+varying-dimensional manipulations of rewards
+[@deleonBehavioralEconomicsPrinciples2021; @hurshBehavioralEconomics1984;
+@hurshTranslationalUtilityBehavioral2013; @kagelBehavioralEconomicsAreas1972;
+@reedBehavioralEconomicsTutorial2013;
+@vuchinichMatchingBehavioralEconomics2023].
+The two most prominent concepts within the operant behavioral economics
+literature are demand and discounting. Simply put, demand is the extent to which
+an organism defends its reinforcement blisspoint
+[@hurshEconomicDemandEssential2008a], while discounting is the subjective
+devaluation of a reinforcer due to its dimensional thinning (e.g., increasing
+delays, decreasing odds of receipt) [@maddenDelaydiscountingPrimer2010;
+@mckercharDelayProbabilityDiscounting2012; @odumDelayDiscountingYou2011]. The
+success of demand and discounting in extending the reach of the experimental
+analysis of behavior outside behavior analysis cannot be overstated
+[@bickelBehavioralEconomicsSubstance2014;
+@hurshTranslationalUtilityBehavioral2013; @reedAppliedBehavioralEconomics2022;
+@stricklandBehavioralEconomicDemand2020].
+
+One of the major advantages of demand and discounting is the robust
+modeling of these phenomena, which has evolved over the past several decades.
+Demand and discounting are well studied phenomena, with substantial attention in
+the literature dedicated to quantifying these processes and response patterns
+[@franckAccurateCharacterizationDelay2015;
+@mckercharComparisonFourModels2009;
+@mckercharScalingInterpretationExponents2010;
+@mitchellComparingHyperbolicDelayamount2015;
+@stricklandComparingExponentialExponentiated2016]. Myriad approaches and
+nonlinear models of these
+processes have subsequently been proposed
+[@borgesAlternativeApproachCalculating2016; @gilroyZeroboundedModelOperant2021;
+@hurshEconomicDemandEssential2008a; @hurshGeneralModelDemand2023;
+@kaplanApplyingMixedeffectsModeling2021a;
+@koffarnusModifiedExponentialBehavioral2015a;
+@myersonAreaCurveMeasure2001;
+@myersonDiscountingDelayedRewards1995;
+@newmanImprovedDemandCurve2020a;
+@yoonTurningItsHead2008]. The precise and objective
+descriptions of environment-behavior relations afforded by these models give way
+to readily translatable metrics. For example, demand curve modeling can inform
+excise taxation policies [@mackillopHighresolutionBehavioralEconomic2012;
+@reedQuantifyingAbuseLiability2016] or unit
+price considersations for reinforcers selected for clinical interventions
+[@delmendoConsumptionResponseOutput2009]. Likewise, discounting metrics can
+inform public
+policies that involve extreme weather warning delays
+[@gelinoTemporalDiscountingTornado2020] or
+token exchange delays in classroom interventions
+[@reedTemporalDiscountingPredicts2011]. Thus,
+quantitative models of demand and discounting—if made accessible to researchers
+and policymakers—have significant promise in addressing issues of societal
+concern.
+
+Despite the quantitative modeling of demand and discounting being a primary
+reason for the success of behavioral economics, the complexity involved with
+these calculations and curve-fitting remains a substantial barrier to many
+researchers and clinicians. These barriers are unfortunate, given the
+translational success of these analyses in informing clinical practices and
+public policy interventions. While these translational successes are well known,
+researchers and clinicians may have insufficient training or resources to
+conduct the relevant analyses [see discussions by @maddenGoForthBe2013;
+@youngPlaceStatisticsBehavior2018]. For example,
+nonlinear modeling requires access to advanced statistical software programs and
+adequate training to execute such analyses. Researchers have attempted to
+address these gaps by developing open-source tools that are freely accessible to
+the public, with some degree of automated analytic workflows to model or score
+datasets [@gilroyDiscountingModelSelector2017; @gilroyDemandCurveAnalyzer2018;
+@kaplanPackageBeezdemandBehavioral2019].
+
+The current landscape of accessible operant behavioral economic tools
+presents its own challenges, however. Many of the early tools were based in
+Microsoft Excel [e.g., @kaplanAutomatingScoringDelay2016;
+@reedTutorialUseExcel2012; @steinIdentificationManagementNonsystematic2015],
+which has computational limits in terms of the kinds of analyses capable in the
+software, as well as the computer resources necessary for it to analyze large
+datasets. An additional issue with Excel-based tools is the risk of obsolescence
+when updates to Excel are pushed out to its users. The pivot towards open-source
+platforms [@gilroyFurtheringOpenScience2019; @gilroyCurrentUseDevelopment2020]
+circumvents the Excel
+issues by creating opportunities for the software to have updates when
+corrections or additions are made by the creators. Unfortunately, many of these
+tools require the user to seek the updates themselves, once the software is
+installed. Moreover, the programming language used in these open-source tools
+often requires some degree of user sophistication to command line communicate
+with the packages or interfaces and execute their desired analyses or data
+engagement.
+
+This manuscript presents an overview of an open-source web app specifically
+designed to address the many issues and limitations of existing software, with
+the target audience being behavioral economic demand and
+discounting researchers with or without software programming
+prerequisites to conduct their analyses. We
+have designed the app to be flexible and customizable in order to meet
+the needs of various researchers, as well as scalable and able to handle
+*very* large datasets that other software (e.g.,
+Microsoft Excel) simply cannot accomodate. In addition, the app is
+capable of running on a variety of operating systems and devices, including
+desktop computers, laptops, tablets, and smartphones running Windows,
+MacOS, Linux, or ChromeOS.
+
+This web app relies heavily on *beezdemand*
+[@kaplanPackageBeezdemandBehavioral2019;
+@kaplanBeezdemandBehavioralEconomic2023]
+and *beezdiscounting* [@kaplanBeezdiscountingBehavioralEconomic2023], which
+are existing R packages used to perform behavioral economic demand and
+discounting analyses and other tasks. The web app is developed using
+R Shiny [@changShinyWebApplication2024]. Thus, we have aptly named
+this web app *shinybeez* for its reliance on R Shiny to interface with the
+*beezdemand* and *beezdiscounting* R packages (@fig-beezfam). We will first
+describe some
+of the overall features of *shinybeez*. Then, we will discuss specific features
+and capabilities related to behavioral economic demand data, followed
+by discussing specific features and capabilities related to behavioral
+economic discounting data. We will conclude with a discussion about
+how best to use *shinybeez* and what features we plan to integrate in future
+releases. We will not make any comparisons to other software available
+because *shinybeez* relies almost exclusively on existing R packages for
+conducting analyses "under the hood." The source code for those packages
+are readily available elsewhere (both on Github and on the
+Comprehensive R Archive Network [CRAN]).
+
+One of our main goals while developing *shinybeez* was ensuring
+that an end user may always access the app in an efficient manner (whether
+via a web browser or a local installation). Towards that end,
+*shinybeez* will
+always be free and open-source, and its source code will always be readily
+available for inspection and reproducibility. To accomplish this goal,
+there are at least two (current) locations to access *shinybeez*. The
+first location is
+[https://github.com/brentkaplan/shinybeez](https://github.com/brentkaplan/shinybeez),
+where
+the source code lives (hopefully indefinitely). This Github repsitory
+contains the code required to run the
+app locally, if desired [for more on Github in general,
+see @gilroyFurtheringOpenScience2019]. To run the app locally, the user can first
+download the repository and open a new R session in the downloaded folder.
+Leveraging the renv [@usheyRenvProjectEnvironments2024] package to keep
+track of the required package and fostering a reproducible environment, users
+should install all packages required in renv.lock file. Once all the required
+packages are installed, users should be able to run the command
+`shiny::runApp()`, thereby starting a local instance of the app. The
+Github repository will always have current URLs
+to access the web app[^f], so users are encouraged to check there. The second
+location is
+[https://brentkaplan.shinyapps.io/shinybeez/](https://brentkaplan.shinyapps.io/shinybeez/).
+Shinyapps.io is a self-service
+platform that allows seamless deployment of Shiny apps.
+
+[^f]: We plan to have additional ways to access the app in the future so there
+is always an accessible web version.
+
+While on the topic of the *shinybeez* Github repository, we wish to bring
+attention to the reader that this paper they are reading is also located
+in the respository under the folder manuscript/. Here, you will find the Quarto
+[@Allaire_Quarto_2024] document along with any additional assets required
+to generate the manuscript (e.g., renv package, images).
+We would also like to acknowledge the developers of the apaquarto extension
+[@Schneider_apaquarto] for allowing such a seamless process for creating
+documents in accordance with American Psychological Association's 7th
+Edition style requirements.
+
+# *shinybeez*
+
+## Welcome Page and Documentation
+We developed *shinybeez* to be inuitive for the user, no matter
+their familiarity with behavioral economic tasks, data, and analysis.
+Upon starting the app, users will find a welcome page that also serves to
+provide documentation about the app (@fig-welcome). We believe this feature sets
+it apart from other apps and tools that do not have such thorough documentation
+integrated directly into the interface. First-time users, as well as users who
+want to reference certain features of the app, should consult the welcome
+page. The welcome page, importantly, contains several downloadable
+template files that users will need to ensure their uploaded spreadsheets
+(in either .csv or .tsv [comma or tab separated format]) are in accordance
+with one of these templates. *shinybeez* can ingest either "wide form"
+(e.g., data collected from survey softwares like Qualtrics are
+typically in this format) or "long form" (i.e., each row is a single
+observation) for demand data, and is
+typically intelligent enough to determine in which format
+data are provided. Specific formats are required for analyzing
+Monetary Choice Questionnaire and minute task data. If data are uploaded in
+an incorrect format, *shinybeez* will display a notification and
+users should modify the spreadsheet accordingly.
+
+As new features are added, the welcome page will contain new
+documentation. At the top of the app are (currently) two tabs depending
+on whether the user has demand or discounting data. Users may also click
+the sun icon in the upper-left corner of the app to toggle dark mode.
+We discuss features for the demand and discounting tabs in the following
+sections.
+
+## Demand
+Upon clicking the demand tab, users will see a collapsable sidebar where
+a data file is selected for upload, as well as additional specifications
+related to analyzing the data. Currently, the available options to select
+are whether a grouping variable should be integrated into the results,
+whether Q~0~ should be constrained to a specific value, select whether
+to use the exponentiated [@koffarnusModifiedExponentialBehavioral2015a] or
+exponential [@hurshEconomicDemandEssential2008a] demand equation, select
+what k value method should be used, and the analysis type (discussed
+below). In the main panel of the app are two boxes with embedded tabs.
+The box at the top contains information related to the data (i.e.,
+information that does not require any curve fitting) and the box at the
+bottom contains information related to the results of the curve fitting.
+Once data are uploaded, the top box is populated with information
+(by default, the uploaded data is displayed), and results
+in the bottom box are populated after the user clicks the "Calculate" button.
+
+An important feature to note is that each of the tables displayed in the
+demand page can be exported in the following ways: "Copy" will copy the
+contents of the table to the clipboard; "Print" will open an option to print
+the table through the device print interface; "CSV" will prompt saving
+the table as a comma-separated text file; "Excel" will prompt saving the table
+as a Microsoft Excel file with a .xslx extension; "PDF" will prompt to download
+the table as a file with a .pdf extention.
+
+### Descriptive Statistics
+The second tab contains a table of descriptive values for the entire sample.
+For each price, the
+table lists the mean, median, standard deviation (SD), proportion of zero values
+(PropZeros), number of missing values (NAs), minimum value (Min), and maximum
+value (Max). When a grouping variable is present and indicated, these
+values are calculated for each distinct group in the dataset.
+
+### Empirical Measures
+The third tab contains a table of empirical demand measures (see
+top of @fig-plotsettings). Empirical
+measures include Intensity (observed y value at the lowest x value),
+Breakpoint~1~ (BP~1~; the highest x value associated with the a non-zero
+y value), Breakpoint~0~[^1] (BP~0~; the lowest x value associated with a zero
+y value), O~max~ (observed highest value of multiplying each x by y), and
+P~max~ (the x value associated with Omax). When no grouping variable is
+selected, these values are calculated for the entire sample and for each
+unique identifier. When a grouping variable is present and indicated,
+these values are calculated for the entire sample, for each distinct group,
+as well as for each unique identifier.
+
+[^1]: Cells associated with BP~0~ and BP~1~ will sometimes be blank
+because either the response set had all zeros (in the case of BP~0~) or
+all non-zeros (in the case of BP~1~). The latter is especially prevalent
+when data are aggregated.
+
+### Systematic Criteria
+The fourth and final tab contains a table of criteria used for *identifying*
+systematic datasets according to the
+@steinIdentificationManagementNonsystematic2015 algorithm (see top
+of @fig-twostage).
+The reported values include the number of total criteria passed and whether
+each individual criterion was met (passed) or not (fail). For each criterion,
+the value is provided. Finally, the number of total positive values is
+included in the final column. Note that this tab has additional features.
+When a user clicks to open the collapsable sidebar *within this tab*, they
+are presented with adjustments that can be made to the criterion values
+outlined in @steinIdentificationManagementNonsystematic2015. These values
+are set at the defaults outlined in
+@steinIdentificationManagementNonsystematic2015
+and changing these values will update the table. When a grouping variable is
+specified, a group identificatio ncolumn is added, but the results do not change
+as these criteria are only applied at the individual level.
+
+### Nonlinear Model Fitting
+The bottom box on the demand page has two tabs and displays the results of
+the nonlinear curve fitting process in a tabular format (Model Results tab) and
+graphical format (Plots tab). In the Model Results tab, a table is displayed
+with the following information: equation, estimated Q~0~ (including
+standard error and confidence intervals), k value, estimated
+$\alpha$ (including standard error and confidence intervals), R^2, model
+absolute sum of squares, standard deviation of the residuals, essential value,
+derived O~max~, derived P~max~, and analytic O~max~ and analytic P~max~
+[see @gilroyExactSolutionUnit2019]. The last column of the table provides
+a quick note on whether the model converged, and the results for a model that
+has indication other than convergence should be interpreted with caution.
+
+The aforementioned model results are applied to the data depending on the
+analysis type chosen in the sidebar of the demand page. When the Fit to Group
+(pooled) analysis type is chosen, a single regression model is fit to the
+entire sample (all data points), and any dependence or clustering is ignored.
+When the Fit to Group (mean) analysis
+type is chosen, data are first aggregated by taking the mean of the y values at
+each x value and a regression line is fit to those points. When the
+Two Stage analysis type is chosen, a regression
+model is fit to each individual subject separately. When a grouping variable
+is specified the analysis types Fit to Group (pooled) and Fit to Group (mean)
+will fit curves as just described except *within* each group. There is no
+effect on whether a grouping variable is specified when the Two Stage analysis
+type is selected.
+
+The second tab in the results box contains a plot of the results based
+on the settings specified in the sidebar, especially Analysis Type. Before
+describing and showing what these plots look like, we describe some
+plot customization settings in the collapsible side bar in the plot tab.
+Users may customize the plot title, the x-axis title, the y-axis title, and
+(when applicable) the group legend title. In addition, users can specify
+whether to (pseudo)log transform either the x or y axes (@fig-plotsettings).
+Then, the user may output the plot directly as a png, svg, or jpeg file, or
+display the plot in the viewer window and choose additional formats such
+as pdf, bmp, eps, or tiff. In this plot viewer, the user may specify specific
+height and width values, as well as file name.
+
+![Demand Plot Settings](assets/demand-plot-settings.png){#fig-plotsettings apa-note="Top box shows the exportable table of empirical demand measures. Bottom box shows visualization of the Fit to Group (mean) with group specified and the customizable settings for demand plots." width="49%"}
+
+When Fit to Group (pooled) analysis type is selected, all data points
+will display with the best-fit line (@fig-pooled). Similarly, when
+a group is specified the points and lines will be colored according to the
+groups (@fig-pooledgroup). When Fit to Group (mean) analysis type is specified,
+the preprocessed average data points are displayed with the best fit line
+(@fig-average) and when a group is specified, the points and lines will be
+colored according to the groups (@fig-plotsettings). Finally, when
+Two Stage analysis type is selected, plots will be displayed in one of two
+ways. When there are 50 or fewer IDs (e.g., respondents), each ID will get
+their own subplot (@fig-twostagefacet) and when there are more than
+50 IDs all curves will be shown on a single plot (@fig-twostage).
+
+![Fit to Group (Pooled)](assets/demand-fit-to-pooled-no-group.png){#fig-pooled apa-note="Top box shows the exportable table of descriptive results. Bottom box shows visualization of the Fit to Group (pooled) with no group specified." width="49%"}
+
+![Fit to Group (Mean)](assets/demand-fit-to-mean-no-group.png){#fig-average apa-note="Top box shows the exportable table of descriptive results. Bottom box shows visualization of the Fit to Group (mean) with no group specified." width="49%"}
+
+![Two Stage (>50 IDs)](assets/demand-two-stage-mt50.png){#fig-twostage apa-note="Top box shows the exportable and customizable systematic criteria table. Bottom box shows visualization of the Two Stage analysis option with more than 50 IDs." width="49%"}
+
+## Discounting
+When users click on the Discounting tab, they are presented with a page
+similar to the Demand tab. The sidebar allows the user to choose their
+file for upload and also choose which discounting task they wish to score.
+Currently, *shinybeez* provides support for scoring the 27-Item Monetary
+Choice Questionaire [MCQ; @kaplanAutomatingScoringDelay2016] and two variants
+of the minute discounting task
+[delay and probability discounting; see @koffarnus5trialAdjustingDelay2014;
+@koffarnus2017user; @koffarnus2021additional].
+
+### 27-Item Monetary Choice Questionnaire
+The analyses and outputs for scoring the 27-Item MCQ are nearly identical
+to that of the popular 21- and 27-Item Monetary Choice Questionnaire
+Automated Scorer developed in Microsoft Excel
+[@kaplanAutomatingScoringDelay2016; @kaplan201421]. When a user uploads their
+spreadsheet in the specified format,
+two additional settings will appear in the sidebar. The first is a selector for
+imputing missing values (described next), and the second is a selector for
+transforming resulting k values by: "none" (no transformation), "log" (log base
+10), and "ln" (log base e or natural log). These selectors will have a result
+on the output in the bottom box of the Discounting page but will have no
+effect on the top box of the discounting page that displays the uploaded
+data and the proportion of missing values for each subject ID.
+
+#### Treatment of missing values
+Missing values can be dealt with according to the methods outlined by
+@yehDiscountingDelayedRewards2023: "none" (no imputation); "GGM" (group
+geometric mean); "INN (no random)" (item nearest neighbor); and "INN (random)"
+(item nearest neighbor with a random component). We will briefly discuss these
+methods, but direct readers to @yehDiscountingDelayedRewards2023 for a full,
+comprehensive treatment of the approaches. After calculating the small,
+medium, and large k values for each person, the "GGM" option calculates the
+geometric (i.e., composite) k value of the three amount sets
+*so long as one of the amount sets has been calculated*. For the "INN (no
+random), the missing value will be imputed as the value from the adjacent
+small, medium, or large response(s) so long as the non-missing responses are
+the same. For the "INN (random)", the same procedure is used except in the case
+of non-identical responses, the missing response will be replaced by either
+a 0 (i.e., SIR/SS) or 1 (i.e., LDR/LL) chosen from a binomial distribution with
+equal probabilities. Given the randomness of this latter approach, a table
+of the provided data along with an additional column with the new, imputed
+response is provided in the bottom box of the Discounting page. Again, for a
+more complete description and comparisons of these methods, see the
+paper by @yehDiscountingDelayedRewards2023.
+
+#### Results
+Once the user clicks the "Calculate" button on the sidebar, the bottom box
+of the Discounting page will populate with results. The following tabs
+are present: Results; Summary Statistics; Correlations; Imputed Data;
+Prop SIR/SS; and Boxplot. The Results tab displays an exportable
+table of the results[^2] including: overall, small, medium, large, and
+geomean (i.e., composite) k values; overall, small, medium, large, and
+composite consistency; overall, small, medium, and large proportion of
+LDR/LL chosen; and the imputation method (@fig-mcqresults). As is the case in
+the Microsoft
+Excel Automated Scorer [@kaplanAutomatingScoringDelay2016], consistency
+scores less than .75 (75%) are highlighted. The Summary Statistics tab
+displays an exportable table providing the mean, standard deviation,
+and standard error of the mean for the aforementioned k values and
+consistency scores. The Correlations tab displays an exportable table with
+a Pearson correlation matrix between small, medium, and large k values.
+The Imputed Data tab will populate an exportable table with the original data
+and imputed new response if either of the "INN" imputation methods are selected
+in the sidebar. The Prop SIR/SS tab displays an exportable plot showing the
+proportion of SIR/SS choices at each k value rank. Finally, the
+Boxplot tab displays an exportable plot providing boxplots of the five
+different k values. An important reminder that choosing a different
+transformation in the sidebar will alter the content of all the tabs, except
+for the Prop SIR/SS tab.
+
+![27-Item MCQ Results](assets/mcq-results.png){#fig-mcqresults apa-note="Results table of scoring the 27-Item Monetary Choice Questionnaire consistent with the Excel Automated Scorer." width="49%"}
+
+[^2]: Even though the app will provide a notification to the user warning
+that missing data were detected when a file is uploaded, the results table
+will display blank cells when a metric cannot be calculated with the most
+likely reason being due to missing values.
+
+### Scoring Minute Discounting Tasks
+*shinybeez* also has the ability to automatically score results from
+the delay and probability minute discounting tasks
+*provided in the Qualtrics Minute Discounting Task template*
+[@koffarnus2017user; @koffarnus2021additional]. The Results
+box displays an exportable table of the results including: ResponseId;
+question index; ordered question number; page timing metadata;
+response (SS or LL) for each question index; whether the respondent's
+responses were flagged by the attention question [see @koffarnus2021additional
+for additional information about this specific task]; k value; and Effective
+Delay 50 value [see @yoonTurningItsHead2008]. In the case of the probability
+minute task, the h value (instead of the k value), Effective $\theta$ 50 value
+(instead of Effective Delay 50 value), and Effective Probability 50 value are
+displayed.
+
+# Discussion and Future Directions
+
+In this paper, we have introduced a free and open-source app designed
+for behavioral economic demand and discounting researchers to conduct
+descriptive and inferential analyses on their data. We have provided an
+overview of the features and capabilities of *shinybeez* so users may be
+able to quickly start using the app. *shinybeez* seamlessly
+consolidates features that heretofore were disparate. For example, there is
+now no need to enter demand data into a spreadsheet tool in order to identify
+potentially unsystematic response sets
+[@steinIdentificationManagementNonsystematic2015], then enter the same data into
+a tool to calculate observed metrics [@fosterObservedDemandCalculator2020],
+then enter the same data (again)
+into a program capable of curve fitting (e.g., GraphPad Prism, Microsoft Excel),
+and then take the derived model outputs and enter those into another
+spreadsheet tool [@kaplanEssentialValuePmax2014]. Now nearly all of these steps
+can be accomplished by using *shinybeez*.
+
+Our decision for *shinybeez*'s reliance on
+existing, open-source R packages is by design. As with any decision, this
+reliance has implications - both benefits and drawbacks. One drawback of this
+design choice is that the feature set in *shinybeez* is limited by the
+provided feature sets in *beezdemand* and *beezdiscounting*. However, we
+believe the current version of *shinybeez* not only has the foundational
+features necessary to conduct much of the current requirements of researchers
+but that these features encompass nearly all of the features available in other
+user-friendly (i.e., those not requiring coding experience) tools. Contrasted
+with this drawback, we see advantages as a result of the reliance
+on existing R packages. First, *shinybeez* will provide output *consistent* with
+that of the underlying R packages. This means that results derived from
+*beezdemand* or *beezdiscounting* functions are directly comparable to results
+derived from *shinybeez*. Second, *shinybeez* is efficient and extensible such
+that additional
+features implemented into the underlying packages do not need to be replicated
+into *shinybeez*; instead, a minimal amount of added code is needed for
+*shinybeez* to interface with new features. Given the open-source nature
+of *shinybeez*, a user can also inspect how the app interfaces with the
+underlying R packages.
+
+With those benefits elucidated, we appreciate that the current feature
+set will not cover every single use case. With the everchanging
+landscape of the field, we forsee valuable additions for future versions
+of *shinybeez*, as ultimately implemented in *beezdemand* and *beezdiscounting*
+(@fig-beezfam). For example, readers can expect some of the following
+features to be included
+in future releases including but not limited to:
+additional behavioral economic demand and discounting
+models, additional customizations for data visualization, more complex
+specifications of groupings reflecting different experimental designs,
+modeling cross-price elasticity data, and mixed effects models
+[@kaplanApplyingMixedeffectsModeling2021a].
+
+We encourage all those who are interested in contributing to the development
+of *shinybeez* to make a pull request on Github
+[@gilroyFurtheringOpenScience2019]. Users may also bring issues or feature
+requests to our attention through Github's
+["Issue"](https://github.com/brentkaplan/beezdiscounting/issues)
+tab in the respository or by emailing the corresponding author.
+
+Finally, we want to ackowledge the various R packages that make *shinybeez*
+possible. Among others, these packages include
+*shiny* [@changShinyWebApplication2024], *rhino*
+[@zylaRhinoFrameworkEnterprise2024], *bslib* [@sievertBslibCustomBootstrap2024],
+*esquisse* [@meyerEsquisseExploreVisualize2024], and
+*DT* [@xieDTWrapperJavaScript2024].
+
+{{< pagebreak >}}
+
+# References
+
+::: {#refs}
+:::
+
+# Appendix
+
+![The beezhive](assets/beez-family.pdf){#fig-beezfam apa-note="The *beez*hive where *shinybeez* neatly uses tested software to fill the void of behavioral economic tools." width="49%"}
+
+![Welcome Page](assets/welcome-page.png){#fig-welcome apa-note="Welcome page with instructions about how to use the app along with template files." width="49%"}
+
+![Fit to Group (Pooled) with Group](assets/demand-fit-to-pooled-group.png){#fig-pooledgroup apa-note="Top box shows the exportable table of empirical demand measures. Bottom box shows visualization of the Fit to Group (pooled) with group specified." width="49%"}
+
+![Two Stage (50 or fewer IDs)](assets/demand-two-stage-lt50.png){#fig-twostagefacet apa-note="Two Stage with 50 or fewer IDs." width="49%"}
+
+![27-Item MCQ Summary](assets/mcq-summary.png){#fig-mcqsummary apa-note="Summary table of the results from scoring the 27-Item Monetary Choice Questionnaire." width="49%"}
+
+<!-- # Session Info -->
+
+```{r}
+#| label: session info
+#| eval: false
+
+sessionInfo()
+```
