@@ -217,6 +217,56 @@ body_ui <- function(id) {
           ns("download_27mcq_long"),
           style = "margin-top: 10px; margin-bottom: 10px;",
           "27-Item MCQ template (long format)"
+        ),
+        shiny$HTML(
+          paste0(
+            "
+            <br>
+            <br>
+            <br style = 'display: block; content: ''; margin-top: 25px;'>
+            <h5>Wide Format - Discounting Indifference Points</h5>
+            <em>shinybeez</em> allows you to analyze indifference point data
+            when provided in wide format.
+            The first column contains the subject
+            id (id) and subsequent columns contain the Delay in the column
+            headers and the Indifference Points in the cells.
+            <br>
+            <figure style='margin-top: 10px;'>
+              <img style='width: 100%; max-width: 800px;' src='static/img/discounting-template-wide-example.png' alt='Example discounting data'>
+              <figcaption><em>Example discounting data formatted in the wide template.</em></figcaption>
+            </figure>
+            "
+          )
+        ),
+        shiny$downloadButton(
+          ns("download_discounting_wide"),
+          style = "margin-top: 10px; margin-bottom: 10px;",
+          "Discounting template (wide format)"
+        ),
+        shiny$HTML(
+          paste0(
+            "
+            <br>
+            <br>
+            <br style = 'display: block; content: ''; margin-top: 25px;'>
+            <h5>Long Format - Discounting Indifference Points</h5>
+            <em>shinybeez</em> allows you to analyze indifference point data
+            when provided in long format.
+            The first column contains the subject
+            id (id), the second column (x) contains the Delays, and the third
+            column (y) contains the Indifference Points.
+            <br>
+            <figure style='margin-top: 10px;'>
+              <img style='width: 100%; max-width: 420px; height: 500px;' src='static/img/discounting-template-long-example.png' alt='Example discounting data'>
+              <figcaption><em>Example discounting data formatted in the long template.</em></figcaption>
+            </figure>
+            "
+          )
+        ),
+        shiny$downloadButton(
+          ns("download_discounting_long"),
+          style = "margin-top: 10px; margin-bottom: 10px;",
+          "Discounting template (long format)"
         )
       ),
       ## demand section
@@ -551,6 +601,68 @@ body_ui <- function(id) {
         )
       ),
       shiny$tags$div(
+        id = "systematic-discounting",
+        shiny$HTML(
+          paste0(
+            "
+            <h3>Systematic Criteria for Indifference Points</h3>
+            <p><em>shinybeez</em> can examine discounting indifference points
+            for systematicity according to the two criteria outlined by
+            <a href='https://doi.org/10.1037/1064-1297.16.3.264'>Johnson & Bickel, 2008</a>.
+            The first criterion is that the indifference point at any delay should not be greater
+            than the preceding indifference point by more than 20% of the larger later reward.
+            The second criterion requires that the last indifference point (at the longest delay)
+            must be less than the first indifference point by at least 10% of the larger later reward.
+            Violation of either criterion may indicate questionable data validity - the first criterion
+            suggests delay increases rather than decreases reward value, while the second indicates
+            insufficient discounting across delays. <em>shinybeez</em> provides
+            results of these criteria for informational purposes and the
+            researcher needs to decide whether to include these response sets.
+            <em>shinybeez</em> will indicate a pass (true) or fail (false) for
+            each criterion for each response set. Users may also specify their
+            own thresholds in the sidebar.
+            </p>
+            "
+          )
+        )
+      ),
+      shiny$tags$div(
+        id = "regression-discounting",
+        shiny$HTML(
+          paste0(
+            "
+            <h3>Indifference Point Nonlinear Regression</h3>
+            <p>
+            <em>shinybeez</em> provides nonlinear regression tools for
+            analyzing indifference points from discounting tasks. The app supports
+            fitting two widely used models: Mazur's (1987) hyperbolic discounting
+            function and the exponential discounting function. Users can choose
+            from three analysis approaches: Fit to Group (mean), Fit to Group
+            (pooled), and Two Stage (individual-level fits).
+            </p>
+            <p>
+            In addition to regression outputs, <em>shinybeez</em> calculates
+            Area Under the Curve (AUC) metrics, following the methods outlined
+            by
+            <a href='https://doi.org/10.1002/jeab.219'>Borges et al. (2016)</a>.
+            Traditional AUC, ordinal AUC, and
+            log-transformed AUC (log<sub>10</sub> AUC) are provided, offering
+            flexibility in interpreting discounting behavior across tasks.
+            </p>
+            <p>
+            For visualizing results, <em>shinybeez</em> automatically
+            generates customizable plots. Users can adjust the plot title,
+            x-axis label, and y-axis label, and specify whether the x-axis
+            (delays) should be log-transformed. The generated plots can be
+            saved directly from the interface in various formats, ensuring that
+            users can easily share or embed their findings in reports and
+            presentations.
+            </p>
+            "
+          )
+        )
+      ),
+      shiny$tags$div(
         id = "cites-discounting",
         shiny$HTML(
           paste0(
@@ -561,7 +673,7 @@ body_ui <- function(id) {
             <br>
             <br>
             Kaplan, B. A. (2023). <em>beezdiscounting</em>: Behavioral
-            Economic Easy Discounting. R package version 0.3.1,
+            Economic Easy Discounting. R package version 0.3.2,
             <a href='https://CRAN.R-project.org/package=beezdiscounting'>
             https://CRAN.R-project.org/package=beezdiscounting</a>
             <br>
@@ -599,6 +711,31 @@ body_ui <- function(id) {
             questionnaires. <em>PLOS ONE, 18</em>(10),
             e0292258. <a href='https://doi.org/10.1371/journal.pone.0292258'>
             https://doi.org/10.1371/journal.pone.0292258</a>
+            <br>
+            <br>
+            <b>Indifference point regression:</b>
+            <br>
+            <br>
+            Johnson, M. W., & Bickel, W. K. (2008). An algorithm for
+            identifying nonsystematic delay-discounting data. <em>Experimental
+            and Clinical Psychopharmacology, 16</em>(3), 264-274.
+            <a href='https://doi.org/10.1037/1064-1297.16.3.264'>
+            https://doi.org/10.1037/1064-1297.16.3.264</a>
+            <br>
+            <br>
+            Mazur, J. E. (1987). An adjusting procedure for studying delayed
+            reinforcement. In M. L. Commons, J. E. Mazur, J. A. Nevin, &
+            H. Rachlin (Eds.), <em>The effect of delay and of intervening
+            events on reinforcement value</em> (pp. 55-73). Lawrence Erlbaum
+            Associates, Inc.
+            <br>
+            <br>
+            Borges, A. M., Kuang, J., Milhorn, H., & Yi, R. (2016). An
+            alternative approach to calculating Area-Under-the-Curve (AUC)
+            in delay discounting research. <em>Journal of the Experimental
+            Analysis of Behavior, 106</em>, 145-155.
+            <a href='https://doi.org/10.1002/jeab.219'>
+            https://doi.org/10.1002/jeab.219</a>
             <br>
             <br>
             <b>Minute discounting task:</b>
@@ -644,12 +781,6 @@ body_ui <- function(id) {
             <a href='https://1drv.ms/b/s!AlLnuAdcvsULgWNk-mTus1oAJkyD'>
             Kaplan et al. (2016)</a> where they discuss derivation of k
             values in the context of the 27-Item MCQ.
-             </p>
-            <h5>How can I calculate Area Under the Curve or
-            conduct nonlinear regression on discounting?</h5>
-            <p>We are rapidly working on adding these functionalities to
-            <em>shinybeez</em>, as well as the underlying R package
-            <em>beezdiscounting</em>. Please check back soon for new features!
              </p>
             "
           )
@@ -760,6 +891,24 @@ body_server <- function(id) {
       },
       content <- function(file) {
         file.copy("app/static/data/templates/template_mcq27_long.csv", file)
+      }
+    )
+
+    output$download_discounting_long <- shiny$downloadHandler(
+      filename <- function() {
+        paste("Shinybeez-template-discounting-long.csv")
+      },
+      content <- function(file) {
+        file.copy("app/static/data/templates/template_discounting_long.csv", file)
+      }
+    )
+
+    output$download_discounting_wide <- shiny$downloadHandler(
+      filename <- function() {
+        paste("Shinybeez-template-discounting-wide.csv")
+      },
+      content <- function(file) {
+        file.copy("app/static/data/templates/template_discounting_wide.csv", file)
       }
     )
   })

@@ -50,8 +50,8 @@ check_data <- function(dat, type = "demand") {
   } else {
     # check if file has correct id columns
     return_msg <- assertthat$validate_that(
-        any(colnames(dat) %in% c("subjectid", "ResponseId")),
-        msg = "Check colnames for 'subjectid' or 'ResponseId' in data"
+        any(colnames(dat) %in% c("subjectid", "ResponseId", "id", "x", "y")),
+        msg = "Check colnames for 'subjectid', 'ResponseId', 'id', 'x', or 'y' are in data"
       )
     if ("subjectid" %in% colnames(dat)) {
       # check if 28 or 3 columns wide
@@ -59,12 +59,23 @@ check_data <- function(dat, type = "demand") {
         ncol(dat) == 28 | ncol(dat) == 3,
         msg = "Number of columns does not appear to match the template"
       )
-    } else {
+    } else if ("ResponseId" %in% colnames(dat)) {
       # check if columns match the qualtrics template output
       return_msg <- assertthat$validate_that(
         all(paste0("I", c(1:31)) %in% colnames(dat)),
         msg = "Check to make sure you are using the correct Qualtrics template."
       )
+    } else if ("id" %in% colnames(dat)) {
+      return_msg <- assertthat$validate_that(
+          colnames(dat)[1] == c("id"),
+          msg = "The first column is not `id`"
+          )
+        if (is.character(return_msg)) return(return_msg)
+        return_msg <- assertthat$validate_that(
+          all(sapply(readr$parse_number(colnames(dat)[2:length(colnames(dat))]), is.numeric)),
+          msg = "The column names are not numeric"
+        )
+        if (is.character(return_msg)) return(return_msg)
     }
   }
   if (is.character(return_msg)) {
@@ -114,6 +125,13 @@ reshape_data <- function(dat, type = "demand") {
     if (ncol(dat) == 28) {
       dat |>
         beezdiscounting$wide_to_long_mcq(dat = _)
+    } else if (ncol(dat) < 28 & length(unique(dat$id)) == length(dat$id)) {
+      dat |>
+        tidyr$pivot_longer(
+            cols = 2:ncol(dat),
+            names_to = "x",
+            values_to = "y"
+          )
     } else {
       dat
     }

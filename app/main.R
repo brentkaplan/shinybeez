@@ -57,6 +57,10 @@ ui <- function(id) {
     bslib$nav_panel(
       value = "Discounting",
       title = "Discounting",
+      # shiny$div(
+      #   style = "width: 100%; height:600px; overflow:auto;",
+      #   discounting$navpanel_ui(ns("discounting"))
+      # ),
       discounting$navpanel_ui(ns("discounting"))
     ),
     bslib$nav_spacer(),

@@ -21,9 +21,18 @@ sidebar_ui <- function(id) {
     shiny$selectInput(
       inputId = ns("calc_discounting"),
       label = "What are you scoring?",
-      choices = c("27-Item MCQ",
-                  "5.5 Trial Delay Discounting",
-                  "5.5 Trial Probability Discounting")
+      choices = c(
+        "Indifference Point Regression",
+        "27-Item MCQ",
+        "5.5 Trial Delay Discounting",
+        "5.5 Trial Probability Discounting"
+      )
+    ),
+    shiny$uiOutput(
+     outputId = ns("dd_eq")
+    ),
+    shiny$uiOutput(
+      outputId = ns("dd_method")
     ),
     shiny$uiOutput(
       outputId = ns("mcq_imputation")
@@ -104,7 +113,38 @@ sidebar_server <- function(id) {
           shiny$div()
         }
       })
-    })
+
+      output$dd_eq <- shiny$renderUI({
+        if (input$calc_discounting == "Indifference Point Regression") {
+          shiny$tagList(
+            shiny$selectInput(
+              inputId = ns("equation"),
+              label = "Select equation:",
+            choices = list(
+              "Mazur Hyperbolic" = "Mazur",
+              "Exponential" = "Exponential"
+              )
+            )
+        )
+    } else {
+          shiny$div()
+    }
+  })
+
+      output$dd_method <- shiny$renderUI({
+        if (input$calc_discounting == "Indifference Point Regression") {
+          shiny$radioButtons(
+            inputId = ns("analysis_type"),
+            label = "Analysis Type",
+            choices = list(
+              "Fit to Group (pooled)" = "Pooled",
+              "Fit to Group (mean)" = "Mean",
+              "Two Stage" = "Two Stage"
+              ),
+            selected = "Pooled"
+          )
+        }
+      })
 
     output$calculate <- shiny$renderUI({
       shiny$req(session$userData$data$discounting)
@@ -113,7 +153,9 @@ sidebar_server <- function(id) {
         label = "Calculate"
       )
     })
-  })
+
+    })
+})
 }
 
 #' @export
@@ -121,11 +163,17 @@ navpanel_ui <- function(id) {
   ns <- shiny$NS(id)
 
   shiny$tagList(
-    discounting_data_table$ui(
-      ns("data_table_discounting")
+    shiny$div(
+      style = "min-height:500px; max-height:100vh; overflow:auto;",
+      discounting_data_table$ui(
+        ns("data_table_discounting")
+      ),
     ),
-    discounting_results_table$ui(
-      ns("results_table_discounting")
+    shiny$div(
+      style = "min-height:600px; max-height:100vh; overflow:auto;",
+      discounting_results_table$ui(
+        ns("results_table_discounting")
+      )
     )
   )
 }
@@ -144,6 +192,12 @@ navpanel_server <- function(id) {
           session$userData$data$discounting,
           type = "discounting"
         )
+      } else if (colnames(session$userData$data$discounting)[1] == "id" & ncol(session$userData$data$discounting) > 3) {
+        data_r$data_d <- validate$reshape_data(
+          session$userData$data$discounting,
+          type = "discounting"
+        ) |>
+          validate$retype_data(dat = _)
       } else {
         data_r$data_d <- session$userData$data$discounting
       }
@@ -159,6 +213,8 @@ navpanel_server <- function(id) {
     discounting_results_table$server(
       "results_table_discounting",
       data_r = data_r,
+      eq = shiny$reactive(input$equation),
+      agg = shiny$reactive(input$analysis_type),
       type = shiny$reactive(input$calc_discounting),
       imputation = shiny$reactive(input$imputation),
       trans = shiny$reactive(input$trans),

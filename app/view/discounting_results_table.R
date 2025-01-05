@@ -11,6 +11,7 @@ box::use(
   shiny,
   stats,
   tidyr,
+  utils,
 )
 
 box::use(
@@ -28,8 +29,10 @@ ui <- function(id) {
 
 #' @export
 server <- function(
-    id, data_r, type,
-    imputation = "none", trans = "none",
+    id, data_r, eq, agg,
+    type,
+    imputation = "none",
+    trans = "none",
     calculate_btn
     ) {
   shiny$moduleServer(id, function(input, output, session) {
@@ -39,7 +42,8 @@ server <- function(
       results = NULL,
       summary = NULL,
       propplot = NULL,
-      boxplot = NULL
+      boxplot = NULL,
+      plot = NULL
       )
 
     # populate the Results Table and tabs based on data and type
@@ -54,7 +58,10 @@ server <- function(
             bslib$nav_panel(
               id = ns("results"),
               "Results",
-              DT$DTOutput(ns("results_table"))
+              shiny$div(
+                style = "min-height:700px; max-height:100vh; overflow:auto;",
+                DT$DTOutput(ns("results_table"))
+              )
             ),
             bslib$nav_panel(
               id = ns("summary"),
@@ -118,11 +125,60 @@ server <- function(
               id = ns("results"),
               "Results",
               DT$DTOutput(ns("results_table"))
+            ),
+            bslib$nav_panel(
+              id = ns("plots"),
+              "Plots",
+              bslib$layout_sidebar(
+                fillable = TRUE,
+                sidebar = bslib$sidebar(
+                  title = "Plot Settings",
+                  open = FALSE,
+                  shiny$textInput(
+                    inputId = ns("title"),
+                    label = "Title Text",
+                    value = "title"
+                  ),
+                  shiny$textInput(
+                    inputId = ns("xtext"),
+                    label = "X-Axis Text",
+                    value = "x"
+                  ),
+                  shiny$textInput(
+                    inputId = ns("ytext"),
+                    label = "Y-Axis Text",
+                    value = "y"
+                  ),
+                  shiny$checkboxInput(
+                    inputId = ns("xlog"),
+                    label = "Log X-Axis"
+                  ),
+                  shiny$actionButton(
+                    inputId = ns("update_plot_btn"),
+                    label = "Update Plot"
+                  )
+                ),
+              esquisse$ggplot_output(
+                ns("regression_plot"),
+                downloads = esquisse$downloads_labels(
+                  label = esquisse$ph("download-simple"),
+                  png = htmltools$tagList(esquisse$ph("image"), "PNG"),
+                  pdf = NULL,
+                  svg = htmltools$tagList(esquisse$ph("browsers"), "SVG"),
+                  jpeg = htmltools$tagList(esquisse$ph("image"), "JPEG"),
+                  pptx = NULL,
+                  more = htmltools$tagList(
+                    esquisse$ph("gear"),
+                    esquisse$i18n("More options")
+                  )
+                )
+              ),
             )
           )
-        }
-      )
-    })
+        )
+      }
+    )
+  })
 
     shiny$observe({
       shiny$req(data_r$data_d)
@@ -132,6 +188,8 @@ server <- function(
       res$summary <- NULL
       res$propplot <- NULL
       res$boxplot <- NULL
+      res$plot <- NULL
+      res$dd_fit <- NULL
       trans <- trans()
       if (type() == "27-Item MCQ" & !("I16" %in% names(data_r$data_d))) {
         if (imputation() == "none" || is.null(imputation())) {
@@ -207,6 +265,19 @@ server <- function(
       } else if (type() == "5.5 Trial Probability Discounting") {
         rhino$log$info("Calculating 5.5 Trial PD")
         res$results <- calc_pd(data_r$data_d)
+      } else if (type() == "Indifference Point Regression") {
+        rhino$log$info("Calculating Regression")
+        res$dd_fit <- fit_dd(data_r$data_d, equation = eq(), method = agg())
+        res$results <- results_dd(res$dd_fit) |>
+          dplyr$mutate(
+            dplyr$across(dplyr$where(is.numeric), \(x) round(x, 4))
+          ) |>
+          dplyr$mutate(id = factor(id, levels = unique(data_r$data_d$id))) |>
+          dplyr$arrange(id)
+        res$plot <- plot_dd(
+          res$dd_fit
+        ) +
+        utils$add_shiny_logo(utils$watermark_tr)
       }
     })  |>
       shiny$bindEvent(calculate_btn())
@@ -259,6 +330,42 @@ server <- function(
             ),
             backgroundColor = DT$styleInterval(.75, c('#FFAEB9', ''))
           )
+      } else if (type() == "Indifference Point Regression") {
+        DT$datatable(
+          res$results,
+          rownames = FALSE,
+          extensions = c('Buttons', "Scroller", "FixedColumns"),
+          fillContainer = TRUE,
+          options = list(
+            autoWidth = TRUE,
+            ordering = TRUE,
+            dom = 'Bti',
+            buttons = list(
+              list(extend = 'copy'),
+              list(extend = 'print'),
+              list(
+                extend = 'csv',
+                filename = "ShinyBeez_Discounting_Results",
+                title = NULL
+              ),
+              list(
+                extend = 'excel',
+                filename = "ShinyBeez_Discounting_Results",
+                title = NULL
+              ),
+              list(
+                extend = 'pdf',
+                filename = "ShinyBeez_Discounting_Results",
+                title = NULL
+              )
+            ),
+            deferRender = FALSE,
+            scrollY = 300,
+            scroller = TRUE,
+            scrollX = TRUE,
+            fixedColumns = list(leftColumns = 2)
+          )
+        )
       } else {
         DT$datatable(
           res$results,
@@ -352,51 +459,54 @@ server <- function(
 
     output$correlation_table <- DT$renderDT(server = FALSE, {
       shiny$req(res$results)
-      correlations <- NULL
-      correlations <- res$results |>
-        dplyr$select(contains(c("small_k", "medium_k", "large_k"))) |>
-        stats$cor(use = "pairwise.complete.obs") |>
-        round(2)
-      DT$datatable(
-        data = correlations,
-        rownames = TRUE,
-        extensions = c('Buttons', "Scroller"),
-        fillContainer = FALSE,
-        autoHideNavigation = TRUE,
-        options = list(
-          pageLength = 3,
-          autoWidth = TRUE,
-          ordering = TRUE,
-          dom = 'Bt',
-          buttons = list(
-            list(extend = 'copy'),
-            list(extend = 'print'),
-            list(
-              extend = 'csv',
-              filename = "ShinyBeez_Discounting_Summary",
-              title = NULL
+      if (type() == "27-Item MCQ") {
+        correlations <- NULL
+        correlations <- res$results |>
+          dplyr$select(contains(c("small_k", "medium_k", "large_k"))) |>
+          stats$cor(use = "pairwise.complete.obs") |>
+          round(2)
+        DT$datatable(
+          data = correlations,
+          rownames = TRUE,
+          extensions = c('Buttons', "Scroller"),
+          fillContainer = FALSE,
+          autoHideNavigation = TRUE,
+          options = list(
+            pageLength = 3,
+            autoWidth = TRUE,
+            ordering = TRUE,
+            dom = 'Bt',
+            buttons = list(
+              list(extend = 'copy'),
+              list(extend = 'print'),
+              list(
+                extend = 'csv',
+                filename = "ShinyBeez_Discounting_Summary",
+                title = NULL
+              ),
+              list(
+                extend = 'excel',
+                filename = "ShinyBeez_Discounting_Summary",
+                title = NULL
+              ),
+              list(
+                extend = 'pdf',
+                filename = "ShinyBeez_Discounting_Summary",
+                title = NULL
+              )
             ),
-            list(
-              extend = 'excel',
-              filename = "ShinyBeez_Discounting_Summary",
-              title = NULL
-            ),
-            list(
-              extend = 'pdf',
-              filename = "ShinyBeez_Discounting_Summary",
-              title = NULL
-            )
-          ),
-          deferRender = TRUE,
-          scrollY = 200,
-          scroller = TRUE
+            deferRender = TRUE,
+            scrollY = 200,
+            scroller = TRUE
+          )
         )
-      )
-    }) |>
+    }
+      }) |>
       shiny$bindEvent(calculate_btn())
 
     shiny$observe({
-      if (imputation() %in% c("INN", "INN_random")) {
+      if (type() == "27-Item MCQ") {
+        if (imputation() %in% c("INN", "INN_random")) {
         output$imputed_data_table <- DT$renderDT(server = FALSE, {
           shiny$req(res$data)
           DT$datatable(
@@ -436,6 +546,7 @@ server <- function(
           )
         })
       }
+      }
     }) |>
       shiny$bindEvent(calculate_btn())
 
@@ -456,6 +567,31 @@ server <- function(
         filename = "shinybeez-discounting-k-boxplots")
     }) |>
       shiny$bindEvent(calculate_btn())
+
+    shiny$observe({
+      shiny$req(res$plot)
+      esquisse$render_ggplot(
+        id = "regression_plot",
+        expr = res$plot,
+        filename = "shinybeez-discounting-k-plot")
+    })
+
+    shiny$observe({
+      if (is.null(res$plot)) return()
+      res$plot <- plot_dd(
+        res$dd_fit,
+        xlabel = input$xtext,
+        ylabel = input$ytext,
+        logx = input$xlog
+      ) +
+        ggplot2$ggtitle(input$title) +
+        utils$add_shiny_logo(utils$watermark_tr)
+      esquisse$render_ggplot(
+        id = "regression_plot",
+        expr = res$plot,
+        filename = "shinybeez-discounting-k-plot")
+    }) |>
+      shiny$bindEvent(c(calculate_btn(), input$update_plot_btn))
 
   })
 }

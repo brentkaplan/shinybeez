@@ -12264,3 +12264,10 @@ textarea.form-control-lg {
 .list-group-item .h6 {
   color: inherit;
 }
+
+#app-discounting-results_table_discounting-regression_plot-exports {
+    position: absolute !important;
+    top: 30px !important;
+    right: 20px !important;
+    z-index: 30 !important;
+}

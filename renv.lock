@@ -261,18 +261,23 @@
       "RemoteUsername": "brentkaplan",
       "RemoteRepo": "beezdiscounting",
       "RemoteRef": "master",
-      "RemoteSha": "e77fd8880bacab1bf7279fefda43652c44565f47",
+      "RemoteSha": "edc4466b5024e70ef915b8a8ab6c3cbe4c217fac",
       "Requirements": [
         "R",
+        "beezdemand",
+        "broom",
         "dplyr",
         "ggplot2",
         "gtools",
         "magrittr",
+        "minpack.lm",
         "psych",
+        "purrr",
         "stringr",
+        "tibble",
         "tidyr"
       ],
-      "Hash": "61ebcaccab3bebcf04afda2eb85fb492"
+      "Hash": "a10000d2ebe431e19d82eed64d5ebbed"
     },
     "bit": {
       "Package": "bit",
@@ -1279,6 +1284,13 @@
         "tools"
       ],
       "Hash": "18e9c28c1d3ca1560ce30658b22ce104"
+    },
+    "minpack.lm": {
+      "Package": "minpack.lm",
+      "Version": "1.2-4",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Hash": "0d04497c6553720b3f1c2ae373c57aa9"
     },
     "mnormt": {
       "Package": "mnormt",
