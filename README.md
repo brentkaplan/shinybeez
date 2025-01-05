@@ -41,7 +41,8 @@ model of demand
 
 #### Discounting
 
-* Choose between scoring the 27-Item Monetary Choice Questionnaire (MCQ), the
+* Choose between scoring the 27-Item Monetary Choice Questionnaire (MCQ),
+regression for delay discounting indifference points, the
 5-trial minute task for delay discounting, and the 5-trial minute task for
 probability discounting
 
@@ -50,6 +51,8 @@ probability discounting
 [<img
 src="https://raw.githubusercontent.com/FortAwesome/Font-Awesome/6.x/svgs/regular/file-pdf.svg"
 height = 15 align = "center">]('https://1drv.ms/b/s!AlLnuAdcvsULgWNk-mTus1oAJkyD')
+
+##### MCQ
 
 * Choose various methods to impute missing data for the 27-Item MCQ
 
@@ -71,6 +74,23 @@ LDR/LL chosen; and the imputation method)
 
 * Exportable plot in APA format of box plot of k values
 
+##### Delay Discounting Regression
+
+* Exportable table of systematic response sets according to Johnson & Bickel's
+(2008) systematic criteria (thresholds can be customized)
+
+* Choose between Fit to Group (pooled), Fit to Group (mean), and Two Stage
+
+* Choose between Mazur's (1987) hyperbolic model or a simple exponential model
+
+* Exportable table of regression results (including *k*, *R*<sup>2</sup>, and
+Area Under the Curve)
+
+* Regression results contain standard AUC, log10 AUC, and ordinal AUC
+
+* Exportable plot in APA format of discounting data and best-fit lines
+(customizable plot title, axis title text, log x-axis) in png, pdf, svg, and more
+
 ## Example Files
 
 If you would like to test the functionality of *shinybeez*, you can download
@@ -83,6 +103,8 @@ some of the example files included in this Github repository:
 
 * [27-Item Monetary Choice Questionnaire with 100 response sets with missing
   data](https://github.com/brentkaplan/shinybeez/blob/main/app/static/data/examples/shinybeez-ex-mcq-100-missings.csv)
+
+* [Delay Discounting indifference point data with 100 response sets](https://github.com/brentkaplan/shinybeez/blob/main/app/static/data/examples/shinybeez-ex-ip_dd-100.csv)
 
 * [5.5 Trial Delay Discounting from the Qualtrics
   template](https://github.com/brentkaplan/shinybeez/blob/main/app/static/data/examples/shinybeez-ex-five.fivetrial_dd.csv)
@@ -106,6 +128,12 @@ Several template files are included in this Github repository:
 * [Demand template file in wide format (including grouping
   variable)](https://github.com/brentkaplan/shinybeez/blob/main/app/static/data/templates/template_demand_wide_onegroup.csv)
 
+* [Discounting template file in long
+  format](https://github.com/brentkaplan/shinybeez/blob/main/app/static/data/templates/template_discounting_long.csv)
+
+* [Discounting template file in wide
+  format](https://github.com/brentkaplan/shinybeez/blob/main/app/static/data/templates/template_discounting_wide.csv)
+
 * [27-Item Monetary Choice Questionnaire template in long
   format](https://github.com/brentkaplan/shinybeez/blob/main/app/static/data/templates/template_mcq27_long.csv)
 
@@ -116,8 +144,9 @@ Several template files are included in this Github repository:
 
 If you use any part of *shinybeez* in your work, please cite it:
 
-Kaplan, B. A. & Reed. D. D. (under review). *Shinybeez*: A Shiny app
+Kaplan, B. A. & Reed. D. D. (accepted). *Shinybeez*: A Shiny app
 for behavioral economic easy demand and discounting.
+*Journal of the Experimental Analysis of Behavior*.
 
 ## Access and Installation
 
@@ -201,7 +230,7 @@ https://doi.org/10.1037/0033-295X.115.1.186</a>
 __Underyling R package driving discounting functions:__
 
 Kaplan, B. A. (2023). *beezdiscounting*: Behavioral
-Economic Easy Discounting. R package version 0.3.1,
+Economic Easy Discounting. R package version 0.3.2,
 <a href='https://CRAN.R-project.org/package=beezdiscounting'>
 https://CRAN.R-project.org/package=beezdiscounting</a>
 
@@ -238,6 +267,30 @@ questionnaires. *PLOS ONE, 18*(10),
 e0292258. <a href='https://doi.org/10.1371/journal.pone.0292258'>
 https://doi.org/10.1371/journal.pone.0292258</a>
 
+__Systematic criteria:__
+
+Johnson, M. W., & Bickel, W. K. (2008). An algorithm for
+identifying nonsystematic delay-discounting data. <em>Experimental
+and Clinical Psychopharmacology, 16</em>(3), 264-274.
+<a href='https://doi.org/10.1037/1064-1297.16.3.264'>
+https://doi.org/10.1037/1064-1297.16.3.264</a>
+
+__Mazur's hyperbolic discounting model:__
+
+Mazur, J. E. (1987). An adjusting procedure for studying delayed
+reinforcement. In M. L. Commons, J. E. Mazur, J. A. Nevin, &
+H. Rachlin (Eds.), <em>The effect of delay and of intervening
+events on reinforcement value</em> (pp. 55-73). Lawrence Erlbaum
+Associates, Inc.
+
+__Variations on Area Under the Curve (AUC):__
+
+Borges, A. M., Kuang, J., Milhorn, H., & Yi, R. (2016). An
+alternative approach to calculating Area-Under-the-Curve (AUC)
+in delay discounting research. <em>Journal of the Experimental
+Analysis of Behavior, 106</em>, 145-155.
+<a href='https://doi.org/10.1002/jeab.219'>
+https://doi.org/10.1002/jeab.219</a>
 
 __Minute discounting task:__
 
