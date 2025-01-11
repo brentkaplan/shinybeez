@@ -38,10 +38,10 @@ add_shiny_logo <- function(logo) {
 }
 
 #' @export
-watermark_br <- get_png_br("../shinybeez/app/static/img/shinybeez-watermark-alpha.png")
+watermark_br <- get_png_br("./app/static/img/shinybeez-watermark-alpha.png")
 
 #' @export
-watermark_tr <- get_png_tr("../shinybeez/app/static/img/shinybeez-watermark-alpha.png")
+watermark_tr <- get_png_tr("./app/static/img/shinybeez-watermark-alpha.png")
 
 #' @export
 geomean <- function(x) {
