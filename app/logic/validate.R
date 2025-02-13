@@ -140,7 +140,7 @@ reshape_data <- function(dat, type = "demand") {
 
 #' @export
 retype_data <- function(dat) {
-  dat$x <- readr$parse_number(dat$x)
+  if (class(dat$x) != "numeric") dat$x <- readr$parse_number(dat$x)
   if ("group" %in% colnames(dat)) {
     dat |>
       dplyr$mutate(

@@ -21,17 +21,7 @@ body_ui <- function(id) {
           paste0(
           "
           <h3>About <em>shinybeez</em></h3>
-          <em>shinybeez</em> is a a free and open-source web application
-          designed to streamline behavioral economic analyses of demand and
-          discounting data. <em>shinybeez</em> provides an intuitive interface for
-          conducting descriptive and inferential analyses without requiring
-          programming expertise. The app integrates features previously
-          scattered across multiple tools, allowing you to upload data,
-          calculate empirical measures, identify systematic datasets, fit
-          nonlinear models, and visualize results - all within a single
-          platform. <em>shinybeez</em> supports various analysis types for demand
-          data and can score multiple discounting tasks, including
-          the 27-Item Monetary Choice Questionnaire.
+          While quantitative modeling of behavioral economic phenomena has increased in popularity and led to translational successes in clinical practice and policy, complex analyses has remained a barrier for many researchers and practitioners. <em>shinybeez</em> addresses this gap by providing an intuitive interface for conducting descriptive and inferential analyses without requiring programming expertise. The app integrates features previously scattered across multiple tools, allowing users to upload data, calculate empirical measures, identify systematic datasets, fit nonlinear models, and visualize results - all within a single platform. <em>shinybeez</em> supports various analysis types for demand and discounting data, including indifference point data and the 27-Item Monetary Choice Questionnaire. Built on R Shiny and leveraging existing R packages, the app ensures reproducibility and consistency with underlying analytical methods while remaining flexible for future enhancements. Key advantages of <em>shinybeez</em> include its accessibility through web browsers or local installation, ability to handle large datasets, and customizable data visualization options. By consolidating behavioral economic tools into a user-friendly interface, <em>shinybeez</em> aims to broaden the reach of these analytical techniques and facilitate their application in addressing societal issues.
           <br>
           "
           )
@@ -46,8 +36,11 @@ body_ui <- function(id) {
           If you use any part of <em>shinybeez</em> in your work, please cite it:
           <br>
           <br>
-          Kaplan, B. A. & Reed. D. D. (under review). <em>Shinybeez: A Shiny app
-          for behavioral economic easy demand and discounting.</em>
+          <a href='https://1drv.ms/b/s!AlLnuAdcvsULhF0INJJslQF1VkMm?e=e8YHyI'>
+            <i class='fa-regular fa-file-pdf'></i></a>
+            Kaplan, B. A. & Reed. D. D. (2025). <em>shinybeez: A Shiny app
+          for Behavioral Economic Easy Demand and Discounting.</em> Journal
+          of the Experimental Analysis of Behavior. doi: <a href='https://doi.org/10.1002/JEAB.70000'>https://doi.org/10.1002/JEAB.70000</a>
           <br>
           "
           )

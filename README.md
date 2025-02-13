@@ -1,6 +1,6 @@
 # *shinybeez* <a><img src="app/static/img/hex-shinybeez.png" align="right" height="138" /></a>
 
-*Shinybeez*: A Shiny app for Behavioral Economic (be) Easy (ez) Demand and
+*shinybeez*: A Shiny app for Behavioral Economic (be) Easy (ez) Demand and
 Discounting.
 
 ## Overview
@@ -144,9 +144,14 @@ Several template files are included in this Github repository:
 
 If you use any part of *shinybeez* in your work, please cite it:
 
-Kaplan, B. A. & Reed. D. D. (accepted). *Shinybeez*: A Shiny app
-for behavioral economic easy demand and discounting.
+[<img
+src="https://raw.githubusercontent.com/FortAwesome/Font-Awesome/6.x/svgs/regular/file-pdf.svg"
+height = 15 align =
+"center">]('https://1drv.ms/b/s!AlLnuAdcvsULhF0INJJslQF1VkMm?e=e8YHyI')
+Kaplan, B. A. & Reed. D. D. (2025). *shinybeez*: A Shiny app
+for Behavioral Economic Easy Demand and Discounting.
 *Journal of the Experimental Analysis of Behavior*.
+doi: [https://doi.org/10.1002/JEAB.70000](https://doi.org/10.1002/JEAB.70000)
 
 ## Access and Installation
 
@@ -164,6 +169,8 @@ app locally. To run the app locally,
  * Clone the repository
 
  * Open new R session in the downloaded folder
+
+ * Install the `renv` package using `install.packages("renv")`
 
  * Install all required packages using `renv::install()`
 
