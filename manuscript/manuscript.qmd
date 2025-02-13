@@ -97,7 +97,7 @@ descriptions of environment-behavior relations afforded by these models give way
 to readily translatable metrics. For example, demand curve modeling can inform
 excise taxation policies [@mackillopHighresolutionBehavioralEconomic2012;
 @reedQuantifyingAbuseLiability2016] or unit
-price considersations for reinforcers selected for clinical interventions
+price considerations for reinforcers selected for clinical interventions
 [@delmendoConsumptionResponseOutput2009]. Likewise, discounting metrics can
 inform public
 policies that involve extreme weather warning delays
@@ -149,7 +149,7 @@ prerequisites to conduct their analyses. We
 have designed the app to be flexible and customizable in order to meet
 the needs of various researchers, as well as scalable and able to handle
 *very* large datasets that other software (e.g.,
-Microsoft Excel) simply cannot accomodate. In addition, the app is
+Microsoft Excel) simply cannot accommodate. In addition, the app is
 capable of running on a variety of operating systems and devices, including
 desktop computers, laptops, tablets, and smartphones running Windows,
 MacOS, Linux, or ChromeOS.
@@ -174,7 +174,7 @@ how best to use *shinybeez* and what features we plan to integrate in future
 releases. We will not make any comparisons to other software available
 because *shinybeez* relies almost exclusively on existing R packages for
 conducting analyses "under the hood." The source code for those packages
-are readily available elsewhere (both on Github and on the
+is readily available elsewhere (both on Github and on the
 Comprehensive R Archive Network [CRAN]). We note that while the specific user
 interface may change in the future, our goal is for *shinybeez* to always have
 the primary functionality outlined in this paper; specifically, the ability to
@@ -194,7 +194,7 @@ available for inspection and reproducibility. To accomplish this goal,
 there are at least two (current) locations to access *shinybeez*. The
 first location is
 [https://github.com/brentkaplan/shinybeez](https://github.com/brentkaplan/shinybeez),
-where the source code lives (hopefully indefinitely). This Github repsitory
+where the source code lives (hopefully indefinitely). This Github repository
 contains the code required to run the
 app locally, if desired [for more on Github in general,
 see @gilroyFurtheringOpenScience2019]. To run the app locally, the user can first
@@ -212,7 +212,7 @@ Shinyapps.io provides a straightforward platform for hosting and running
 Shiny applications.
 While on the topic of the *shinybeez* Github repository, we wish to bring
 attention to the reader that this paper they are reading is also located
-in the respository under the manuscriptfolder. Here, you will find the Quarto
+in the repository under the manuscript folder. Here, you will find the Quarto
 [@Allaire_Quarto_2024] document along with any additional assets required
 to generate the manuscript (e.g., *renv* package, images)[^g].
 
@@ -222,7 +222,7 @@ is always an accessible web version.
 [^g]: We would like to acknowledge the developers of the apaquarto extension
 [@Schneider_apaquarto] for allowing such a seamless process for creating
 documents in accordance with American Psychological Association's 7th
-Edition style requirements. We also want to ackowledge the various R packages
+Edition style requirements. We also want to acknowledge the various R packages
 that make *shinybeez* possible. Among others, these packages include
 *shiny* [@changShinyWebApplication2024], *rhino*
 [@zylaRhinoFrameworkEnterprise2024], *bslib* [@sievertBslibCustomBootstrap2024],
@@ -287,7 +287,7 @@ and in the user guide of the app.
 # *shinybeez*
 
 ## Welcome Page and Documentation
-We developed *shinybeez* to be inuitive for the user, no matter
+We developed *shinybeez* to be intuitive for the user, no matter
 their familiarity with behavioral economic tasks, data, and analysis.
 Upon starting the app, users will find a welcome page that also serves to
 provide documentation about the app (@fig-welcome). We believe this feature sets
@@ -317,7 +317,7 @@ We discuss features for the demand and discounting tabs in the following
 sections.
 
 [^dm]: The app also supports dark mode theme (@fig-welcome-dark), with a
-toggle option on the top right hand side of the app.
+toggle option on the top right-hand side of the app.
 
 ## Demand
 Upon clicking the demand tab, users will see a collapsable sidebar where
@@ -342,7 +342,7 @@ contents of the table to the clipboard; "Print" will open an option to print
 the table through the device print interface; "CSV" will prompt saving
 the table as a comma-separated text file; "Excel" will prompt saving the table
 as a Microsoft Excel file with a .xslx extension; "PDF" will prompt to download
-the table as a file with a .pdf extention.
+the table as a file with a .pdf extension.
 
 ### Descriptive Statistics
 The second tab contains a table of descriptive values for the entire sample.
@@ -356,7 +356,7 @@ values are calculated for each distinct group in the dataset.
 The third tab contains a table of empirical demand measures (see
 top of @fig-demand-plotsettings). Empirical
 measures include Intensity (observed y value at the lowest x value),
-Breakpoint~1~ (BP~1~; the highest x value associated with the a non-zero
+Breakpoint~1~ (BP~1~; the highest x value associated with a non-zero
 y value), Breakpoint~0~[^1] (BP~0~; the lowest x value associated with a zero
 y value), O~max~ (observed highest value of multiplying each x by y), and
 P~max~ (the x value associated with Omax). When no grouping variable is
@@ -461,7 +461,7 @@ similar to the Demand tab. The sidebar allows the user to choose their
 file for upload and also choose which discounting task they wish to score.
 Currently, *shinybeez* provides support for fitting regression models to
 indifference point data, and scoring the 27-Item Monetary
-Choice Questionaire
+Choice Questionnaire
 (MCQ; @kirbyHeroinAddictsHave1999, @kaplanAutomatingScoringDelay2016),
 and two variants of the 5-trial (i.e., minute) discounting task
 (delay and probability discounting; see @koffarnus5trialAdjustingDelay2014,
@@ -509,8 +509,8 @@ table also reports R2 and three different variations of Area Under the Curve
 (AUC), a model-free estimate of discounting. The three variations of
 AUC include traditional AUC (with no alteration to the x values),
 log10 AUC (all x values undergo a log10 transformation after one is added to
-accomodate zero delay), and ordinal AUC (all x values are ranked resulting in
-equidistant x values). These transormations are described by
+accommodate zero delay), and ordinal AUC (all x values are ranked resulting in
+equidistant x values). These transformations are described by
 @borgesAlternativeApproachCalculating2016 as well as in
 @kaplanBeezdiscountingBehavioralEconomic2025. Note that these results
 *are identical to the results provided by the underlying R package
@@ -664,9 +664,9 @@ that of the underlying R packages. This means that results derived from
 *beezdemand* or *beezdiscounting* functions are *identical* to results
 derived from *shinybeez* (apart from occasional rounding for formatting).
 We want to stress this advantage as it is a key feature of *shinybeez*:
-whether a researcher uses *shinybeez* or the underlying R packages throgh
+whether a researcher uses *shinybeez* or the underlying R packages through
 the R scripting language, the results will be identical. We feel this serves
-as a tremendous benefit to the scientific lanscape aimed at improving
+as a tremendous benefit to the scientific landscape aimed at improving
 replicability and reproducibility.
 Second, *shinybeez* is efficient and extensible such that additional
 features implemented into the underlying packages do not need to be replicated
@@ -695,7 +695,7 @@ discourage or prohibit prolonged storage of sensitive data.
 
 With those benefits elucidated, we appreciate that the current feature
 set will not cover every single use case. With the everchanging
-landscape of the field, we forsee valuable additions for future versions
+landscape of the field, we foresee valuable additions for future versions
 of *shinybeez*, as ultimately implemented in *beezdemand* and *beezdiscounting*
 (@fig-beezfam). For example, readers can expect the following
 features to be included in future releases including but not limited to:
@@ -715,7 +715,7 @@ of *shinybeez* to make a pull request on Github
 [@gilroyFurtheringOpenScience2019]. Users may also bring issues or feature
 requests to our attention through Github's
 ["Issue"](https://github.com/brentkaplan/beezdiscounting/issues)
-tab in the respository or by emailing the corresponding author.
+tab in the repository or by emailing the corresponding author.
 
 
 {{< pagebreak >}}
@@ -725,9 +725,13 @@ tab in the respository or by emailing the corresponding author.
 ::: {#refs}
 :::
 
+{{< pagebreak >}}
+
 # Appendix
 
 ![The beezhive](assets/beez-family.pdf){#fig-beezfam apa-note="The *beez*hive where *shinybeez* neatly uses tested software to fill the void of behavioral economic tools." width="49%"}
+
+{{< pagebreak >}}
 
 ![Welcome Page](assets/welcome-page.png){#fig-welcome apa-note="Welcome page with instructions about how to use the app along with template files." width="49%"}
 
