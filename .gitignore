@@ -24,7 +24,8 @@ inst/doc
 ###########
 other/
 tests/
-logs/*
+logs/log-old.txt
 *-workspace
 manuscript/o*
 manuscript/i*
+site/
