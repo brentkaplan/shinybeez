@@ -1,0 +1,357 @@
+// Base styles - Light mode (default)
+.section {
+  margin-bottom: 2rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #e9ecef;
+
+  h3 {
+    color: #495057;
+    margin-bottom: 1rem;
+  }
+
+  p {
+    color: #6c757d;
+    line-height: 1.6;
+  }
+
+  a {
+    color: #7952b3;
+    text-decoration: none;
+
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+}
+
+.info-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1.5rem;
+  margin: 1.5rem 0;
+}
+
+.info-card {
+  background-color: #ffffff;
+  border-radius: 0.75rem;
+  padding: 1.75rem;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.04), 0 1px 3px rgba(0, 0, 0, 0.08);
+  transition: all 0.25s ease;
+  cursor: pointer;
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+
+  &:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.07);
+    border-color: rgba(121, 82, 179, 0.2);
+  }
+
+  .info-icon {
+    width: 3.5rem;
+    height: 3.5rem;
+    background-color: rgba(121, 82, 179, 0.1);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 1.25rem;
+    transition: all 0.2s ease;
+
+    i {
+      color: #7952b3;
+      font-size: 1.5rem;
+      transition: all 0.2s ease;
+    }
+  }
+
+  &:hover .info-icon {
+    background-color: rgba(121, 82, 179, 0.2);
+    transform: scale(1.05);
+
+    i {
+      color: #6f42c1;
+    }
+  }
+
+  h4 {
+    font-weight: 600;
+    margin-bottom: 0.75rem;
+    color: #212529;
+    font-size: 1.25rem;
+  }
+
+  p {
+    color: #6c757d;
+    margin-bottom: 1rem;
+    flex-grow: 1;
+    line-height: 1.5;
+  }
+
+  .learn-more {
+    color: #7952b3;
+    font-weight: 500;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    margin-top: auto;
+
+    &:hover {
+      text-decoration: underline;
+    }
+
+    &::after {
+      content: "›";
+      margin-left: 0.25rem;
+      font-size: 1.25rem;
+      transition: transform 0.2s;
+    }
+
+    &:hover::after {
+      transform: translateX(3px);
+    }
+  }
+}
+
+.content-details {
+  display: none;
+  background-color: rgb(255, 255, 255);
+  border-radius: 0.5rem;
+  padding: 1.5rem;
+  margin-top: 1.5rem;
+  border: 1px solid #e9ecef;
+
+  h3 {
+    color: #495057;
+    margin-bottom: 1.25rem;
+  }
+
+  h4 {
+    color: #343a40;
+    margin: 1.5rem 0 0.75rem;
+  }
+
+  p {
+    color: #6c757d;
+    line-height: 1.6;
+  }
+
+  ul {
+    padding-left: 1.25rem;
+  }
+
+  li {
+    margin-bottom: 0.5rem;
+  }
+
+  figure {
+    margin: 1.5rem 0;
+  }
+
+  figcaption {
+    color: #6c757d;
+    font-style: italic;
+    margin-top: 0.5rem;
+  }
+
+  .btn {
+    margin-top: 1rem;
+  }
+
+  img {
+    border: 1px solid #dee2e6;
+    border-radius: 0.25rem;
+  }
+}
+
+code {
+  background-color: rgb(255, 255, 255);
+  padding: 0.2rem 0.4rem;
+  border-radius: 0.25rem;
+  color: #e83e8c;
+  font-size: 0.875em;
+}
+
+// Dark mode styles
+[data-bs-theme="dark"] {
+  .section {
+    border-bottom-color: #343a40;
+
+    h3 {
+      color: #f8f9fa;
+    }
+
+    p {
+      color: #ced4da;
+    }
+
+    a {
+      color: #a78bda;
+
+      &:hover {
+        color: #be9ff0;
+      }
+    }
+  }
+
+  .info-card {
+    background-color: #2b3035;
+    border-color: rgba(255, 255, 255, 0.05);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.16), 0 1px 3px rgba(0, 0, 0, 0.26);
+
+    &:hover {
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+      border-color: rgba(169, 143, 214, 0.3);
+    }
+
+    .info-icon {
+      background-color: rgba(169, 143, 214, 0.15);
+
+      i {
+        color: #a78bda;
+      }
+    }
+
+    &:hover .info-icon {
+      background-color: rgba(169, 143, 214, 0.25);
+
+      i {
+        color: #be9ff0;
+      }
+    }
+
+    h4 {
+      color: #f8f9fa;
+    }
+
+    p {
+      color: #ced4da;
+    }
+
+    .learn-more {
+      color: #a78bda;
+
+      &:hover {
+        color: #be9ff0;
+      }
+    }
+  }
+
+  .content-details {
+    background-color: #2b3035;
+    border-color: #343a40;
+
+    h3,
+    h4,
+    h5,
+    h6 {
+      color: #f8f9fa;
+    }
+
+    p,
+    li {
+      color: #ced4da;
+    }
+
+    figcaption {
+      color: #adb5bd;
+    }
+
+    img {
+      border-color: #495057;
+    }
+
+    a {
+      color: #a78bda;
+
+      &:hover {
+        color: #be9ff0;
+      }
+    }
+  }
+
+  code {
+    background-color: #343a40;
+    color: #f783ac;
+  }
+
+  .btn-primary {
+    background-color: #6f42c1;
+    border-color: #6f42c1;
+
+    &:hover {
+      background-color: #5e35b1;
+      border-color: #5e35b1;
+    }
+  }
+
+  .table {
+    color: #ced4da;
+
+    th,
+    td {
+      border-color: #495057;
+    }
+  }
+
+  // Style adjustments for specific sections in dark mode
+  #license,
+  #contact,
+  #data-security,
+  #about,
+  #access,
+  #citation {
+    color: #ced4da;
+  }
+
+  // Figure and image adjustments
+  figure {
+    img {
+      background-color: #ffffff;
+      padding: 0.5rem;
+    }
+  }
+
+  // Ensure all text elements have proper contrast
+  .text-muted {
+    color: #adb5bd !important;
+  }
+
+  // Ensure buttons have proper contrast
+  .btn {
+    &.btn-outline-secondary {
+      color: #ced4da;
+      border-color: #495057;
+
+      &:hover {
+        background-color: #495057;
+        color: #f8f9fa;
+      }
+    }
+  }
+}
+
+// Media queries for responsive design
+@media (max-width: 768px) {
+  .info-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .info-card {
+    padding: 1.5rem;
+  }
+}
+
+@media (min-width: 769px) and (max-width: 1199px) {
+  .info-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 1200px) {
+  .info-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}

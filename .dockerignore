@@ -1,0 +1,16 @@
+.git
+renv/library
+renv/cache
+*.Rproj
+.DS_Store
+.Rhistory
+.RData
+.Rproj.user
+site/
+troubleshooting/
+other/
+logs/log-*
+shinyproxy/*
+notes*
+shinybeez.code-workspace
+digitalocean.txt

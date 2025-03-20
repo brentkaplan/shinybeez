@@ -1,6 +1,7 @@
 box::use(
   bslib,
   rhino,
+  sass,
   shiny,
 )
 
@@ -8,7 +9,6 @@ box::use(
   app/view/demand,
   app/view/discounting,
   app/view/info,
-  app/view/welcome,
 )
 
 #' @export
@@ -16,6 +16,11 @@ ui <- function(id) {
   ns <- shiny$NS(id)
   rhino$log$info("Starting")
   bslib$page_navbar(
+    header = shiny$tags$head(
+      shiny$includeHTML(
+        "app/static/html/g_tag.html"
+      )
+    ),
     title = shiny$tags$span(
       style = "font-size: 200%;",
       shiny$tags$img(
@@ -34,7 +39,7 @@ ui <- function(id) {
       width = 350,
       shiny$conditionalPanel(
         "input.nav === 'Welcome'",
-        welcome$sidebar_ui(ns("welcomeui"))
+        shiny$includeHTML("app/static/html/welcome_sidebar.html")
       ),
       shiny$conditionalPanel(
         "input.nav === 'Demand'",
@@ -46,8 +51,8 @@ ui <- function(id) {
       )
     ),
     bslib$nav_panel(
-      title = "Welcome",
-      welcome$body_ui(ns("welcomebody"))
+      "Welcome",
+      shiny$includeHTML("app/static/html/welcome.html")
     ),
     bslib$nav_panel(
       value = "Demand",
@@ -57,15 +62,11 @@ ui <- function(id) {
     bslib$nav_panel(
       value = "Discounting",
       title = "Discounting",
-      # shiny$div(
-      #   style = "width: 100%; height:600px; overflow:auto;",
-      #   discounting$navpanel_ui(ns("discounting"))
-      # ),
       discounting$navpanel_ui(ns("discounting"))
     ),
     bslib$nav_spacer(),
     bslib$nav_item(
-      bslib$input_dark_mode(id = "dark_mode", mode = "light")
+      bslib$input_dark_mode(id = "dark_mode", mode = "dark")
     ),
     info$ui(ns("info"))
   )
@@ -75,7 +76,6 @@ ui <- function(id) {
 server <- function(id) {
   shiny$moduleServer(id, function(input, output, session) {
     ns <- session$ns
-    welcome$body_server("welcomebody")
     session$userData$data <- shiny$reactiveValues()
     demand$sidebar_server("demand")
     demand$navpanel_server("demand")

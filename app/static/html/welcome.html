@@ -1,0 +1,1734 @@
+<body>
+    <div class="container mt-4">
+        <div class="row">
+            <!-- Main Content -->
+            <main class="col-md-9">
+                <section id="about" class="section">
+                    <h3>About Shinybeez</h3>
+                    <p>While quantitative modeling of behavioral economic phenomena has increased in popularity and led
+                        to translational
+                        successes in clinical practice and policy, complex analyses has remained a barrier for many
+                        researchers and
+                        practitioners. <em>shinybeez</em> addresses this gap by providing an intuitive interface for
+                        conducting descriptive and
+                        inferential analyses without requiring programming expertise. The app integrates features
+                        previously scattered across
+                        multiple tools, allowing users to upload data, calculate empirical measures, identify systematic
+                        datasets, fit nonlinear
+                        models, and visualize results - all within a single platform. <em>shinybeez</em> supports
+                        various analysis types for
+                        demand and discounting data, including indifference point data and the 27-Item Monetary Choice
+                        Questionnaire. Built on R
+                        Shiny and leveraging existing R packages, the app ensures reproducibility and consistency with
+                        underlying analytical
+                        methods while remaining flexible for future enhancements. Key advantages of <em>shinybeez</em>
+                        include its accessibility
+                        through web browsers or local installation, ability to handle large datasets, and customizable
+                        data visualization
+                        options. By consolidating behavioral economic tools into a user-friendly interface,
+                        <em>shinybeez</em> aims to broaden
+                        the reach of these analytical techniques and facilitate their application in addressing societal
+                        issues.
+                    </p>
+                </section>
+
+                <section id="citation" class="section">
+                    <h3>How to Cite</h3>
+                    <p>If you use any part of <em>shinybeez</em> in your work, please cite it:
+                        <br>
+                        <br>
+                        <a href='https://codedbx.com/assets/pubs/Kaplan-Reed-shinybeez.pdf' target="_blank">
+                            <i class='fa-regular fa-file-pdf'></i></a>
+                        Kaplan, B. A. & Reed. D. D. (2025). <em>shinybeez: A Shiny app
+                            for Behavioral Economic Easy Demand and Discounting.</em> Journal
+                        of the Experimental Analysis of Behavior. doi: <a
+                            href='https://doi.org/10.1002/JEAB.70000'>https://doi.org/10.1002/JEAB.70000</a>
+                    </p>
+                </section>
+
+                <section id="access" class="section">
+                    <h3>Online Access and Local Installation</h3>
+                    <p><em>shinybeez</em> is accessible in a number of ways.</p>
+                    <p>
+                    <h4>Online</h4>
+                    <a href='https://brentkaplan.shinyapps.io/shinybeez/' target="_blank">Shinyapps.io</a> (fairly fast
+                    performance)
+                    <br>
+                    <br>
+                    <a href='https://shinybeez.app' target="_blank">shinybeez.app</a> (faster performance)
+                    <br>
+                    </p>
+                    <br>
+                    <p>
+                    <h4>Local installation (fastest)</h4>
+                    <br>
+                    <h5>Docker</h5>
+                    To install <em>shinybeez</em> locally and run it on your own machine,
+                    you must first install <a href="https://www.docker.com/" target="_blank">Docker</a>.
+                    <br>
+                    <br>
+                    <ol>
+                        <li>To start the app via the Docker Desktop program, first click
+                            Docker Hub on the left side and search for
+                            <em>shinybeez</em>.
+                            <br>
+                            <img src="static/img/docker-hub.png" alt="Docker Hub" width="80%" height="80%">
+                        </li>
+                        <br>
+                        <li>Click on the tile and then click "Pull" to download the
+                            image.
+                            <br>
+                            <img src="static/img/docker-pull.png" alt="Docker Pull" width="80%" height="80%">
+                        </li>
+                        <br>
+                        <li>Go to "Images" on the left hand side and click the newly downloaded image.
+                            Click the ▶ icon under "Actions" to start the app and
+                            bring up the options menu.
+                            <br>
+                            <img src="static/img/docker-run.png" alt="Docker Run" width="80%" height="80%">
+                        </li>
+                        <br>
+                        <li>Expand the optional settings clicking the ▼. Enter
+                            in '3838' in the "Host port" box. Then click "Run".
+                            <br>
+                            <img src="static/img/docker-options.png" alt="Docker Run" width="80%" height="80%">
+                        </li>
+                        <br>
+                        <li>
+                            Open up your browser of choice and navigate to
+                            http://localhost:3838. <em>shinybeez</em> should now be
+                            running locally on your machine.
+                        </li>
+                        <br>
+                    </ol>
+                    Alternatively, after you have installed Docker on your
+                    computer you can run the following commands in your
+                    terminal to start the app:
+                    <br>
+                    <br>
+                    <code>
+                        docker pull brentkaplan/shinybeez:latest
+                        <br>
+                        docker run -p 3838:3838 brentkaplan/shinybeez:latest
+                    </code>
+                    <br>
+                    <br>
+                    Then, navigate to http://localhost:3838 in your browser of choice.
+                    <br>
+                    <br>
+                    For more information, please see the instructions on the
+                    <a href='https://github.com/brentkaplan/shinybeez/blob/main/README.md' target="_blank">Github
+                        repository</a>.
+                    </p>
+                </section>
+
+                <section id="contact" class="section">
+                    <h3>Contact and Issues</h3>
+                    <p>If you have any questions, comments, or suggestions, please contact
+                        Brent Kaplan at <a href='mailto:bkaplan.ku@gmail.com'>
+                            bkaplan.ku@gmail.com</a>. If you encounter any bugs or
+                        issues, please report them on the Github respository's
+                        <a href='https://github.com/brentkaplan/shinybeez/issues'> issues</a>
+                        page.
+                    </p>
+                </section>
+
+                <section id="data-security" class="section">
+                    <h3>Data Security</h3>
+                    <p><em>shinybeez</em> is configured to operate under an ephemeral model, meaning that
+                        your data and results are retained only during your individual
+                        session, with no persistent storage on the server's disk or external databases.
+                        Any given instance of a <em>shinybeez</em> session,
+                        including this one, will end if you stop
+                        interacting with the app for some specified period of time (approximately ten
+                        minutes of no activity). Once this session ends or is refreshed, any data in
+                        this session's memory is discarded. This approach aligns with
+                        privacy-oriented design principles by
+                        limiting the lifespan of sensitive information and eliminating the need for
+                        secure data-wiping procedures. As a result, you can upload and analyze
+                        data in <em>shinybeez</em> without concern for long-term data management, while also
+                        maintaining compliance with institutional or regulatory guidelines that
+                        discourage or prohibit prolonged storage of sensitive data.
+                    </p>
+                    <p>In addition, <em>shinybeez</em> only accepts data in a
+                        predifined format including a subject id, prices/delays, responses,
+                        and a grouping variable. Ensure none of these variables
+                        contain personally identifiable information. If you want to
+                        use <em>shinybeez</em> locally, please see the local
+                        installation instructions.
+                    </p>
+                </section>
+
+                <!-- <section id="templates" class="section">
+                    <h3>Download Templates</h3>
+                    <h4>Demand templates</h4>
+                    <h5>Wide format</h5>
+                    <p>Data collected from, say, Qualtrics, tend to come in what is
+                        called 'wide' format
+                        (see <a href='https://vita.had.co.nz/papers/tidy-data.pdf'>Hadley Wickham's paper</a> on tidy
+                        data
+                        for more on the 'wide' and 'long' data). 'Wide' format data typically
+                        consists of one row per participant and each price (or whatever the independent
+                        variable is) is a column.
+                        By default, <em>shinybeez</em> takes in this style of
+                        data.</p>
+                    <figure style='margin-top: 10px;'>
+                        <img style='width: 100%; max-width: 800px;' src='static/img/demand-template-wide-example.png'
+                            alt='Example demand data'>
+                        <figcaption><em>Example demand data formatted in the wide template.</em></figcaption>
+                    </figure>
+                    <button class="btn btn-primary" onclick="downloadFile('template_demand_wide.csv')">
+                        <i class="fa fa-download"></i> Demand template (wide format)
+                    </button>
+                    <br>
+                    <br>
+                    <h5>Long format</h5>
+                    <p>You may also provide data in 'long' format. In order to specify
+                        this non-default format, open in the 'Specs' panel on the sidebar
+                        of the 'Demand' tab and select 'Long' under 'Data in long or
+                        wide format?' You can download a template for long format
+                        here:</p>
+                    <figure style='margin-top: 10px;'>
+                        <img style='width: 100%; max-width: 400px; height: 500px;'
+                            src='static/img/demand-template-long-example.png' alt='Example demand data'>
+                        <figcaption><em>Example demand data formatted in the long template.</em></figcaption>
+                    </figure>
+                    <button class="btn btn-primary" onclick="downloadFile('template_demand_long.csv')">
+                        <i class="fa fa-download"></i> Demand template (long format)
+                    </button>
+                    <br>
+                    <br>
+                    <h5>Wide Format (one grouping variable)</h5>
+                    <p><em>shinybeez</em> also has the ability (<em>currently</em>) to accept
+                        one grouping argument. In order to specify this behavior, open
+                        the 'Specs' panel on the sidebar of the 'Demand' tab and select
+                        the box next to 'Do you have a grouping variable?'
+                        <br>
+                        <br>
+                        When you upload your data, make sure to your grouping column is
+                        called 'group' in the data. Future releases of <em>shinybeez</em> will
+                        allow you to specify the name of your grouping column.
+                    </p>
+                    <figure style='margin-top: 10px;'>
+                        <img style='width: 100%; max-width: 800px;'
+                            src='static/img/demand-template-wide-onegroup-example.png' alt='Example demand data'>
+                        <figcaption><em>Example demand data with one grouping variable formatted in the wide
+                                template.</em></figcaption>
+                    </figure>
+                    <button class="btn btn-primary" onclick="downloadFile('template_demand_wide_onegroup.csv')">
+                        <i class="fa fa-download"></i> Demand template (wide format, one grouping variable)
+                    </button>
+                    <br>
+                    <br>
+                    <h5>Long Format (one grouping variable)</h5>
+                    <p><em>shinybeez</em> also has the ability (<em>currently</em>) to accept
+                        one grouping argument. In order to specify this behavior, open
+                        the 'Specs' panel on the sidebar of the 'Demand' tab and select
+                        the box next to 'Do you have a grouping variable?'
+                        <br>
+                        <br>
+                        When you upload your data, make sure to your grouping column is
+                        called 'group' in the data. Future releases of <em>shinybeez</em> will
+                        allow you to specify the name of your grouping column.
+                    </p>
+                    <figure style='margin-top: 10px;'>
+                        <img style='width: 100%; max-width: 420px; height: 500px;'
+                            src='static/img/demand-template-long-onegroup-example.png' alt='Example demand data'>
+                        <figcaption><em>Example demand data with one grouping variable formatted in the long
+                                template.</em></figcaption>
+                    </figure>
+                    <button class="btn btn-primary" onclick="downloadFile('template_demand_long_onegroup.csv')">
+                        <i class="fa fa-download"></i> Demand template (long format, one grouping variable)
+                    </button>
+                    <br>
+                    <br>
+                    <h4>Discounting templates</h4>
+                    <h5>Wide Format - 27-Item Monetary Choice Questionnaire</h5>
+                    <p><em>shinybeez</em> allows you to analyze data from the 27-Item
+                        Monetary Choice Questionnaire in wide format.
+                        The first column contains the subject
+                        id and each subsequent column contains a response (0 for SS or
+                        1 for LL).</p>
+                    <br>
+                    <button class="btn btn-primary" onclick="downloadFile('template_mcq27_wide.csv')">
+                        <i class="fa fa-download"></i> 27-Item Monetary Choice Questionnaire template (wide format)
+                    </button>
+                    <br>
+                    <br>
+                    <h5>Long Format - 27-Item Monetary Choice Questionnaire</h5>
+                    <p><em>shinybeez</em> allows you to analyze data from the 27-Item
+                        Monetary Choice Questionnaire in long format.
+                        The first column contains the subject
+                        id, the second column contains the trial number, and the third
+                        column contains the response (0 for SS or 1 for LL).</p>
+                    <br>
+                    <button class="btn btn-primary" onclick="downloadFile('template_mcq27_long.csv')">
+                        <i class="fa fa-download"></i> 27-Item Monetary Choice Questionnaire template (long format)
+                    </button>
+                    <br>
+                    <br>
+                    <h5>Long Format - Discounting Indifference Points</h5>
+                    <p><em>shinybeez</em> allows you to analyze indifference point data
+                        when provided in long format.
+                        The first column contains the subject
+                        id (id), the second column (x) contains the Delays, and the third
+                        column (y) contains the Indifference Points.</p>
+                    <figure style='margin-top: 10px;'>
+                        <img style='width: 100%; max-width: 420px; height: 500px;'
+                            src='static/img/discounting-template-long-example.png' alt='Example discounting data'>
+                        <figcaption><em>Example discounting data formatted in the long template.</em></figcaption>
+                    </figure>
+                    <button class="btn btn-primary" onclick="downloadFile('template_discounting_long.csv')">
+                        <i class="fa fa-download"></i> Discounting template (long format)
+                    </button>
+                </section> -->
+
+                <section id="templates" class="mb-4 p-4 shadow-sm rounded">
+                    <h3>Downloadable Templates</h3>
+                    <div class="info-grid">
+                        <div class="info-card" onclick="toggleDetails('demand-templates')">
+                            <div class="info-icon">
+                                <i class="fa fa-table"></i>
+                            </div>
+                            <h4>Demand Templates</h4>
+                            <p>Download and learn about formats for demand analysis data.</p>
+                            <a class="learn-more">Learn more</a>
+                        </div>
+                        <div class="info-card" onclick="toggleDetails('discounting-templates')">
+                            <div class="info-icon">
+                                <i class="fa fa-file-excel"></i>
+                            </div>
+                            <h4>Discounting Templates</h4>
+                            <p>Download and learn about templates for discounting analysis.</p>
+                            <a class="learn-more">Learn more</a>
+                        </div>
+                    </div>
+
+                    <!-- Detailed content sections -->
+                    <div id="demand-templates" class="content-details">
+                        <h5>Wide format</h5>
+                        <p>Data collected from, say, Qualtrics, tend to come in what is
+                            called 'wide' format
+                            (see <a href='https://vita.had.co.nz/papers/tidy-data.pdf'>Hadley Wickham's paper</a> on
+                            tidy
+                            data
+                            for more on the 'wide' and 'long' data). 'Wide' format data typically
+                            consists of one row per participant and each price (or whatever the independent
+                            variable is) is a column.
+                            By default, <em>shinybeez</em> takes in this style of
+                            data.</p>
+                        <figure style='margin-top: 10px;'>
+                            <img style='width: 100%; max-width: 800px;'
+                                src='static/img/demand-template-wide-example.png' alt='Example demand data'>
+                            <figcaption><em>Example demand data formatted in the wide template.</em></figcaption>
+                        </figure>
+                        <button class="btn btn-primary" onclick="downloadFile('template_demand_wide.csv')">
+                            <i class="fa fa-download"></i> Demand template (wide format)
+                        </button>
+                        <br>
+                        <br>
+                        <h5>Long format</h5>
+                        <p>You may also provide data in 'long' format. In order to specify
+                            this non-default format, open in the 'Specs' panel on the sidebar
+                            of the 'Demand' tab and select 'Long' under 'Data in long or
+                            wide format?' You can download a template for long format
+                            here:</p>
+                        <figure style='margin-top: 10px;'>
+                            <img style='width: 100%; max-width: 400px; height: 500px;'
+                                src='static/img/demand-template-long-example.png' alt='Example demand data'>
+                            <figcaption><em>Example demand data formatted in the long template.</em></figcaption>
+                        </figure>
+                        <button class="btn btn-primary" onclick="downloadFile('template_demand_long.csv')">
+                            <i class="fa fa-download"></i> Demand template (long format)
+                        </button>
+                        <br>
+                        <br>
+                        <h5>Wide Format (one grouping variable)</h5>
+                        <p><em>shinybeez</em> also has the ability (<em>currently</em>) to accept
+                            one grouping argument. In order to specify this behavior, open
+                            the 'Specs' panel on the sidebar of the 'Demand' tab and select
+                            the box next to 'Do you have a grouping variable?'
+                            <br>
+                            <br>
+                            When you upload your data, make sure to your grouping column is
+                            called 'group' in the data. Future releases of <em>shinybeez</em> will
+                            allow you to specify the name of your grouping column.
+                        </p>
+                        <figure style='margin-top: 10px;'>
+                            <img style='width: 100%; max-width: 800px;'
+                                src='static/img/demand-template-wide-onegroup-example.png' alt='Example demand data'>
+                            <figcaption><em>Example demand data with one grouping variable formatted in the wide
+                                    template.</em></figcaption>
+                        </figure>
+                        <button class="btn btn-primary" onclick="downloadFile('template_demand_wide_onegroup.csv')">
+                            <i class="fa fa-download"></i> Demand template (wide format, one grouping variable)
+                        </button>
+                        <br>
+                        <br>
+                        <h5>Long Format (one grouping variable)</h5>
+                        <p><em>shinybeez</em> also has the ability (<em>currently</em>) to accept
+                            one grouping argument. In order to specify this behavior, open
+                            the 'Specs' panel on the sidebar of the 'Demand' tab and select
+                            the box next to 'Do you have a grouping variable?'
+                            <br>
+                            <br>
+                            When you upload your data, make sure to your grouping column is
+                            called 'group' in the data. Future releases of <em>shinybeez</em> will
+                            allow you to specify the name of your grouping column.
+                        </p>
+                        <figure style='margin-top: 10px;'>
+                            <img style='width: 100%; max-width: 420px; height: 500px;'
+                                src='static/img/demand-template-long-onegroup-example.png' alt='Example demand data'>
+                            <figcaption><em>Example demand data with one grouping variable formatted in the long
+                                    template.</em></figcaption>
+                        </figure>
+                        <button class="btn btn-primary" onclick="downloadFile('template_demand_long_onegroup.csv')">
+                            <i class="fa fa-download"></i> Demand template (long format, one grouping variable)
+                        </button>
+
+                        <br>
+                        <br>
+                        <button class="btn btn-primary" onclick="toggleDetails('demand-templates')">Close</button>
+                    </div>
+
+                    <div id="discounting-templates" class="content-details">
+                        <h5>Wide Format - 27-Item Monetary Choice Questionnaire</h5>
+                        <p><em>shinybeez</em> allows you to analyze data from the 27-Item
+                            Monetary Choice Questionnaire in wide format.
+                            The first column contains the subject
+                            id and each subsequent column contains a response (0 for SS or
+                            1 for LL).</p>
+                        <br>
+                        <button class="btn btn-primary" onclick="downloadFile('template_mcq27_wide.csv')">
+                            <i class="fa fa-download"></i> 27-Item Monetary Choice Questionnaire template (wide format)
+                        </button>
+                        <br>
+                        <br>
+                        <h5>Long Format - 27-Item Monetary Choice Questionnaire</h5>
+                        <p><em>shinybeez</em> allows you to analyze data from the 27-Item
+                            Monetary Choice Questionnaire in long format.
+                            The first column contains the subject
+                            id, the second column contains the trial number, and the third
+                            column contains the response (0 for SS or 1 for LL).</p>
+                        <br>
+                        <button class="btn btn-primary" onclick="downloadFile('template_mcq27_long.csv')">
+                            <i class="fa fa-download"></i> 27-Item Monetary Choice Questionnaire template (long format)
+                        </button>
+                        <br>
+                        <br>
+                        <h5>Long Format - Discounting Indifference Points</h5>
+                        <p><em>shinybeez</em> allows you to analyze indifference point data
+                            when provided in long format.
+                            The first column contains the subject
+                            id (id), the second column (x) contains the Delays, and the third
+                            column (y) contains the Indifference Points.</p>
+                        <figure style='margin-top: 10px;'>
+                            <img style='width: 100%; max-width: 420px; height: 500px;'
+                                src='static/img/discounting-template-long-example.png' alt='Example discounting data'>
+                            <figcaption><em>Example discounting data formatted in the long template.</em></figcaption>
+                        </figure>
+                        <button class="btn btn-primary" onclick="downloadFile('template_discounting_long.csv')">
+                            <i class="fa fa-download"></i> Discounting template (long format)
+                        </button>
+
+                        <br>
+                        <br>
+                        <button class="btn btn-primary" onclick="toggleDetails('discounting-templates')">Close</button>
+                    </div>
+                </section>
+
+                <section id="documentation" class="mb-4 p-4 shadow-sm rounded">
+                    <h3>Documentation</h3>
+                    <div class="info-grid">
+                        <div class="info-card" onclick="toggleDetails('demand-details')">
+                            <div class="info-icon">
+                                <i class="fa fa-chart-line"></i>
+                            </div>
+                            <h4>Demand Analysis</h4>
+                            <p>Learn about behavioral economic demand analysis methods and tools.</p>
+                            <a class="learn-more">Learn more</a>
+                        </div>
+                        <div class="info-card" onclick="toggleDetails('discounting-details')">
+                            <div class="info-icon">
+                                <i class="fa fa-percentage"></i>
+                            </div>
+                            <h4>Discounting</h4>
+                            <p>Understand discounting methods and analysis approaches.</p>
+                            <a class="learn-more">Learn more</a>
+                        </div>
+                    </div>
+
+                    <!-- Detailed content sections -->
+                    <div id="demand-details" class="content-details">
+                        <div id="overview-demand">
+                            <h3>Overview</h3>
+                            <p>
+                                Upon clicking the demand tab, you will see a collapsable sidebar where
+                                a data file is selected for upload, as well as additional specifications
+                                related to analyzing the data. Currently, the available options to select
+                                are whether a grouping variable should be integrated into the results,
+                                whether Q<sub>0</sub> should be constrained to a specific value, select whether
+                                to use the exponentiated
+                                (<a href='https://doi.org/10.1037/pha0000045'>Koffarnus et al, 2015</a>) or
+                                exponential
+                                (<a href='https://doi.org/10.1037/0033-295X.115.1.186'>Hursh & Silberberg, 2008</a>)
+                                demand equation, select
+                                what k value method should be used, and the analysis type (discussed
+                                below).
+                            </p>
+                            <p>
+                                In the main panel of the app are two boxes with embedded tabs.
+                                The box at the top contains information related to the data (i.e.,
+                                information that does not require any curve fitting) and the box at the
+                                bottom contains information related to the results of the curve fitting.
+                                Once data are uploaded, the top box is populated with information
+                                (by default, the uploaded data is displayed), and results
+                                in the bottom box are populated after you click the 'Calculate' button.
+                            </p>
+                            <p>
+                                An important feature to note is that each of the tables displayed in the
+                                demand page can be exported in the following ways: 'Copy' will copy the
+                                contents of the table to the clipboard; 'Print' will open an option to print
+                                the table through the device print interface; 'CSV' will prompt saving
+                                the table as a comma-separated text file; 'Excel' will prompt saving the table
+                                as a Microsoft Excel file with a .xslx extension; 'PDF' will prompt to download
+                                the table as a file with a .pdf extention.
+                            </p>
+                        </div>
+                        <div id="systematic-demand">
+                            <h3>Systematic Criteria</h3>
+                            <p>The last tab contains a table of criteria used for <em>identifying</em>
+                                systematic datasets according to the
+                                <a href='https://doi.org/10.1037/pha0000020'>Stein et al. (2015)</a> algorithm.
+                                The reported values include the number of total criteria passed and whether
+                                each individual criterion was met (passed) or not (fail). For each criterion,
+                                the value is provided. Finally, the number of total positive values is
+                                included in the final column. Note that this tab has additional features.
+                                When you click to open the collapsable sidebar <em>within this tab</em>,
+                                you will be
+                                presented with adjustments that can be made to the criterion values
+                                outlined in <a href='https://doi.org/10.1037/pha0000020'>Stein et al. (2015)</a>.
+                                These values
+                                are set at the defaults outlined in
+                                <a href='https://doi.org/10.1037/pha0000020'>Stein et al. (2015)</a>
+                                and changing these values will update the table. When a grouping variable is
+                                specified, a group identificatio ncolumn is added, but the results do not change
+                                as these criteria are only applied at the individual level.
+                            </p>
+                        </div>
+                        <div id="regression-demand">
+                            <h3>Nonlinear Regression</h3>
+                            The bottom box on the demand page has two tabs and displays the results of
+                            the nonlinear curve fitting process in a tabular format (Model Results tab) and
+                            graphical format (Plots tab). In the Model Results tab, a table is displayed
+                            with the following information: equation, estimated Q<sub>0</sub> (including
+                            standard error and confidence intervals), k value, estimated
+                            alpha (including standard error and confidence intervals), R<sup>2</sup>, model
+                            absolute sum of squares, standard deviation of the residuals, essential value,
+                            derived O<sub>max</sub>, derived P<sub>max</sub>, and
+                            analytic O<sub>max</sub> and analytic P<sub>max</sub>
+                            (see <a href='https://doi.org/10.1037/pha0000268'>
+                                Gilroy, 2019</a>). The last column of the table provides
+                            a quick note on whether the model converged, and the results for a model that
+                            has indication other than convergence should be interpreted with caution.
+                            <br>
+                            <br>
+                            The aforementioned model results are applied to the data depending on the
+                            analysis type chosen in the sidebar of the demand page. When the Fit to Group
+                            (pooled) analysis type is chosen, a single regression model is fit to the
+                            entire sample (all data points), and any dependence or clustering is ignored.
+                            When the Fit to Group (mean) analysis
+                            type is chosen, data are first aggregated by taking the mean of the y values at
+                            each x value and a regression line is fit to those points. When the
+                            Two Stage analysis type is chosen, a regression
+                            model is fit to each individual subject separately. When a grouping variable
+                            is specified the analysis types Fit to Group (pooled) and Fit to Group (mean)
+                            will fit curves as just described except <em>within</em> each group. There is no
+                            effect on whether a grouping variable is specified when the Two Stage analysis
+                            type is selected.
+                            <br>
+                            <br>
+                            The second tab in the results box contains a plot of the results based
+                            on the settings specified in the sidebar, especially Analysis Type. Before
+                            describing and showing what these plots look like, we describe some
+                            plot customization settings in the collapsible side bar in the plot tab.
+                            You may customize the plot title, the x-axis title, the y-axis title, and
+                            (when applicable) the group legend title. In addition, you can specify
+                            whether to (pseudo)log transform either the x or y axes.
+                            Then, you may output the plot directly as a png, svg, or jpeg file, or
+                            display the plot in the viewer window and choose additional formats such
+                            as pdf, bmp, eps, or tiff. In this plot viewer, you may specify specific
+                            height and width values, as well as file name.
+                            <br>
+                            <br>
+                            When Fit to Group (pooled) analysis type is selected, all data points
+                            will display with the best-fit line. Similarly, when
+                            a group is specified the points and lines will be colored according to the
+                            groups. When Fit to Group (mean) analysis type is specified,
+                            the preprocessed average data points are displayed with the best fit line
+                            and when a group is specified, the points and lines will be
+                            colored according to the groups. Finally, when
+                            Two Stage analysis type is selected, plots will be displayed in one of two
+                            ways. When there are 50 or fewer IDs (e.g., respondents), each ID will get
+                            their own subplot and when there are more than 50 IDs all
+                            curves and points will be shown on a single plot.
+                            <br>
+                            <br>
+                        </div>
+                        <div id="cites-demand">
+                            <h3>Suggested Citations</h3>
+                            <br>
+                            <b>Underyling R package driving demand functions:</b>
+                            <br>
+                            <br>
+                            <a href='https://1drv.ms/b/s!AlLnuAdcvsULgWVDp1aUATS0rafj'>
+                                <i class='fa-regular fa-file-pdf'></i></a>
+                            Kaplan, B. A., Gilroy, S. P., Reed, D. D., Koffarnus, M. N., &
+                            Hursh, S. R. (2019). The R package <em>beezdemand</em>: Behavioral Economic
+                            Easy Demand. <em>Perspectives on Behavior Science,
+                                42</em>(1), 163-180. <a href='https://doi.org/10.1007/s40614-018-00187-7'>
+                                https://doi.org/10.1007/s40614-018-00187-7</a>
+
+                            <br>
+                            <br>
+                            <b>Systematic criteria:</b>
+                            <br>
+                            <br>
+                            Stein, J. S., Koffarnus, M. N., Snider, S. E., Quisenberry, A. J.,
+                            & Bickel, W. K. (2015). Identification and management of
+                            nonsystematic purchase task data: Toward best practice.
+                            <em>Experimental and Clinical Psychopharmacology, 23</em>(5),
+                            377-386. <a href='https://doi.org/10.1037/pha0000020'>
+                                https://doi.org/10.1037/pha0000020</a>
+                            <br>
+                            <br>
+                            <b>Exponentiated demand equation:</b>
+                            <br>
+                            <br>
+                            Koffarnus, M. N., Franck, C. T., Stein, J. S., & Bickel, W. K.
+                            (2015). A modified exponential behavioral economic demand model
+                            to better describe consumption data. <em>Experimental and Clinical
+                                Psychopharmacology, 23</em>(6), 504-512.
+                            <a href='https://doi.org/10.1037/pha0000045'>
+                                https://doi.org/10.1037/pha0000045</a>
+                            <br>
+                            <br>
+                            <b>Exponential demand equation:</b>
+                            <br>
+                            <br>
+                            Hursh, S. R., & Silberberg, A. (2008). Economic demand and
+                            essential value. <em>Psychological Review, 115</em>(1),
+                            186-198. <a href='https://doi.org/10.1037/0033-295X.115.1.186'>
+                                https://doi.org/10.1037/0033-295X.115.1.186</a>
+                            <br>
+                            <br>
+                        </div>
+                        <button class="btn btn-primary" onclick="toggleDetails('demand-details')">Close</button>
+                    </div>
+
+                    <div id="discounting-details" class="content-details">
+                        <div id="overview-discounting">
+                            <h3>Overview</h3>
+                            <p>
+                                <em>shinybeez</em> allows you to analyze data from the
+                                27-Item Monetary Choice Questionnaire and from the
+                                minute discounting tasks (as administered via the Qualtrics
+                                template).
+                            </p>
+                        </div>
+                        <div id="mcq">
+                            <h3>27-Item Monetary Choice Questionnaire</h3>
+                            <p>
+                                The analyses and outputs for scoring the 27-Item MCQ are nearly
+                                identical to that of the 21- and 27-Item Monetary Choice
+                                Questionnaire Automated Scorer developed in Microsoft Excel (<a
+                                    href='https://doi.org/10.1007/s40614-016-0070-9'>Kaplan et al.,
+                                    2016</a>; <a href='https://kuscholarworks.ku.edu/handle/1808/15424'>Kaplan et
+                                    al., 2014</a>). When you upload your spreadsheet in the specified
+                                format, two additional settings will appear in the sidebar. The
+                                first is a selector for imputing missing values (described next),
+                                and the second is a selector for transforming resulting k values
+                                by: 'none' (no transformation), 'log' (log base 10), and 'ln' (log
+                                base e or natural log). These selectors will have a result on the
+                                output in the bottom box of the Discounting page but will have no
+                                effect on the top box of the discounting page that displays the
+                                uploaded data and the proportion of missing values for each
+                                subject ID.
+
+                                <br>
+                            <h6>Treatment of missing values</h6>
+                            Missing values can be dealt with according to the methods outlined by
+                            <a href='https://doi.org/10.1371/journal.pone.0292258'>
+                                Yeh et al. (2023)</a>: 'none' (no imputation); 'GGM' (group
+                            geometric mean); 'INN (no random)' (item nearest neighbor); and
+                            'INN (random)'
+                            (item nearest neighbor with a random component). We will briefly
+                            discuss these
+                            methods, but direct readers to
+                            <a href='https://doi.org/10.1371/journal.pone.0292258'>
+                                Yeh et al. (2023)</a> for a full,
+                            comprehensive treatment of the approaches. After calculating the
+                            small, medium, and large k values for each person, the 'GGM'
+                            option calculates the geometric (i.e., composite) k value of the
+                            three amount sets <em>so long as one of the amount sets has been
+                                calculated</em>. For the 'INN (no random), the missing value will
+                            be imputed as the value from the adjacent small, medium, or large
+                            response(s) so long as the non-missing responses are the same. For
+                            the 'INN (random)', the same procedure is used except in the case
+                            of non-identical responses, the missing response will be replaced
+                            by either a 0 (i.e., SIR/SS) or 1 (i.e., LDR/LL) chosen from a
+                            binomial distribution with equal probabilities. Given the
+                            randomness of this latter approach, a table of the provided data
+                            along with an additional column with the new, imputed response is
+                            provided in the bottom box of the Discounting page. For a more
+                            complete description and comparisons of these methods, see the
+                            paper by <a href='https://doi.org/10.1371/journal.pone.0292258'>
+                                Yeh et al. (2023)</a>.
+                            </p>
+                        </div>
+                        <div id="5trial">
+                            <h3>5-trial discounting task</h3>
+                            <p>
+                                <em>shinybeez</em> also has the ability to automatically score results from
+                                the delay and probability minute discounting tasks
+                                <em>provided in the Qualtrics Minute Discounting Task template</em>
+                                (see
+                                <a href='https://doi.org/10.13140/RG.2.2.26495.79527'>Koffarnus et al., 2017</a>;
+                                <a href='https://doi.org/10.13140/RG.2.2.31281.92000'>Koffarnus et al., 2021</a>).
+                                The Results
+                                box displays an exportable table of the results including: ResponseId;
+                                question index; ordered question number; page timing metadata;
+                                response (SS or LL) for each question index; whether the respondent's
+                                responses were flagged by the attention question (see
+                                <a href='https://doi.org/10.13140/RG.2.2.31281.92000'>Koffarnus et al., 2021</a>
+                                for additional information about this specific task); k value; and Effective
+                                Delay 50 value (see
+                                <a href='https://doi.org/10.1016/j.drugalcdep.2007.12.011'>Yoon & Higgins, 2008</a>).
+                                In the case of the probability
+                                minute task, the h value (instead of the k value), Effective &Theta;50 value
+                                (instead of Effective Delay 50 value), and Effective Probability 50 value are
+                                displayed.
+                            </p>
+
+                        </div>
+                        <div id="systematic-discounting">
+                            <h3>Systematic Criteria for Indifference Points</h3>
+                            <p><em>shinybeez</em> can examine discounting indifference points
+                                for systematicity according to the two criteria outlined by
+                                <a href='https://doi.org/10.1037/1064-1297.16.3.264'>Johnson & Bickel, 2008</a>.
+                                The first criterion is that the indifference point at any delay should not be greater
+                                than the preceding indifference point by more than 20% of the larger later reward.
+                                The second criterion requires that the last indifference point (at the longest delay)
+                                must be less than the first indifference point by at least 10% of the larger later
+                                reward.
+                                Violation of either criterion may indicate questionable data validity - the first
+                                criterion
+                                suggests delay increases rather than decreases reward value, while the second indicates
+                                insufficient discounting across delays. <em>shinybeez</em> provides
+                                results of these criteria for informational purposes and the
+                                researcher needs to decide whether to include these response sets.
+                                <em>shinybeez</em> will indicate a pass (true) or fail (false) for
+                                each criterion for each response set. Users may also specify their
+                                own thresholds in the sidebar.
+                            </p>
+                            <div id="regression-discounting">
+                                <h3>Indifference Point Nonlinear Regression</h3>
+                                <p>
+                                    <em>shinybeez</em> provides nonlinear regression tools for
+                                    analyzing indifference points from discounting tasks. The app supports
+                                    fitting two widely used models: Mazur's (1987) hyperbolic discounting
+                                    function and the exponential discounting function. Users can choose
+                                    from three analysis approaches: Fit to Group (mean), Fit to Group
+                                    (pooled), and Two Stage (individual-level fits).
+                                </p>
+                                <p>
+                                    In addition to regression outputs, <em>shinybeez</em> calculates
+                                    Area Under the Curve (AUC) metrics, following the methods outlined
+                                    by
+                                    <a href='https://doi.org/10.1002/jeab.219'>Borges et al. (2016)</a>.
+                                    Traditional AUC, ordinal AUC, and
+                                    log-transformed AUC (log<sub>10</sub> AUC) are provided, offering
+                                    flexibility in interpreting discounting behavior across tasks.
+                                </p>
+                                <p>
+                                    For visualizing results, <em>shinybeez</em> automatically
+                                    generates customizable plots. Users can adjust the plot title,
+                                    x-axis label, and y-axis label, and specify whether the x-axis
+                                    (delays) should be log-transformed. The generated plots can be
+                                    saved directly from the interface in various formats, ensuring that
+                                    users can easily share or embed their findings in reports and
+                                    presentations.
+                                </p>
+                            </div>
+                        </div>
+                        <div id="cites-discounting">
+                            <h3>Suggested Citations</h3>
+                            <br>
+                            <b>Underyling R package driving discounting functions:</b>
+                            <br>
+                            <br>
+                            Kaplan, B. A. (2023). <em>beezdiscounting</em>: Behavioral
+                            Economic Easy Discounting. R package version 0.3.2,
+                            <a href='https://CRAN.R-project.org/package=beezdiscounting'>
+                                https://CRAN.R-project.org/package=beezdiscounting</a>
+                            <br>
+                            <br>
+                            <b>Describing scoring of the 21- and 27-Item Monetary Choice Questionnaires:</b>
+                            <br>
+                            <br>
+                            <a href='https://1drv.ms/b/s!AlLnuAdcvsULgWNk-mTus1oAJkyD'>
+                                <i class='fa-regular fa-file-pdf'></i></a>
+                            Kaplan, B. A., Amlung, M., Reed, D. D., Jarmolowicz, D. P.,
+                            McKerchar, T. L., & Lemley, S. M. (2016). Automating scoring of
+                            delay discounting for the 21- and 27-Item Monetary Choice
+                            Questionnaires. <em>The Behavior Analyst, 39</em>(2),
+                            293-304. <a href='https://doi.org/10.1007/s40614-016-0070-9'>
+                                https://doi.org/10.1007/s40614-016-0070-9</a>
+                            <br>
+                            <br>
+                            <b>Seminal article introducing the 27-Item Monetary Choice Questionnaire:</b>
+                            <br>
+                            <br>
+                            Kirby, K. N., Petry, N. M., & Bickel, W. K. (1999).
+                            Heroin addicts have higher discount rates for delayed rewards
+                            than non-drug-using controls. <em>Journal of Experimental
+                                Psychology: General, 128</em>(1), 78-87.
+                            <a href='https://doi.org/10.1037//0096-3445.128.1.78'>
+                                https://doi.org/10.1037//0096-3445.128.1.78</a>
+                            <br>
+                            <br>
+                            <b>Imputing missing data in the 27-Item Monetary Choice Questionnaire:</b>
+                            <br>
+                            <br>
+                            Yeh, Y.-H., Tegge, A. N., Freitas-Lemos, R., Myerson, J., Green, L.,
+                            & Bickel, W. K. (2023). Discounting of delayed rewards: Missing
+                            data imputation for the 21- and 27-item monetary choice
+                            questionnaires. <em>PLOS ONE, 18</em>(10),
+                            e0292258. <a href='https://doi.org/10.1371/journal.pone.0292258'>
+                                https://doi.org/10.1371/journal.pone.0292258</a>
+                            <br>
+                            <br>
+                            <b>Indifference point regression:</b>
+                            <br>
+                            <br>
+                            Johnson, M. W., & Bickel, W. K. (2008). An algorithm for
+                            identifying nonsystematic delay-discounting data. <em>Experimental
+                                and Clinical Psychopharmacology, 16</em>(3), 264-274.
+                            <a href='https://doi.org/10.1037/1064-1297.16.3.264'>
+                                https://doi.org/10.1037/1064-1297.16.3.264</a>
+                            <br>
+                            <br>
+                            Mazur, J. E. (1987). An adjusting procedure for studying delayed
+                            reinforcement. In M. L. Commons, J. E. Mazur, J. A. Nevin, &
+                            H. Rachlin (Eds.), <em>The effect of delay and of intervening
+                                events on reinforcement value</em> (pp. 55-73). Lawrence Erlbaum
+                            Associates, Inc.
+                            <br>
+                            <br>
+                            Borges, A. M., Kuang, J., Milhorn, H., & Yi, R. (2016). An
+                            alternative approach to calculating Area-Under-the-Curve (AUC)
+                            in delay discounting research. <em>Journal of the Experimental
+                                Analysis of Behavior, 106</em>, 145-155.
+                            <a href='https://doi.org/10.1002/jeab.219'>
+                                https://doi.org/10.1002/jeab.219</a>
+                            <br>
+                            <br>
+                            <b>Minute discounting task:</b>
+                            <br>
+                            <br>
+                            Koffarnus, M. N., & Bickel, W. K. (2014). A 5-trial adjusting
+                            delay discounting task: Accurate discount rates in less than 60
+                            seconds. <em>Experimental and Clinical Psychopharmacology,
+                                22</em>(3), 222-228. <a href='https://doi.org/10.1037/a0035973'>
+                                https://doi.org/10.1037/a0035973</a>
+                            <br>
+                            <br>
+                            Koffarnus, M. N., Rzeszutek, M. J., & Kaplan, B. A. (2021).
+                            Additional discounting rates in less than one minute: Task variants
+                            for probability and a wider range of delays. <a
+                                href='https://doi.org/10.13140/RG.2.2.31281.92000'>
+                                https://doi.org/10.13140/RG.2.2.31281.92000</a>
+                            <br>
+                            <br>
+                            Koffarnus, M. N., Kaplan, B. A., & Stein, J. S. (2017). User guide
+                            for Qualtrics minute discounting template.
+                            <a href='https://doi.org/10.13140/RG.2.2.26495.79527'>
+                                https://doi.org/10.13140/RG.2.2.26495.79527</a>
+                            <br>
+                        </div>
+                        <button class="btn btn-primary" onclick="toggleDetails('discounting-details')">Close</button>
+                    </div>
+                </section>
+
+                <section id="misc" class="mb-4 p-4 shadow-sm rounded">
+                    <h3>Miscellaneous</h3>
+                    <div class="info-grid">
+                        <div class="info-card" onclick="toggleDetails('general-questions')">
+                            <div class="info-icon">
+                                <i class="fa fa-question-circle"></i>
+                            </div>
+                            <h4>General Questions</h4>
+                            <p>Find answers to common questions about using shinybeez.</p>
+                            <a class="learn-more">Learn more</a>
+                        </div>
+                        <div class="info-card" onclick="toggleDetails('resources')">
+                            <div class="info-icon">
+                                <i class="fa fa-wrench"></i>
+                            </div>
+                            <h4>Helpful Resources</h4>
+                            <p>Find helpful resources and additional readings for using <em>shinybeez</em>.</p>
+                            <a class="learn-more">Learn more</a>
+                        </div>
+                        <div class="info-card" onclick="toggleDetails('license')">
+                            <div class="info-icon">
+                                <i class="fa fa-wrench"></i>
+                            </div>
+                            <h4>License</h4>
+                            <p>View the full GNU AGPL license for <em>shinybeez</em>.</p>
+                            <a class="learn-more">Learn more</a>
+                        </div>
+                    </div>
+
+                    <!-- Detailed content sections -->
+                    <div id="general-questions" class="content-details">
+                        <div id="faq-demand">
+                            <h3>Demand</h3>
+                            <br>
+                            <h5>
+                                Why am I getting errors when uploading a spreadsheet?
+                            </h5>
+                            <p>
+                                Currently, <em>shinybeez</em> will fail if two common issues are in the spreadsheets
+                                you upload:
+
+                            <ol>
+                                <li><b>Duplicate IDs</b>: If there are duplicate IDs, then <em>shinybeez</em> will fail.
+                                    This is because the underlying R package <em>beezemand</em> does not
+                                    currently support duplicate IDs. This will be updated in the near future to
+                                    handle the different ways of treating duplicate IDs.</li>
+
+                                <li><b>"Phantom" columns at the end of the csv</b>: Ensure there are no "extra" columns
+                                    at the end of the csv. You can do this by selecting any blank columns
+                                    immediately proceeding the data and deleting them. You can also check for
+                                    blank columns by opening up the csv in a text editor and looking at the end
+                                    of the file.</li>
+                            </ol>
+                            </p>
+                            <br>
+                            <h5>
+                                Everything is really zoomed in and I can't see
+                                all the rows of results.
+                            </h5>
+                            <p>
+                                Try zooming out on your browser. On Windows, you can use the
+                                <code>Ctrl</code> and <code>-</code> keys to
+                                zoom out. On Mac, you can use the <code>Cmd</code> and
+                                <code>-</code> keys to zoom out.
+                            </p>
+                            <br>
+                            <h5>Why is the F-test for group demand curves not available?</h5>
+                            <p>Over time, with the increased awareness of mixed effects models,
+                                we believe that using the 'Extra Sum of Squares F-test' is probably
+                                not a good idea to test for differences in group-level demand curves
+                                when the demand curves are fit using fixed effects only (i.e., no
+                                random effects). The issue boils down to the purpose of group-level
+                                only modeling. We believe that while this approach may be beneficial
+                                to ascertain an overall trend in the data and to <em>describe</em>
+                                the data, you should not use the results for subsequent
+                                <em>inferential</em> tests, such as the F-test. Whether you use the
+                                pooled approach or the fit to means approach, both of these
+                                techniques disregard the clustering and interdependency of points
+                                within an individual. For a lengthier discussion, please see
+                                <a href='https://1drv.ms/b/s!AlLnuAdcvsULgiBH5AxxQdF9Bp3y'>
+                                    Kaplan et al. (2021)</a>.
+                            </p>
+                            <br>
+                            <h5>Where are the other equations?</h5>
+                            <p>Currenty <em>shinybeez</em> supports two of the most popular demand
+                                models. This limitation is in part due to the <em>beezemand</em>
+                                R package currently supporting only those two models. We expect
+                                additional models to be implemented in the near future.</p>
+                            <h5>How can I conduct cross-price elasticity analyses?</h5>
+                            <p>This is currently not supported in <em>shinybeez</em>. However,
+                                we are working on it and plan to have that feature in a future
+                                release</p>
+                            <br>
+                        </div>
+                        <div id="faq-discounting">
+                            <h3>Discounting</h3>
+                            <br>
+                            <h5>Why does the Kirby et al table say .025 but the results of
+                                <em>shinybeez</em> say something different?
+                            </h5>
+                            <p>This is because the original paper by Kirby and colleagues
+                                presented rounded k values. <em>shinybeez</em> and the underlying
+                                R package <em>beezdiscounting</em>, as well as the 21- and 27-Item
+                                Monetary Choice Questionnaire Automated Scorers do not provide
+                                the rounded values. For more information about how those k values
+                                are calculated, please see the article by
+                                <a href='https://1drv.ms/b/s!AlLnuAdcvsULgWNk-mTus1oAJkyD'>
+                                    Kaplan et al. (2016)</a> where they discuss derivation of k
+                                values in the context of the 27-Item MCQ.
+                            </p>
+                        </div>
+                        <button class="btn btn-primary" onclick="toggleDetails('general-questions')">Close</button>
+                    </div>
+
+                    <div id="resources" class="content-details">
+                        <h2>Helpful Resources</h2>
+                        <br>
+                        <b>Applying mixed effects models for behavioral economic demand:</b>
+                        <br>
+                        <br>
+                        <a href='https://1drv.ms/b/s!AlLnuAdcvsULgiBH5AxxQdF9Bp3y'>
+                            <i class='fa-regular fa-file-pdf'></i></a>
+                        Kaplan, B. A., Franck, C. T., McKee, K., Gilroy, S. P., &
+                        Koffarnus, M. N. (2021). Applying mixed-effects modeling to
+                        behavioral economic demand: An introduction. <em>Perspectives on
+                            Behavior Science, 44</em>(2), 333-358. <a href='https://doi.org/10.1007/s40614-021-00299-7'>
+                            https://doi.org/10.1007/s40614-021-00299-7</a>
+                        <br>
+                        <br>
+                        <b>Effective Delay 50 in discounting:</b>
+                        <br>
+                        <br>
+                        Yoon, J. H., & Higgins, S. T. (2008). Turning k on its head:
+                        Comments on use of an ED50 in delay discounting research. <em>Drug
+                            and Alcohol Dependence, 95</em>(1), 169-172.
+                        <a href='https://doi.org/10.1016/j.drugalcdep.2007.12.011'>
+                            https://doi.org/10.1016/j.drugalcdep.2007.12.011</a>
+                        <br>
+                        <br>
+                        <b>Statistics in behavior analysis:</b>
+                        <br>
+                        <br>
+                        Young, M. E. (2018). A place for statistics in behavior analysis.
+                        <em>Behavior Analysis: Research and Practice, 18</em>(2),
+                        193-202.
+                        <a href='https://doi.org/10.1037/bar0000099'>
+                            https://doi.org/10.1037/bar0000099</a>
+                        <br>
+                        <br>
+                        <button class="btn btn-primary" onclick="toggleDetails('resources')">Close</button>
+                    </div>
+
+                    <div id="license" class="content-details">
+                        <p>
+                        <h3 style="text-align: center;">GNU AFFERO GENERAL PUBLIC LICENSE</h3>
+                        <p style="text-align: center;">Version 3, 19 November 2007</p>
+
+                        <p>Copyright &copy; 2007 Free Software Foundation,
+                            Inc. &lt;<a href="https://fsf.org/">https://fsf.org/</a>&gt;
+                            <br />
+                            Everyone is permitted to copy and distribute verbatim copies
+                            of this license document, but changing it is not allowed.
+                        </p>
+
+                        <h4 id="tldr">TL;DR</h4>
+
+                        <p>Copyright (C) 2025 Brent Kaplan</p>
+
+                        <p><em>shinybeez</em> is free software: you can redistribute it and/or modify
+                            it under the terms of the GNU Affero General Public License as
+                            published by the Free Software Foundation, either version 3 of the
+                            License, or any later version.
+                        </p>
+
+                        <p><em>shinybeez</em> is distributed in the hope that it will be useful,
+                            but WITHOUT ANY WARRANTY; without even the implied warranty of
+                            MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+                            GNU Affero General Public License for more details.
+                        </p>
+
+                        <p>You should have received a copy of the GNU Affero General Public License
+                            along with <em>shinybeez</em>. If not, see below for a full
+                            copy of the license.
+                        </p>
+
+                        <h4 id="preamble">Preamble</h4>
+
+                        <p>The GNU Affero General Public License is a free, copyleft license
+                            for software and other kinds of works, specifically designed to ensure
+                            cooperation with the community in the case of network server software.</p>
+
+                        <p>The licenses for most software and other practical works are
+                            designed to take away your freedom to share and change the works. By
+                            contrast, our General Public Licenses are intended to guarantee your
+                            freedom to share and change all versions of a program--to make sure it
+                            remains free software for all its users.</p>
+
+                        <p>When we speak of free software, we are referring to freedom, not
+                            price. Our General Public Licenses are designed to make sure that you
+                            have the freedom to distribute copies of free software (and charge for
+                            them if you wish), that you receive source code or can get it if you
+                            want it, that you can change the software or use pieces of it in new
+                            free programs, and that you know you can do these things.</p>
+
+                        <p>Developers that use our General Public Licenses protect your rights
+                            with two steps: (1) assert copyright on the software, and (2) offer
+                            you this License which gives you legal permission to copy, distribute
+                            and/or modify the software.</p>
+
+                        <p>A secondary benefit of defending all users' freedom is that
+                            improvements made in alternate versions of the program, if they
+                            receive widespread use, become available for other developers to
+                            incorporate. Many developers of free software are heartened and
+                            encouraged by the resulting cooperation. However, in the case of
+                            software used on network servers, this result may fail to come about.
+                            The GNU General Public License permits making a modified version and
+                            letting the public access it on a server without ever releasing its
+                            source code to the public.</p>
+
+                        <p>The GNU Affero General Public License is designed specifically to
+                            ensure that, in such cases, the modified source code becomes available
+                            to the community. It requires the operator of a network server to
+                            provide the source code of the modified version running there to the
+                            users of that server. Therefore, public use of a modified version, on
+                            a publicly accessible server, gives the public access to the source
+                            code of the modified version.</p>
+
+                        <p>An older license, called the Affero General Public License and
+                            published by Affero, was designed to accomplish similar goals. This is
+                            a different license, not a version of the Affero GPL, but Affero has
+                            released a new version of the Affero GPL which permits relicensing under
+                            this license.</p>
+
+                        <p>The precise terms and conditions for copying, distribution and
+                            modification follow.</p>
+
+                        <h4 id="terms">TERMS AND CONDITIONS</h4>
+
+                        <h4 id="section0">0. Definitions.</h4>
+
+                        <p>&quot;This License&quot; refers to version 3 of the GNU Affero General Public
+                            License.</p>
+
+                        <p>&quot;Copyright&quot; also means copyright-like laws that apply to other kinds
+                            of works, such as semiconductor masks.</p>
+
+                        <p>&quot;The Program&quot; refers to any copyrightable work licensed under this
+                            License. Each licensee is addressed as &quot;you&quot;. &quot;Licensees&quot; and
+                            &quot;recipients&quot; may be individuals or organizations.</p>
+
+                        <p>To &quot;modify&quot; a work means to copy from or adapt all or part of the work
+                            in a fashion requiring copyright permission, other than the making of an
+                            exact copy. The resulting work is called a &quot;modified version&quot; of the
+                            earlier work or a work &quot;based on&quot; the earlier work.</p>
+
+                        <p>A &quot;covered work&quot; means either the unmodified Program or a work based
+                            on the Program.</p>
+
+                        <p>To &quot;propagate&quot; a work means to do anything with it that, without
+                            permission, would make you directly or secondarily liable for
+                            infringement under applicable copyright law, except executing it on a
+                            computer or modifying a private copy. Propagation includes copying,
+                            distribution (with or without modification), making available to the
+                            public, and in some countries other activities as well.</p>
+
+                        <p>To &quot;convey&quot; a work means any kind of propagation that enables other
+                            parties to make or receive copies. Mere interaction with a user through
+                            a computer network, with no transfer of a copy, is not conveying.</p>
+
+                        <p>An interactive user interface displays &quot;Appropriate Legal Notices&quot;
+                            to the extent that it includes a convenient and prominently visible
+                            feature that (1) displays an appropriate copyright notice, and (2)
+                            tells the user that there is no warranty for the work (except to the
+                            extent that warranties are provided), that licensees may convey the
+                            work under this License, and how to view a copy of this License. If
+                            the interface presents a list of user commands or options, such as a
+                            menu, a prominent item in the list meets this criterion.</p>
+
+                        <h4 id="section1">1. Source Code.</h4>
+
+                        <p>The &quot;source code&quot; for a work means the preferred form of the work
+                            for making modifications to it. &quot;Object code&quot; means any non-source
+                            form of a work.</p>
+
+                        <p>A &quot;Standard Interface&quot; means an interface that either is an official
+                            standard defined by a recognized standards body, or, in the case of
+                            interfaces specified for a particular programming language, one that
+                            is widely used among developers working in that language.</p>
+
+                        <p>The &quot;System Libraries&quot; of an executable work include anything, other
+                            than the work as a whole, that (a) is included in the normal form of
+                            packaging a Major Component, but which is not part of that Major
+                            Component, and (b) serves only to enable use of the work with that
+                            Major Component, or to implement a Standard Interface for which an
+                            implementation is available to the public in source code form. A
+                            &quot;Major Component&quot;, in this context, means a major essential component
+                            (kernel, window system, and so on) of the specific operating system
+                            (if any) on which the executable work runs, or a compiler used to
+                            produce the work, or an object code interpreter used to run it.</p>
+
+                        <p>The &quot;Corresponding Source&quot; for a work in object code form means all
+                            the source code needed to generate, install, and (for an executable
+                            work) run the object code and to modify the work, including scripts to
+                            control those activities. However, it does not include the work's
+                            System Libraries, or general-purpose tools or generally available free
+                            programs which are used unmodified in performing those activities but
+                            which are not part of the work. For example, Corresponding Source
+                            includes interface definition files associated with source files for
+                            the work, and the source code for shared libraries and dynamically
+                            linked subprograms that the work is specifically designed to require,
+                            such as by intimate data communication or control flow between those
+                            subprograms and other parts of the work.</p>
+
+                        <p>The Corresponding Source need not include anything that users
+                            can regenerate automatically from other parts of the Corresponding
+                            Source.</p>
+
+                        <p>The Corresponding Source for a work in source code form is that
+                            same work.</p>
+
+                        <h4 id="section2">2. Basic Permissions.</h4>
+
+                        <p>All rights granted under this License are granted for the term of
+                            copyright on the Program, and are irrevocable provided the stated
+                            conditions are met. This License explicitly affirms your unlimited
+                            permission to run the unmodified Program. The output from running a
+                            covered work is covered by this License only if the output, given its
+                            content, constitutes a covered work. This License acknowledges your
+                            rights of fair use or other equivalent, as provided by copyright law.</p>
+
+                        <p>You may make, run and propagate covered works that you do not
+                            convey, without conditions so long as your license otherwise remains
+                            in force. You may convey covered works to others for the sole purpose
+                            of having them make modifications exclusively for you, or provide you
+                            with facilities for running those works, provided that you comply with
+                            the terms of this License in conveying all material for which you do
+                            not control copyright. Those thus making or running the covered works
+                            for you must do so exclusively on your behalf, under your direction
+                            and control, on terms that prohibit them from making any copies of
+                            your copyrighted material outside their relationship with you.</p>
+
+                        <p>Conveying under any other circumstances is permitted solely under
+                            the conditions stated below. Sublicensing is not allowed; section 10
+                            makes it unnecessary.</p>
+
+                        <h4 id="section3">3. Protecting Users' Legal Rights From Anti-Circumvention Law.</h4>
+
+                        <p>No covered work shall be deemed part of an effective technological
+                            measure under any applicable law fulfilling obligations under article
+                            11 of the WIPO copyright treaty adopted on 20 December 1996, or
+                            similar laws prohibiting or restricting circumvention of such
+                            measures.</p>
+
+                        <p>When you convey a covered work, you waive any legal power to forbid
+                            circumvention of technological measures to the extent such circumvention
+                            is effected by exercising rights under this License with respect to
+                            the covered work, and you disclaim any intention to limit operation or
+                            modification of the work as a means of enforcing, against the work's
+                            users, your or third parties' legal rights to forbid circumvention of
+                            technological measures.</p>
+
+                        <h4 id="section4">4. Conveying Verbatim Copies.</h4>
+
+                        <p>You may convey verbatim copies of the Program's source code as you
+                            receive it, in any medium, provided that you conspicuously and
+                            appropriately publish on each copy an appropriate copyright notice;
+                            keep intact all notices stating that this License and any
+                            non-permissive terms added in accord with section 7 apply to the code;
+                            keep intact all notices of the absence of any warranty; and give all
+                            recipients a copy of this License along with the Program.</p>
+
+                        <p>You may charge any price or no price for each copy that you convey,
+                            and you may offer support or warranty protection for a fee.</p>
+
+                        <h4 id="section5">5. Conveying Modified Source Versions.</h4>
+
+                        <p>You may convey a work based on the Program, or the modifications to
+                            produce it from the Program, in the form of source code under the
+                            terms of section 4, provided that you also meet all of these conditions:</p>
+
+                        <ul>
+
+                            <li>a) The work must carry prominent notices stating that you modified
+                                it, and giving a relevant date.</li>
+
+                            <li>b) The work must carry prominent notices stating that it is
+                                released under this License and any conditions added under section
+                                7. This requirement modifies the requirement in section 4 to
+                                &quot;keep intact all notices&quot;.</li>
+
+                            <li>c) You must license the entire work, as a whole, under this
+                                License to anyone who comes into possession of a copy. This
+                                License will therefore apply, along with any applicable section 7
+                                additional terms, to the whole of the work, and all its parts,
+                                regardless of how they are packaged. This License gives no
+                                permission to license the work in any other way, but it does not
+                                invalidate such permission if you have separately received it.</li>
+
+                            <li>d) If the work has interactive user interfaces, each must display
+                                Appropriate Legal Notices; however, if the Program has interactive
+                                interfaces that do not display Appropriate Legal Notices, your
+                                work need not make them do so.</li>
+
+                        </ul>
+
+                        <p>A compilation of a covered work with other separate and independent
+                            works, which are not by their nature extensions of the covered work,
+                            and which are not combined with it such as to form a larger program,
+                            in or on a volume of a storage or distribution medium, is called an
+                            &quot;aggregate&quot; if the compilation and its resulting copyright are not
+                            used to limit the access or legal rights of the compilation's users
+                            beyond what the individual works permit. Inclusion of a covered work
+                            in an aggregate does not cause this License to apply to the other
+                            parts of the aggregate.</p>
+
+                        <h4 id="section6">6. Conveying Non-Source Forms.</h4>
+
+                        <p>You may convey a covered work in object code form under the terms
+                            of sections 4 and 5, provided that you also convey the
+                            machine-readable Corresponding Source under the terms of this License,
+                            in one of these ways:</p>
+
+                        <ul>
+
+                            <li>a) Convey the object code in, or embodied in, a physical product
+                                (including a physical distribution medium), accompanied by the
+                                Corresponding Source fixed on a durable physical medium
+                                customarily used for software interchange.</li>
+
+                            <li>b) Convey the object code in, or embodied in, a physical product
+                                (including a physical distribution medium), accompanied by a
+                                written offer, valid for at least three years and valid for as
+                                long as you offer spare parts or customer support for that product
+                                model, to give anyone who possesses the object code either (1) a
+                                copy of the Corresponding Source for all the software in the
+                                product that is covered by this License, on a durable physical
+                                medium customarily used for software interchange, for a price no
+                                more than your reasonable cost of physically performing this
+                                conveying of source, or (2) access to copy the
+                                Corresponding Source from a network server at no charge.</li>
+
+                            <li>c) Convey individual copies of the object code with a copy of the
+                                written offer to provide the Corresponding Source. This
+                                alternative is allowed only occasionally and noncommercially, and
+                                only if you received the object code with such an offer, in accord
+                                with subsection 6b.</li>
+
+                            <li>d) Convey the object code by offering access from a designated
+                                place (gratis or for a charge), and offer equivalent access to the
+                                Corresponding Source in the same way through the same place at no
+                                further charge. You need not require recipients to copy the
+                                Corresponding Source along with the object code. If the place to
+                                copy the object code is a network server, the Corresponding Source
+                                may be on a different server (operated by you or a third party)
+                                that supports equivalent copying facilities, provided you maintain
+                                clear directions next to the object code saying where to find the
+                                Corresponding Source. Regardless of what server hosts the
+                                Corresponding Source, you remain obligated to ensure that it is
+                                available for as long as needed to satisfy these requirements.</li>
+
+                            <li>e) Convey the object code using peer-to-peer transmission, provided
+                                you inform other peers where the object code and Corresponding
+                                Source of the work are being offered to the general public at no
+                                charge under subsection 6d.</li>
+
+                        </ul>
+
+                        <p>A separable portion of the object code, whose source code is excluded
+                            from the Corresponding Source as a System Library, need not be
+                            included in conveying the object code work.</p>
+
+                        <p>A &quot;User Product&quot; is either (1) a &quot;consumer product&quot;, which means any
+                            tangible personal property which is normally used for personal, family,
+                            or household purposes, or (2) anything designed or sold for incorporation
+                            into a dwelling. In determining whether a product is a consumer product,
+                            doubtful cases shall be resolved in favor of coverage. For a particular
+                            product received by a particular user, &quot;normally used&quot; refers to a
+                            typical or common use of that class of product, regardless of the status
+                            of the particular user or of the way in which the particular user
+                            actually uses, or expects or is expected to use, the product. A product
+                            is a consumer product regardless of whether the product has substantial
+                            commercial, industrial or non-consumer uses, unless such uses represent
+                            the only significant mode of use of the product.</p>
+
+                        <p>&quot;Installation Information&quot; for a User Product means any methods,
+                            procedures, authorization keys, or other information required to install
+                            and execute modified versions of a covered work in that User Product from
+                            a modified version of its Corresponding Source. The information must
+                            suffice to ensure that the continued functioning of the modified object
+                            code is in no case prevented or interfered with solely because
+                            modification has been made.</p>
+
+                        <p>If you convey an object code work under this section in, or with, or
+                            specifically for use in, a User Product, and the conveying occurs as
+                            part of a transaction in which the right of possession and use of the
+                            User Product is transferred to the recipient in perpetuity or for a
+                            fixed term (regardless of how the transaction is characterized), the
+                            Corresponding Source conveyed under this section must be accompanied
+                            by the Installation Information. But this requirement does not apply
+                            if neither you nor any third party retains the ability to install
+                            modified object code on the User Product (for example, the work has
+                            been installed in ROM).</p>
+
+                        <p>The requirement to provide Installation Information does not include a
+                            requirement to continue to provide support service, warranty, or updates
+                            for a work that has been modified or installed by the recipient, or for
+                            the User Product in which it has been modified or installed. Access to a
+                            network may be denied when the modification itself materially and
+                            adversely affects the operation of the network or violates the rules and
+                            protocols for communication across the network.</p>
+
+                        <p>Corresponding Source conveyed, and Installation Information provided,
+                            in accord with this section must be in a format that is publicly
+                            documented (and with an implementation available to the public in
+                            source code form), and must require no special password or key for
+                            unpacking, reading or copying.</p>
+
+                        <h4 id="section7">7. Additional Terms.</h4>
+
+                        <p>&quot;Additional permissions&quot; are terms that supplement the terms of this
+                            License by making exceptions from one or more of its conditions.
+                            Additional permissions that are applicable to the entire Program shall
+                            be treated as though they were included in this License, to the extent
+                            that they are valid under applicable law. If additional permissions
+                            apply only to part of the Program, that part may be used separately
+                            under those permissions, but the entire Program remains governed by
+                            this License without regard to the additional permissions.</p>
+
+                        <p>When you convey a copy of a covered work, you may at your option
+                            remove any additional permissions from that copy, or from any part of
+                            it. (Additional permissions may be written to require their own
+                            removal in certain cases when you modify the work.) You may place
+                            additional permissions on material, added by you to a covered work,
+                            for which you have or can give appropriate copyright permission.</p>
+
+                        <p>Notwithstanding any other provision of this License, for material you
+                            add to a covered work, you may (if authorized by the copyright holders of
+                            that material) supplement the terms of this License with terms:</p>
+
+                        <ul>
+
+                            <li>a) Disclaiming warranty or limiting liability differently from the
+                                terms of sections 15 and 16 of this License; or</li>
+
+                            <li>b) Requiring preservation of specified reasonable legal notices or
+                                author attributions in that material or in the Appropriate Legal
+                                Notices displayed by works containing it; or</li>
+
+                            <li>c) Prohibiting misrepresentation of the origin of that material, or
+                                requiring that modified versions of such material be marked in
+                                reasonable ways as different from the original version; or</li>
+
+                            <li>d) Limiting the use for publicity purposes of names of licensors or
+                                authors of the material; or</li>
+
+                            <li>e) Declining to grant rights under trademark law for use of some
+                                trade names, trademarks, or service marks; or</li>
+
+                            <li>f) Requiring indemnification of licensors and authors of that
+                                material by anyone who conveys the material (or modified versions of
+                                it) with contractual assumptions of liability to the recipient, for
+                                any liability that these contractual assumptions directly impose on
+                                those licensors and authors.</li>
+
+                        </ul>
+
+                        <p>All other non-permissive additional terms are considered &quot;further
+                            restrictions&quot; within the meaning of section 10. If the Program as you
+                            received it, or any part of it, contains a notice stating that it is
+                            governed by this License along with a term that is a further restriction,
+                            you may remove that term. If a license document contains a further
+                            restriction but permits relicensing or conveying under this License, you
+                            may add to a covered work material governed by the terms of that license
+                            document, provided that the further restriction does not survive such
+                            relicensing or conveying.</p>
+
+                        <p>If you add terms to a covered work in accord with this section, you
+                            must place, in the relevant source files, a statement of the
+                            additional terms that apply to those files, or a notice indicating
+                            where to find the applicable terms.</p>
+
+                        <p>Additional terms, permissive or non-permissive, may be stated in the
+                            form of a separately written license, or stated as exceptions;
+                            the above requirements apply either way.</p>
+
+                        <h4 id="section8">8. Termination.</h4>
+
+                        <p>You may not propagate or modify a covered work except as expressly
+                            provided under this License. Any attempt otherwise to propagate or
+                            modify it is void, and will automatically terminate your rights under
+                            this License (including any patent licenses granted under the third
+                            paragraph of section 11).</p>
+
+                        <p>However, if you cease all violation of this License, then your
+                            license from a particular copyright holder is reinstated (a)
+                            provisionally, unless and until the copyright holder explicitly and
+                            finally terminates your license, and (b) permanently, if the copyright
+                            holder fails to notify you of the violation by some reasonable means
+                            prior to 60 days after the cessation.</p>
+
+                        <p>Moreover, your license from a particular copyright holder is
+                            reinstated permanently if the copyright holder notifies you of the
+                            violation by some reasonable means, this is the first time you have
+                            received notice of violation of this License (for any work) from that
+                            copyright holder, and you cure the violation prior to 30 days after
+                            your receipt of the notice.</p>
+
+                        <p>Termination of your rights under this section does not terminate the
+                            licenses of parties who have received copies or rights from you under
+                            this License. If your rights have been terminated and not permanently
+                            reinstated, you do not qualify to receive new licenses for the same
+                            material under section 10.</p>
+
+                        <h4 id="section9">9. Acceptance Not Required for Having Copies.</h4>
+
+                        <p>You are not required to accept this License in order to receive or
+                            run a copy of the Program. Ancillary propagation of a covered work
+                            occurring solely as a consequence of using peer-to-peer transmission
+                            to receive a copy likewise does not require acceptance. However,
+                            nothing other than this License grants you permission to propagate or
+                            modify any covered work. These actions infringe copyright if you do
+                            not accept this License. Therefore, by modifying or propagating a
+                            covered work, you indicate your acceptance of this License to do so.</p>
+
+                        <h4 id="section10">10. Automatic Licensing of Downstream Recipients.</h4>
+
+                        <p>Each time you convey a covered work, the recipient automatically
+                            receives a license from the original licensors, to run, modify and
+                            propagate that work, subject to this License. You are not responsible
+                            for enforcing compliance by third parties with this License.</p>
+
+                        <p>An &quot;entity transaction&quot; is a transaction transferring control of an
+                            organization, or substantially all assets of one, or subdividing an
+                            organization, or merging organizations. If propagation of a covered
+                            work results from an entity transaction, each party to that
+                            transaction who receives a copy of the work also receives whatever
+                            licenses to the work the party's predecessor in interest had or could
+                            give under the previous paragraph, plus a right to possession of the
+                            Corresponding Source of the work from the predecessor in interest, if
+                            the predecessor has it or can get it with reasonable efforts.</p>
+
+                        <p>You may not impose any further restrictions on the exercise of the
+                            rights granted or affirmed under this License. For example, you may
+                            not impose a license fee, royalty, or other charge for exercise of
+                            rights granted under this License, and you may not initiate litigation
+                            (including a cross-claim or counterclaim in a lawsuit) alleging that
+                            any patent claim is infringed by making, using, selling, offering for
+                            sale, or importing the Program or any portion of it.</p>
+
+                        <h4 id="section11">11. Patents.</h4>
+
+                        <p>A &quot;contributor&quot; is a copyright holder who authorizes use under this
+                            License of the Program or a work on which the Program is based. The
+                            work thus licensed is called the contributor's &quot;contributor version&quot;.</p>
+
+                        <p>A contributor's &quot;essential patent claims&quot; are all patent claims
+                            owned or controlled by the contributor, whether already acquired or
+                            hereafter acquired, that would be infringed by some manner, permitted
+                            by this License, of making, using, or selling its contributor version,
+                            but do not include claims that would be infringed only as a
+                            consequence of further modification of the contributor version. For
+                            purposes of this definition, &quot;control&quot; includes the right to grant
+                            patent sublicenses in a manner consistent with the requirements of
+                            this License.</p>
+
+                        <p>Each contributor grants you a non-exclusive, worldwide, royalty-free
+                            patent license under the contributor's essential patent claims, to
+                            make, use, sell, offer for sale, import and otherwise run, modify and
+                            propagate the contents of its contributor version.</p>
+
+                        <p>In the following three paragraphs, a &quot;patent license&quot; is any express
+                            agreement or commitment, however denominated, not to enforce a patent
+                            (such as an express permission to practice a patent or covenant not to
+                            sue for patent infringement). To &quot;grant&quot; such a patent license to a
+                            party means to make such an agreement or commitment not to enforce a
+                            patent against the party.</p>
+
+                        <p>If you convey a covered work, knowingly relying on a patent license,
+                            and the Corresponding Source of the work is not available for anyone
+                            to copy, free of charge and under the terms of this License, through a
+                            publicly available network server or other readily accessible means,
+                            then you must either (1) cause the Corresponding Source to be so
+                            available, or (2) arrange to deprive yourself of the benefit of the
+                            patent license for this particular work, or (3) arrange, in a manner
+                            consistent with the requirements of this License, to extend the patent
+                            license to downstream recipients. &quot;Knowingly relying&quot; means you have
+                            actual knowledge that, but for the patent license, your conveying the
+                            covered work in a country, or your recipient's use of the covered work
+                            in a country, would infringe one or more identifiable patents in that
+                            country that you have reason to believe are valid.</p>
+
+                        <p>If, pursuant to or in connection with a single transaction or
+                            arrangement, you convey, or propagate by procuring conveyance of, a
+                            covered work, and grant a patent license to some of the parties
+                            receiving the covered work authorizing them to use, propagate, modify
+                            or convey a specific copy of the covered work, then the patent license
+                            you grant is automatically extended to all recipients of the covered
+                            work and works based on it.</p>
+
+                        <p>A patent license is &quot;discriminatory&quot; if it does not include within
+                            the scope of its coverage, prohibits the exercise of, or is
+                            conditioned on the non-exercise of one or more of the rights that are
+                            specifically granted under this License. You may not convey a covered
+                            work if you are a party to an arrangement with a third party that is
+                            in the business of distributing software, under which you make payment
+                            to the third party based on the extent of your activity of conveying
+                            the work, and under which the third party grants, to any of the
+                            parties who would receive the covered work from you, a discriminatory
+                            patent license (a) in connection with copies of the covered work
+                            conveyed by you (or copies made from those copies), or (b) primarily
+                            for and in connection with specific products or compilations that
+                            contain the covered work, unless you entered into that arrangement,
+                            or that patent license was granted, prior to 28 March 2007.</p>
+
+                        <p>Nothing in this License shall be construed as excluding or limiting
+                            any implied license or other defenses to infringement that may
+                            otherwise be available to you under applicable patent law.</p>
+
+                        <h4 id="section12">12. No Surrender of Others' Freedom.</h4>
+
+                        <p>If conditions are imposed on you (whether by court order, agreement or
+                            otherwise) that contradict the conditions of this License, they do not
+                            excuse you from the conditions of this License. If you cannot convey a
+                            covered work so as to satisfy simultaneously your obligations under this
+                            License and any other pertinent obligations, then as a consequence you may
+                            not convey it at all. For example, if you agree to terms that obligate you
+                            to collect a royalty for further conveying from those to whom you convey
+                            the Program, the only way you could satisfy both those terms and this
+                            License would be to refrain entirely from conveying the Program.</p>
+
+                        <h4 id="section13">13. Remote Network Interaction; Use with the GNU General Public License.</h4>
+
+                        <p>Notwithstanding any other provision of this License, if you modify the
+                            Program, your modified version must prominently offer all users
+                            interacting with it remotely through a computer network (if your version
+                            supports such interaction) an opportunity to receive the Corresponding
+                            Source of your version by providing access to the Corresponding Source
+                            from a network server at no charge, through some standard or customary
+                            means of facilitating copying of software. This Corresponding Source
+                            shall include the Corresponding Source for any work covered by version 3
+                            of the GNU General Public License that is incorporated pursuant to the
+                            following paragraph.</p>
+
+                        <p>Notwithstanding any other provision of this License, you have permission
+                            to link or combine any covered work with a work licensed under version 3
+                            of the GNU General Public License into a single combined work, and to
+                            convey the resulting work. The terms of this License will continue to
+                            apply to the part which is the covered work, but the work with which it is
+                            combined will remain governed by version 3 of the GNU General Public
+                            License.</p>
+
+                        <h4 id="section14">14. Revised Versions of this License.</h4>
+
+                        <p>The Free Software Foundation may publish revised and/or new versions of
+                            the GNU Affero General Public License from time to time. Such new
+                            versions will be similar in spirit to the present version, but may differ
+                            in detail to address new problems or concerns.</p>
+
+                        <p>Each version is given a distinguishing version number. If the
+                            Program specifies that a certain numbered version of the GNU Affero
+                            General Public License &quot;or any later version&quot; applies to it, you have
+                            the option of following the terms and conditions either of that
+                            numbered version or of any later version published by the Free
+                            Software Foundation. If the Program does not specify a version number
+                            of the GNU Affero General Public License, you may choose any version
+                            ever published by the Free Software Foundation.</p>
+
+                        <p>If the Program specifies that a proxy can decide which future
+                            versions of the GNU Affero General Public License can be used, that
+                            proxy's public statement of acceptance of a version permanently
+                            authorizes you to choose that version for the Program.</p>
+
+                        <p>Later license versions may give you additional or different
+                            permissions. However, no additional obligations are imposed on any
+                            author or copyright holder as a result of your choosing to follow a
+                            later version.</p>
+
+                        <h4 id="section15">15. Disclaimer of Warranty.</h4>
+
+                        <p>THERE IS NO WARRANTY FOR THE PROGRAM, TO THE EXTENT PERMITTED BY
+                            APPLICABLE LAW. EXCEPT WHEN OTHERWISE STATED IN WRITING THE COPYRIGHT
+                            HOLDERS AND/OR OTHER PARTIES PROVIDE THE PROGRAM &quot;AS IS&quot; WITHOUT WARRANTY
+                            OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING, BUT NOT LIMITED TO,
+                            THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+                            PURPOSE. THE ENTIRE RISK AS TO THE QUALITY AND PERFORMANCE OF THE PROGRAM
+                            IS WITH YOU. SHOULD THE PROGRAM PROVE DEFECTIVE, YOU ASSUME THE COST OF
+                            ALL NECESSARY SERVICING, REPAIR OR CORRECTION.</p>
+
+                        <h4 id="section16">16. Limitation of Liability.</h4>
+
+                        <p>IN NO EVENT UNLESS REQUIRED BY APPLICABLE LAW OR AGREED TO IN WRITING
+                            WILL ANY COPYRIGHT HOLDER, OR ANY OTHER PARTY WHO MODIFIES AND/OR CONVEYS
+                            THE PROGRAM AS PERMITTED ABOVE, BE LIABLE TO YOU FOR DAMAGES, INCLUDING ANY
+                            GENERAL, SPECIAL, INCIDENTAL OR CONSEQUENTIAL DAMAGES ARISING OUT OF THE
+                            USE OR INABILITY TO USE THE PROGRAM (INCLUDING BUT NOT LIMITED TO LOSS OF
+                            DATA OR DATA BEING RENDERED INACCURATE OR LOSSES SUSTAINED BY YOU OR THIRD
+                            PARTIES OR A FAILURE OF THE PROGRAM TO OPERATE WITH ANY OTHER PROGRAMS),
+                            EVEN IF SUCH HOLDER OR OTHER PARTY HAS BEEN ADVISED OF THE POSSIBILITY OF
+                            SUCH DAMAGES.</p>
+
+                        <h4 id="section17">17. Interpretation of Sections 15 and 16.</h4>
+
+                        <p>If the disclaimer of warranty and limitation of liability provided
+                            above cannot be given local legal effect according to their terms,
+                            reviewing courts shall apply local law that most closely approximates
+                            an absolute waiver of all civil liability in connection with the
+                            Program, unless a warranty or assumption of liability accompanies a
+                            copy of the Program in return for a fee.</p>
+
+                        <p>END OF TERMS AND CONDITIONS</p>
+                        </p>
+                        <button class="btn btn-primary" onclick="toggleDetails('license')">Close</button>
+                    </div>
+                </section>
+            </main>
+        </div>
+    </div>
+
+    <script>
+        function downloadFile(templateId) {
+            window.location.href = `static/data/templates/${templateId}`;
+        }
+
+        function toggleDetails(id) {
+            var element = document.getElementById(id);
+            if (element.style.display === "block") {
+                element.style.display = "none";
+            } else {
+                // Hide all content details first
+                document.querySelectorAll('.content-details').forEach(function (detail) {
+                    detail.style.display = "none";
+                });
+                // Show the selected one
+                element.style.display = "block";
+            }
+        }
+
+        // New function to handle hash navigation
+        function handleHashNavigation() {
+            if (window.location.hash) {
+                const targetId = window.location.hash.substring(1);
+                const targetElement = document.getElementById(targetId);
+
+                if (targetElement) {
+                    // Find the parent content-details container
+                    let parent = targetElement;
+                    while (parent && !parent.classList.contains('content-details')) {
+                        parent = parent.parentElement;
+                    }
+
+                    // If we found a parent content-details, open it
+                    if (parent) {
+                        const parentId = parent.id;
+                        toggleDetails(parentId);
+
+                        // Scroll to the specific element after a short delay
+                        setTimeout(() => {
+                            targetElement.scrollIntoView({ behavior: 'smooth' });
+                        }, 100);
+                    }
+                }
+            }
+        }
+
+        // Run on page load
+        document.addEventListener('DOMContentLoaded', handleHashNavigation);
+
+        // Run when hash changes (when user clicks a link)
+        window.addEventListener('hashchange', handleHashNavigation);
+
+    </script>
+</body>

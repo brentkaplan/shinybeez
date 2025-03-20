@@ -255,13 +255,8 @@
     "beezdiscounting": {
       "Package": "beezdiscounting",
       "Version": "0.3.2",
-      "Source": "GitHub",
-      "RemoteType": "github",
-      "RemoteHost": "api.github.com",
-      "RemoteUsername": "brentkaplan",
-      "RemoteRepo": "beezdiscounting",
-      "RemoteRef": "master",
-      "RemoteSha": "edc4466b5024e70ef915b8a8ab6c3cbe4c217fac",
+      "Source": "Repository",
+      "Repository": "CRAN",
       "Requirements": [
         "R",
         "beezdemand",
@@ -277,7 +272,7 @@
         "tibble",
         "tidyr"
       ],
-      "Hash": "a10000d2ebe431e19d82eed64d5ebbed"
+      "Hash": "61f85f853a35caa22d9880078a39738f"
     },
     "bit": {
       "Package": "bit",
@@ -403,7 +398,7 @@
     },
     "bslib": {
       "Package": "bslib",
-      "Version": "0.8.0",
+      "Version": "0.9.0",
       "Source": "Repository",
       "Repository": "CRAN",
       "Requirements": [
@@ -421,7 +416,7 @@
         "rlang",
         "sass"
       ],
-      "Hash": "b299c6741ca9746fb227debcb0f9fb6c"
+      "Hash": "70a6489cc254171fb9b4a7f130f44dca"
     },
     "cachem": {
       "Package": "cachem",
@@ -598,13 +593,13 @@
     },
     "curl": {
       "Package": "curl",
-      "Version": "5.2.1",
+      "Version": "6.2.0",
       "Source": "Repository",
-      "Repository": "RSPM",
+      "Repository": "CRAN",
       "Requirements": [
         "R"
       ],
-      "Hash": "411ca2c03b1ce5f548345d2fc2685f7a"
+      "Hash": "b580cbb010099fd990df6bfe44459e1a"
     },
     "cyclocomp": {
       "Package": "cyclocomp",

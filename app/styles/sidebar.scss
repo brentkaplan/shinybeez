@@ -1,0 +1,160 @@
+// Sidebar container styling - Light mode (default)
+.sidebar-container {
+  background-color: #ffffff;
+  padding: 0 0;
+  height: 100%;
+  color: #212529;
+
+  // Section headers in sidebar
+  .sidebar-header {
+    padding: 0.5rem 1rem;
+    margin-bottom: 0.5rem;
+    border-bottom: 1px solid #e9ecef;
+  }
+
+  // Add spacing between sidebar sections
+  .sidebar-section {
+    margin-bottom: 1rem;
+  }
+
+  // Dropdown indicators for toggle buttons
+  .btn-toggle {
+    color: #212529;
+
+    &::after {
+      width: 1.25em;
+      line-height: 0;
+      content: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='rgba%280,0,0,.5%29' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M5 14l6-6-6-6'/%3e%3c/svg%3e");
+      transition: transform 0.35s ease, margin-left 0.35s ease; // Add margin-left to transition
+      transform-origin: 0.5em 50%;
+      display: inline-block; // Ensure it responds to margin changes properly
+    }
+
+    &[aria-expanded="true"]::after {
+      transform: rotate(90deg);
+      margin-left: 0.2rem; // Add left margin when expanded
+    }
+
+    // Add hover effect to toggle button
+    &:hover {
+      background-color: rgba(121, 82, 179, 0.05);
+    }
+  }
+
+  // Navigation link styling
+  .btn-toggle-nav {
+    a {
+      color: #495057;
+      padding: 0.25rem 0.5rem;
+      margin-top: 0.25rem;
+      margin-left: 1.25rem;
+      width: 90%;
+      max-width: 90%;
+
+      // Better hover states for links
+      &:hover,
+      &:focus {
+        background-color: rgba(121, 82, 179, 0.1);
+        color: #7952b3;
+        border-radius: 5px;
+      }
+
+      // Active state for links
+      &.active {
+        background-color: rgba(121, 82, 179, 0.2);
+        color: #7952b3;
+        font-weight: 500;
+      }
+    }
+  }
+
+  // Improve overall link appearance
+  a {
+    color: #495057;
+    text-decoration: none;
+    transition: all 0.2s ease;
+    display: inline-block;
+
+    &:hover {
+      text-decoration: none;
+    }
+  }
+
+  // Add subtle dividers between major sections
+  > div:not(:last-child) {
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+  }
+
+  // Make section titles stand out
+  .fs-5.fw-semibold {
+    color: #495057;
+    margin-bottom: 0.75rem;
+  }
+
+  // Add some polish to list items
+  li {
+    margin-bottom: 0.25rem;
+  }
+
+  .collapse {
+    padding-left: 0; // Reset any padding on the collapse container
+
+    // Ensure stable rendering during transitions
+    &.collapsing {
+      overflow-x: hidden; // Prevent horizontal overflow during transition
+    }
+  }
+}
+
+// Dark mode styles targeting Bootstrap's data-bs-theme attribute
+[data-bs-theme="dark"] {
+  .sidebar-container {
+    background-color: #2d2d2d !important;
+    // border-right-color: #343a40 !important;
+    color: #f8f9fa !important;
+
+    .sidebar-header {
+      border-bottom-color: #343a40 !important;
+    }
+
+    .btn-toggle {
+      color: #e9ecef !important;
+      background-color: transparent !important;
+
+      &::after {
+        content: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='rgba%28255,255,255,.75%29' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M5 14l6-6-6-6'/%3e%3c/svg%3e") !important;
+      }
+
+      &:hover {
+        background-color: rgba(255, 255, 255, 0.1) !important;
+      }
+    }
+
+    .fs-5.fw-semibold {
+      color: #f8f9fa !important;
+    }
+
+    a,
+    .btn-toggle-nav a {
+      color: #e9ecef !important;
+
+      &:hover,
+      &:focus {
+        background-color: rgba(255, 255, 255, 0.1) !important;
+        color: #ffffff !important;
+      }
+
+      &.active {
+        background-color: rgba(255, 255, 255, 0.2) !important;
+        color: #ffffff !important;
+        font-weight: 500 !important;
+      }
+    }
+
+    > div:not(:last-child) {
+      border-bottom-color: rgba(255, 255, 255, 0.1) !important;
+    }
+  }
+}
