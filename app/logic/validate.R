@@ -14,45 +14,53 @@ check_data <- function(dat, type = "demand") {
         return_msg <- assertthat$validate_that(
           all(colnames(dat)[1:2] == c("id", "group")),
           msg = "The first two columns do not match `id`, `group`"
-          )
-        if (is.character(return_msg)) return(return_msg)
+        )
+        if (is.character(return_msg)) {
+          return(return_msg)
+        }
         dat <- dplyr$relocate(dat, group, .after = id)
         return_msg <- assertthat$validate_that(
           all(sapply(readr$parse_number(colnames(dat)[3:length(colnames(dat))]), is.numeric)),
           msg = "The column names are not numeric"
-          )
-        if (is.character(return_msg)) return(return_msg)
+        )
+        if (is.character(return_msg)) {
+          return(return_msg)
+        }
       } else {
         return_msg <- assertthat$validate_that(
           colnames(dat)[1] == c("id"),
           msg = "The first column is not `id`"
-          )
-        if (is.character(return_msg)) return(return_msg)
+        )
+        if (is.character(return_msg)) {
+          return(return_msg)
+        }
         return_msg <- assertthat$validate_that(
           all(sapply(readr$parse_number(colnames(dat)[2:length(colnames(dat))]), is.numeric)),
           msg = "The column names are not numeric"
         )
-        if (is.character(return_msg)) return(return_msg)
+        if (is.character(return_msg)) {
+          return(return_msg)
+        }
       }
     } else {
-      if ("group" %in% colnames(dat)){
+      if ("group" %in% colnames(dat)) {
         return_msg <- assertthat$validate_that(
           all(colnames(dat) == c("id", "group", "x", "y")),
           msg = "Check colnames `id`, `group`, `x`, and `y` in data"
-          )
+        )
       } else {
         return_msg <- assertthat$validate_that(
           all(colnames(dat) == c("id", "x", "y")),
           msg = "Check colnames `id`, `x`, and `y` are ordered in  data"
-          )
+        )
       }
     }
   } else {
     # check if file has correct id columns
     return_msg <- assertthat$validate_that(
-        any(colnames(dat) %in% c("subjectid", "ResponseId", "id", "x", "y")),
-        msg = "Check colnames for 'subjectid', 'ResponseId', 'id', 'x', or 'y' are in data"
-      )
+      any(colnames(dat) %in% c("subjectid", "ResponseId", "id", "x", "y")),
+      msg = "Check colnames for 'subjectid', 'ResponseId', 'id', 'x', or 'y' are in data"
+    )
     if ("subjectid" %in% colnames(dat)) {
       # check if 28 or 3 columns wide
       return_msg <- assertthat$validate_that(
@@ -67,15 +75,19 @@ check_data <- function(dat, type = "demand") {
       )
     } else if ("id" %in% colnames(dat)) {
       return_msg <- assertthat$validate_that(
-          colnames(dat)[1] == c("id"),
-          msg = "The first column is not `id`"
-          )
-        if (is.character(return_msg)) return(return_msg)
-        return_msg <- assertthat$validate_that(
-          all(sapply(readr$parse_number(colnames(dat)[2:length(colnames(dat))]), is.numeric)),
-          msg = "The column names are not numeric"
-        )
-        if (is.character(return_msg)) return(return_msg)
+        colnames(dat)[1] == c("id"),
+        msg = "The first column is not `id`"
+      )
+      if (is.character(return_msg)) {
+        return(return_msg)
+      }
+      return_msg <- assertthat$validate_that(
+        all(sapply(readr$parse_number(colnames(dat)[2:length(colnames(dat))]), is.numeric)),
+        msg = "The column names are not numeric"
+      )
+      if (is.character(return_msg)) {
+        return(return_msg)
+      }
     }
   }
   if (is.character(return_msg)) {
@@ -83,6 +95,15 @@ check_data <- function(dat, type = "demand") {
   } else {
     return(TRUE)
   }
+}
+
+#' @export
+obliterate_empty_cols <- function(dat) {
+  # figure out which columns are empty
+  empty_cols <- colnames(dat)[colSums(is.na(dat)) == nrow(dat)]
+  # remove empty columns
+  dat <- dat[, !colnames(dat) %in% empty_cols]
+  return(dat)
 }
 
 #' @export
@@ -102,21 +123,23 @@ rename_cols <- function(dat) {
 
 #' @export
 reshape_data <- function(dat, type = "demand") {
-  if  (type == "demand") {
+  if (type == "demand") {
     # check if dat is wider than it is long
     if (length(unique(dat$id)) == length(dat$id)) {
-     if ("group" %in% colnames(dat)) {
-      dat |>
-        tidyr$pivot_longer(
-          cols = 3:ncol(dat),
-          names_to = "x",
-          values_to = "y")
+      if ("group" %in% colnames(dat)) {
+        dat |>
+          tidyr$pivot_longer(
+            cols = 3:ncol(dat),
+            names_to = "x",
+            values_to = "y"
+          )
       } else {
         dat |>
           tidyr$pivot_longer(
             cols = 2:ncol(dat),
             names_to = "x",
-            values_to = "y")
+            values_to = "y"
+          )
       }
     } else {
       dat
@@ -128,10 +151,10 @@ reshape_data <- function(dat, type = "demand") {
     } else if (ncol(dat) < 28 & length(unique(dat$id)) == length(dat$id)) {
       dat |>
         tidyr$pivot_longer(
-            cols = 2:ncol(dat),
-            names_to = "x",
-            values_to = "y"
-          )
+          cols = 2:ncol(dat),
+          names_to = "x",
+          values_to = "y"
+        )
     } else {
       dat
     }

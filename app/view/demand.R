@@ -5,10 +5,10 @@ box::use(
 )
 
 box::use(
-  app/logic/validate,
-  app/view/demand_data_table,
-  app/view/demand_results_table,
-  app/view/file_input,
+  app / logic / validate,
+  app / view / demand_data_table,
+  app / view / demand_results_table,
+  app / view / file_input,
 )
 
 #' @export
@@ -17,7 +17,6 @@ sidebar_ui <- function(id) {
 
   shiny$tagList(
     file_input$ui(ns("upload_demand")),
-
     shiny$checkboxInput(
       inputId = ns("group"),
       label = bslib$tooltip(
@@ -64,7 +63,7 @@ sidebar_ui <- function(id) {
         # v2 feature
         # "Exponentiated (no k)",
         "Exponential (with k)"
-        )
+      )
     ),
     # v2 feature
     # shiny$selectInput(
@@ -95,7 +94,7 @@ sidebar_ui <- function(id) {
         "Two Stage" = "Ind"
         # v2 feature
         # "Mixed Effects" = "MEM"
-        ),
+      ),
       selected = "Pooled"
     ),
     shiny$uiOutput(
@@ -151,12 +150,14 @@ sidebar_server <- function(id) {
           "Individual k",
           "Fitted k",
           "Empirical range (+.5)"
-      )
+        )
         ks
       }
 
-      if (input$equation %in% c("Exponentiated (with k)",
-                                "Exponential (with k)")) {
+      if (input$equation %in% c(
+        "Exponentiated (with k)",
+        "Exponential (with k)"
+      )) {
         if (input$analysis_type %in% c("Pooled", "Mean", "Ind")) {
           shiny$selectInput(
             inputId = ns("k"),
@@ -196,7 +197,7 @@ navpanel_ui <- function(id) {
     demand_results_table$ui(
       ns("results_table_demand")
     )
- )
+  )
 }
 
 #' @export
@@ -208,9 +209,9 @@ navpanel_server <- function(id) {
 
     shiny$observe({
       shiny$req(session$userData$data$demand)
-        data_r$data_d <- validate$rename_cols(session$userData$data$demand) |>
-          validate$reshape_data(dat = _) |>
-          validate$retype_data(dat = _)
+      data_r$data_d <- validate$rename_cols(session$userData$data$demand) |>
+        validate$reshape_data(dat = _) |>
+        validate$retype_data(dat = _)
     })
 
     demand_data_table$server(

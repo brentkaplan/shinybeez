@@ -70,7 +70,7 @@ server <- function(id, type = "demand") {
           )
           return()
         } else {
-          session$userData$data$demand <- tmp
+          session$userData$data$demand <- validate$obliterate_empty_cols(tmp)
         }
       } else if (type == "discounting") {
         rhino$log$info(paste0("Reading discounting file: ", input$upload$name))
@@ -100,7 +100,7 @@ server <- function(id, type = "demand") {
           )
           return()
         } else {
-          session$userData$data$discounting <- tmp
+          session$userData$data$discounting <- validate$obliterate_empty_cols(tmp)
         }
       }
     }) |>
