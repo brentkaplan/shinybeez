@@ -16,6 +16,8 @@ Behavior, 123_(2), 335-376. doi: [10.1002/jeab.70000](https://doi.org/10.1002/je
 height = 15 width = 15 align =
 "center">](https://codedbx.com/assets/pubs/Kaplan-Reed-shinybeez.pdf)
 
+Hear about this paper on a "Deep Dive" podcast on my website [codedbx.com](https://codedbx.com/)
+
 <!-- [<img
 src="https://raw.githubusercontent.com/FortAwesome/Font-Awesome/6.x/svgs/solid/download.svg"
 height = 15 align =
