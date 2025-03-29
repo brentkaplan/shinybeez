@@ -14,7 +14,7 @@ Economic Easy Demand and Discounting. _Journal of the Experimental Analysis of
 Behavior, 123_(2), 335-376. doi: [10.1002/jeab.70000](https://doi.org/10.1002/jeab.70000)
 [<img src="https://img.icons8.com/material-rounded/24/FFFFFF/download--v1.png"
 height = 15 width = 15 align =
-"center">](assets/pubs/Kaplan-Reed-shinybeez.pdf){target=\_blank}
+"center">](assets/pubs/Kaplan-Reed-shinybeez.pdf)
 
 <!-- [<img
 src="https://raw.githubusercontent.com/FortAwesome/Font-Awesome/6.x/svgs/solid/download.svg"
@@ -25,11 +25,11 @@ height = 15 align =
 
 ### Links to _shinybeez_ online
 
-[Live App](https://shinybeez.app){target=\_blank}
+[Live App](https://shinybeez.app)
 
-[shinyapps.io](https://brentkaplan.shinyapps.io/shinybeez/){target=\_blank}
+[shinyapps.io](https://brentkaplan.shinyapps.io/shinybeez/)
 
-[GitHub Repository](https://github.com/brentkaplan/shinybeez){target=\_blank}
+[GitHub Repository](https://github.com/brentkaplan/shinybeez)
 
 ### Local installation
 
@@ -58,6 +58,7 @@ To install _shinybeez_ locally and run it on your own machine, you must first in
 Alternatively, after you have installed Docker on your computer you can run the following commands in your terminal to start the app:
 
 `docker pull brentkaplan/shinybeez:latest`
+
 `docker run -p 3838:3838 brentkaplan/shinybeez:latest`
 
 Then, navigate to http://localhost:3838 in your browser of choice.
