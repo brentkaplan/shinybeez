@@ -5,9 +5,9 @@ account: brentkaplan
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
 appId: 12336420
-bundleId: 9796508
+bundleId: 10015297
 url: https://brentkaplan.shinyapps.io/shinybeez/
 version: 1
 asMultiple: FALSE
 asStatic: FALSE
-ignoredFiles: .Rprofile|Dockerfile|ms/manuscript/Shinybeez.bib|README.md|shinybeez.code-workspace|shinyproxy/application.yaml|shinyproxy/Dockerfile|shinyproxy/localtesting|shinyproxy/shinyproxy-3.1.1.jar|troubleshooting/shiny_test.csv|troubleshooting/Shinybeez-template-demand-long-grouping.csv|manuscript|other
+ignoredFiles: .dockerignore|.luarc.json|.Rprofile|digitalocean.txt|Dockerfile|logs/log-old.txt|logs/log-old1.txt|notes.html|notes.md|README.md|shinybeez.code-workspace|shinyproxy/application.yml|shinyproxy/Dockerfile|shinyproxy/localtesting|shinyproxy/shinyproxy-3.1.1.jar|troubleshooting/shiny_test.csv|troubleshooting/Shinybeez-template-demand-long-grouping.csv|troubleshooting/T9_demand_opioids_fixed.csv|troubleshooting/T9_demand_opioids.csv|manuscript|notes_files|other
