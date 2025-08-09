@@ -183,6 +183,33 @@
       ],
       "Hash": "f27411eb6d9c3dada5edd444b8416675"
     },
+    "RcppEigen": {
+      "Package": "RcppEigen",
+      "Version": "0.3.4.0.2",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Requirements": [
+        "R",
+        "Rcpp",
+        "stats",
+        "utils"
+      ],
+      "Hash": "4ac8e423216b8b70cb9653d1b3f71eb9"
+    },
+    "Rdpack": {
+      "Package": "Rdpack",
+      "Version": "2.6.4",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Requirements": [
+        "R",
+        "methods",
+        "rbibutils",
+        "tools",
+        "utils"
+      ],
+      "Hash": "1b2ca1972e3b00cd0bb5a98e16403028"
+    },
     "anytime": {
       "Package": "anytime",
       "Version": "0.3.9",
@@ -235,22 +262,52 @@
       ],
       "Hash": "543776ae6848fde2f48ff3816d0628bc"
     },
-    "beezdemand": {
-      "Package": "beezdemand",
-      "Version": "0.1.2",
+    "bayestestR": {
+      "Package": "bayestestR",
+      "Version": "0.16.0",
       "Source": "Repository",
-      "Repository": "RSPM",
+      "Repository": "CRAN",
       "Requirements": [
         "R",
+        "datawizard",
+        "graphics",
+        "insight",
+        "methods",
+        "stats",
+        "utils"
+      ],
+      "Hash": "d414d099aa3b59a132a17fd8accf20fb"
+    },
+    "beezdemand": {
+      "Package": "beezdemand",
+      "Version": "0.1.3",
+      "Source": "Local",
+      "RemoteType": "local",
+      "RemoteUrl": "./beezdemand_0.1.3.tar.gz",
+      "Requirements": [
+        "R",
+        "broom",
+        "dplyr",
+        "emmeans",
         "ggplot2",
+        "lifecycle",
+        "lme4",
+        "minpack.lm",
+        "nlme",
+        "nls.multstart",
         "nls2",
         "nlsr",
         "nlstools",
         "optimx",
+        "performance",
         "reshape2",
-        "stats"
+        "rlang",
+        "scales",
+        "stats",
+        "tibble",
+        "tidyr"
       ],
-      "Hash": "93d44fa6c9b14cf3e760d86b96ab62e1"
+      "Hash": "b2e6d05d403f0e801d61423a4171cc3a"
     },
     "beezdiscounting": {
       "Package": "beezdiscounting",
@@ -297,6 +354,18 @@
         "utils"
       ],
       "Hash": "9fe98599ca456d6552421db0d6772d8f"
+    },
+    "boot": {
+      "Package": "boot",
+      "Version": "1.3-30",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Requirements": [
+        "R",
+        "graphics",
+        "stats"
+      ],
+      "Hash": "96abeed416a286d4a0f52e550b612343"
     },
     "box": {
       "Package": "box",
@@ -651,6 +720,19 @@
       ],
       "Hash": "c84c8e67ef8319a17503b76a9f7fd18f"
     },
+    "datawizard": {
+      "Package": "datawizard",
+      "Version": "1.1.0",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Requirements": [
+        "R",
+        "insight",
+        "stats",
+        "utils"
+      ],
+      "Hash": "5d0f865eb209e923728ddd043396e24a"
+    },
     "desc": {
       "Package": "desc",
       "Version": "1.4.3",
@@ -749,6 +831,23 @@
       ],
       "Hash": "4ef372b716824753719a8a38b258442d"
     },
+    "emmeans": {
+      "Package": "emmeans",
+      "Version": "1.11.1",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Requirements": [
+        "R",
+        "estimability",
+        "graphics",
+        "methods",
+        "mvtnorm",
+        "numDeriv",
+        "stats",
+        "utils"
+      ],
+      "Hash": "fb6ababbe8f7f753969c2026e8ec6dbe"
+    },
     "esquisse": {
       "Package": "esquisse",
       "Version": "2.0.0",
@@ -771,6 +870,17 @@
         "shinybusy"
       ],
       "Hash": "ac07eff19c6047cf806f4c73edb75ca2"
+    },
+    "estimability": {
+      "Package": "estimability",
+      "Version": "1.5.1",
+      "Source": "Repository",
+      "Repository": "RSPM",
+      "Requirements": [
+        "R",
+        "stats"
+      ],
+      "Hash": "21ec52af13afbcab1cb317567b639b0a"
     },
     "evaluate": {
       "Package": "evaluate",
@@ -1084,6 +1194,19 @@
       ],
       "Hash": "ac107251d9d9fd72f0ca8049988f1d7f"
     },
+    "insight": {
+      "Package": "insight",
+      "Version": "1.3.0",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Requirements": [
+        "R",
+        "methods",
+        "stats",
+        "utils"
+      ],
+      "Hash": "a9326ba549f9d95e7887f5dd02d562a4"
+    },
     "isoband": {
       "Package": "isoband",
       "Version": "0.2.7",
@@ -1178,6 +1301,17 @@
       ],
       "Hash": "d908914ae53b04d4c0c0fd72ecc35370"
     },
+    "lhs": {
+      "Package": "lhs",
+      "Version": "1.2.0",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Requirements": [
+        "R",
+        "Rcpp"
+      ],
+      "Hash": "6d18e58d3d1de31b6e5415c1fe291113"
+    },
     "lifecycle": {
       "Package": "lifecycle",
       "Version": "1.0.4",
@@ -1221,6 +1355,33 @@
         "R"
       ],
       "Hash": "e2fca3e12e4db979dccc6e519b10a7ee"
+    },
+    "lme4": {
+      "Package": "lme4",
+      "Version": "1.1-37",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Requirements": [
+        "MASS",
+        "Matrix",
+        "R",
+        "Rcpp",
+        "RcppEigen",
+        "boot",
+        "graphics",
+        "grid",
+        "lattice",
+        "methods",
+        "minqa",
+        "nlme",
+        "nloptr",
+        "parallel",
+        "reformulas",
+        "splines",
+        "stats",
+        "utils"
+      ],
+      "Hash": "637ceb7665637edce9289dd763972704"
     },
     "logger": {
       "Package": "logger",
@@ -1287,6 +1448,16 @@
       "Repository": "CRAN",
       "Hash": "0d04497c6553720b3f1c2ae373c57aa9"
     },
+    "minqa": {
+      "Package": "minqa",
+      "Version": "1.2.8",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Requirements": [
+        "Rcpp"
+      ],
+      "Hash": "785ef8e22389d4a7634c6c944f2dc07d"
+    },
     "mnormt": {
       "Package": "mnormt",
       "Version": "2.1.1",
@@ -1308,6 +1479,17 @@
       ],
       "Hash": "4fd8900853b746af55b81fda99da7695"
     },
+    "mvtnorm": {
+      "Package": "mvtnorm",
+      "Version": "1.3-3",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Requirements": [
+        "R",
+        "stats"
+      ],
+      "Hash": "c7241e6be9d6df551a2e539a50f5c875"
+    },
     "nlme": {
       "Package": "nlme",
       "Version": "3.1-164",
@@ -1328,6 +1510,24 @@
       "Source": "Repository",
       "Repository": "RSPM",
       "Hash": "27550641889a3abf3aec4d91186311ec"
+    },
+    "nls.multstart": {
+      "Package": "nls.multstart",
+      "Version": "2.0.0",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Requirements": [
+        "R",
+        "cli",
+        "dplyr",
+        "lhs",
+        "minpack.lm",
+        "purrr",
+        "rlang",
+        "tibble",
+        "tidyr"
+      ],
+      "Hash": "bdc5176fe4bbc16bb81daf98f871d48f"
     },
     "nls2": {
       "Package": "nls2",
@@ -1419,6 +1619,22 @@
         "utils"
       ],
       "Hash": "6e8b139c1904f5e9e14c69db64453bbe"
+    },
+    "performance": {
+      "Package": "performance",
+      "Version": "0.14.0",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Requirements": [
+        "R",
+        "bayestestR",
+        "datawizard",
+        "insight",
+        "methods",
+        "stats",
+        "utils"
+      ],
+      "Hash": "76e7003989afe1366ebc3e0dced1d2d1"
     },
     "phosphoricons": {
       "Package": "phosphoricons",
@@ -1695,6 +1911,18 @@
       ],
       "Hash": "5e3c5dc0b071b21fa128676560dbe94d"
     },
+    "rbibutils": {
+      "Package": "rbibutils",
+      "Version": "2.3",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Requirements": [
+        "R",
+        "tools",
+        "utils"
+      ],
+      "Hash": "dfc034a172fd88fc66b1a703894c4185"
+    },
     "reactR": {
       "Package": "reactR",
       "Version": "0.6.0",
@@ -1768,6 +1996,19 @@
         "utils"
       ],
       "Hash": "8cf9c239b96df1bbb133b74aef77ad0a"
+    },
+    "reformulas": {
+      "Package": "reformulas",
+      "Version": "0.4.1",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Requirements": [
+        "Matrix",
+        "Rdpack",
+        "methods",
+        "stats"
+      ],
+      "Hash": "697a42ea989da568a0251101f36a7632"
     },
     "rematch": {
       "Package": "rematch",

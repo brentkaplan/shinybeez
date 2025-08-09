@@ -154,10 +154,13 @@ sidebar_server <- function(id) {
         ks
       }
 
-      if (input$equation %in% c(
-        "Exponentiated (with k)",
-        "Exponential (with k)"
-      )) {
+      if (
+        input$equation %in%
+          c(
+            "Exponentiated (with k)",
+            "Exponential (with k)"
+          )
+      ) {
         if (input$analysis_type %in% c("Pooled", "Mean", "Ind")) {
           shiny$selectInput(
             inputId = ns("k"),
@@ -180,7 +183,9 @@ sidebar_server <- function(id) {
       shiny$req(session$userData$data$demand)
       shiny$actionButton(
         inputId = ns("calculate_demand"),
-        label = "Calculate"
+        icon = shiny$icon("cogs"),
+        label = "Run Fixed Effects Model",
+        class = "btn-primary w-100"
       )
     })
   })

@@ -8,7 +8,7 @@ box::use(
 )
 
 box::use(
-  app/logic/validate,
+  app / logic / validate,
 )
 
 #' @export
@@ -19,14 +19,14 @@ ui <- function(id) {
       # style = "padding-bottom: -10px;",
       inputId = ns("upload"),
       label = bslib$tooltip(
-                trigger = list(
-                  "Upload your file (csv or tsv) ",
-                  bsicons$bs_icon("info-circle")
-                ),
-              "If you are unsure of the format, please use the downloadable
+        trigger = list(
+          "Upload your file (csv or tsv) ",
+          bsicons$bs_icon("info-circle")
+        ),
+        "If you are unsure of the format, please use the downloadable
               templates on the welcome page."
-              ),
-        accept = c(".csv", ".tsv")
+      ),
+      accept = c(".csv", ".tsv")
     ),
     # v2 feature
     # actionButton(
@@ -40,23 +40,23 @@ ui <- function(id) {
 #' @export
 server <- function(id, type = "demand") {
   shiny$moduleServer(id, function(input, output, session) {
-
     shiny$observe({
       ext <- tools$file_ext(input$upload$name)
       if (type == "demand") {
         rhino$log$info(paste0("Reading demand file: ", input$upload$name))
-        tmp <- switch(ext,
-                      csv = vroom$vroom(
-                        input$upload$datapath,
-                        delim = ",",
-                        show_col_types = FALSE
-                      ),
-                      tsv = vroom$vroom(
-                        input$upload$datapath,
-                        delim = "\t",
-                        show_col_types = FALSE
-                      )
-                      # validate("Invalid file; Please upload a .csv or .tsv file")
+        tmp <- switch(
+          ext,
+          csv = vroom$vroom(
+            input$upload$datapath,
+            delim = ",",
+            show_col_types = FALSE
+          ),
+          tsv = vroom$vroom(
+            input$upload$datapath,
+            delim = "\t",
+            show_col_types = FALSE
+          )
+          # validate("Invalid file; Please upload a .csv or .tsv file")
         )
         chk_data <- validate$check_data(tmp, type = "demand")
         if (is.character(chk_data)) {
@@ -64,28 +64,42 @@ server <- function(id, type = "demand") {
             paste(
               "Data are not in the correct format. Please refer to the documentation.",
               chk_data
-              ),
+            ),
             type = "error",
             duration = 10
           )
           return()
         } else {
+          # Remove rows with NAs and notify if any dropped
+          na_result <- validate$remove_na_rows(tmp)
+          tmp <- na_result$data
+          if (na_result$n_dropped > 0) {
+            shiny$showNotification(
+              paste(
+                na_result$n_dropped,
+                "row(s) with missing values were dropped from your data."
+              ),
+              type = "warning",
+              duration = 8
+            )
+          }
           session$userData$data$demand <- validate$obliterate_empty_cols(tmp)
         }
       } else if (type == "discounting") {
         rhino$log$info(paste0("Reading discounting file: ", input$upload$name))
-        tmp <- switch(ext,
-           csv = vroom$vroom(
+        tmp <- switch(
+          ext,
+          csv = vroom$vroom(
             input$upload$datapath,
             delim = ",",
             show_col_types = FALSE
           ),
-           tsv = vroom$vroom(
+          tsv = vroom$vroom(
             input$upload$datapath,
             delim = "\t",
             show_col_types = FALSE
           )
-           # validate("Invalid file; Please upload a .csv or .tsv file")
+          # validate("Invalid file; Please upload a .csv or .tsv file")
         )
 
         chk_data <- validate$check_data(tmp, type = "discounting")
@@ -94,13 +108,77 @@ server <- function(id, type = "demand") {
             paste(
               "Data are not in the correct format. Please refer to the documentation.",
               chk_data
-              ),
+            ),
             type = "error",
             duration = 10
           )
           return()
         } else {
-          session$userData$data$discounting <- validate$obliterate_empty_cols(tmp)
+          # Remove rows with NAs and notify if any dropped
+          na_result <- validate$remove_na_rows(tmp)
+          tmp <- na_result$data
+          if (na_result$n_dropped > 0) {
+            shiny$showNotification(
+              paste(
+                na_result$n_dropped,
+                "row(s) with missing values were dropped from your data."
+              ),
+              type = "warning",
+              duration = 8
+            )
+          }
+          session$userData$data$discounting <- validate$obliterate_empty_cols(
+            tmp
+          )
+        }
+      } else if (type == "abuse_liability") {
+        rhino$log$info(paste0(
+          "Reading abuse liability file: ",
+          input$upload$name
+        ))
+        tmp <- switch(
+          ext,
+          csv = vroom$vroom(
+            input$upload$datapath,
+            delim = ",",
+            show_col_types = FALSE
+          ),
+          tsv = vroom$vroom(
+            input$upload$datapath,
+            delim = "\t",
+            show_col_types = FALSE
+          )
+          # validate("Invalid file; Please upload a .csv or .tsv file")
+        )
+
+        chk_data <- validate$check_data(tmp, type = "abuse_liability")
+        if (is.character(chk_data)) {
+          shiny$showNotification(
+            paste(
+              "Data are not in the correct format. Please refer to the documentation.",
+              chk_data
+            ),
+            type = "error",
+            duration = 10
+          )
+          return()
+        } else {
+          # Remove rows with NAs and notify if any dropped
+          na_result <- validate$remove_na_rows(tmp)
+          tmp <- na_result$data
+          if (na_result$n_dropped > 0) {
+            shiny$showNotification(
+              paste(
+                na_result$n_dropped,
+                "row(s) with missing values were dropped from your data."
+              ),
+              type = "warning",
+              duration = 8
+            )
+          }
+          session$userData$data$abuse_liability <- validate$obliterate_empty_cols(
+            tmp
+          )
         }
       }
     }) |>

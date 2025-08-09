@@ -4,6 +4,7 @@ box::use(
   dplyr,
   readr,
   tidyr,
+  stats
 )
 
 #' @export
@@ -20,7 +21,10 @@ check_data <- function(dat, type = "demand") {
         }
         dat <- dplyr$relocate(dat, group, .after = id)
         return_msg <- assertthat$validate_that(
-          all(sapply(readr$parse_number(colnames(dat)[3:length(colnames(dat))]), is.numeric)),
+          all(sapply(
+            readr$parse_number(colnames(dat)[3:length(colnames(dat))]),
+            is.numeric
+          )),
           msg = "The column names are not numeric"
         )
         if (is.character(return_msg)) {
@@ -35,7 +39,10 @@ check_data <- function(dat, type = "demand") {
           return(return_msg)
         }
         return_msg <- assertthat$validate_that(
-          all(sapply(readr$parse_number(colnames(dat)[2:length(colnames(dat))]), is.numeric)),
+          all(sapply(
+            readr$parse_number(colnames(dat)[2:length(colnames(dat))]),
+            is.numeric
+          )),
           msg = "The column names are not numeric"
         )
         if (is.character(return_msg)) {
@@ -55,6 +62,31 @@ check_data <- function(dat, type = "demand") {
         )
       }
     }
+  } else if (type == "abuse_liability") {
+    # Required columns: id, x, y (or y_ll4 if that's the primary input)
+    # For `ko` example: "monkey", "x", "y", "y_ll4"
+    # Factors are dynamic.
+    return_msg <- assertthat$validate_that(
+      any(c("monkey", "id") %in% colnames(dat)),
+      msg = "ID column ('monkey' or 'id') not found."
+    )
+    if (is.character(return_msg)) {
+      return(return_msg)
+    }
+    return_msg <- assertthat$validate_that(
+      "x" %in% colnames(dat),
+      msg = "Price/X column ('x') not found."
+    )
+    if (is.character(return_msg)) {
+      return(return_msg)
+    }
+    return_msg <- assertthat$validate_that(
+      any(c("y", "y_ll4") %in% colnames(dat)),
+      msg = "Consumption column ('y' or 'y_ll4') not found."
+    )
+    if (is.character(return_msg)) return(return_msg)
+    # Further checks for factor columns can be done dynamically in the module
+    # based on user selection or assumed (like checking if they are indeed factors).
   } else {
     # check if file has correct id columns
     return_msg <- assertthat$validate_that(
@@ -82,7 +114,10 @@ check_data <- function(dat, type = "demand") {
         return(return_msg)
       }
       return_msg <- assertthat$validate_that(
-        all(sapply(readr$parse_number(colnames(dat)[2:length(colnames(dat))]), is.numeric)),
+        all(sapply(
+          readr$parse_number(colnames(dat)[2:length(colnames(dat))]),
+          is.numeric
+        )),
         msg = "The column names are not numeric"
       )
       if (is.character(return_msg)) {
@@ -163,7 +198,9 @@ reshape_data <- function(dat, type = "demand") {
 
 #' @export
 retype_data <- function(dat) {
-  if (class(dat$x) != "numeric") dat$x <- readr$parse_number(dat$x)
+  if (class(dat$x) != "numeric") {
+    dat$x <- readr$parse_number(dat$x)
+  }
   if ("group" %in% colnames(dat)) {
     dat |>
       dplyr$mutate(
@@ -180,6 +217,15 @@ retype_data <- function(dat) {
         y = as.numeric(y)
       )
   }
+}
+
+#' @export
+remove_na_rows <- function(dat) {
+  n_before <- nrow(dat)
+  dat_clean <- dat[stats::complete.cases(dat), ]
+  n_after <- nrow(dat_clean)
+  n_dropped <- n_before - n_after
+  list(data = dat_clean, n_dropped = n_dropped)
 }
 
 #' @export
