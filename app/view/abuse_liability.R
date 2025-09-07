@@ -106,14 +106,9 @@ sidebar_ui <- function(id) {
       value = FALSE
     ),
     shiny$hr(),
-    shiny$h5("Factor Level Collapsing (for Factor 1 if selected):"),
-    shiny$checkboxInput(
-      ns("enable_collapse_factor1"),
-      "Enable Collapsing for Factor 1?",
-      value = FALSE
-    ),
-    shiny$uiOutput(ns("collapse_factor1_ui")),
-    shiny$hr(),
+    # Server-rendered containers ensure we only show collapsing when >= 2 levels
+    shiny$uiOutput(ns("collapse_factor1_container")),
+    shiny$uiOutput(ns("collapse_factor2_container")),
     shiny$h5("Random Effects:"),
     shiny$checkboxGroupInput(
       ns("random_effects_spec"),
@@ -499,6 +494,133 @@ sidebar_server <- function(id, data_reactive) {
       sort(unique_levels[!is.na(unique_levels)])
     })
 
+    factor2_levels_reactive <- shiny$reactive({
+      df <- current_data()
+      factor_col_name <- input$factor2_choice
+      shiny$req(
+        df,
+        factor_col_name,
+        factor_col_name != "None",
+        factor_col_name != ""
+      )
+      if (!(factor_col_name %in% names(df))) {
+        return(NULL)
+      }
+
+      unique_levels <- unique(as.character(df[[factor_col_name]]))
+      sort(unique_levels[!is.na(unique_levels)])
+    })
+
+    # --- Helpers to clear collapse inputs ---
+    clear_factor1_collapse <- function() {
+      # Set enable flag FALSE if present
+      if (!is.null(input$enable_collapse_factor1)) {
+        shiny$updateCheckboxInput(session, "enable_collapse_factor1", value = FALSE)
+      }
+      # Clear names and selections if inputs exist
+      if (!is.null(input$f1_group1_name)) {
+        shiny$updateTextInput(session, "f1_group1_name", value = "")
+      }
+      if (!is.null(input$f1_group1_levels)) {
+        shiny$updateSelectizeInput(session, "f1_group1_levels", selected = character(0))
+      }
+      if (!is.null(input$f1_group2_name)) {
+        shiny$updateTextInput(session, "f1_group2_name", value = "")
+      }
+      if (!is.null(input$f1_group2_levels)) {
+        shiny$updateSelectizeInput(session, "f1_group2_levels", selected = character(0))
+      }
+    }
+
+    clear_factor2_collapse <- function() {
+      if (!is.null(input$enable_collapse_factor2)) {
+        shiny$updateCheckboxInput(session, "enable_collapse_factor2", value = FALSE)
+      }
+      if (!is.null(input$f2_group1_name)) {
+        shiny$updateTextInput(session, "f2_group1_name", value = "")
+      }
+      if (!is.null(input$f2_group1_levels)) {
+        shiny$updateSelectizeInput(session, "f2_group1_levels", selected = character(0))
+      }
+      if (!is.null(input$f2_group2_name)) {
+        shiny$updateTextInput(session, "f2_group2_name", value = "")
+      }
+      if (!is.null(input$f2_group2_levels)) {
+        shiny$updateSelectizeInput(session, "f2_group2_levels", selected = character(0))
+      }
+    }
+
+    # --- Proactive clearing when levels drop below 3 or factor changes ---
+    shiny$observeEvent(factor1_levels_reactive(), {
+      lvls <- factor1_levels_reactive()
+      if (is.null(lvls) || length(lvls) < 3) {
+        clear_factor1_collapse()
+      }
+    })
+
+    shiny$observeEvent(factor2_levels_reactive(), {
+      lvls <- factor2_levels_reactive()
+      if (is.null(lvls) || length(lvls) < 3) {
+        clear_factor2_collapse()
+      }
+    })
+
+    shiny$observeEvent(input$factor1_choice, {
+      # Clear on any change (switches or becomes None)
+      clear_factor1_collapse()
+    })
+
+    shiny$observeEvent(input$factor2_choice, {
+      clear_factor2_collapse()
+    })
+
+    # Containers: show collapse sections only when factor selected and has >= 2 levels
+    output$collapse_factor1_container <- shiny$renderUI({
+      ns <- session$ns
+      df <- current_data()
+      f1 <- input$factor1_choice
+      if (is.null(df) || is.null(f1) || f1 == "") {
+        return(NULL)
+      }
+      lvls <- tryCatch(factor1_levels_reactive(), error = function(...) NULL)
+      if (is.null(lvls) || length(lvls) < 3) {
+        return(NULL)
+      }
+      shiny$tagList(
+        shiny$h5("Factor Level Collapsing (for Factor 1 if selected):"),
+        shiny$checkboxInput(
+          ns("enable_collapse_factor1"),
+          "Enable Collapsing for Factor 1?",
+          value = FALSE
+        ),
+        shiny$uiOutput(ns("collapse_factor1_ui")),
+        shiny$hr()
+      )
+    })
+
+    output$collapse_factor2_container <- shiny$renderUI({
+      ns <- session$ns
+      df <- current_data()
+      f2 <- input$factor2_choice
+      if (is.null(df) || is.null(f2) || f2 == "") {
+        return(NULL)
+      }
+      lvls <- tryCatch(factor2_levels_reactive(), error = function(...) NULL)
+      if (is.null(lvls) || length(lvls) < 3) {
+        return(NULL)
+      }
+      shiny$tagList(
+        shiny$h5("Factor Level Collapsing (for Factor 2 if selected):"),
+        shiny$checkboxInput(
+          ns("enable_collapse_factor2"),
+          "Enable Collapsing for Factor 2?",
+          value = FALSE
+        ),
+        shiny$uiOutput(ns("collapse_factor2_ui")),
+        shiny$hr()
+      )
+    })
+
     output$collapse_factor1_ui <- shiny$renderUI({
       ns <- session$ns
       shiny$req(
@@ -566,6 +688,94 @@ sidebar_server <- function(id, data_reactive) {
       ignoreInit = TRUE
     )
 
+    # --- Factor 2 collapse UI and logic (mirrors Factor 1) ---
+    output$collapse_factor2_ui <- shiny$renderUI({
+      ns <- session$ns
+      shiny$req(
+        input$enable_collapse_factor2,
+        input$factor2_choice != "None",
+        input$factor2_choice != ""
+      )
+      all_levels <- factor2_levels_reactive()
+      shiny$req(all_levels)
+
+      shiny$tagList(
+        shiny$p(paste("Collapsing levels for Factor:", input$factor2_choice)),
+        shiny$textInput(
+          ns("f2_group1_name"),
+          "Name for New Group 1:",
+          placeholder = "e.g., LowDose"
+        ),
+        shiny$selectizeInput(
+          ns("f2_group1_levels"),
+          "Selected levels to collapse into Group 1:",
+          choices = all_levels,
+          multiple = TRUE
+        ),
+        shiny$hr(style = "margin-top: 10px; margin-bottom: 10px;"),
+        shiny$textInput(
+          ns("f2_group2_name"),
+          "Name for New Group 2:",
+          placeholder = "e.g., HighDose"
+        ),
+        shiny$selectizeInput(
+          ns("f2_group2_levels"),
+          "Selected levels to collapse into Group 2:",
+          choices = all_levels,
+          multiple = TRUE
+        )
+      )
+    })
+
+    shiny$observeEvent(
+      input$f2_group1_levels,
+      {
+        all_levels <- factor2_levels_reactive()
+        selected_g1 <- input$f2_group1_levels %||% character(0)
+        shiny$req(input$enable_collapse_factor2, all_levels)
+
+        current_selected_g2 <- shiny::isolate(
+          input$f2_group2_levels %||% character(0)
+        )
+        available_for_g2 <- setdiff(all_levels, selected_g1)
+        new_selected_g2 <- intersect(current_selected_g2, available_for_g2)
+
+        shiny$updateSelectizeInput(
+          session,
+          "f2_group2_levels",
+          choices = available_for_g2,
+          selected = new_selected_g2
+        )
+      },
+      ignoreNULL = FALSE,
+      ignoreInit = TRUE
+    )
+
+    shiny$observeEvent(
+      input$f2_group2_levels,
+      {
+        all_levels <- factor2_levels_reactive()
+        selected_g2 <- input$f2_group2_levels %||% character(0)
+        shiny$req(input$enable_collapse_factor2, all_levels)
+
+        current_selected_g1 <- shiny::isolate(
+          input$f2_group1_levels %||% character(0)
+        )
+
+        available_for_g1 <- setdiff(all_levels, selected_g2)
+        new_selected_g1 <- intersect(current_selected_g1, available_for_g1)
+
+        shiny$updateSelectizeInput(
+          session,
+          "f2_group1_levels",
+          choices = available_for_g1,
+          selected = new_selected_g1
+        )
+      },
+      ignoreNULL = FALSE,
+      ignoreInit = TRUE
+    )
+
     # This observer does the mirror image: triggered ONLY by "New Group 2" changes.
     # It updates the choices and selection for "New Group 1".
     shiny$observeEvent(
@@ -598,50 +808,122 @@ sidebar_server <- function(id, data_reactive) {
     # specific nested list format required by the `beezdemand::fit_demand_mixed` function.
     # Also includes validation to prevent overlapping level assignments.
     parsed_collapse_levels_reactive <- shiny$reactive({
-      if (
-        !input$enable_collapse_factor1 ||
-          is.null(input$factor1_choice) ||
-          input$factor1_choice %in% c("None", "")
+      final_list <- list()
+
+      # Helper to validate and append for one factor
+      handle_factor <- function(
+        enable_flag,
+        factor_name,
+        g1_name,
+        g1_levels,
+        g2_name,
+        g2_levels,
+        all_levels
       ) {
-        return(NULL)
+        if (
+          !enable_flag || is.null(factor_name) || factor_name %in% c("None", "")
+        ) {
+          return(NULL)
+        }
+
+        # If current levels are insufficient for collapsing UI (threshold 3), ignore
+        if (is.null(all_levels) || length(all_levels) < 3) {
+          return(NULL)
+        }
+
+        # Overlap validation
+        if (
+          length(g1_levels) > 0 &&
+            length(g2_levels) > 0 &&
+            length(intersect(g1_levels, g2_levels)) > 0
+        ) {
+          shiny$showNotification(
+            paste0(
+              "Overlap detected in selected levels for new groups for factor '",
+              factor_name,
+              "'. Please ensure unique selections."
+            ),
+            type = "error",
+            duration = 7
+          )
+          return("ERROR_OVERLAP")
+        }
+
+        collapse_list_for_factor <- list()
+        if (!is.null(g1_name) && g1_name != "" && length(g1_levels) > 0) {
+          collapse_list_for_factor[[g1_name]] <- g1_levels
+        }
+        if (!is.null(g2_name) && g2_name != "" && length(g2_levels) > 0) {
+          collapse_list_for_factor[[g2_name]] <- g2_levels
+        }
+
+        if (length(collapse_list_for_factor) == 0) {
+          return(NULL)
+        }
+
+        # Enforce at least two resulting levels after collapsing
+        assigned <- unique(c(
+          g1_levels %||% character(0),
+          g2_levels %||% character(0)
+        ))
+        remaining <- setdiff(all_levels %||% character(0), assigned)
+        num_new_groups <- length(collapse_list_for_factor)
+        num_result_levels <- num_new_groups + length(remaining)
+        if (num_result_levels < 2) {
+          shiny$showNotification(
+            paste0(
+              "Collapsing for factor '",
+              factor_name,
+              "' would result in a single level, which is not allowed."
+            ),
+            type = "error",
+            duration = 7
+          )
+          return("ERROR_SINGLE_LEVEL")
+        }
+
+        return(collapse_list_for_factor)
       }
 
-      factor_to_collapse_name <- input$factor1_choice
-
-      g1_name <- trimws(input$f1_group1_name)
-      g1_levels <- input$f1_group1_levels
-      g2_name <- trimws(input$f1_group2_name)
-      g2_levels <- input$f1_group2_levels
-
-      # Final validation for overlap before sending to the model.
-      if (
-        length(g1_levels) > 0 &&
-          length(g2_levels) > 0 &&
-          length(intersect(g1_levels, g2_levels)) > 0
-      ) {
-        shiny$showNotification(
-          "Overlap detected in selected levels for new groups. Please ensure unique selections.",
-          type = "error",
-          duration = 7
-        )
-        return("ERROR_OVERLAP")
+      # Factor 1
+      f1_res <- handle_factor(
+        enable_flag = isTRUE(input$enable_collapse_factor1),
+        factor_name = input$factor1_choice,
+        g1_name = trimws(input$f1_group1_name),
+        g1_levels = input$f1_group1_levels,
+        g2_name = trimws(input$f1_group2_name),
+        g2_levels = input$f1_group2_levels,
+        all_levels = tryCatch(factor1_levels_reactive(), error = function(...) {
+          NULL
+        })
+      )
+      if (is.character(f1_res)) {
+        return(f1_res)
+      }
+      if (is.list(f1_res)) {
+        final_list[[input$factor1_choice]] <- f1_res
       }
 
-      collapse_list_for_factor <- list()
-      if (!is.null(g1_name) && g1_name != "" && length(g1_levels) > 0) {
-        collapse_list_for_factor[[g1_name]] <- g1_levels
+      # Factor 2
+      f2_res <- handle_factor(
+        enable_flag = isTRUE(input$enable_collapse_factor2),
+        factor_name = input$factor2_choice,
+        g1_name = trimws(input$f2_group1_name),
+        g1_levels = input$f2_group1_levels,
+        g2_name = trimws(input$f2_group2_name),
+        g2_levels = input$f2_group2_levels,
+        all_levels = tryCatch(factor2_levels_reactive(), error = function(...) {
+          NULL
+        })
+      )
+      if (is.character(f2_res)) {
+        return(f2_res)
       }
-      if (!is.null(g2_name) && g2_name != "" && length(g2_levels) > 0) {
-        collapse_list_for_factor[[g2_name]] <- g2_levels
+      if (is.list(f2_res)) {
+        final_list[[input$factor2_choice]] <- f2_res
       }
 
-      if (length(collapse_list_for_factor) > 0) {
-        final_list <- list()
-        final_list[[factor_to_collapse_name]] <- collapse_list_for_factor
-        return(final_list)
-      } else {
-        return(NULL)
-      }
+      if (length(final_list) > 0) final_list else NULL
     })
 
     # --- Advanced fitting controls: presets, clamping, and reactive export ---
@@ -1278,9 +1560,12 @@ navpanel_server <- function(id, sidebar_reactives) {
         )
 
         current_collapse_levels <- sidebar_reactives$collapse_levels_reactive()
-        if (identical(current_collapse_levels, "ERROR_OVERLAP")) {
+        if (
+          identical(current_collapse_levels, "ERROR_OVERLAP") ||
+            identical(current_collapse_levels, "ERROR_SINGLE_LEVEL")
+        ) {
           shiny$showNotification(
-            "Cannot fit model due to overlapping levels in collapse definition.",
+            "Cannot fit model due to an invalid collapse definition (overlap or single resulting level).",
             type = "error",
             duration = 7
           )
