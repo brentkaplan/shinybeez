@@ -133,6 +133,137 @@ sidebar_ui <- function(id) {
       ),
       selected = "pdDiag"
     ),
+    bslib$accordion(
+      open = FALSE,
+      style = "margin-bottom: 12px;",
+      bslib$accordion_panel(
+        title = "Fitting Controls (Advanced)",
+        icon = bsicons$bs_icon("gear"),
+        shiny$p(
+          style = "margin-bottom: 6px; color: #6c757d;",
+          "Tip: Start with Balanced. If PNLS stalls, raise pnlsMaxIter to 20–30 and tighten pnlsTol to 1e-4; if the outer loop stops early, try maxIter 150–200."
+        ),
+        shiny$div(
+          style = "margin-bottom: 8px;",
+          shiny$selectInput(
+            ns("fit_presets"),
+            label = bslib$tooltip(
+              trigger = list(
+                "Quick presets",
+                bsicons$bs_icon("info-circle")
+              ),
+              "Apply a preset configuration for iteration limits and tolerances."
+            ),
+            choices = c("Balanced", "Faster", "Stricter"),
+            selected = "Balanced"
+          ),
+          shiny$actionButton(
+            ns("fit_reset_defaults"),
+            label = "Reset to defaults",
+            icon = shiny$icon("rotate-left"),
+            class = "btn-sm"
+          )
+        ),
+        shiny$h6("Iterations"),
+        shiny$numericInput(
+          ns("maxIter"),
+          label = bslib$tooltip(
+            trigger = list(
+              "maxIter (outer iterations)",
+              bsicons$bs_icon("info-circle")
+            ),
+            "Max number of outer PNLS↔LME cycles. Raise if the outer loop hits its limit while still improving."
+          ),
+          value = 100,
+          min = 30,
+          max = 300,
+          step = 10
+        ),
+        shiny$numericInput(
+          ns("pnlsMaxIter"),
+          label = bslib$tooltip(
+            trigger = list(
+              "pnlsMaxIter (PNLS inner iterations)",
+              bsicons$bs_icon("info-circle")
+            ),
+            "Max PNLS iterations for fixed-effects updates. Raise (e.g., 20–30) if PNLS stalls or oscillates."
+          ),
+          value = 7,
+          min = 7,
+          max = 50,
+          step = 1
+        ),
+        shiny$numericInput(
+          ns("msMaxIter"),
+          label = bslib$tooltip(
+            trigger = list(
+              "msMaxIter (LME optimizer iterations)",
+              bsicons$bs_icon("info-circle")
+            ),
+            "Max iterations for the variance–covariance optimizer. Raise if it stops early while still improving."
+          ),
+          value = 100,
+          min = 50,
+          max = 500,
+          step = 10
+        ),
+        shiny$h6("Tolerances and step"),
+        shiny$numericInput(
+          ns("tolerance"),
+          label = bslib$tooltip(
+            trigger = list("tolerance (outer)", bsicons$bs_icon("info-circle")),
+            "Overall convergence tolerance. Loosen (1e-5–1e-4) for speed; tighten (1e-7) for exacting fits."
+          ),
+          value = 1e-3,
+          min = 1e-7,
+          max = 1e-4,
+          step = 1e-5
+        ),
+        shiny$numericInput(
+          ns("pnlsTol"),
+          label = bslib$tooltip(
+            trigger = list(
+              "pnlsTol (PNLS tolerance)",
+              bsicons$bs_icon("info-circle")
+            ),
+            "PNLS convergence tolerance. Tighten (1e-4) if stopping too early; loosen slightly (~2e-3) if jittery."
+          ),
+          value = 1e-3,
+          min = 1e-4,
+          max = 1e-2,
+          step = 1e-4
+        ),
+        shiny$numericInput(
+          ns("minScale"),
+          label = bslib$tooltip(
+            trigger = list(
+              "minScale (PNLS step shrink)",
+              bsicons$bs_icon("info-circle")
+            ),
+            "Minimum step shrink for PNLS backtracking. Lower (1e-4) for finer steps if overshooting; higher (1e-2) for speed."
+          ),
+          value = 1e-3,
+          min = 1e-4,
+          max = 1e-2,
+          step = 1e-4
+        ),
+        shiny$h6("Initialization"),
+        shiny$numericInput(
+          ns("niterEM"),
+          label = bslib$tooltip(
+            trigger = list(
+              "niterEM (EM warm-start)",
+              bsicons$bs_icon("info-circle")
+            ),
+            "EM iterations to stabilize variance starts. Try 50–80 for unstable variance components."
+          ),
+          value = 50,
+          min = 0,
+          max = 100,
+          step = 5
+        )
+      )
+    ),
     shiny$p(shiny$strong("Analysis Type:"), "Mixed Effects Model"),
     shiny$actionButton(
       ns("run_mixed_model"),
@@ -513,6 +644,83 @@ sidebar_server <- function(id, data_reactive) {
       }
     })
 
+    # --- Advanced fitting controls: presets, clamping, and reactive export ---
+    balanced_defaults <- list(
+      maxIter = 100L,
+      pnlsMaxIter = 7L,
+      msMaxIter = 100L,
+      tolerance = 1e-3,
+      pnlsTol = 1e-3,
+      minScale = 1e-3,
+      niterEM = 50L
+    )
+
+    apply_preset <- function(preset) {
+      vals <- switch(
+        preset,
+        "Faster" = list(
+          maxIter = 60L,
+          pnlsMaxIter = 10L,
+          msMaxIter = 80L,
+          tolerance = 3e-3,
+          pnlsTol = 3e-3,
+          minScale = 5e-3,
+          niterEM = 30L
+        ),
+        "Stricter" = list(
+          maxIter = 200L,
+          pnlsMaxIter = 30L,
+          msMaxIter = 200L,
+          tolerance = 1e-5,
+          pnlsTol = 1e-4,
+          minScale = 1e-4,
+          niterEM = 80L
+        ),
+        balanced_defaults
+      )
+      shiny$updateNumericInput(session, "maxIter", value = vals$maxIter)
+      shiny$updateNumericInput(session, "pnlsMaxIter", value = vals$pnlsMaxIter)
+      shiny$updateNumericInput(session, "msMaxIter", value = vals$msMaxIter)
+      shiny$updateNumericInput(session, "tolerance", value = vals$tolerance)
+      shiny$updateNumericInput(session, "pnlsTol", value = vals$pnlsTol)
+      shiny$updateNumericInput(session, "minScale", value = vals$minScale)
+      shiny$updateNumericInput(session, "niterEM", value = vals$niterEM)
+    }
+
+    shiny$observeEvent(
+      input$fit_presets,
+      {
+        shiny$req(input$fit_presets)
+        apply_preset(input$fit_presets)
+      },
+      ignoreInit = TRUE
+    )
+
+    shiny$observeEvent(input$fit_reset_defaults, {
+      apply_preset("Balanced")
+      shiny$updateSelectInput(session, "fit_presets", selected = "Balanced")
+    })
+
+    clamp_num <- function(x, lo, hi) {
+      x <- suppressWarnings(as.numeric(x))
+      if (is.na(x)) {
+        return(NA_real_)
+      }
+      pmin(pmax(x, lo), hi)
+    }
+
+    nlme_controls_reactive <- shiny$reactive({
+      list(
+        maxIter = clamp_num(input$maxIter, 30, 300),
+        pnlsMaxIter = clamp_num(input$pnlsMaxIter, 7, 50),
+        msMaxIter = clamp_num(input$msMaxIter, 50, 500),
+        tolerance = clamp_num(input$tolerance, 1e-7, 1e-4),
+        pnlsTol = clamp_num(input$pnlsTol, 1e-4, 1e-2),
+        minScale = clamp_num(input$minScale, 1e-4, 1e-2),
+        niterEM = clamp_num(input$niterEM, 0, 100)
+      )
+    })
+
     return(
       list(
         run_trigger = shiny$reactive(input$run_mixed_model),
@@ -526,7 +734,8 @@ sidebar_server <- function(id, data_reactive) {
         random_effects_spec = shiny$reactive(input$random_effects_spec),
         covariance_structure = shiny$reactive(input$covariance_structure),
         equation_form = shiny$reactive(input$model_choice),
-        collapse_levels_reactive = parsed_collapse_levels_reactive
+        collapse_levels_reactive = parsed_collapse_levels_reactive,
+        nlme_controls = nlme_controls_reactive
       )
     )
   })
@@ -1056,15 +1265,16 @@ navpanel_server <- function(id, sidebar_reactives) {
           sel_factors <- NULL
         }
 
-        # Use quick controls from vignette for faster processing during development
-        quick_nlme_control <- nlme$nlmeControl(
-          msMaxIter = 50,
-          niterEM = 25,
-          maxIter = 50,
-          pnlsTol = 0.1,
-          tolerance = 1e-4,
-          opt = "nlminb",
-          msVerbose = FALSE
+        # Build nlmeControl from user-selected advanced fitting controls
+        user_ctrl_vals <- sidebar_reactives$nlme_controls()
+        user_nlme_control <- nlme$nlmeControl(
+          maxIter = user_ctrl_vals$maxIter,
+          pnlsMaxIter = user_ctrl_vals$pnlsMaxIter,
+          msMaxIter = user_ctrl_vals$msMaxIter,
+          tolerance = user_ctrl_vals$tolerance,
+          pnlsTol = user_ctrl_vals$pnlsTol,
+          minScale = user_ctrl_vals$minScale,
+          niterEM = user_ctrl_vals$niterEM
         )
 
         current_collapse_levels <- sidebar_reactives$collapse_levels_reactive()
@@ -1100,7 +1310,7 @@ navpanel_server <- function(id, sidebar_reactives) {
               collapse_levels = current_collapse_levels,
               random_effects = random_effects_formula_to_pass,
               covariance_structure = sidebar_reactives$covariance_structure(),
-              nlme_control = quick_nlme_control, # Use faster controls for dev
+              nlme_control = user_nlme_control,
               start_value_method = "pooled_nls" # Often more robust for complex models
             )
           },

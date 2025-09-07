@@ -575,6 +575,60 @@
                             <br>
                             <br>
                         </div>
+                        <div id="mixed-effects-demand">
+                            <h3>Mixed Effects Modeling</h3>
+                            <p>
+                                The Mixed Effects Modeling tab extends demand modeling to a mixed-effects framework so
+                                you can
+                                estimate population-level (fixed) effects while respecting individual differences via
+                                random effects. Two equation forms are supported: a ZBEn option that automatically
+                                transforms the selected Y with an LL4 transform, and a simplified exponential option
+                                that uses Y on its natural scale. You can select your ID, X, and Y columns directly in
+                                the sidebar.
+                            </p>
+                            <p>
+                                For fixed effects, you may include up to two factors and optionally their interaction.
+                                To simplify noisy or sparse factor levels, an optional “collapse levels” tool allows you
+                                to define two named groups from existing levels; the app prevents overlapping level
+                                assignments.
+                            </p>
+                            <p>
+                                For random effects, you can include random intercepts for Q<sub>0</sub> (max
+                                consumption) and/or <em>alpha</em> (sensitivity), with a choice of diagonal (no
+                                covariance) or general positive-definite covariance. Click “Run Mixed Effects Model” to
+                                fit the model; results populate the tabs below.
+                            </p>
+                            <p>
+                                The Results area includes: (i) a model summary; (ii) fixed effects estimates; (iii)
+                                random effects, including individual-level deviations and a per-ID coefficient table;
+                                (iv) Estimated Marginal Means (EMMs) for Q<sub>0</sub> and <em>alpha</em> with Essential
+                                Value (EV); and (v) pairwise comparisons. The comparisons panel lets you pick the factor
+                                to compare (and an optional “within levels of” factor), choose a multiple-comparisons
+                                adjustment (Tukey, Scheffé, Sidak, Bonferroni, mvt, Holm, Hochberg, Hommel, FDR, none),
+                                and display results either as log<sub>10</sub> differences or as natural-scale ratios.
+                            </p>
+                            <p>
+                                A dedicated Plot tab provides publication-ready visualizations. You can choose to color
+                                lines/points, linetype, and facet by factors that were actually in the fitted model,
+                                toggle pseudo-log axes for X and Y, show observed data, and overlay population and/or
+                                individual prediction lines. Plots can be downloaded directly in several formats.
+                            </p>
+                            <p>
+                                Advanced fitting controls are available in a collapsible panel in the sidebar. These
+                                include the essential knobs for the three layers of the nlme algorithm: outer loop
+                                (<code>maxIter</code>, <code>tolerance</code>), PNLS step
+                                (<code>pnlsMaxIter</code>, <code>pnlsTol</code>, <code>minScale</code>), and the LME
+                                optimizer (<code>msMaxIter</code>, <code>niterEM</code>). Controls for
+                                <code>tolerance</code> and <code>pnlsTol</code> are numeric. A compact “Quick presets”
+                                menu lets you choose: <b>Balanced</b> (general purpose), <b>Faster</b> (looser
+                                tolerances/fewer iterations), or <b>Stricter</b> (tighter tolerances/more iterations).
+                                As a rule of thumb, start with Balanced; if PNLS stalls, raise
+                                <code>pnlsMaxIter</code> to 20–30 and tighten <code>pnlsTol</code> to 1e-4; if the
+                                outer loop stops early, try <code>maxIter</code> of 150–200; if the optimizer halts
+                                while
+                                still improving, increase <code>msMaxIter</code>.
+                            </p>
+                        </div>
                         <div id="cites-demand">
                             <h3>Suggested Citations</h3>
                             <br>
