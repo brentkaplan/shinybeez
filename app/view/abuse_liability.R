@@ -23,6 +23,19 @@ box::use(
   app / logic / validate # For data validation and transformations
 )
 
+# Module-local cache for example data
+.local_cache <- new.env(parent = emptyenv())
+
+get_default_ko <- function() {
+  if (is.null(.local_cache$ko)) {
+    .local_cache$ko <- readr$read_csv(
+      "app/static/data/examples/shinybeez-ex-ko.csv",
+      show_col_types = FALSE
+    )
+  }
+  .local_cache$ko
+}
+
 #' @export
 sidebar_ui <- function(id) {
   ns <- shiny$NS(id)
@@ -36,7 +49,7 @@ sidebar_ui <- function(id) {
       ns("model_choice"),
       label = "Select Model:",
       choices = list(
-        "ZBEn (requires LL4-transformed Y)" = "zben",
+        "ZBEn (y automatically LL4-transformed)" = "zben",
         "Simplified Exponential (uses untransformed Y)" = "simplified"
       ),
       selected = "zben"
@@ -58,32 +71,34 @@ sidebar_ui <- function(id) {
     # y variable selection
     shiny$selectInput(
       ns("y_variable_choice"),
-      label = "Select Y variable (or transform if 'y' is chosen):",
+      label = "Select Y variable (will automatically be transformed if ZBEn is chosen):",
       choices = list(),
       selected = NULL
     ),
-    shiny$selectInput(
-      ns("y_trans_choice"),
-      label = "Select Y transformation:",
-      choices = list(
-        "None" = "none",
-        "LL4" = "ll4"
-      ),
-      selected = "none"
-    ),
+    # shiny$selectInput(
+    #   ns("y_trans_choice"),
+    #   label = "Select Y transformation:",
+    #   choices = list(
+    #     "None" = "none",
+    #     "LL4" = "ll4"
+    #   ),
+    #   selected = "none"
+    # ),
     shiny$hr(),
     shiny$h5("Fixed Effects Factors (Optional):"),
     shiny$selectInput(
       ns("factor1_choice"),
       label = "Select Factor 1:",
       choices = list("None" = ""), # Add a "None" option
-      selected = ""
+      selected = "",
+      selectize = FALSE
     ),
     shiny$selectInput(
       ns("factor2_choice"),
       label = "Select Factor 2:",
       choices = list("None" = ""), # Add a "None" option
-      selected = ""
+      selected = "",
+      selectize = FALSE
     ),
     shiny$checkboxInput(
       inputId = ns("factor_interaction"),
@@ -139,57 +154,108 @@ sidebar_server <- function(id, data_reactive) {
       if (!is.null(data_uploaded)) {
         return(data_uploaded)
       } else {
-        # Load example 'ko' data if no file is uploaded yet
-        ko <- readr$read_csv("app/static/data/examples/shinybeez-ex-ko.csv")
+        # Load example 'ko' data from module cache if no file is uploaded yet
+        ko <- get_default_ko()
         return(ko)
       }
     })
 
-    # Observe the data and update input choices
-    shiny$observe({
-      df <- current_data()
-      shiny$req(df)
-      col_names <- names(df)
+    # Helper for robust, case-insensitive guessing that returns original names
+    guess_first_match <- function(candidates, cols) {
+      cols_lower <- tolower(cols)
+      for (cand in candidates) {
+        idx <- which(cols_lower == cand)
+        if (length(idx) > 0) return(cols[idx[1]])
+      }
+      return(NA_character_)
+    }
 
-      # Guess likely candidates (can be refined)
-      likely_id <- intersect(
-        c("monkey", "ID", "id", "subject", "participant", "subjid", "subj_id"),
-        tolower(col_names)
-      )[1]
-      if (is.na(likely_id)) {
-        likely_id <- col_names[1]
-      } # fallback
+    # A. Update ID/X/Y choices ONLY when data changes
+    shiny$observeEvent(
+      current_data(),
+      {
+        df <- current_data()
+        shiny$req(df)
+        col_names <- names(df)
+        cols_lower <- tolower(col_names)
 
-      likely_x <- intersect(
-        c("x", "price", "ratio"),
-        tolower(col_names)
-      )[1]
-      if (is.na(likely_x)) {
-        likely_x <- col_names[2]
-      } # fallback
+        likely_id <- guess_first_match(
+          c(
+            "monkey",
+            "id",
+            "subject",
+            "participant",
+            "subjid",
+            "subj_id",
+            "responseid"
+          ),
+          col_names
+        )
+        if (is.na(likely_id)) {
+          likely_id <- col_names[1]
+        }
 
-      likely_y <- intersect(
-        c("y", "y_ll4", "consumption", "response"),
-        tolower(col_names)
-      )[1]
-      if (is.na(likely_y)) {
-        likely_y <- col_names[3]
-      } # fallback
+        likely_x <- guess_first_match(
+          c("x", "price", "ratio"),
+          col_names
+        )
+        if (is.na(likely_x) && length(col_names) >= 2) {
+          likely_x <- col_names[2]
+        }
 
-      # For factors: exclude id, x, y, and other columns likely no applicable
-      potential_factor_cols <- setdiff(
-        col_names,
-        c(
-          likely_id,
-          likely_x,
-          likely_y,
+        likely_y <- guess_first_match(
+          c("y", "y_ll4", "consumption", "response"),
+          col_names
+        )
+        if (is.na(likely_y) && length(col_names) >= 3) {
+          likely_y <- col_names[3]
+        }
+
+        # On data change, initialize sensible defaults (do not preserve prior selections)
+        id_selected <- likely_id
+        x_selected <- likely_x
+        y_selected <- likely_y
+
+        # Explicitly set selected values to avoid defaulting to first choice
+        shiny$updateSelectInput(
+          session,
+          "id_variable_choice",
+          choices = col_names,
+          selected = id_selected
+        )
+        shiny$updateSelectInput(
+          session,
+          "x_variable_choice",
+          choices = col_names,
+          selected = x_selected
+        )
+        shiny$updateSelectInput(
+          session,
+          "y_variable_choice",
+          choices = col_names,
+          selected = y_selected
+        )
+      },
+      ignoreInit = FALSE
+    )
+
+    # B. Maintain factor choices; react to data and factor selections
+    shiny$observeEvent(
+      list(current_data(), input$factor1_choice, input$factor2_choice),
+      {
+        df <- current_data()
+        shiny$req(df)
+        col_names <- names(df)
+
+        # Build factor candidate list excluding reserved keywords and the currently chosen id/x/y
+        reserved_lower <- c(
           "monkey",
-          "ID",
           "id",
           "subject",
           "participant",
           "subjid",
           "subj_id",
+          "responseid",
           "x",
           "price",
           "ratio",
@@ -198,124 +264,85 @@ sidebar_server <- function(id, data_reactive) {
           "consumption",
           "response"
         )
-      )
-      factor_choices <- Filter(
-        function(col) {
-          is.factor(df[[col]]) ||
-            is.character(df[[col]]) ||
-            is.numeric(df[[col]])
-        },
-        potential_factor_cols
-      )
+        selected_ixy <- c(
+          input$id_variable_choice,
+          input$x_variable_choice,
+          input$y_variable_choice
+        )
+        exclusions <- unique(c(
+          selected_ixy,
+          col_names[tolower(col_names) %in% reserved_lower]
+        ))
+        non_reserved <- setdiff(col_names, exclusions)
 
-      shiny$updateSelectInput(
-        session,
-        "id_variable_choice",
-        choices = col_names,
-        selected = if (!is.na(likely_id) && likely_id %in% col_names) {
-          likely_id
-        } else {
-          col_names[1]
-        }
-      )
-      shiny$updateSelectInput(
-        session,
-        "x_variable_choice",
-        choices = col_names,
-        selected = if (!is.na(likely_x) && likely_x %in% col_names) {
-          likely_x
-        } else {
-          col_names[2]
-        }
-      )
-      shiny$updateSelectInput(
-        session,
-        "y_variable_choice",
-        choices = col_names,
-        selected = if (!is.na(likely_y) && likely_y %in% col_names) {
-          likely_y
-        } else {
-          col_names[3]
-        }
-      )
+        factor_choices <- Filter(
+          function(col) {
+            is.factor(df[[col]]) ||
+              is.character(df[[col]]) ||
+              is.numeric(df[[col]])
+          },
+          non_reserved
+        )
 
-      choices_with_none <- c("None" = "None", factor_choices)
+        # Use '' as the value for None to match UI contract and make all choices named
+        named_factors <- stats::setNames(factor_choices, factor_choices)
+        choices_with_none <- c("None" = "", named_factors)
 
-      # Get current values if they exist
-      current_factor1 <- if (!is.null(input$factor1_choice)) {
-        input$factor1_choice
-      } else {
-        ""
-      }
-      current_factor2 <- if (!is.null(input$factor2_choice)) {
-        input$factor2_choice
-      } else {
-        ""
-      }
-
-      # Determine initial selected values based on the data
-      # For initial loading, suggest 'drug' and 'dose' if available
-      if (current_factor1 == "" && current_factor2 == "") {
-        # First time setup - make initial suggestions
-        selected_factor1 <- ""
-
-        selected_factor2 <- ""
-      } else {
-        # Use existing values if they're still valid
-        selected_factor1 <- if (
-          current_factor1 %in% c("None", factor_choices)
-        ) {
+        # Use existing values if valid, else fallback to "None"
+        current_factor1 <- input$factor1_choice %||% ""
+        current_factor2 <- input$factor2_choice %||% ""
+        selected_factor1 <- if (current_factor1 %in% c("", factor_choices)) {
           current_factor1
         } else {
-          "None"
+          ""
         }
-        selected_factor2 <- if (
-          current_factor2 %in% c("None", factor_choices)
-        ) {
+        selected_factor2 <- if (current_factor2 %in% c("", factor_choices)) {
           current_factor2
         } else {
-          "None"
+          ""
         }
-      }
 
-      # Create filtered choices for each factor
-      filtered_choices1 <- choices_with_none
-      if (selected_factor2 != "") {
-        # Remove factor2's selection from factor1's choices
-        filtered_choices1 <- c(
-          "None" = "None",
-          setdiff(factor_choices, selected_factor2)
+        # Filter choices to prevent selecting the same variable in both
+        filtered_choices1 <- if (nzchar(selected_factor2)) {
+          c(
+            "None" = "",
+            stats::setNames(
+              setdiff(factor_choices, selected_factor2),
+              setdiff(factor_choices, selected_factor2)
+            )
+          )
+        } else {
+          choices_with_none
+        }
+        filtered_choices2 <- if (nzchar(selected_factor1)) {
+          c(
+            "None" = "",
+            stats::setNames(
+              setdiff(factor_choices, selected_factor1),
+              setdiff(factor_choices, selected_factor1)
+            )
+          )
+        } else {
+          choices_with_none
+        }
+
+        # Update only if selection would change or to refresh choices
+        # Always set selected explicitly to avoid transient resets
+        shiny$updateSelectInput(
+          session,
+          "factor1_choice",
+          choices = filtered_choices1,
+          selected = selected_factor1
         )
-      }
-
-      filtered_choices2 <- choices_with_none
-      if (selected_factor1 != "") {
-        # Remove factor1's selection from factor2's choices
-        filtered_choices2 <- c(
-          "None" = "None",
-          setdiff(factor_choices, selected_factor1)
+        shiny$updateSelectInput(
+          session,
+          "factor2_choice",
+          choices = filtered_choices2,
+          selected = selected_factor2
         )
-      }
-
-      shiny$updateSelectInput(
-        session,
-        "factor1_choice",
-        choices = filtered_choices1,
-        selected = selected_factor1
-      )
-
-      shiny$updateSelectInput(
-        session,
-        "factor2_choice",
-        choices = filtered_choices2,
-        selected = selected_factor2
-      )
-    }) |>
-      shiny$bindEvent(
-        current_data(),
-        input$factor1_choice,
-        input$factor2_choice
-      )
+      },
+      ignoreInit = FALSE
+    )
 
     # Collect selected factors for the model
     selected_factors_reactive <- shiny$reactive({
@@ -493,7 +520,7 @@ sidebar_server <- function(id, data_reactive) {
         id_var = shiny$reactive(input$id_variable_choice),
         x_var = shiny$reactive(input$x_variable_choice),
         y_var = shiny$reactive(input$y_variable_choice),
-        y_transform = shiny$reactive(input$y_trans_choice),
+        # y_transform = shiny$reactive(input$y_trans_choice),
         selected_factors = selected_factors_reactive,
         factor_interaction = shiny$reactive(input$factor_interaction),
         random_effects_spec = shiny$reactive(input$random_effects_spec),
@@ -677,75 +704,100 @@ navpanel_ui <- function(id) {
 navpanel_server <- function(id, sidebar_reactives) {
   shiny$moduleServer(id, function(input, output, session) {
     ns <- session$ns
+    # Debug flag: read from R option or environment variable
+    is_debug <- isTRUE(getOption(
+      "shinybeez.debug",
+      as.logical(Sys.getenv("SHINYBEEZ_DEBUG", "0"))
+    ))
 
     data_to_analyze <- shiny$reactive({
       df <- sidebar_reactives$data_to_analyze_trigger()
       shiny$req(df)
 
+      # Decide y_for_model once, based on the equation choice + user's Y selection
       y_var_col_name <- sidebar_reactives$y_var()
-      y_transform_method <- sidebar_reactives$y_transform()
-      shiny$req(y_var_col_name, y_transform_method)
+      equation_choice <- sidebar_reactives$equation_form()
+      shiny$req(y_var_col_name, equation_choice)
 
-      if (y_transform_method == "ll4") {
-        if (y_var_col_name %in% names(df)) {
-          # Create a new column for the transformed Y, or use y_ll4 if it's already the target
-          # and the selected y_var IS y_ll4 (avoiding re-transforming y_ll4)
-          if (y_var_col_name == "y_ll4" && "y_ll4" %in% names(df)) {
-            df[["y_for_model"]] <- df[[y_var_col_name]]
-            shiny$showNotification(
-              paste(
-                "Using existing column '",
-                y_var_col_name,
-                "' for y_for_model (LL4)."
-              ),
-              type = "message",
-              duration = 3
-            )
-          } else {
-            shiny$showNotification(
-              paste(
-                "Applying LL4 transformation to '",
-                y_var_col_name,
-                "' and using as y_for_model."
-              ),
-              type = "message",
-              duration = 3
-            )
-            df[["y_for_model"]] <- beezdemand$ll4(df[[y_var_col_name]])
-          }
+      if (identical(equation_choice, "zben")) {
+        # Prefer existing y_ll4; otherwise LL4-transform the selected Y
+        if ("y_ll4" %in% names(df)) {
+          df[["y_for_model"]] <- df[["y_ll4"]]
         } else {
-          shiny$showNotification(
-            paste(
-              "Selected Y variable '",
-              y_var_col_name,
-              "' not found for transformation."
-            ),
-            type = "error"
-          )
-          return(NULL)
+          shiny$req(y_var_col_name %in% names(df))
+          df[["y_for_model"]] <- beezdemand$ll4(df[[y_var_col_name]])
         }
+        attr(df, "y_is_ll4") <- TRUE
       } else {
-        # "none" transformation
-        # If no transformation, y_for_model is just the selected y_variable_choice
-        if (y_var_col_name %in% names(df)) {
-          df[["y_for_model"]] <- df[[y_var_col_name]]
-          shiny$showNotification(
-            paste(
-              "Using existing column '",
-              y_var_col_name,
-              "' and using as y_for_model."
-            ),
-            type = "message",
-            duration = 3
-          )
-        } else {
-          shiny$showNotification(
-            paste("Selected Y variable '", y_var_col_name, "' not found."),
-            type = "error"
-          )
-          return(NULL)
-        }
+        # simplified: use the user's column as-is
+        shiny$req(y_var_col_name %in% names(df))
+        df[["y_for_model"]] <- df[[y_var_col_name]]
+        attr(df, "y_is_ll4") <- FALSE
       }
+
+      # y_var_col_name <- sidebar_reactives$y_var()
+      # y_transform_method <- sidebar_reactives$y_transform()
+      # shiny$req(y_var_col_name, y_transform_method)
+      # if (y_transform_method == "ll4") {
+      #   if (y_var_col_name %in% names(df)) {
+      #     # Create a new column for the transformed Y, or use y_ll4 if it's already the target
+      #     # and the selected y_var IS y_ll4 (avoiding re-transforming y_ll4)
+      #     if (y_var_col_name == "y_ll4" && "y_ll4" %in% names(df)) {
+      #       df[["y_for_model"]] <- df[[y_var_col_name]]
+      #       shiny$showNotification(
+      #         paste(
+      #           "Using existing column '",
+      #           y_var_col_name,
+      #           "' for y_for_model (LL4)."
+      #         ),
+      #         type = "message",
+      #         duration = 3
+      #       )
+      #     } else {
+      #       shiny$showNotification(
+      #         paste(
+      #           "Applying LL4 transformation to '",
+      #           y_var_col_name,
+      #           "' and using as y_for_model."
+      #         ),
+      #         type = "message",
+      #         duration = 3
+      #       )
+      #       df[["y_for_model"]] <- beezdemand$ll4(df[[y_var_col_name]])
+      #     }
+      #   } else {
+      #     shiny$showNotification(
+      #       paste(
+      #         "Selected Y variable '",
+      #         y_var_col_name,
+      #         "' not found for transformation."
+      #       ),
+      #       type = "error"
+      #     )
+      #     return(NULL)
+      #   }
+      # } else {
+      #   # "none" transformation
+      #   # If no transformation, y_for_model is just the selected y_variable_choice
+      #   if (y_var_col_name %in% names(df)) {
+      #     df[["y_for_model"]] <- df[[y_var_col_name]]
+      #     shiny$showNotification(
+      #       paste(
+      #         "Using existing column '",
+      #         y_var_col_name,
+      #         "' and using as y_for_model."
+      #       ),
+      #       type = "message",
+      #       duration = 3
+      #     )
+      #   } else {
+      #     shiny$showNotification(
+      #       paste("Selected Y variable '", y_var_col_name, "' not found."),
+      #       type = "error"
+      #     )
+      #     return(NULL)
+      #   }
+      # }
 
       # convert any nonfactors selected to factors
       factors_to_convert <- setdiff(
@@ -771,7 +823,50 @@ navpanel_server <- function(id, sidebar_reactives) {
         }
       }
       return(df)
-    })
+    }) |>
+      shiny$bindCache(
+        sidebar_reactives$data_to_analyze_trigger(),
+        sidebar_reactives$equation_form(),
+        sidebar_reactives$y_var(),
+        sidebar_reactives$selected_factors()
+      )
+
+    # Informational notification when equation or Y selection changes
+    shiny$observeEvent(
+      list(
+        sidebar_reactives$equation_form(),
+        sidebar_reactives$y_var()
+      ),
+      {
+        eq <- sidebar_reactives$equation_form()
+        yname <- sidebar_reactives$y_var()
+        df_now <- sidebar_reactives$data_to_analyze_trigger()
+        shiny$req(eq, yname, df_now)
+        if (identical(eq, "zben")) {
+          if ("y_ll4" %in% names(df_now)) {
+            # Using existing y_ll4; no transform needed
+            shiny$showNotification(
+              "ZBEn: using existing y_ll4 column.",
+              type = "message",
+              duration = 3
+            )
+          } else {
+            shiny$showNotification(
+              "ZBEn: applying LL4 to selected Y.",
+              type = "message",
+              duration = 3
+            )
+          }
+        } else {
+          shiny$showNotification(
+            paste("Simplified: using selected Y column '", yname, "'."),
+            type = "message",
+            duration = 3
+          )
+        }
+      },
+      ignoreInit = TRUE
+    )
 
     output$input_data_table <- DT$renderDT({
       shiny$req(data_to_analyze())
@@ -918,27 +1013,40 @@ navpanel_server <- function(id, sidebar_reactives) {
         ))
 
         # browser()
-        y_var_actual <- if (
-          sidebar_reactives$y_var() == "y_transform" ||
-            !("y_ll4" %in% names(df))
-        ) {
-          shiny$req("y_ll4" %in% names(df)) # ensure transformation happened
-          "y_ll4"
-        } else {
-          "y_ll4" # Defaulting to y_ll4 as per ZBEn
-        }
+        # ## TODO: FIXME this logic so that it works when transforming
+        # Read the y-scale flag prepared in data_to_analyze()
+        y_is_ll4 <- isTRUE(attr(df, "y_is_ll4"))
 
-        if (!(y_var_actual %in% names(df))) {
+        # Ensure the authoritative column exists
+        if (!("y_for_model" %in% names(df))) {
           shiny$showNotification(
-            paste(
-              "Required Y variable '",
-              y_var_actual,
-              "' not found in the data."
-            ),
+            "Internal error: 'y_for_model' not found.",
             type = "error"
           )
           return(NULL)
         }
+
+        # y_var_actual <- if (
+        #   sidebar_reactives$y_var() == "y_transform" &&
+        #     !("y_ll4" %in% names(df))
+        # ) {
+        #   shiny$req("y_ll4" %in% names(df)) # ensure transformation happened
+        #   "y_ll4"
+        # } else {
+        #   "y" # Defaulting to y_ll4 as per ZBEn
+        # }
+
+        # if (!(y_var_actual %in% names(df))) {
+        #   shiny$showNotification(
+        #     paste(
+        #       "Required Y variable '",
+        #       y_var_actual,
+        #       "' not found in the data."
+        #     ),
+        #     type = "error"
+        #   )
+        #   return(NULL)
+        # }
 
         sel_factors <- setdiff(
           sidebar_reactives$selected_factors(),
@@ -969,18 +1077,21 @@ navpanel_server <- function(id, sidebar_reactives) {
           return(NULL)
         }
 
-        shiny$showNotification(
+        notif_id <- shiny$showNotification(
           "Fitting mixed-effects model... This may take a moment.",
           type = "message",
-          duration = 10
+          duration = NULL
         )
         # browser()
-        print(random_effects_formula_to_pass)
+        if (is_debug) {
+          print(random_effects_formula_to_pass)
+        }
         model_fit <- tryCatch(
           {
             beezdemand$fit_demand_mixed(
               data = df,
-              y_var = y_var_actual,
+              # y_var = y_var_actual,
+              y_var = "y_for_model",
               x_var = sidebar_reactives$x_var(), # Assuming 'x' is the price/ratio column from ko
               id_var = sidebar_reactives$id_var(), # Assuming 'monkey' is the ID from ko
               factors = sel_factors,
@@ -994,6 +1105,7 @@ navpanel_server <- function(id, sidebar_reactives) {
             )
           },
           error = function(e) {
+            shiny$removeNotification(notif_id)
             shiny$showNotification(
               paste("Model fitting error:", e$message),
               type = "error",
@@ -1004,12 +1116,18 @@ navpanel_server <- function(id, sidebar_reactives) {
         )
 
         if (is.null(model_fit) || is.null(model_fit$model)) {
+          shiny$removeNotification(notif_id)
           shiny$showNotification(
             "Model fitting failed or did not converge.",
             type = "error"
           )
           return(NULL)
         }
+
+        # Persist the scale info for plotting
+        model_fit$param_info$y_is_ll4 <- y_is_ll4
+
+        shiny$removeNotification(notif_id)
         shiny$showNotification("Model fitting complete.", type = "message")
         return(model_fit)
       }
@@ -1228,7 +1346,14 @@ navpanel_server <- function(id, sidebar_reactives) {
         }
       )
       comps
-    })
+    }) |>
+      shiny$bindCache(
+        sidebar_reactives$run_trigger(),
+        input$comparison_factor,
+        input$contrast_by_factor,
+        input$comparison_adjust_method,
+        input$comparison_display_type
+      )
 
     output$comparisons_q0_table <- DT$renderDT({
       comps <- comparisons_reactive()
@@ -1509,7 +1634,11 @@ navpanel_server <- function(id, sidebar_reactives) {
       # Determine inv_fun based on original y_var.
       # Assuming LL4 transform always leads to log10 scale for 'zben'.
       # If y_var was y_ll4, it's already log10. If it was y, it got transformed.
-      inv_transform_fun <- beezdemand$ll4_inv # Assuming ll4_inv is 10^x or similar
+      # inv_transform_fun <- beezdemand$ll4_inv # Assuming ll4_inv is 10^x or
+      # similar
+
+      y_is_ll4 <- isTRUE(model_fit$param_info$y_is_ll4)
+      inv_transform_fun <- if (y_is_ll4) beezdemand$ll4_inv else identity
 
       # If y_trans is log, use inv_fun, otherwise plot directly.
       # The plot function's inv_fun is for the MODEL's y-scale back to natural.
@@ -1537,7 +1666,19 @@ navpanel_server <- function(id, sidebar_reactives) {
       } else {
         show_lines_arg <- FALSE
       }
-
+      # browser()
+      if (is_debug) {
+        print(
+          list(
+            plot_color = plot_color,
+            plot_linetype = plot_linetype,
+            plot_facet_str = plot_facet_str,
+            show_lines_arg = show_lines_arg,
+            current_y_trans = current_y_trans,
+            current_x_trans = current_x_trans
+          )
+        )
+      }
       p <- plot(
         model_fit,
         inv_fun = inv_transform_fun, # To get natural scale for predictions
@@ -1560,6 +1701,20 @@ navpanel_server <- function(id, sidebar_reactives) {
 
       return(p)
     }) |>
+      shiny$bindCache(
+        sidebar_reactives$run_trigger(),
+        input$plot_color_by,
+        input$plot_linetype_by,
+        input$plot_facet_by,
+        input$plot_x_trans_log,
+        input$plot_y_trans_log,
+        input$show_population_lines,
+        input$show_individual_lines,
+        input$show_observed_points_plot,
+        input$plot_title,
+        input$plot_xlab,
+        input$plot_ylab
+      ) |>
       shiny$bindEvent(
         input$update_plot_settings,
         fitted_model_reactive(),
