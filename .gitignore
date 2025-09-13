@@ -38,3 +38,4 @@ troubleshooting/
 notes*
 /.luarc.json
 shinyproxy/
+/README_files/*
