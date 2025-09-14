@@ -20,7 +20,8 @@ box::use(
 box::use(
   app / view / file_input,
   app / logic / utils, # For watermarks, etc.
-  app / logic / validate # For data validation and transformations
+  app / logic / validate, # For data validation and transformations
+  app / logic / mixed_effects_demand_utils
 )
 
 # Module-local cache for example data
@@ -1355,6 +1356,53 @@ navpanel_ui <- function(id) {
       bslib$nav_panel(
         title = "Descriptives",
         DT$DTOutput(ns("descriptives_ll4_table"))
+      ),
+      bslib$nav_panel(
+        title = "Systematic Criteria",
+        bslib$card(
+          style = "border: none; ",
+          bslib$layout_sidebar(
+            fillable = TRUE,
+            sidebar = bslib$sidebar(
+              title = "Systematic Settings",
+              open = FALSE,
+              shiny$numericInput(
+                inputId = ns("deltaq"),
+                label = "Criteria #1: Relative change (DeltaQ)",
+                value = .025,
+                min = 0,
+                max = 1,
+                step = .005
+              ),
+              shiny$numericInput(
+                inputId = ns("bounce"),
+                label = "Criteria #2: Price to price increases (Bounce)",
+                value = .10,
+                min = 0,
+                max = 1,
+                step = .01
+              ),
+              shiny$numericInput(
+                inputId = ns("reversals"),
+                label = "Criteria #3: Number of reversals (Reversals)",
+                value = 0,
+                min = 0,
+                max = 4,
+                step = 1
+              ),
+              shiny$numericInput(
+                inputId = ns("ncons0"),
+                label = "Criteria #3a: Number of consecutive 0s used to flag reversals",
+                value = 2,
+                min = 0,
+                max = 4,
+                step = 1
+              ),
+              shiny$uiOutput(ns("systematic_group_ui"))
+            ),
+            DT$DTOutput(ns("systematic_table"))
+          )
+        )
       )
     ),
     bslib$navset_card_tab(
@@ -1812,6 +1860,114 @@ navpanel_server <- function(id, sidebar_reactives) {
         filter = "top",
         class = "compact hover"
       )
+    })
+
+    # Systematic Criteria: optional grouping selector (multi-select)
+    output$systematic_group_ui <- shiny$renderUI({
+      facs <- sidebar_reactives$selected_factors()
+      if (is.null(facs) || length(facs) == 0) return(NULL)
+      shiny$selectizeInput(
+        ns("systematic_group_by"),
+        "Group results by (optional):",
+        choices = stats$setNames(facs, facs),
+        selected = facs, # default to all selected factors; empty selection means no grouping
+        multiple = TRUE,
+        options = list(placeholder = "Select factors to group by (leave empty for none)")
+      )
+    })
+
+    # Systematic Criteria table
+    shiny$observe({
+      # Add dependency on selected factors so changes there retrigger this calculation
+      facs_dep <- sidebar_reactives$selected_factors()
+      df_raw <- sidebar_reactives$data_to_analyze_trigger()
+      shiny$req(df_raw)
+      id_col <- sidebar_reactives$id_var()
+      x_col <- sidebar_reactives$x_var()
+      y_col <- sidebar_reactives$y_var()
+      shiny$req(id_col, x_col, y_col)
+
+      # Friendly note if using transformed Y
+      if (identical(y_col, "y_ll4")) {
+        shiny$showNotification(
+          "Systematic Criteria using y_ll4 (transformed). Consider selecting raw y for conventional checks.",
+          type = "message",
+          duration = 5
+        )
+      }
+
+      group_vars <- input$systematic_group_by
+      systematic <- NULL
+
+      # Compute systematic criteria, optionally by multiple grouping factors
+      if (!is.null(group_vars) && length(group_vars) > 0) {
+        # Validate selected group vars exist
+        missing_groups <- setdiff(group_vars, names(df_raw))
+        if (length(missing_groups) > 0) {
+          shiny$showNotification(
+            paste0(
+              "Selected group-by variable(s) not found: ",
+              paste(missing_groups, collapse = ", ")
+            ),
+            type = "error",
+            duration = 10
+          )
+          return()
+        }
+        df_sys <- df_raw[, c(id_col, x_col, y_col, group_vars), drop = FALSE]
+        names(df_sys)[1:3] <- c("id", "x", "y")
+        suppressWarnings({
+          df_sys$x <- as.numeric(df_sys$x)
+          df_sys$y <- as.numeric(df_sys$y)
+        })
+        df_sys <- df_sys[!is.na(df_sys$y), , drop = FALSE]
+        systematic <- df_sys |>
+          dplyr$group_by(dplyr$across(dplyr$all_of(group_vars))) |>
+          dplyr$group_modify(~ beezdemand$CheckUnsystematic(
+            dat = .x[, c("id", "x", "y")],
+            deltaq = input$deltaq,
+            bounce = input$bounce,
+            reversals = input$reversals,
+            ncons0 = input$ncons0
+          ))
+      } else {
+        df_sys <- mixed_effects_demand_utils$prepare_systematic_input(
+          df = df_raw, id_col = id_col, x_col = x_col, y_col = y_col
+        )
+        systematic <- beezdemand$CheckUnsystematic(
+          dat = df_sys,
+          deltaq = input$deltaq,
+          bounce = input$bounce,
+          reversals = input$reversals,
+          ncons0 = input$ncons0
+        )
+      }
+
+      output$systematic_table <- DT$renderDT(server = FALSE, {
+        DT$datatable(
+          systematic,
+          rownames = FALSE,
+          extensions = c("Buttons", "Scroller", "FixedColumns"),
+          fillContainer = FALSE,
+          options = list(
+            autoWidth = FALSE,
+            ordering = TRUE,
+            dom = "Bti",
+            buttons = list(
+              list(extend = "copy"),
+              list(extend = "print"),
+              list(extend = "csv", filename = "ShinyBeez_MixedEffects_Systematic_Criteria", title = NULL),
+              list(extend = "excel", filename = "ShinyBeez_MixedEffects_Systematic_Criteria", title = NULL),
+              list(extend = "pdf", filename = "ShinyBeez_MixedEffects_Systematic_Criteria", title = NULL)
+            ),
+            deferRender = TRUE,
+            scrollY = 250,
+            scroller = TRUE,
+            scrollX = TRUE,
+            fixedColumns = list(leftColumns = 1)
+          )
+        )
+      })
     })
 
     # Reactive for the fitted model
