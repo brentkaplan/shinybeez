@@ -130,7 +130,13 @@ sidebar_ui <- function(id) {
     ),
     shiny$numericInput(
       ns("cov_at"),
-      label = "Covariate value for EMMs/plots (natural scale)",
+      label = bslib$tooltip(
+        trigger = list(
+          "Covariate value for EMMs/plots (natural scale)",
+          bsicons$bs_icon("question-circle")
+        ),
+        "Sets the value at which the continuous covariate is held constant when calculating Estimated Marginal Means (EMMs), pairwise comparisons, and drawing prediction lines in the plot.\n\nEnter this on the natural scale = the raw units of your data column (before any centering/scaling). If 'Center' and/or 'Scale' are checked, this natural-scale value is internally transformed using the column's global mean/SD to condition the model."
+      ),
       value = NA,
       step = 0.1
     ),
@@ -406,8 +412,20 @@ sidebar_server <- function(id, data_reactive) {
         col_names <- names(df)
 
         reserved_lower <- c(
-          "monkey","id","subject","participant","subjid","subj_id","responseid",
-          "x","price","ratio","y","y_ll4","consumption","response"
+          "monkey",
+          "id",
+          "subject",
+          "participant",
+          "subjid",
+          "subj_id",
+          "responseid",
+          "x",
+          "price",
+          "ratio",
+          "y",
+          "y_ll4",
+          "consumption",
+          "response"
         )
         selected_ixy <- c(
           input$id_variable_choice,
@@ -415,7 +433,9 @@ sidebar_server <- function(id, data_reactive) {
           input$y_variable_choice
         )
         selected_factors <- c(input$factor1_choice, input$factor2_choice)
-        selected_factors <- selected_factors[!is.na(selected_factors) & nzchar(selected_factors)]
+        selected_factors <- selected_factors[
+          !is.na(selected_factors) & nzchar(selected_factors)
+        ]
         exclusions <- unique(c(
           selected_ixy,
           selected_factors,
@@ -423,12 +443,18 @@ sidebar_server <- function(id, data_reactive) {
         ))
 
         is_numeric_like <- function(v) {
-          if (is.numeric(v) || is.integer(v) || inherits(v, "integer64")) return(TRUE)
+          if (is.numeric(v) || is.integer(v) || inherits(v, "integer64")) {
+            return(TRUE)
+          }
           if (is.character(v)) {
-            suppressWarnings({ num <- as.numeric(v) })
+            suppressWarnings({
+              num <- as.numeric(v)
+            })
             non_na_orig <- sum(!is.na(v))
             non_na_conv <- sum(!is.na(num))
-            if (non_na_orig == 0) return(FALSE)
+            if (non_na_orig == 0) {
+              return(FALSE)
+            }
             return((non_na_conv / non_na_orig) >= 0.95)
           }
           FALSE
@@ -443,7 +469,13 @@ sidebar_server <- function(id, data_reactive) {
 
         # Preserve a valid selection if possible
         current_sel <- input$covariate_choice
-        new_sel <- if (!is.null(current_sel) && current_sel %in% numeric_candidates) current_sel else ""
+        new_sel <- if (
+          !is.null(current_sel) && current_sel %in% numeric_candidates
+        ) {
+          current_sel
+        } else {
+          ""
+        }
 
         shiny$updateSelectInput(
           session,
@@ -467,93 +499,175 @@ sidebar_server <- function(id, data_reactive) {
 
     # B. Maintain factor choices (stable):
     # 1) On data change: compute base choices and initialize both selects.
-    shiny$observeEvent(current_data(), {
-      df <- current_data()
-      shiny$req(df)
-      col_names <- names(df)
+    shiny$observeEvent(
+      current_data(),
+      {
+        df <- current_data()
+        shiny$req(df)
+        col_names <- names(df)
 
-      reserved_lower <- c(
-        "monkey","id","subject","participant","subjid","subj_id","responseid",
-        "x","price","ratio","y","y_ll4","consumption","response"
-      )
-      exclusions_base <- unique(c(
-        input$id_variable_choice,
-        input$x_variable_choice,
-        input$y_variable_choice,
-        col_names[tolower(col_names) %in% reserved_lower]
-      ))
-      base_choices <- setdiff(col_names, exclusions_base)
-      factor_choices <- Filter(
-        function(col) is.factor(df[[col]]) || is.character(df[[col]]) || is.numeric(df[[col]]),
-        base_choices
-      )
-      choices_with_none <- c("None" = "", stats::setNames(factor_choices, factor_choices))
+        reserved_lower <- c(
+          "monkey",
+          "id",
+          "subject",
+          "participant",
+          "subjid",
+          "subj_id",
+          "responseid",
+          "x",
+          "price",
+          "ratio",
+          "y",
+          "y_ll4",
+          "consumption",
+          "response"
+        )
+        exclusions_base <- unique(c(
+          input$id_variable_choice,
+          input$x_variable_choice,
+          input$y_variable_choice,
+          col_names[tolower(col_names) %in% reserved_lower]
+        ))
+        base_choices <- setdiff(col_names, exclusions_base)
+        factor_choices <- Filter(
+          function(col) {
+            is.factor(df[[col]]) ||
+              is.character(df[[col]]) ||
+              is.numeric(df[[col]])
+          },
+          base_choices
+        )
+        choices_with_none <- c(
+          "None" = "",
+          stats::setNames(factor_choices, factor_choices)
+        )
 
-      f1 <- input$factor1_choice
-      f2 <- input$factor2_choice
-      f1 <- if (!is.null(f1) && f1 %in% factor_choices) f1 else ""
-      f2 <- if (!is.null(f2) && f2 %in% factor_choices && f2 != f1) f2 else ""
+        f1 <- input$factor1_choice
+        f2 <- input$factor2_choice
+        f1 <- if (!is.null(f1) && f1 %in% factor_choices) f1 else ""
+        f2 <- if (!is.null(f2) && f2 %in% factor_choices && f2 != f1) f2 else ""
 
-      shiny$updateSelectInput(session, "factor1_choice", choices = choices_with_none, selected = f1)
-      # For factor2, exclude f1 if set
-      ch2 <- if (nzchar(f1)) setdiff(factor_choices, f1) else factor_choices
-      shiny$updateSelectInput(session, "factor2_choice",
-        choices = c("None" = "", stats::setNames(ch2, ch2)), selected = f2)
-    }, ignoreInit = FALSE)
+        shiny$updateSelectInput(
+          session,
+          "factor1_choice",
+          choices = choices_with_none,
+          selected = f1
+        )
+        # For factor2, exclude f1 if set
+        ch2 <- if (nzchar(f1)) setdiff(factor_choices, f1) else factor_choices
+        shiny$updateSelectInput(
+          session,
+          "factor2_choice",
+          choices = c("None" = "", stats::setNames(ch2, ch2)),
+          selected = f2
+        )
+      },
+      ignoreInit = FALSE
+    )
 
     # 2) When factor1 changes: only update factor2 choices to exclude factor1 (preserve factor1)
-    shiny$observeEvent(input$factor1_choice, {
-      df <- current_data(); shiny$req(df)
-      col_names <- names(df)
-      reserved_lower <- c(
-        "monkey","id","subject","participant","subjid","subj_id","responseid",
-        "x","price","ratio","y","y_ll4","consumption","response"
-      )
-      exclusions_base <- unique(c(
-        input$id_variable_choice,
-        input$x_variable_choice,
-        input$y_variable_choice,
-        col_names[tolower(col_names) %in% reserved_lower]
-      ))
-      base_choices <- setdiff(col_names, exclusions_base)
-      factor_choices <- Filter(
-        function(col) is.factor(df[[col]]) || is.character(df[[col]]) || is.numeric(df[[col]]),
-        base_choices
-      )
-      f1 <- input$factor1_choice
-      ch2 <- if (nzchar(f1)) setdiff(factor_choices, f1) else factor_choices
-      f2 <- input$factor2_choice
-      f2 <- if (!is.null(f2) && f2 %in% ch2) f2 else ""
-      shiny$updateSelectInput(session, "factor2_choice",
-        choices = c("None" = "", stats::setNames(ch2, ch2)), selected = f2)
-    }, ignoreInit = TRUE)
+    shiny$observeEvent(
+      input$factor1_choice,
+      {
+        df <- current_data()
+        shiny$req(df)
+        col_names <- names(df)
+        reserved_lower <- c(
+          "monkey",
+          "id",
+          "subject",
+          "participant",
+          "subjid",
+          "subj_id",
+          "responseid",
+          "x",
+          "price",
+          "ratio",
+          "y",
+          "y_ll4",
+          "consumption",
+          "response"
+        )
+        exclusions_base <- unique(c(
+          input$id_variable_choice,
+          input$x_variable_choice,
+          input$y_variable_choice,
+          col_names[tolower(col_names) %in% reserved_lower]
+        ))
+        base_choices <- setdiff(col_names, exclusions_base)
+        factor_choices <- Filter(
+          function(col) {
+            is.factor(df[[col]]) ||
+              is.character(df[[col]]) ||
+              is.numeric(df[[col]])
+          },
+          base_choices
+        )
+        f1 <- input$factor1_choice
+        ch2 <- if (nzchar(f1)) setdiff(factor_choices, f1) else factor_choices
+        f2 <- input$factor2_choice
+        f2 <- if (!is.null(f2) && f2 %in% ch2) f2 else ""
+        shiny$updateSelectInput(
+          session,
+          "factor2_choice",
+          choices = c("None" = "", stats::setNames(ch2, ch2)),
+          selected = f2
+        )
+      },
+      ignoreInit = TRUE
+    )
 
     # 3) When factor2 changes: only update factor1 choices to exclude factor2 (preserve factor2)
-    shiny$observeEvent(input$factor2_choice, {
-      df <- current_data(); shiny$req(df)
-      col_names <- names(df)
-      reserved_lower <- c(
-        "monkey","id","subject","participant","subjid","subj_id","responseid",
-        "x","price","ratio","y","y_ll4","consumption","response"
-      )
-      exclusions_base <- unique(c(
-        input$id_variable_choice,
-        input$x_variable_choice,
-        input$y_variable_choice,
-        col_names[tolower(col_names) %in% reserved_lower]
-      ))
-      base_choices <- setdiff(col_names, exclusions_base)
-      factor_choices <- Filter(
-        function(col) is.factor(df[[col]]) || is.character(df[[col]]) || is.numeric(df[[col]]),
-        base_choices
-      )
-      f2 <- input$factor2_choice
-      ch1 <- if (nzchar(f2)) setdiff(factor_choices, f2) else factor_choices
-      f1 <- input$factor1_choice
-      f1 <- if (!is.null(f1) && f1 %in% ch1) f1 else ""
-      shiny$updateSelectInput(session, "factor1_choice",
-        choices = c("None" = "", stats::setNames(ch1, ch1)), selected = f1)
-    }, ignoreInit = TRUE)
+    shiny$observeEvent(
+      input$factor2_choice,
+      {
+        df <- current_data()
+        shiny$req(df)
+        col_names <- names(df)
+        reserved_lower <- c(
+          "monkey",
+          "id",
+          "subject",
+          "participant",
+          "subjid",
+          "subj_id",
+          "responseid",
+          "x",
+          "price",
+          "ratio",
+          "y",
+          "y_ll4",
+          "consumption",
+          "response"
+        )
+        exclusions_base <- unique(c(
+          input$id_variable_choice,
+          input$x_variable_choice,
+          input$y_variable_choice,
+          col_names[tolower(col_names) %in% reserved_lower]
+        ))
+        base_choices <- setdiff(col_names, exclusions_base)
+        factor_choices <- Filter(
+          function(col) {
+            is.factor(df[[col]]) ||
+              is.character(df[[col]]) ||
+              is.numeric(df[[col]])
+          },
+          base_choices
+        )
+        f2 <- input$factor2_choice
+        ch1 <- if (nzchar(f2)) setdiff(factor_choices, f2) else factor_choices
+        f1 <- input$factor1_choice
+        f1 <- if (!is.null(f1) && f1 %in% ch1) f1 else ""
+        shiny$updateSelectInput(
+          session,
+          "factor1_choice",
+          choices = c("None" = "", stats::setNames(ch1, ch1)),
+          selected = f1
+        )
+      },
+      ignoreInit = TRUE
+    )
 
     # Collect selected factors for the model
     selected_factors_reactive <- shiny$reactive({
@@ -600,38 +714,62 @@ sidebar_server <- function(id, data_reactive) {
     clear_factor1_collapse <- function() {
       # Set enable flag FALSE if present
       if (!is.null(input$enable_collapse_factor1)) {
-        shiny$updateCheckboxInput(session, "enable_collapse_factor1", value = FALSE)
+        shiny$updateCheckboxInput(
+          session,
+          "enable_collapse_factor1",
+          value = FALSE
+        )
       }
       # Clear names and selections if inputs exist
       if (!is.null(input$f1_group1_name)) {
         shiny$updateTextInput(session, "f1_group1_name", value = "")
       }
       if (!is.null(input$f1_group1_levels)) {
-        shiny$updateSelectizeInput(session, "f1_group1_levels", selected = character(0))
+        shiny$updateSelectizeInput(
+          session,
+          "f1_group1_levels",
+          selected = character(0)
+        )
       }
       if (!is.null(input$f1_group2_name)) {
         shiny$updateTextInput(session, "f1_group2_name", value = "")
       }
       if (!is.null(input$f1_group2_levels)) {
-        shiny$updateSelectizeInput(session, "f1_group2_levels", selected = character(0))
+        shiny$updateSelectizeInput(
+          session,
+          "f1_group2_levels",
+          selected = character(0)
+        )
       }
     }
 
     clear_factor2_collapse <- function() {
       if (!is.null(input$enable_collapse_factor2)) {
-        shiny$updateCheckboxInput(session, "enable_collapse_factor2", value = FALSE)
+        shiny$updateCheckboxInput(
+          session,
+          "enable_collapse_factor2",
+          value = FALSE
+        )
       }
       if (!is.null(input$f2_group1_name)) {
         shiny$updateTextInput(session, "f2_group1_name", value = "")
       }
       if (!is.null(input$f2_group1_levels)) {
-        shiny$updateSelectizeInput(session, "f2_group1_levels", selected = character(0))
+        shiny$updateSelectizeInput(
+          session,
+          "f2_group1_levels",
+          selected = character(0)
+        )
       }
       if (!is.null(input$f2_group2_name)) {
         shiny$updateTextInput(session, "f2_group2_name", value = "")
       }
       if (!is.null(input$f2_group2_levels)) {
-        shiny$updateSelectizeInput(session, "f2_group2_levels", selected = character(0))
+        shiny$updateSelectizeInput(
+          session,
+          "f2_group2_levels",
+          selected = character(0)
+        )
       }
     }
 
@@ -1088,19 +1226,94 @@ sidebar_server <- function(id, data_reactive) {
       )
     })
 
-    # Precompute basic covariate stats for later phases (global center/scale)
+    # Precompute basic covariate stats (global center/scale) with numeric-like coercion
     covariate_stats <- shiny$reactive({
       df <- current_data()
       covar <- input$covariate_choice
-      if (is.null(df) || is.null(covar) || !nzchar(covar) || !(covar %in% names(df))) {
+      if (
+        is.null(df) ||
+          is.null(covar) ||
+          !nzchar(covar) ||
+          !(covar %in% names(df))
+      ) {
         return(NULL)
       }
       x <- df[[covar]]
+      if (is.character(x)) {
+        x <- suppressWarnings(as.numeric(x))
+      }
       mu <- suppressWarnings(mean(x, na.rm = TRUE))
       sigma <- suppressWarnings(stats::sd(x, na.rm = TRUE))
-      if (!is.finite(sigma) || is.na(sigma)) sigma <- NA_real_
+      if (!is.finite(sigma) || is.na(sigma)) {
+        sigma <- NA_real_
+      }
       list(name = covar, mu = mu, sigma = sigma)
     })
+
+    # Helper: build transformed covariate column and compute 'at' list for downstream APIs
+    build_covariate_modeling_info <- function(df_in) {
+      df <- df_in
+      covar <- input$covariate_choice
+      if (is.null(covar) || !nzchar(covar) || !(covar %in% names(df))) {
+        return(list(df = df, model_covariate_name = NULL, at_list = NULL))
+      }
+
+      # Ensure numeric base column
+      base_name <- covar
+      base_vec <- df[[covar]]
+      if (is.character(base_vec)) {
+        base_name_num <- paste0(covar, "_num")
+        df[[base_name_num]] <- suppressWarnings(as.numeric(base_vec))
+        base_name <- base_name_num
+      }
+
+      center <- isTRUE(input$cov_center)
+      scale <- isTRUE(input$cov_scale)
+      x <- df[[base_name]]
+      mu <- suppressWarnings(mean(x, na.rm = TRUE))
+      sigma <- suppressWarnings(stats::sd(x, na.rm = TRUE))
+
+      effective_name <- base_name
+      if (center || scale) {
+        if (
+          isTRUE(scale) && (is.na(sigma) || !is.finite(sigma) || sigma <= 0)
+        ) {
+          shiny$showNotification(
+            "Scale requested but SD is not positive; applying centering only.",
+            type = "warning"
+          )
+          scale <- FALSE
+        }
+        if (isTRUE(scale)) {
+          effective_name <- paste0(base_name, "_cs")
+          df[[effective_name]] <- (x - mu) / sigma
+        } else if (isTRUE(center)) {
+          effective_name <- paste0(base_name, "_c")
+          df[[effective_name]] <- (x - mu)
+        }
+      } else {
+        # If not transforming and base is numeric-like character, column already created
+        if (!(base_name %in% names(df))) df[[base_name]] <- x
+      }
+
+      # Build 'at' list using natural-scale input, transformed consistently
+      at_val_nat <- suppressWarnings(as.numeric(input$cov_at))
+      at_list <- NULL
+      if (!is.null(at_val_nat) && is.finite(at_val_nat)) {
+        at_val <- at_val_nat
+        if (center || scale) {
+          if (isTRUE(scale) && is.finite(sigma) && sigma > 0) {
+            at_val <- (at_val_nat - mu) / sigma
+          } else if (isTRUE(center)) {
+            at_val <- (at_val_nat - mu)
+          }
+        }
+        at_list <- list(at_val)
+        names(at_list) <- effective_name
+      }
+
+      list(df = df, model_covariate_name = effective_name, at_list = at_list)
+    }
 
     return(
       list(
@@ -1312,6 +1525,71 @@ navpanel_server <- function(id, sidebar_reactives) {
       as.logical(Sys.getenv("SHINYBEEZ_DEBUG", "0"))
     ))
 
+    # Helper: build transformed covariate column and compute 'at' list
+    # Uses covariate controls from sidebar_reactives so the function is local to this module
+    build_covariate_modeling_info <- function(df_in) {
+      df <- df_in
+      covar <- sidebar_reactives$covariate()
+      if (is.null(covar) || !nzchar(covar) || !(covar %in% names(df))) {
+        return(list(df = df, model_covariate_name = NULL, at_list = NULL))
+      }
+
+      # Ensure numeric base column (coerce character numeric-like to numeric)
+      base_name <- covar
+      base_vec <- df[[covar]]
+      if (is.character(base_vec)) {
+        base_name_num <- paste0(covar, "_num")
+        df[[base_name_num]] <- suppressWarnings(as.numeric(base_vec))
+        base_name <- base_name_num
+      }
+
+      center <- isTRUE(sidebar_reactives$cov_center())
+      scale <- isTRUE(sidebar_reactives$cov_scale())
+      x <- df[[base_name]]
+      mu <- suppressWarnings(mean(x, na.rm = TRUE))
+      sigma <- suppressWarnings(stats::sd(x, na.rm = TRUE))
+
+      effective_name <- base_name
+      if (center || scale) {
+        if (
+          isTRUE(scale) && (is.na(sigma) || !is.finite(sigma) || sigma <= 0)
+        ) {
+          shiny$showNotification(
+            "Scale requested but SD is not positive; applying centering only.",
+            type = "warning"
+          )
+          scale <- FALSE
+        }
+        if (isTRUE(scale)) {
+          effective_name <- paste0(base_name, "_cs")
+          df[[effective_name]] <- (x - mu) / sigma
+        } else if (isTRUE(center)) {
+          effective_name <- paste0(base_name, "_c")
+          df[[effective_name]] <- (x - mu)
+        }
+      } else {
+        if (!(base_name %in% names(df))) df[[base_name]] <- x
+      }
+
+      # Build 'at' list using the natural-scale "at" value transformed consistently
+      at_val_nat <- suppressWarnings(as.numeric(sidebar_reactives$cov_at_natural()))
+      at_list <- NULL
+      if (!is.null(at_val_nat) && is.finite(at_val_nat)) {
+        at_val <- at_val_nat
+        if (center || scale) {
+          if (isTRUE(scale) && is.finite(sigma) && sigma > 0) {
+            at_val <- (at_val_nat - mu) / sigma
+          } else if (isTRUE(center)) {
+            at_val <- (at_val_nat - mu)
+          }
+        }
+        at_list <- list(at_val)
+        names(at_list) <- effective_name
+      }
+
+      list(df = df, model_covariate_name = effective_name, at_list = at_list)
+    }
+
     data_to_analyze <- shiny$reactive({
       df <- sidebar_reactives$data_to_analyze_trigger()
       shiny$req(df)
@@ -1424,13 +1702,20 @@ navpanel_server <- function(id, sidebar_reactives) {
             ))
         }
       }
+      # Add transformed covariate column if selected
+      cov_info <- build_covariate_modeling_info(df)
+      df <- cov_info$df
+
       return(df)
     }) |>
       shiny$bindCache(
         sidebar_reactives$data_to_analyze_trigger(),
         sidebar_reactives$equation_form(),
         sidebar_reactives$y_var(),
-        sidebar_reactives$selected_factors()
+        sidebar_reactives$selected_factors(),
+        sidebar_reactives$covariate(),
+        sidebar_reactives$cov_center(),
+        sidebar_reactives$cov_scale()
       )
 
     # Informational notification when equation or Y selection changes
@@ -1692,6 +1977,10 @@ navpanel_server <- function(id, sidebar_reactives) {
         if (is_debug) {
           print(random_effects_formula_to_pass)
         }
+        # Prepare covariate info for modeling (ensures transformed column exists)
+        cov_info <- build_covariate_modeling_info(df)
+        cont_covars_to_pass <- cov_info$model_covariate_name
+
         model_fit <- tryCatch(
           {
             beezdemand$fit_demand_mixed(
@@ -1707,7 +1996,8 @@ navpanel_server <- function(id, sidebar_reactives) {
               random_effects = random_effects_formula_to_pass,
               covariance_structure = sidebar_reactives$covariance_structure(),
               nlme_control = user_nlme_control,
-              start_value_method = "pooled_nls" # Often more robust for complex models
+              start_value_method = "pooled_nls", # Often more robust for complex models
+              continuous_covariates = cont_covars_to_pass
             )
           },
           error = function(e) {
@@ -1840,10 +2130,14 @@ navpanel_server <- function(id, sidebar_reactives) {
       if (is.null(sel_factors) || length(sel_factors) == 0) {
         sel_factors <- NULL
       }
+      # Build 'at' for covariate conditioning
+      df_now <- data_to_analyze()
+      cov_info <- build_covariate_modeling_info(df_now)
       emms_data <- tryCatch(
         beezdemand$get_observed_demand_param_emms(
           fit_obj = model_fit,
           factors_in_emm = sel_factors, # Use selected factors
+          at = cov_info$at_list,
           include_ev = TRUE,
           ci_level = 0.95
         ),
@@ -1934,12 +2228,17 @@ navpanel_server <- function(id, sidebar_reactives) {
         NULL
       }
 
+      # Build 'at' for covariate conditioning
+      df_now <- data_to_analyze()
+      cov_info <- build_covariate_modeling_info(df_now)
+
       comps <- tryCatch(
         beezdemand$get_demand_comparisons(
           fit_obj = model_fit,
           params_to_compare = c("Q0", "alpha"),
           compare_specs = stats$as.formula(paste("~", specs_str)),
           contrast_by = contrast_by_arg, # Compare `main_factor` within levels of `by_factor`
+          at = cov_info$at_list,
           adjust = input$comparison_adjust_method,
           report_ratios = TRUE
         ),
@@ -1958,7 +2257,11 @@ navpanel_server <- function(id, sidebar_reactives) {
         input$comparison_factor,
         input$contrast_by_factor,
         input$comparison_adjust_method,
-        input$comparison_display_type
+        input$comparison_display_type,
+        sidebar_reactives$covariate(),
+        sidebar_reactives$cov_center(),
+        sidebar_reactives$cov_scale(),
+        sidebar_reactives$cov_at_natural()
       )
 
     output$comparisons_q0_table <- DT$renderDT({
@@ -2285,11 +2588,16 @@ navpanel_server <- function(id, sidebar_reactives) {
           )
         )
       }
+      # Build 'at' for covariate conditioning in plot
+      df_now <- data_to_analyze()
+      cov_info <- build_covariate_modeling_info(df_now)
+
       p <- plot(
         model_fit,
         inv_fun = inv_transform_fun, # To get natural scale for predictions
         y_trans = current_y_trans, # Visual scale for y-axis
         x_trans = current_x_trans, # Visual scale for x-axis
+        at = cov_info$at_list,
         facet_formula = if (!is.null(plot_facet_str)) {
           stats$as.formula(plot_facet_str)
         } else {
@@ -2311,9 +2619,10 @@ navpanel_server <- function(id, sidebar_reactives) {
         fit_data <- model_fit$data
         if (!is.null(fit_data) && plot_color %in% names(fit_data)) {
           n_levels <- length(unique(stats::na.omit(fit_data[[plot_color]])))
-          p <- p + ggplot2$scale_color_manual(
-            values = utils$get_palette_colors(input$plot_palette, n_levels)
-          )
+          p <- p +
+            ggplot2$scale_color_manual(
+              values = utils$get_palette_colors(input$plot_palette, n_levels)
+            )
         }
       }
 
@@ -2332,7 +2641,11 @@ navpanel_server <- function(id, sidebar_reactives) {
         input$show_observed_points_plot,
         input$plot_title,
         input$plot_xlab,
-        input$plot_ylab
+        input$plot_ylab,
+        sidebar_reactives$covariate(),
+        sidebar_reactives$cov_center(),
+        sidebar_reactives$cov_scale(),
+        sidebar_reactives$cov_at_natural()
       ) |>
       shiny$bindEvent(
         input$update_plot_settings,
