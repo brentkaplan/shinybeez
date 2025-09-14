@@ -109,6 +109,31 @@ sidebar_ui <- function(id) {
     # Server-rendered containers ensure we only show collapsing when >= 2 levels
     shiny$uiOutput(ns("collapse_factor1_container")),
     shiny$uiOutput(ns("collapse_factor2_container")),
+    shiny$hr(),
+    shiny$h5("Continuous Covariate (Optional):"),
+    shiny$selectInput(
+      ns("covariate_choice"),
+      label = "Select numeric covariate:",
+      choices = list("None" = ""),
+      selected = "",
+      selectize = FALSE
+    ),
+    shiny$checkboxInput(
+      ns("cov_center"),
+      label = "Center covariate (global mean = 0)",
+      value = TRUE
+    ),
+    shiny$checkboxInput(
+      ns("cov_scale"),
+      label = "Scale covariate (global sd = 1)",
+      value = FALSE
+    ),
+    shiny$numericInput(
+      ns("cov_at"),
+      label = "Covariate value for EMMs/plots (natural scale)",
+      value = NA,
+      step = 0.1
+    ),
     shiny$h5("Random Effects:"),
     shiny$checkboxGroupInput(
       ns("random_effects_spec"),
@@ -365,110 +390,170 @@ sidebar_server <- function(id, data_reactive) {
       ignoreInit = FALSE
     )
 
-    # B. Maintain factor choices; react to data and factor selections
+    # C. Populate numeric-only covariate choices (exclude id/x/y and selected factors)
     shiny$observeEvent(
-      list(current_data(), input$factor1_choice, input$factor2_choice),
+      list(
+        current_data(),
+        input$id_variable_choice,
+        input$x_variable_choice,
+        input$y_variable_choice,
+        input$factor1_choice,
+        input$factor2_choice
+      ),
       {
         df <- current_data()
         shiny$req(df)
         col_names <- names(df)
 
-        # Build factor candidate list excluding reserved keywords and the currently chosen id/x/y
         reserved_lower <- c(
-          "monkey",
-          "id",
-          "subject",
-          "participant",
-          "subjid",
-          "subj_id",
-          "responseid",
-          "x",
-          "price",
-          "ratio",
-          "y",
-          "y_ll4",
-          "consumption",
-          "response"
+          "monkey","id","subject","participant","subjid","subj_id","responseid",
+          "x","price","ratio","y","y_ll4","consumption","response"
         )
         selected_ixy <- c(
           input$id_variable_choice,
           input$x_variable_choice,
           input$y_variable_choice
         )
+        selected_factors <- c(input$factor1_choice, input$factor2_choice)
+        selected_factors <- selected_factors[!is.na(selected_factors) & nzchar(selected_factors)]
         exclusions <- unique(c(
           selected_ixy,
+          selected_factors,
           col_names[tolower(col_names) %in% reserved_lower]
         ))
-        non_reserved <- setdiff(col_names, exclusions)
 
-        factor_choices <- Filter(
-          function(col) {
-            is.factor(df[[col]]) ||
-              is.character(df[[col]]) ||
-              is.numeric(df[[col]])
-          },
-          non_reserved
+        is_numeric_like <- function(v) {
+          if (is.numeric(v) || is.integer(v) || inherits(v, "integer64")) return(TRUE)
+          if (is.character(v)) {
+            suppressWarnings({ num <- as.numeric(v) })
+            non_na_orig <- sum(!is.na(v))
+            non_na_conv <- sum(!is.na(num))
+            if (non_na_orig == 0) return(FALSE)
+            return((non_na_conv / non_na_orig) >= 0.95)
+          }
+          FALSE
+        }
+
+        numeric_candidates <- Filter(
+          function(col) is_numeric_like(df[[col]]),
+          setdiff(col_names, exclusions)
         )
+        named_choices <- stats$setNames(numeric_candidates, numeric_candidates)
+        choices_with_none <- c("None" = "", named_choices)
 
-        # Use '' as the value for None to match UI contract and make all choices named
-        named_factors <- stats::setNames(factor_choices, factor_choices)
-        choices_with_none <- c("None" = "", named_factors)
+        # Preserve a valid selection if possible
+        current_sel <- input$covariate_choice
+        new_sel <- if (!is.null(current_sel) && current_sel %in% numeric_candidates) current_sel else ""
 
-        # Use existing values if valid, else fallback to "None"
-        current_factor1 <- input$factor1_choice %||% ""
-        current_factor2 <- input$factor2_choice %||% ""
-        selected_factor1 <- if (current_factor1 %in% c("", factor_choices)) {
-          current_factor1
-        } else {
-          ""
-        }
-        selected_factor2 <- if (current_factor2 %in% c("", factor_choices)) {
-          current_factor2
-        } else {
-          ""
-        }
-
-        # Filter choices to prevent selecting the same variable in both
-        filtered_choices1 <- if (nzchar(selected_factor2)) {
-          c(
-            "None" = "",
-            stats::setNames(
-              setdiff(factor_choices, selected_factor2),
-              setdiff(factor_choices, selected_factor2)
-            )
-          )
-        } else {
-          choices_with_none
-        }
-        filtered_choices2 <- if (nzchar(selected_factor1)) {
-          c(
-            "None" = "",
-            stats::setNames(
-              setdiff(factor_choices, selected_factor1),
-              setdiff(factor_choices, selected_factor1)
-            )
-          )
-        } else {
-          choices_with_none
-        }
-
-        # Update only if selection would change or to refresh choices
-        # Always set selected explicitly to avoid transient resets
         shiny$updateSelectInput(
           session,
-          "factor1_choice",
-          choices = filtered_choices1,
-          selected = selected_factor1
+          "covariate_choice",
+          choices = choices_with_none,
+          selected = new_sel
         )
-        shiny$updateSelectInput(
-          session,
-          "factor2_choice",
-          choices = filtered_choices2,
-          selected = selected_factor2
-        )
+
+        # Default the "at" value to the mean if not set
+        if (nzchar(new_sel)) {
+          x <- df[[new_sel]]
+          xnum <- if (is.character(x)) suppressWarnings(as.numeric(x)) else x
+          mu <- suppressWarnings(mean(xnum, na.rm = TRUE))
+          if (is.finite(mu) && (is.null(input$cov_at) || is.na(input$cov_at))) {
+            shiny$updateNumericInput(session, "cov_at", value = round(mu, 3))
+          }
+        }
       },
       ignoreInit = FALSE
     )
+
+    # B. Maintain factor choices (stable):
+    # 1) On data change: compute base choices and initialize both selects.
+    shiny$observeEvent(current_data(), {
+      df <- current_data()
+      shiny$req(df)
+      col_names <- names(df)
+
+      reserved_lower <- c(
+        "monkey","id","subject","participant","subjid","subj_id","responseid",
+        "x","price","ratio","y","y_ll4","consumption","response"
+      )
+      exclusions_base <- unique(c(
+        input$id_variable_choice,
+        input$x_variable_choice,
+        input$y_variable_choice,
+        col_names[tolower(col_names) %in% reserved_lower]
+      ))
+      base_choices <- setdiff(col_names, exclusions_base)
+      factor_choices <- Filter(
+        function(col) is.factor(df[[col]]) || is.character(df[[col]]) || is.numeric(df[[col]]),
+        base_choices
+      )
+      choices_with_none <- c("None" = "", stats::setNames(factor_choices, factor_choices))
+
+      f1 <- input$factor1_choice
+      f2 <- input$factor2_choice
+      f1 <- if (!is.null(f1) && f1 %in% factor_choices) f1 else ""
+      f2 <- if (!is.null(f2) && f2 %in% factor_choices && f2 != f1) f2 else ""
+
+      shiny$updateSelectInput(session, "factor1_choice", choices = choices_with_none, selected = f1)
+      # For factor2, exclude f1 if set
+      ch2 <- if (nzchar(f1)) setdiff(factor_choices, f1) else factor_choices
+      shiny$updateSelectInput(session, "factor2_choice",
+        choices = c("None" = "", stats::setNames(ch2, ch2)), selected = f2)
+    }, ignoreInit = FALSE)
+
+    # 2) When factor1 changes: only update factor2 choices to exclude factor1 (preserve factor1)
+    shiny$observeEvent(input$factor1_choice, {
+      df <- current_data(); shiny$req(df)
+      col_names <- names(df)
+      reserved_lower <- c(
+        "monkey","id","subject","participant","subjid","subj_id","responseid",
+        "x","price","ratio","y","y_ll4","consumption","response"
+      )
+      exclusions_base <- unique(c(
+        input$id_variable_choice,
+        input$x_variable_choice,
+        input$y_variable_choice,
+        col_names[tolower(col_names) %in% reserved_lower]
+      ))
+      base_choices <- setdiff(col_names, exclusions_base)
+      factor_choices <- Filter(
+        function(col) is.factor(df[[col]]) || is.character(df[[col]]) || is.numeric(df[[col]]),
+        base_choices
+      )
+      f1 <- input$factor1_choice
+      ch2 <- if (nzchar(f1)) setdiff(factor_choices, f1) else factor_choices
+      f2 <- input$factor2_choice
+      f2 <- if (!is.null(f2) && f2 %in% ch2) f2 else ""
+      shiny$updateSelectInput(session, "factor2_choice",
+        choices = c("None" = "", stats::setNames(ch2, ch2)), selected = f2)
+    }, ignoreInit = TRUE)
+
+    # 3) When factor2 changes: only update factor1 choices to exclude factor2 (preserve factor2)
+    shiny$observeEvent(input$factor2_choice, {
+      df <- current_data(); shiny$req(df)
+      col_names <- names(df)
+      reserved_lower <- c(
+        "monkey","id","subject","participant","subjid","subj_id","responseid",
+        "x","price","ratio","y","y_ll4","consumption","response"
+      )
+      exclusions_base <- unique(c(
+        input$id_variable_choice,
+        input$x_variable_choice,
+        input$y_variable_choice,
+        col_names[tolower(col_names) %in% reserved_lower]
+      ))
+      base_choices <- setdiff(col_names, exclusions_base)
+      factor_choices <- Filter(
+        function(col) is.factor(df[[col]]) || is.character(df[[col]]) || is.numeric(df[[col]]),
+        base_choices
+      )
+      f2 <- input$factor2_choice
+      ch1 <- if (nzchar(f2)) setdiff(factor_choices, f2) else factor_choices
+      f1 <- input$factor1_choice
+      f1 <- if (!is.null(f1) && f1 %in% ch1) f1 else ""
+      shiny$updateSelectInput(session, "factor1_choice",
+        choices = c("None" = "", stats::setNames(ch1, ch1)), selected = f1)
+    }, ignoreInit = TRUE)
 
     # Collect selected factors for the model
     selected_factors_reactive <- shiny$reactive({
@@ -1003,6 +1088,20 @@ sidebar_server <- function(id, data_reactive) {
       )
     })
 
+    # Precompute basic covariate stats for later phases (global center/scale)
+    covariate_stats <- shiny$reactive({
+      df <- current_data()
+      covar <- input$covariate_choice
+      if (is.null(df) || is.null(covar) || !nzchar(covar) || !(covar %in% names(df))) {
+        return(NULL)
+      }
+      x <- df[[covar]]
+      mu <- suppressWarnings(mean(x, na.rm = TRUE))
+      sigma <- suppressWarnings(stats::sd(x, na.rm = TRUE))
+      if (!is.finite(sigma) || is.na(sigma)) sigma <- NA_real_
+      list(name = covar, mu = mu, sigma = sigma)
+    })
+
     return(
       list(
         run_trigger = shiny$reactive(input$run_mixed_model),
@@ -1017,7 +1116,13 @@ sidebar_server <- function(id, data_reactive) {
         covariance_structure = shiny$reactive(input$covariance_structure),
         equation_form = shiny$reactive(input$model_choice),
         collapse_levels_reactive = parsed_collapse_levels_reactive,
-        nlme_controls = nlme_controls_reactive
+        nlme_controls = nlme_controls_reactive,
+        # Covariate controls (Phase 1 only; not used in fitting yet)
+        covariate = shiny$reactive(input$covariate_choice),
+        cov_center = shiny$reactive(isTRUE(input$cov_center)),
+        cov_scale = shiny$reactive(isTRUE(input$cov_scale)),
+        cov_at_natural = shiny$reactive(input$cov_at),
+        cov_stats = covariate_stats
       )
     )
   })
