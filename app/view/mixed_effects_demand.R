@@ -1,4 +1,4 @@
-# # app/view/abuse_liability.R
+# # app/view/mixed_effects_demand.R
 
 box::use(
   bsicons,
@@ -41,7 +41,7 @@ sidebar_ui <- function(id) {
   ns <- shiny$NS(id)
   shiny$tagList(
     # upload file
-    file_input$ui(ns("upload_abuse_liability")),
+    file_input$ui(ns("upload_mixed_effects_demand")),
     shiny$hr(),
     shiny$h5("Basics (Required):"),
     # model selection
@@ -304,10 +304,10 @@ sidebar_ui <- function(id) {
 sidebar_server <- function(id, data_reactive) {
   shiny$moduleServer(id, function(input, output, session) {
     ns <- session$NS
-    file_input$server("upload_abuse_liability", type = "abuse_liability")
+    file_input$server("upload_mixed_effects_demand", type = "mixed_effects_demand")
     # Reactive to get the current data (uploaded or default 'ko')
     current_data <- shiny$reactive({
-      data_uploaded <- session$userData$data$abuse_liability
+      data_uploaded <- session$userData$data$mixed_effects_demand
       if (!is.null(data_uploaded)) {
         return(data_uploaded)
       } else {
@@ -2656,7 +2656,7 @@ navpanel_server <- function(id, sidebar_reactives) {
     esquisse$render_ggplot(
       id = "mixed_model_plot",
       expr = plot_object_reactive(),
-      filename = "shinybeez-abuse-liability-mixed-plot",
+      filename = "shinybeez-mixed-effects-demand-plot",
       width = shiny$reactive(
         if (is.null(input$esquisse_width_plot)) {
           700

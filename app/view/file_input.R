@@ -131,9 +131,9 @@ server <- function(id, type = "demand") {
             tmp
           )
         }
-      } else if (type == "abuse_liability") {
+      } else if (type == "mixed_effects_demand") {
         rhino$log$info(paste0(
-          "Reading abuse liability file: ",
+          "Reading mixed effects demand file: ",
           input$upload$name
         ))
         tmp <- switch(
@@ -151,7 +151,7 @@ server <- function(id, type = "demand") {
           # validate("Invalid file; Please upload a .csv or .tsv file")
         )
 
-        chk_data <- validate$check_data(tmp, type = "abuse_liability")
+        chk_data <- validate$check_data(tmp, type = "mixed_effects_demand")
         if (is.character(chk_data)) {
           shiny$showNotification(
             paste(
@@ -176,7 +176,7 @@ server <- function(id, type = "demand") {
               duration = 8
             )
           }
-          session$userData$data$abuse_liability <- validate$obliterate_empty_cols(
+          session$userData$data$mixed_effects_demand <- validate$obliterate_empty_cols(
             tmp
           )
         }

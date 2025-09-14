@@ -6,7 +6,7 @@ box::use(
 )
 
 box::use(
-  app / view / abuse_liability,
+  app / view / mixed_effects_demand,
   app / view / demand,
   app / view / discounting,
   app / view / info,
@@ -62,8 +62,8 @@ ui <- function(id) {
         discounting$sidebar_ui(ns("discounting"))
       ),
       shiny$conditionalPanel(
-        "input.nav === 'AbuseLiability'",
-        abuse_liability$sidebar_ui(ns("abuse_liability"))
+        "input.nav === 'MixedEffectsDemand'",
+        mixed_effects_demand$sidebar_ui(ns("mixed_effects_demand"))
       )
     ),
     bslib$nav_panel(
@@ -81,9 +81,9 @@ ui <- function(id) {
       discounting$navpanel_ui(ns("discounting"))
     ),
     bslib$nav_panel(
-      value = "AbuseLiability",
-      title = "Abuse Liability Testing",
-      abuse_liability$navpanel_ui(ns("abuse_liability"))
+      value = "MixedEffectsDemand",
+      title = "Mixed Effects Demand",
+      mixed_effects_demand$navpanel_ui(ns("mixed_effects_demand"))
     ),
     bslib$nav_spacer(),
     bslib$nav_item(
@@ -102,22 +102,22 @@ server <- function(id) {
     demand$navpanel_server("demand")
     discounting$sidebar_server("discounting")
     discounting$navpanel_server("discounting")
-    # <<< NEW ABUSE LIABILITY SERVER CALLS >>>
+    # # <<< MIXED EFFECTS DEMAND SERVER CALLS >>>
     # Assuming file upload for this tab might be handled differently or use a shared mechanism later.
-    # For now, the abuse_liability module itself loads `ko` data.
+    # For now, the mixed_effects_demand module itself loads `ko` data.
     # We pass the data_reactive from where the data is managed.
     # If each tab has its own file input, session$userData$data[[current_tab_data_name]] would be passed.
     # For this example, let's assume a shared data source for simplicity initially or handle data within the module.
     # For 'ko' data, it's loaded within the module.
-    al_sidebar_reactives <- abuse_liability$sidebar_server(
-      "abuse_liability",
-      data_reactive = shiny$reactive(session$userData$data$abuse_liability_data)
+    mmd_sidebar_reactives <- mixed_effects_demand$sidebar_server(
+      "mixed_effects_demand",
+      data_reactive = shiny$reactive(session$userData$data$mixed_effects_demand)
     ) # Example placeholder if data was uploaded
-    abuse_liability$navpanel_server(
-      "abuse_liability",
-      sidebar_reactives = al_sidebar_reactives
+    mixed_effects_demand$navpanel_server(
+      "mixed_effects_demand",
+      sidebar_reactives = mmd_sidebar_reactives
     )
-    # # <<< END NEW ABUSE LIABILITY SERVER CALLS >>>
+    # # <<< END MIXED EFFECTS DEMAND SERVER CALLS >>>
     info$server("info")
     session$onSessionEnded(function() {
       rhino$log$info("Stopping")

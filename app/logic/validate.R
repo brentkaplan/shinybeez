@@ -62,7 +62,7 @@ check_data <- function(dat, type = "demand") {
         )
       }
     }
-  } else if (type == "abuse_liability") {
+  } else if (type == "mixed_effects_demand") {
     # Required columns: id, x, y (or y_ll4 if that's the primary input)
     # For `ko` example: "monkey", "x", "y", "y_ll4"
     # Factors are dynamic.
