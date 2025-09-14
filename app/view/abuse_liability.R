@@ -1129,6 +1129,12 @@ navpanel_ui <- function(id) {
                 "Consumption (Natural Scale)"
               ),
               shiny$selectInput(
+                ns("plot_palette"),
+                "Color Palette",
+                choices = c("Okabe-Ito", "HCL Light", "HCL Dark"),
+                selected = "Okabe-Ito"
+              ),
+              shiny$selectInput(
                 ns("plot_color_by"),
                 "Color lines/points by:",
                 choices = NULL
@@ -2194,6 +2200,18 @@ navpanel_server <- function(id, sidebar_reactives) {
       ) +
         utils$add_shiny_logo(utils$watermark_tr)
 
+      # Apply palette if coloring by a discrete factor
+      if (!is.null(plot_color)) {
+        # Retrieve the factor levels present in the fitted data for the color factor
+        fit_data <- model_fit$data
+        if (!is.null(fit_data) && plot_color %in% names(fit_data)) {
+          n_levels <- length(unique(stats::na.omit(fit_data[[plot_color]])))
+          p <- p + ggplot2$scale_color_manual(
+            values = utils$get_palette_colors(input$plot_palette, n_levels)
+          )
+        }
+      }
+
       return(p)
     }) |>
       shiny$bindCache(
@@ -2201,6 +2219,7 @@ navpanel_server <- function(id, sidebar_reactives) {
         input$plot_color_by,
         input$plot_linetype_by,
         input$plot_facet_by,
+        input$plot_palette,
         input$plot_x_trans_log,
         input$plot_y_trans_log,
         input$show_population_lines,

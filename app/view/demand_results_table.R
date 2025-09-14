@@ -54,6 +54,12 @@ ui <- function(id) {
               label = "Y-Axis Text",
               value = "y"
             ),
+            shiny$selectInput(
+              inputId = ns("palette"),
+              label = "Color Palette",
+              choices = c("Okabe-Ito", "HCL Light", "HCL Dark"),
+              selected = "Okabe-Ito"
+            ),
             shiny$checkboxInput(
               inputId = ns("xlog"),
               label = "Log X-Axis"
@@ -337,6 +343,12 @@ server <- function(
       if (groupcol()) {
         res$plot <- res$plot +
           ggplot2$guides(color = ggplot2$guide_legend(title = input$legend_title))
+        # Apply discrete palette for groups
+        n_groups <- length(unique(data_r$data_d$group))
+        res$plot <- res$plot +
+          ggplot2$scale_color_manual(
+            values = utils$get_palette_colors(input$palette, n_groups)
+          )
       }
 
       if (agg() != "Ind" | length(unique(data_r$data_d$id)) > 51) {
