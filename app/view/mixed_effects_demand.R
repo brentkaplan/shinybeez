@@ -1807,7 +1807,23 @@ navpanel_server <- function(id, sidebar_reactives) {
       shiny$req(data_to_analyze())
       DT$datatable(
         data_to_analyze(),
-        options = list(scrollX = TRUE, pageLength = 5, autoWidth = TRUE),
+        rownames = FALSE,
+        extensions = c("Buttons", "Scroller"),
+        options = list(
+          scrollX = TRUE,
+          pageLength = 5,
+          autoWidth = TRUE,
+          dom = "Bti",
+          buttons = list(
+            list(extend = "copy"),
+            list(extend = "print"),
+            list(extend = "csv", filename = "ShinyBeez_MixedEffects_Input_Data", title = NULL),
+            list(extend = "excel", filename = "ShinyBeez_MixedEffects_Input_Data", title = NULL),
+            list(extend = "pdf", filename = "ShinyBeez_MixedEffects_Input_Data", title = NULL)
+          ),
+          deferRender = TRUE,
+          scroller = TRUE
+        ),
         filter = "top",
         class = "compact hover"
       )
@@ -1856,7 +1872,21 @@ navpanel_server <- function(id, sidebar_reactives) {
         caption = paste(
           "Descriptive Statistics for Y variable used in model (y_for_model)"
         ),
-        options = list(scrollX = TRUE, pageLength = 10, autoWidth = TRUE),
+        rownames = FALSE,
+        extensions = c("Buttons"),
+        options = list(
+          scrollX = TRUE,
+          pageLength = 10,
+          autoWidth = TRUE,
+          dom = "Bti",
+          buttons = list(
+            list(extend = "copy"),
+            list(extend = "print"),
+            list(extend = "csv", filename = "ShinyBeez_MixedEffects_Descriptives", title = NULL),
+            list(extend = "excel", filename = "ShinyBeez_MixedEffects_Descriptives", title = NULL),
+            list(extend = "pdf", filename = "ShinyBeez_MixedEffects_Descriptives", title = NULL)
+          )
+        ),
         filter = "top",
         class = "compact hover"
       )
@@ -2198,7 +2228,17 @@ navpanel_server <- function(id, sidebar_reactives) {
       DT$datatable(
         data.frame(Parameter = names(fe), Value = round(fe, 4)),
         rownames = FALSE,
-        options = list(dom = "t")
+        extensions = c("Buttons"),
+        options = list(
+          dom = "Btip",
+          buttons = list(
+            list(extend = "copy"),
+            list(extend = "print"),
+            list(extend = "csv", filename = "ShinyBeez_MixedEffects_Fixed_Effects", title = NULL),
+            list(extend = "excel", filename = "ShinyBeez_MixedEffects_Fixed_Effects", title = NULL),
+            list(extend = "pdf", filename = "ShinyBeez_MixedEffects_Fixed_Effects", title = NULL)
+          )
+        )
       )
     })
 
@@ -2232,7 +2272,17 @@ navpanel_server <- function(id, sidebar_reactives) {
         DT$datatable(
           individual_coefs_wide,
           rownames = FALSE,
-          options = list(dom = "t")
+          extensions = c("Buttons"),
+          options = list(
+            dom = "Btip",
+            buttons = list(
+              list(extend = "copy"),
+              list(extend = "print"),
+              list(extend = "csv", filename = "ShinyBeez_MixedEffects_Individual_Coefficients", title = NULL),
+              list(extend = "excel", filename = "ShinyBeez_MixedEffects_Individual_Coefficients", title = NULL),
+              list(extend = "pdf", filename = "ShinyBeez_MixedEffects_Individual_Coefficients", title = NULL)
+            )
+          )
         )
       )
     })
@@ -2269,7 +2319,20 @@ navpanel_server <- function(id, sidebar_reactives) {
       DT$datatable(
         re_df, # Removed the direct round() here as it's done in dplyr
         rownames = FALSE,
-        options = list(scrollX = TRUE, pageLength = 5, autoWidth = TRUE), # Added autoWidth
+        extensions = c("Buttons"),
+        options = list(
+          scrollX = TRUE,
+          pageLength = 5,
+          autoWidth = TRUE,
+          dom = "Btip",
+          buttons = list(
+            list(extend = "copy"),
+            list(extend = "print"),
+            list(extend = "csv", filename = "ShinyBeez_MixedEffects_Random_Effects", title = NULL),
+            list(extend = "excel", filename = "ShinyBeez_MixedEffects_Random_Effects", title = NULL),
+            list(extend = "pdf", filename = "ShinyBeez_MixedEffects_Random_Effects", title = NULL)
+          )
+        ),
         class = "compact hover", # Added class for styling
         filter = "top" # Added column filters
       )
@@ -2319,7 +2382,19 @@ navpanel_server <- function(id, sidebar_reactives) {
           )
         ),
         rownames = FALSE,
-        options = list(scrollX = TRUE, pageLength = 10)
+        extensions = c("Buttons"),
+        options = list(
+          scrollX = TRUE,
+          pageLength = 10,
+          dom = "Btip",
+          buttons = list(
+            list(extend = "copy"),
+            list(extend = "print"),
+            list(extend = "csv", filename = "ShinyBeez_MixedEffects_EMMs_EV", title = NULL),
+            list(extend = "excel", filename = "ShinyBeez_MixedEffects_EMMs_EV", title = NULL),
+            list(extend = "pdf", filename = "ShinyBeez_MixedEffects_EMMs_EV", title = NULL)
+          )
+        )
       )
     })
 
@@ -2450,7 +2525,20 @@ navpanel_server <- function(id, sidebar_reactives) {
           caption_text
         ),
         rownames = FALSE,
-        options = list(scrollX = TRUE, pageLength = 5, autoWidth = TRUE),
+        extensions = c("Buttons"),
+        options = list(
+          scrollX = TRUE,
+          pageLength = 5,
+          autoWidth = TRUE,
+          dom = "Btip",
+          buttons = list(
+            list(extend = "copy"),
+            list(extend = "print"),
+            list(extend = "csv", filename = "ShinyBeez_MixedEffects_Q0_Comparisons", title = NULL),
+            list(extend = "excel", filename = "ShinyBeez_MixedEffects_Q0_Comparisons", title = NULL),
+            list(extend = "pdf", filename = "ShinyBeez_MixedEffects_Q0_Comparisons", title = NULL)
+          )
+        ),
         class = "compact hover",
         filter = "top"
       )
@@ -2523,7 +2611,20 @@ navpanel_server <- function(id, sidebar_reactives) {
           caption_text
         ),
         rownames = FALSE,
-        options = list(scrollX = TRUE, pageLength = 5, autoWidth = TRUE),
+        extensions = c("Buttons"),
+        options = list(
+          scrollX = TRUE,
+          pageLength = 5,
+          autoWidth = TRUE,
+          dom = "Btip",
+          buttons = list(
+            list(extend = "copy"),
+            list(extend = "print"),
+            list(extend = "csv", filename = "ShinyBeez_MixedEffects_Alpha_Comparisons", title = NULL),
+            list(extend = "excel", filename = "ShinyBeez_MixedEffects_Alpha_Comparisons", title = NULL),
+            list(extend = "pdf", filename = "ShinyBeez_MixedEffects_Alpha_Comparisons", title = NULL)
+          )
+        ),
         class = "compact hover",
         filter = "top"
       )
