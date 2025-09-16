@@ -1917,6 +1917,12 @@ navpanel_server <- function(id, sidebar_reactives) {
       y_col <- sidebar_reactives$y_var()
       shiny$req(id_col, x_col, y_col)
 
+      # Guard against race: ensure selected columns exist in current data
+      if (!all(c(id_col, x_col, y_col) %in% names(df_raw))) {
+        # Wait for select inputs to update to the new dataset; skip this cycle
+        return(invisible(NULL))
+      }
+
       # Friendly note if using transformed Y
       if (identical(y_col, "y_ll4")) {
         shiny$showNotification(
