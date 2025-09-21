@@ -305,7 +305,10 @@ sidebar_ui <- function(id) {
 sidebar_server <- function(id, data_reactive) {
   shiny$moduleServer(id, function(input, output, session) {
     ns <- session$NS
-    file_input$server("upload_mixed_effects_demand", type = "mixed_effects_demand")
+    file_input$server(
+      "upload_mixed_effects_demand",
+      type = "mixed_effects_demand"
+    )
     # Reactive to get the current data (uploaded or default 'ko')
     current_data <- shiny$reactive({
       data_uploaded <- session$userData$data$mixed_effects_demand
@@ -323,7 +326,9 @@ sidebar_server <- function(id, data_reactive) {
       cols_lower <- tolower(cols)
       for (cand in candidates) {
         idx <- which(cols_lower == cand)
-        if (length(idx) > 0) return(cols[idx[1]])
+        if (length(idx) > 0) {
+          return(cols[idx[1]])
+        }
       }
       return(NA_character_)
     }
@@ -1817,9 +1822,21 @@ navpanel_server <- function(id, sidebar_reactives) {
           buttons = list(
             list(extend = "copy"),
             list(extend = "print"),
-            list(extend = "csv", filename = "ShinyBeez_MixedEffects_Input_Data", title = NULL),
-            list(extend = "excel", filename = "ShinyBeez_MixedEffects_Input_Data", title = NULL),
-            list(extend = "pdf", filename = "ShinyBeez_MixedEffects_Input_Data", title = NULL)
+            list(
+              extend = "csv",
+              filename = "ShinyBeez_MixedEffects_Input_Data",
+              title = NULL
+            ),
+            list(
+              extend = "excel",
+              filename = "ShinyBeez_MixedEffects_Input_Data",
+              title = NULL
+            ),
+            list(
+              extend = "pdf",
+              filename = "ShinyBeez_MixedEffects_Input_Data",
+              title = NULL
+            )
           ),
           deferRender = TRUE,
           scroller = TRUE
@@ -1882,9 +1899,21 @@ navpanel_server <- function(id, sidebar_reactives) {
           buttons = list(
             list(extend = "copy"),
             list(extend = "print"),
-            list(extend = "csv", filename = "ShinyBeez_MixedEffects_Descriptives", title = NULL),
-            list(extend = "excel", filename = "ShinyBeez_MixedEffects_Descriptives", title = NULL),
-            list(extend = "pdf", filename = "ShinyBeez_MixedEffects_Descriptives", title = NULL)
+            list(
+              extend = "csv",
+              filename = "ShinyBeez_MixedEffects_Descriptives",
+              title = NULL
+            ),
+            list(
+              extend = "excel",
+              filename = "ShinyBeez_MixedEffects_Descriptives",
+              title = NULL
+            ),
+            list(
+              extend = "pdf",
+              filename = "ShinyBeez_MixedEffects_Descriptives",
+              title = NULL
+            )
           )
         ),
         filter = "top",
@@ -1895,14 +1924,18 @@ navpanel_server <- function(id, sidebar_reactives) {
     # Systematic Criteria: optional grouping selector (multi-select)
     output$systematic_group_ui <- shiny$renderUI({
       facs <- sidebar_reactives$selected_factors()
-      if (is.null(facs) || length(facs) == 0) return(NULL)
+      if (is.null(facs) || length(facs) == 0) {
+        return(NULL)
+      }
       shiny$selectizeInput(
         ns("systematic_group_by"),
         "Group results by (optional):",
         choices = stats$setNames(facs, facs),
         selected = facs, # default to all selected factors; empty selection means no grouping
         multiple = TRUE,
-        options = list(placeholder = "Select factors to group by (leave empty for none)")
+        options = list(
+          placeholder = "Select factors to group by (leave empty for none)"
+        )
       )
     })
 
@@ -1959,16 +1992,21 @@ navpanel_server <- function(id, sidebar_reactives) {
         df_sys <- df_sys[!is.na(df_sys$y), , drop = FALSE]
         systematic <- df_sys |>
           dplyr$group_by(dplyr$across(dplyr$all_of(group_vars))) |>
-          dplyr$group_modify(~ beezdemand$CheckUnsystematic(
-            dat = .x[, c("id", "x", "y")],
-            deltaq = input$deltaq,
-            bounce = input$bounce,
-            reversals = input$reversals,
-            ncons0 = input$ncons0
-          ))
+          dplyr$group_modify(
+            ~ beezdemand$CheckUnsystematic(
+              dat = .x[, c("id", "x", "y")],
+              deltaq = input$deltaq,
+              bounce = input$bounce,
+              reversals = input$reversals,
+              ncons0 = input$ncons0
+            )
+          )
       } else {
         df_sys <- mixed_effects_demand_utils$prepare_systematic_input(
-          df = df_raw, id_col = id_col, x_col = x_col, y_col = y_col
+          df = df_raw,
+          id_col = id_col,
+          x_col = x_col,
+          y_col = y_col
         )
         systematic <- beezdemand$CheckUnsystematic(
           dat = df_sys,
@@ -1992,9 +2030,21 @@ navpanel_server <- function(id, sidebar_reactives) {
             buttons = list(
               list(extend = "copy"),
               list(extend = "print"),
-              list(extend = "csv", filename = "ShinyBeez_MixedEffects_Systematic_Criteria", title = NULL),
-              list(extend = "excel", filename = "ShinyBeez_MixedEffects_Systematic_Criteria", title = NULL),
-              list(extend = "pdf", filename = "ShinyBeez_MixedEffects_Systematic_Criteria", title = NULL)
+              list(
+                extend = "csv",
+                filename = "ShinyBeez_MixedEffects_Systematic_Criteria",
+                title = NULL
+              ),
+              list(
+                extend = "excel",
+                filename = "ShinyBeez_MixedEffects_Systematic_Criteria",
+                title = NULL
+              ),
+              list(
+                extend = "pdf",
+                filename = "ShinyBeez_MixedEffects_Systematic_Criteria",
+                title = NULL
+              )
             ),
             deferRender = TRUE,
             scrollY = 250,
@@ -2240,9 +2290,21 @@ navpanel_server <- function(id, sidebar_reactives) {
           buttons = list(
             list(extend = "copy"),
             list(extend = "print"),
-            list(extend = "csv", filename = "ShinyBeez_MixedEffects_Fixed_Effects", title = NULL),
-            list(extend = "excel", filename = "ShinyBeez_MixedEffects_Fixed_Effects", title = NULL),
-            list(extend = "pdf", filename = "ShinyBeez_MixedEffects_Fixed_Effects", title = NULL)
+            list(
+              extend = "csv",
+              filename = "ShinyBeez_MixedEffects_Fixed_Effects",
+              title = NULL
+            ),
+            list(
+              extend = "excel",
+              filename = "ShinyBeez_MixedEffects_Fixed_Effects",
+              title = NULL
+            ),
+            list(
+              extend = "pdf",
+              filename = "ShinyBeez_MixedEffects_Fixed_Effects",
+              title = NULL
+            )
           )
         )
       )
@@ -2284,9 +2346,21 @@ navpanel_server <- function(id, sidebar_reactives) {
             buttons = list(
               list(extend = "copy"),
               list(extend = "print"),
-              list(extend = "csv", filename = "ShinyBeez_MixedEffects_Individual_Coefficients", title = NULL),
-              list(extend = "excel", filename = "ShinyBeez_MixedEffects_Individual_Coefficients", title = NULL),
-              list(extend = "pdf", filename = "ShinyBeez_MixedEffects_Individual_Coefficients", title = NULL)
+              list(
+                extend = "csv",
+                filename = "ShinyBeez_MixedEffects_Individual_Coefficients",
+                title = NULL
+              ),
+              list(
+                extend = "excel",
+                filename = "ShinyBeez_MixedEffects_Individual_Coefficients",
+                title = NULL
+              ),
+              list(
+                extend = "pdf",
+                filename = "ShinyBeez_MixedEffects_Individual_Coefficients",
+                title = NULL
+              )
             )
           )
         )
@@ -2334,9 +2408,21 @@ navpanel_server <- function(id, sidebar_reactives) {
           buttons = list(
             list(extend = "copy"),
             list(extend = "print"),
-            list(extend = "csv", filename = "ShinyBeez_MixedEffects_Random_Effects", title = NULL),
-            list(extend = "excel", filename = "ShinyBeez_MixedEffects_Random_Effects", title = NULL),
-            list(extend = "pdf", filename = "ShinyBeez_MixedEffects_Random_Effects", title = NULL)
+            list(
+              extend = "csv",
+              filename = "ShinyBeez_MixedEffects_Random_Effects",
+              title = NULL
+            ),
+            list(
+              extend = "excel",
+              filename = "ShinyBeez_MixedEffects_Random_Effects",
+              title = NULL
+            ),
+            list(
+              extend = "pdf",
+              filename = "ShinyBeez_MixedEffects_Random_Effects",
+              title = NULL
+            )
           )
         ),
         class = "compact hover", # Added class for styling
@@ -2396,9 +2482,21 @@ navpanel_server <- function(id, sidebar_reactives) {
           buttons = list(
             list(extend = "copy"),
             list(extend = "print"),
-            list(extend = "csv", filename = "ShinyBeez_MixedEffects_EMMs_EV", title = NULL),
-            list(extend = "excel", filename = "ShinyBeez_MixedEffects_EMMs_EV", title = NULL),
-            list(extend = "pdf", filename = "ShinyBeez_MixedEffects_EMMs_EV", title = NULL)
+            list(
+              extend = "csv",
+              filename = "ShinyBeez_MixedEffects_EMMs_EV",
+              title = NULL
+            ),
+            list(
+              extend = "excel",
+              filename = "ShinyBeez_MixedEffects_EMMs_EV",
+              title = NULL
+            ),
+            list(
+              extend = "pdf",
+              filename = "ShinyBeez_MixedEffects_EMMs_EV",
+              title = NULL
+            )
           )
         )
       )
@@ -2540,9 +2638,21 @@ navpanel_server <- function(id, sidebar_reactives) {
           buttons = list(
             list(extend = "copy"),
             list(extend = "print"),
-            list(extend = "csv", filename = "ShinyBeez_MixedEffects_Q0_Comparisons", title = NULL),
-            list(extend = "excel", filename = "ShinyBeez_MixedEffects_Q0_Comparisons", title = NULL),
-            list(extend = "pdf", filename = "ShinyBeez_MixedEffects_Q0_Comparisons", title = NULL)
+            list(
+              extend = "csv",
+              filename = "ShinyBeez_MixedEffects_Q0_Comparisons",
+              title = NULL
+            ),
+            list(
+              extend = "excel",
+              filename = "ShinyBeez_MixedEffects_Q0_Comparisons",
+              title = NULL
+            ),
+            list(
+              extend = "pdf",
+              filename = "ShinyBeez_MixedEffects_Q0_Comparisons",
+              title = NULL
+            )
           )
         ),
         class = "compact hover",
@@ -2626,9 +2736,21 @@ navpanel_server <- function(id, sidebar_reactives) {
           buttons = list(
             list(extend = "copy"),
             list(extend = "print"),
-            list(extend = "csv", filename = "ShinyBeez_MixedEffects_Alpha_Comparisons", title = NULL),
-            list(extend = "excel", filename = "ShinyBeez_MixedEffects_Alpha_Comparisons", title = NULL),
-            list(extend = "pdf", filename = "ShinyBeez_MixedEffects_Alpha_Comparisons", title = NULL)
+            list(
+              extend = "csv",
+              filename = "ShinyBeez_MixedEffects_Alpha_Comparisons",
+              title = NULL
+            ),
+            list(
+              extend = "excel",
+              filename = "ShinyBeez_MixedEffects_Alpha_Comparisons",
+              title = NULL
+            ),
+            list(
+              extend = "pdf",
+              filename = "ShinyBeez_MixedEffects_Alpha_Comparisons",
+              title = NULL
+            )
           )
         ),
         class = "compact hover",

@@ -13,8 +13,8 @@ box::use(
 )
 
 box::use(
-  app/logic/utils,
-  app/logic/validate,
+  app / logic / utils,
+  app / logic / validate,
 )
 
 #' @export
@@ -93,10 +93,17 @@ ui <- function(id) {
 
 #' @export
 server <- function(
-    id, data_r, eq = NULL, agg = NULL,
-    fix_q0 = FALSE, q0_val = NULL, groupcol = NULL,
-    mem = FALSE, kval, calculate_btn
-    ) {
+  id,
+  data_r,
+  eq = NULL,
+  agg = NULL,
+  fix_q0 = FALSE,
+  q0_val = NULL,
+  groupcol = NULL,
+  mem = FALSE,
+  kval,
+  calculate_btn
+) {
   shiny$moduleServer(id, function(input, output, session) {
     ns <- session$ns
     res <- shiny$reactiveValues(
@@ -122,9 +129,15 @@ server <- function(
       constrainq0 <- if (is.null(q0_val()) | !fix_q0()) NULL else q0_val()
 
       rhino$log$info(paste(
-        "Calculating demand with options: agg =", agg, "; k =", k,
-        "; eq =", eq, "; constrainq0 =", constrainq0
-        ))
+        "Calculating demand with options: agg =",
+        agg,
+        "; k =",
+        k,
+        "; eq =",
+        eq,
+        "; constrainq0 =",
+        constrainq0
+      ))
       if ((is.null(groupcol()) | !groupcol()) | analysis_type %in% "Ind") {
         res$output <- data_r$data_d |>
           FitCurves(
@@ -134,14 +147,38 @@ server <- function(
             k = k,
             constrainq0 = constrainq0,
             detailed = TRUE
-            )
+          )
         res$results <- res$output[[1]] |>
           dplyr$select(!(Intensity:Pmaxe)) |>
-          dplyr$mutate(dplyr$across(dplyr$all_of(c("Q0d", "K", "R2", "Q0se", "AbsSS", "SdRes",
-                                 "Q0Low", "Q0High", "EV", "Omaxd", "Pmaxd",
-                                 "Omaxa", "Pmaxa")), \(x) round(x, 2)),
-                 dplyr$across(dplyr$all_of(c("Alpha", "Alphase",
-                                 "AlphaLow", "AlphaHigh")), \(x) round(x, 4)))
+          dplyr$mutate(
+            dplyr$across(
+              dplyr$all_of(c(
+                "Q0d",
+                "K",
+                "R2",
+                "Q0se",
+                "AbsSS",
+                "SdRes",
+                "Q0Low",
+                "Q0High",
+                "EV",
+                "Omaxd",
+                "Pmaxd",
+                "Omaxa",
+                "Pmaxa"
+              )),
+              \(x) round(x, 2)
+            ),
+            dplyr$across(
+              dplyr$all_of(c(
+                "Alpha",
+                "Alphase",
+                "AlphaLow",
+                "AlphaHigh"
+              )),
+              \(x) round(x, 4)
+            )
+          )
       } else {
         if (!"group" %in% colnames(data_r$data_d)) {
           shiny$showNotification(
@@ -156,33 +193,61 @@ server <- function(
         res$output <- vector("list", length = 3)
         tmp <- data_r$data_d |>
           dplyr$group_by(group) |>
-          dplyr$group_map(~{
-            fit_result <- FitCurves(
-              dat = .x,
-              eq = eq,
-              agg = agg,
-              k = k,
-              constrainq0 = constrainq0,
-              detailed = TRUE
-            )
-            list(
-              group = dplyr$first(.x$group),
-              fit_result_1 = fit_result[[1]],
-              fit_result_3 = fit_result[[3]]
-            )
-          }, .keep = TRUE)
+          dplyr$group_map(
+            ~ {
+              fit_result <- FitCurves(
+                dat = .x,
+                eq = eq,
+                agg = agg,
+                k = k,
+                constrainq0 = constrainq0,
+                detailed = TRUE
+              )
+              list(
+                group = dplyr$first(.x$group),
+                fit_result_1 = fit_result[[1]],
+                fit_result_3 = fit_result[[3]]
+              )
+            },
+            .keep = TRUE
+          )
         res$output[[1]] <- dplyr$bind_rows(lapply(tmp, function(x) {
-          cbind(group = x$group, x$fit_result_1)}))
+          cbind(group = x$group, x$fit_result_1)
+        }))
         res$output[[3]] <- dplyr$bind_rows(lapply(tmp, function(x) {
-          cbind(group = x$group, x$fit_result_3[[1]])}))
+          cbind(group = x$group, x$fit_result_3[[1]])
+        }))
         res$results <- res$output[[1]] |>
           dplyr$select(!(Intensity:Pmaxe)) |>
-          dplyr$mutate(dplyr$across(dplyr$all_of(c("Q0d", "K", "R2", "Q0se", "AbsSS", "SdRes",
-                                 "Q0Low", "Q0High", "EV", "Omaxd", "Pmaxd",
-                                 "Omaxa", "Pmaxa")), \(x) round(x, 2)),
-                 dplyr$across(dplyr$all_of(c("Alpha", "Alphase",
-                                 "AlphaLow", "AlphaHigh")), \(x) round(x, 4)))
-
+          dplyr$mutate(
+            dplyr$across(
+              dplyr$all_of(c(
+                "Q0d",
+                "K",
+                "R2",
+                "Q0se",
+                "AbsSS",
+                "SdRes",
+                "Q0Low",
+                "Q0High",
+                "EV",
+                "Omaxd",
+                "Pmaxd",
+                "Omaxa",
+                "Pmaxa"
+              )),
+              \(x) round(x, 2)
+            ),
+            dplyr$across(
+              dplyr$all_of(c(
+                "Alpha",
+                "Alphase",
+                "AlphaLow",
+                "AlphaHigh"
+              )),
+              \(x) round(x, 4)
+            )
+          )
       }
     }) |>
       shiny$bindEvent(calculate_btn())
@@ -192,19 +257,31 @@ server <- function(
       datatable(
         res$results,
         rownames = FALSE,
-        extensions = c('Buttons', "FixedColumns"),
+        extensions = c("Buttons", "FixedColumns"),
         fillContainer = TRUE,
         options = list(
           pageLength = 20,
           autoWidth = TRUE,
           ordering = TRUE,
-          dom = 'Btipl',
+          dom = "Btipl",
           buttons = list(
-            list(extend = 'copy'),
-            list(extend = 'print'),
-            list(extend = 'csv', filename = "ShinyBeez_Demand_ModelResults", title = NULL),
-            list(extend = 'excel', filename = "ShinyBeez_Demand_ModelResults", title = NULL),
-            list(extend = 'pdf', filename = "ShinyBeez_Demand_ModelResults", title = NULL)
+            list(extend = "copy"),
+            list(extend = "print"),
+            list(
+              extend = "csv",
+              filename = "ShinyBeez_Demand_ModelResults",
+              title = NULL
+            ),
+            list(
+              extend = "excel",
+              filename = "ShinyBeez_Demand_ModelResults",
+              title = NULL
+            ),
+            list(
+              extend = "pdf",
+              filename = "ShinyBeez_Demand_ModelResults",
+              title = NULL
+            )
           ),
           fixedColumns = list(leftColumns = 1)
         )
@@ -248,7 +325,11 @@ server <- function(
               ggplot2$aes(x = x, y = y),
               data = res$output[[3]][[1]]
             ) +
-            ggplot2$geom_point(shape = pt_shape, fill = pt_fill, size = pt_size) +
+            ggplot2$geom_point(
+              shape = pt_shape,
+              fill = pt_fill,
+              size = pt_size
+            ) +
             theme_apa()
         } else {
           data_g <- aggregate(y ~ x + group, data_r$data_d, mean, na.rm = TRUE)
@@ -262,7 +343,8 @@ server <- function(
               ggplot2$aes(color = group),
               shape = pt_shape,
               fill = pt_fill,
-              size = pt_size) +
+              size = pt_size
+            ) +
             theme_apa()
         }
       } else if (analysis_type %in% "Ind") {
@@ -270,7 +352,7 @@ server <- function(
           ggplot2$ggplot(ggplot2$aes(x = x, y = y, group = id)) +
           ggplot2$geom_line(
             ggplot2$aes(x = x, y = y, group = id),
-            data =  dplyr$bind_rows(res$output[[3]]),
+            data = dplyr$bind_rows(res$output[[3]]),
             alpha = 0.33
           ) +
           theme_apa()
@@ -279,11 +361,15 @@ server <- function(
             ggplot2$ggplot(ggplot2$aes(x = x, y = y)) +
             ggplot2$geom_line(
               ggplot2$aes(x = x, y = y),
-              data =  dplyr$bind_rows(res$output[[3]])
+              data = dplyr$bind_rows(res$output[[3]])
             ) +
-            ggplot2$geom_point(shape = pt_shape, fill = pt_fill, size = pt_size) +
+            ggplot2$geom_point(
+              shape = pt_shape,
+              fill = pt_fill,
+              size = pt_size
+            ) +
             theme_apa() +
-            ggplot2$facet_wrap(~ id)
+            ggplot2$facet_wrap(~id)
         }
       } else {
         if (!groupcol()) {
@@ -291,22 +377,27 @@ server <- function(
             ggplot2$ggplot(ggplot2$aes(x = x, y = y)) +
             ggplot2$geom_line(
               ggplot2$aes(x = x, y = y),
-              data =  res$output[[3]][[1]]
+              data = res$output[[3]][[1]]
             ) +
-            ggplot2$geom_point(shape = pt_shape, fill = pt_fill, size = pt_size) +
+            ggplot2$geom_point(
+              shape = pt_shape,
+              fill = pt_fill,
+              size = pt_size
+            ) +
             theme_apa()
         } else {
           res$plot <- data_r$data_d |>
             ggplot2$ggplot(ggplot2$aes(x = x, y = y, group = group)) +
             ggplot2$geom_line(
               ggplot2$aes(x = x, y = y, color = group),
-              data =  res$output[[3]]
+              data = res$output[[3]]
             ) +
             ggplot2$geom_point(
               ggplot2$aes(color = group),
               shape = pt_shape,
               fill = pt_fill,
-              size = pt_size) +
+              size = pt_size
+            ) +
             theme_apa()
         }
       }
@@ -314,7 +405,9 @@ server <- function(
       shiny$bindEvent(calculate_btn())
 
     shiny$observe({
-      if (is.null(res$plot)) return()
+      if (is.null(res$plot)) {
+        return()
+      }
       res$plot <- res$plot +
         ggplot2$xlab(input$xtext) +
         ggplot2$ylab(input$ytext) +
@@ -342,7 +435,9 @@ server <- function(
 
       if (groupcol()) {
         res$plot <- res$plot +
-          ggplot2$guides(color = ggplot2$guide_legend(title = input$legend_title))
+          ggplot2$guides(
+            color = ggplot2$guide_legend(title = input$legend_title)
+          )
         # Apply discrete palette for groups
         n_groups <- length(unique(data_r$data_d$group))
         res$plot <- res$plot +

@@ -84,7 +84,9 @@ check_data <- function(dat, type = "demand") {
       any(c("y", "y_ll4") %in% colnames(dat)),
       msg = "Consumption column ('y' or 'y_ll4') not found."
     )
-    if (is.character(return_msg)) return(return_msg)
+    if (is.character(return_msg)) {
+      return(return_msg)
+    }
     # Further checks for factor columns can be done dynamically in the module
     # based on user selection or assumed (like checking if they are indeed factors).
   } else {

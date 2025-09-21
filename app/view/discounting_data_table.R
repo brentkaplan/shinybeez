@@ -16,7 +16,6 @@ ui <- function(id) {
   shiny$uiOutput(
     ns("data_box")
   )
-
 }
 
 #' @export
@@ -85,33 +84,33 @@ server <- function(id, data_r, type = NULL) {
                       max = 1,
                       step = .01
                     )
-              ),
-          DT$DTOutput(ns("systematic_table"))
+                  ),
+                  DT$DTOutput(ns("systematic_table"))
+                )
+              )
             )
           )
-        )
-      )
-    }
-  })
+        }
+      })
 
       if (type() %in% "27-Item MCQ") {
         if (any(is.na((data_r$data_d$response)))) {
           shiny$showNotification(
-          "There appears to be missing data in the 27-Item MCQ. Please be
+            "There appears to be missing data in the 27-Item MCQ. Please be
           cautious when interpreting the results and choosing an appropriate
           imputation method.",
-          type = "error",
-          duration = 10
-        )
+            type = "error",
+            duration = 10
+          )
         }
       } else if (type() %in% "Indifference Point Regression") {
         if (any(is.na((data_r$data_d$y)))) {
           shiny$showNotification(
-          "There appears to be missing data. Please be
+            "There appears to be missing data. Please be
           cautious when interpreting the results.",
-          type = "error",
-          duration = 10
-        )
+            type = "error",
+            duration = 10
+          )
         }
       }
 
@@ -120,20 +119,32 @@ server <- function(id, data_r, type = NULL) {
         DT$datatable(
           data_r$data_d,
           rownames = FALSE,
-          extensions = c('Buttons', "Scroller"),
+          extensions = c("Buttons", "Scroller"),
           fillContainer = FALSE,
           autoHideNavigation = TRUE,
           options = list(
             pageLength = 10,
             autoWidth = TRUE,
             ordering = TRUE,
-            dom = 'Bti',
+            dom = "Bti",
             buttons = list(
-              list(extend = 'copy'),
-              list(extend = 'print'),
-              list(extend = 'csv', filename = "ShinyBeez_Discounting_Data", title = NULL),
-              list(extend = 'excel', filename = "ShinyBeez_Discounting_Data", title = NULL),
-              list(extend = 'pdf', filename = "ShinyBeez_Discounting_Data", title = NULL)
+              list(extend = "copy"),
+              list(extend = "print"),
+              list(
+                extend = "csv",
+                filename = "ShinyBeez_Discounting_Data",
+                title = NULL
+              ),
+              list(
+                extend = "excel",
+                filename = "ShinyBeez_Discounting_Data",
+                title = NULL
+              ),
+              list(
+                extend = "pdf",
+                filename = "ShinyBeez_Discounting_Data",
+                title = NULL
+              )
             ),
             deferRender = TRUE,
             scrollY = 500,
@@ -146,28 +157,42 @@ server <- function(id, data_r, type = NULL) {
         if (type() %in% "27-Item MCQ") {
           missings <- data_r$data_d |>
             dplyr$group_by(subjectid) |>
-            dplyr$summarise(prop_missing = round(sum(is.na("response")) / dplyr$n(), 2)) |>
+            dplyr$summarise(
+              prop_missing = round(sum(is.na("response")) / dplyr$n(), 2)
+            ) |>
             dplyr$ungroup()
-        } else if (type() %in% "Indifference Point Regression")  {
+        } else if (type() %in% "Indifference Point Regression") {
           missings <- data_r$data_d[!stats$complete.cases(data_r$data_d), ]
         }
         DT$datatable(
           missings,
           rownames = FALSE,
-          extensions = c('Buttons', "Scroller"),
+          extensions = c("Buttons", "Scroller"),
           fillContainer = FALSE,
           autoHideNavigation = TRUE,
           options = list(
             pageLength = 10,
             autoWidth = TRUE,
             ordering = TRUE,
-            dom = 'Bti',
+            dom = "Bti",
             buttons = list(
-              list(extend = 'copy'),
-              list(extend = 'print'),
-              list(extend = 'csv', filename = "ShinyBeez_Discounting_Missings", title = NULL),
-              list(extend = 'excel', filename = "ShinyBeez_Discounting_Missings", title = NULL),
-              list(extend = 'pdf', filename = "ShinyBeez_Discounting_Missings", title = NULL)
+              list(extend = "copy"),
+              list(extend = "print"),
+              list(
+                extend = "csv",
+                filename = "ShinyBeez_Discounting_Missings",
+                title = NULL
+              ),
+              list(
+                extend = "excel",
+                filename = "ShinyBeez_Discounting_Missings",
+                title = NULL
+              ),
+              list(
+                extend = "pdf",
+                filename = "ShinyBeez_Discounting_Missings",
+                title = NULL
+              )
             ),
             deferRender = TRUE,
             scrollY = 300,
@@ -179,35 +204,49 @@ server <- function(id, data_r, type = NULL) {
       output$systematic_table <- DT$renderDT(server = FALSE, {
         if (type() %in% "27-Item MCQ") {
           systematic <- NULL
-        } else if (type() %in% "Indifference Point Regression")  {
+        } else if (type() %in% "Indifference Point Regression") {
           systematic <- data_r$data_d |>
             dplyr$group_split(id) |>
-            purrr$map_dfr(~ beezdiscounting$check_unsystematic(
-              .x,
-              ll = 1,
-              c1 = input$c1,
-              c2 = input$c2
-            )) |>
+            purrr$map_dfr(
+              ~ beezdiscounting$check_unsystematic(
+                .x,
+                ll = 1,
+                c1 = input$c1,
+                c2 = input$c2
+              )
+            ) |>
             dplyr$mutate(id = factor(id, levels = unique(data_r$data_d$id))) |>
             dplyr$arrange(id)
         }
         DT$datatable(
           systematic,
           rownames = FALSE,
-          extensions = c('Buttons', "Scroller"),
+          extensions = c("Buttons", "Scroller"),
           fillContainer = FALSE,
           autoHideNavigation = TRUE,
           options = list(
             pageLength = 10,
             autoWidth = TRUE,
             ordering = TRUE,
-            dom = 'Bti',
+            dom = "Bti",
             buttons = list(
-              list(extend = 'copy'),
-              list(extend = 'print'),
-              list(extend = 'csv', filename = "ShinyBeez_Discounting_SystematicCriteria", title = NULL),
-              list(extend = 'excel', filename = "ShinyBeez_Discounting_SystematicCriteria", title = NULL),
-              list(extend = 'pdf', filename = "ShinyBeez_Discounting_SystematicCriteria", title = NULL)
+              list(extend = "copy"),
+              list(extend = "print"),
+              list(
+                extend = "csv",
+                filename = "ShinyBeez_Discounting_SystematicCriteria",
+                title = NULL
+              ),
+              list(
+                extend = "excel",
+                filename = "ShinyBeez_Discounting_SystematicCriteria",
+                title = NULL
+              ),
+              list(
+                extend = "pdf",
+                filename = "ShinyBeez_Discounting_SystematicCriteria",
+                title = NULL
+              )
             ),
             deferRender = TRUE,
             scrollY = 300,

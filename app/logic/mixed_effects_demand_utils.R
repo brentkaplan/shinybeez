@@ -24,7 +24,10 @@ prepare_systematic_input <- function(df, id_col, x_col, y_col) {
   }
   missing <- setdiff(c(id_col, x_col, y_col), names(df))
   if (length(missing) > 0) {
-    stop(sprintf("Missing required columns: %s", paste(missing, collapse = ", ")))
+    stop(sprintf(
+      "Missing required columns: %s",
+      paste(missing, collapse = ", ")
+    ))
   }
 
   out <- df[, c(id_col, x_col, y_col)]

@@ -60,15 +60,25 @@ watermark_tr <- get_png_tr("./app/static/img/shinybeez-watermark-alpha.png")
 #' @return Character vector of hex colors of length n.
 #' @export
 get_palette_colors <- function(name = "Okabe-Ito", n = 2L) {
-  if (is.null(n) || is.na(n) || n <= 0) return(character(0))
+  if (is.null(n) || is.na(n) || n <= 0) {
+    return(character(0))
+  }
 
-  if (is.null(name) || is.na(name) || !nzchar(name)) name <- "Okabe-Ito"
+  if (is.null(name) || is.na(name) || !nzchar(name)) {
+    name <- "Okabe-Ito"
+  }
   name <- as.character(name)
 
   # Okabe-Ito colorblind-safe base (8 colors)
   okabe_ito <- c(
-    "#000000", "#E69F00", "#56B4E9", "#009E73",
-    "#F0E442", "#0072B2", "#D55E00", "#CC79A7"
+    "#000000",
+    "#E69F00",
+    "#56B4E9",
+    "#009E73",
+    "#F0E442",
+    "#0072B2",
+    "#D55E00",
+    "#CC79A7"
   )
 
   if (identical(name, "Okabe-Ito")) {

@@ -15,7 +15,7 @@ box::use(
 )
 
 box::use(
-  app/logic/utils,
+  app / logic / utils,
 )
 
 #' @export
@@ -29,12 +29,15 @@ ui <- function(id) {
 
 #' @export
 server <- function(
-    id, data_r, eq, agg,
-    type,
-    imputation = "none",
-    trans = "none",
-    calculate_btn
-    ) {
+  id,
+  data_r,
+  eq,
+  agg,
+  type,
+  imputation = "none",
+  trans = "none",
+  calculate_btn
+) {
   shiny$moduleServer(id, function(input, output, session) {
     ns <- session$ns
     res <- shiny$reactiveValues(
@@ -44,7 +47,7 @@ server <- function(
       propplot = NULL,
       boxplot = NULL,
       plot = NULL
-      )
+    )
 
     # populate the Results Table and tabs based on data and type
     shiny$observe({
@@ -158,27 +161,27 @@ server <- function(
                     label = "Update Plot"
                   )
                 ),
-              esquisse$ggplot_output(
-                ns("regression_plot"),
-                downloads = esquisse$downloads_labels(
-                  label = esquisse$ph("download-simple"),
-                  png = htmltools$tagList(esquisse$ph("image"), "PNG"),
-                  pdf = NULL,
-                  svg = htmltools$tagList(esquisse$ph("browsers"), "SVG"),
-                  jpeg = htmltools$tagList(esquisse$ph("image"), "JPEG"),
-                  pptx = NULL,
-                  more = htmltools$tagList(
-                    esquisse$ph("gear"),
-                    esquisse$i18n("More options")
+                esquisse$ggplot_output(
+                  ns("regression_plot"),
+                  downloads = esquisse$downloads_labels(
+                    label = esquisse$ph("download-simple"),
+                    png = htmltools$tagList(esquisse$ph("image"), "PNG"),
+                    pdf = NULL,
+                    svg = htmltools$tagList(esquisse$ph("browsers"), "SVG"),
+                    jpeg = htmltools$tagList(esquisse$ph("image"), "JPEG"),
+                    pptx = NULL,
+                    more = htmltools$tagList(
+                      esquisse$ph("gear"),
+                      esquisse$i18n("More options")
+                    )
                   )
-                )
-              ),
+                ),
+              )
             )
           )
-        )
-      }
-    )
-  })
+        }
+      )
+    })
 
     shiny$observe({
       shiny$req(data_r$data_d)
@@ -206,7 +209,8 @@ server <- function(
           res$data <- data_r$data_d
         } else if (imputation() == "INN") {
           rhino$log$info("Calculating MCQ27 with INN imputation")
-          result <- score_mcq27(data_r$data_d,
+          result <- score_mcq27(
+            data_r$data_d,
             impute_method = "INN",
             return_data = TRUE,
             trans = trans
@@ -253,8 +257,10 @@ server <- function(
           beezdemand$theme_apa() +
           ggplot2$scale_x_discrete(
             labels = c(
-              "Small k", "Medium k",
-              "Large k", "Geomean k",
+              "Small k",
+              "Medium k",
+              "Large k",
+              "Geomean k",
               "Overall k"
             )
           ) +
@@ -277,9 +283,9 @@ server <- function(
         res$plot <- plot_dd(
           res$dd_fit
         ) +
-        utils$add_shiny_logo(utils$watermark_tr)
+          utils$add_shiny_logo(utils$watermark_tr)
       }
-    })  |>
+    }) |>
       shiny$bindEvent(calculate_btn())
 
     output$results_table <- DT$renderDT(server = FALSE, {
@@ -288,27 +294,27 @@ server <- function(
         DT$datatable(
           res$results,
           rownames = FALSE,
-          extensions = c('Buttons', "Scroller", "FixedColumns"),
+          extensions = c("Buttons", "Scroller", "FixedColumns"),
           fillContainer = TRUE,
           options = list(
             autoWidth = TRUE,
             ordering = TRUE,
-            dom = 'Bti',
+            dom = "Bti",
             buttons = list(
-              list(extend = 'copy'),
-              list(extend = 'print'),
+              list(extend = "copy"),
+              list(extend = "print"),
               list(
-                extend = 'csv',
+                extend = "csv",
                 filename = "ShinyBeez_Discounting_Results",
                 title = NULL
               ),
               list(
-                extend = 'excel',
+                extend = "excel",
                 filename = "ShinyBeez_Discounting_Results",
                 title = NULL
               ),
               list(
-                extend = 'pdf',
+                extend = "pdf",
                 filename = "ShinyBeez_Discounting_Results",
                 title = NULL
               )
@@ -322,39 +328,39 @@ server <- function(
         ) |>
           DT$formatStyle(
             c(
-              'overall_consistency',
-              'small_consistency',
-              'medium_consistency',
-              'large_consistency',
-              'composite_consistency'
+              "overall_consistency",
+              "small_consistency",
+              "medium_consistency",
+              "large_consistency",
+              "composite_consistency"
             ),
-            backgroundColor = DT$styleInterval(.75, c('#FFAEB9', ''))
+            backgroundColor = DT$styleInterval(.75, c("#FFAEB9", ""))
           )
       } else if (type() == "Indifference Point Regression") {
         DT$datatable(
           res$results,
           rownames = FALSE,
-          extensions = c('Buttons', "Scroller", "FixedColumns"),
+          extensions = c("Buttons", "Scroller", "FixedColumns"),
           fillContainer = TRUE,
           options = list(
             autoWidth = TRUE,
             ordering = TRUE,
-            dom = 'Bti',
+            dom = "Bti",
             buttons = list(
-              list(extend = 'copy'),
-              list(extend = 'print'),
+              list(extend = "copy"),
+              list(extend = "print"),
               list(
-                extend = 'csv',
+                extend = "csv",
                 filename = "ShinyBeez_Discounting_Results",
                 title = NULL
               ),
               list(
-                extend = 'excel',
+                extend = "excel",
                 filename = "ShinyBeez_Discounting_Results",
                 title = NULL
               ),
               list(
-                extend = 'pdf',
+                extend = "pdf",
                 filename = "ShinyBeez_Discounting_Results",
                 title = NULL
               )
@@ -370,27 +376,27 @@ server <- function(
         DT$datatable(
           res$results,
           rownames = FALSE,
-          extensions = c('Buttons', "Scroller", "FixedColumns"),
+          extensions = c("Buttons", "Scroller", "FixedColumns"),
           fillContainer = TRUE,
           options = list(
             autoWidth = TRUE,
             ordering = TRUE,
-            dom = 'Bti',
+            dom = "Bti",
             buttons = list(
-              list(extend = 'copy'),
-              list(extend = 'print'),
+              list(extend = "copy"),
+              list(extend = "print"),
               list(
-                extend = 'csv',
+                extend = "csv",
                 filename = "ShinyBeez_Discounting_Results",
                 title = NULL
               ),
               list(
-                extend = 'excel',
+                extend = "excel",
                 filename = "ShinyBeez_Discounting_Results",
                 title = NULL
               ),
               list(
-                extend = 'pdf',
+                extend = "pdf",
                 filename = "ShinyBeez_Discounting_Results",
                 title = NULL
               )
@@ -411,31 +417,31 @@ server <- function(
       DT$datatable(
         res$summary,
         rownames = FALSE,
-        extensions = c('Buttons', "Scroller"),
+        extensions = c("Buttons", "Scroller"),
         fillContainer = FALSE,
         options = list(
           autoWidth = TRUE,
           ordering = TRUE,
-          dom = 'Bti',
+          dom = "Bti",
           columnDefs = list(
-            list(className = 'dt-center', targets = 1:3),
-            list(className = 'dt-right', targets = 0)
-            ),
+            list(className = "dt-center", targets = 1:3),
+            list(className = "dt-right", targets = 0)
+          ),
           buttons = list(
-            list(extend = 'copy'),
-            list(extend = 'print'),
+            list(extend = "copy"),
+            list(extend = "print"),
             list(
-              extend = 'csv',
+              extend = "csv",
               filename = "ShinyBeez_Discounting_Summary",
               title = NULL
             ),
             list(
-              extend = 'excel',
+              extend = "excel",
               filename = "ShinyBeez_Discounting_Summary",
               title = NULL
             ),
             list(
-              extend = 'pdf',
+              extend = "pdf",
               filename = "ShinyBeez_Discounting_Summary",
               title = NULL
             )
@@ -448,11 +454,11 @@ server <- function(
         DT$formatRound(columns = c("Mean", "SD", "SEM"), digits = 4) |>
         DT$formatStyle(
           columns = "Metric",
-          textAlign = 'right'
+          textAlign = "right"
         ) |>
         DT$formatStyle(
           columns = c("Mean", "SD", "SEM"),
-          textAlign = 'center'
+          textAlign = "center"
         )
     }) |>
       shiny$bindEvent(calculate_btn())
@@ -468,29 +474,29 @@ server <- function(
         DT$datatable(
           data = correlations,
           rownames = TRUE,
-          extensions = c('Buttons', "Scroller"),
+          extensions = c("Buttons", "Scroller"),
           fillContainer = FALSE,
           autoHideNavigation = TRUE,
           options = list(
             pageLength = 3,
             autoWidth = TRUE,
             ordering = TRUE,
-            dom = 'Bt',
+            dom = "Bt",
             buttons = list(
-              list(extend = 'copy'),
-              list(extend = 'print'),
+              list(extend = "copy"),
+              list(extend = "print"),
               list(
-                extend = 'csv',
+                extend = "csv",
                 filename = "ShinyBeez_Discounting_Summary",
                 title = NULL
               ),
               list(
-                extend = 'excel',
+                extend = "excel",
                 filename = "ShinyBeez_Discounting_Summary",
                 title = NULL
               ),
               list(
-                extend = 'pdf',
+                extend = "pdf",
                 filename = "ShinyBeez_Discounting_Summary",
                 title = NULL
               )
@@ -500,52 +506,52 @@ server <- function(
             scroller = TRUE
           )
         )
-    }
-      }) |>
+      }
+    }) |>
       shiny$bindEvent(calculate_btn())
 
     shiny$observe({
       if (type() == "27-Item MCQ") {
         if (imputation() %in% c("INN", "INN_random")) {
-        output$imputed_data_table <- DT$renderDT(server = FALSE, {
-          shiny$req(res$data)
-          DT$datatable(
-            res$data,
-            rownames = FALSE,
-            extensions = c('Buttons', "Scroller"),
-            fillContainer = FALSE,
-            autoHideNavigation = TRUE,
-            options = list(
-              pageLength = 10,
-              autoWidth = TRUE,
-              ordering = TRUE,
-              dom = 'Bti',
-              buttons = list(
-                list(extend = 'copy'),
-                list(extend = 'print'),
-                list(
-                  extend = 'csv',
-                  filename = "ShinyBeez_Discounting_Imputed_Data",
-                  title = NULL
+          output$imputed_data_table <- DT$renderDT(server = FALSE, {
+            shiny$req(res$data)
+            DT$datatable(
+              res$data,
+              rownames = FALSE,
+              extensions = c("Buttons", "Scroller"),
+              fillContainer = FALSE,
+              autoHideNavigation = TRUE,
+              options = list(
+                pageLength = 10,
+                autoWidth = TRUE,
+                ordering = TRUE,
+                dom = "Bti",
+                buttons = list(
+                  list(extend = "copy"),
+                  list(extend = "print"),
+                  list(
+                    extend = "csv",
+                    filename = "ShinyBeez_Discounting_Imputed_Data",
+                    title = NULL
+                  ),
+                  list(
+                    extend = "excel",
+                    filename = "ShinyBeez_Discounting_Imputed_Data",
+                    title = NULL
+                  ),
+                  list(
+                    extend = "pdf",
+                    filename = "ShinyBeez_Discounting_Imputed_Data",
+                    title = NULL
+                  )
                 ),
-                list(
-                  extend = 'excel',
-                  filename = "ShinyBeez_Discounting_Imputed_Data",
-                  title = NULL
-                ),
-                list(
-                  extend = 'pdf',
-                  filename = "ShinyBeez_Discounting_Imputed_Data",
-                  title = NULL
-                )
-              ),
-              deferRender = TRUE,
-              scrollY = 250,
-              scroller = TRUE
+                deferRender = TRUE,
+                scrollY = 250,
+                scroller = TRUE
+              )
             )
-          )
-        })
-      }
+          })
+        }
       }
     }) |>
       shiny$bindEvent(calculate_btn())
@@ -555,7 +561,8 @@ server <- function(
       esquisse$render_ggplot(
         id = "prop_plot",
         expr = res$propplot,
-        filename = "shinybeez-discounting-prop-sir")
+        filename = "shinybeez-discounting-prop-sir"
+      )
     }) |>
       shiny$bindEvent(calculate_btn())
 
@@ -564,7 +571,8 @@ server <- function(
       esquisse$render_ggplot(
         id = "boxplot_plot",
         expr = res$boxplot,
-        filename = "shinybeez-discounting-k-boxplots")
+        filename = "shinybeez-discounting-k-boxplots"
+      )
     }) |>
       shiny$bindEvent(calculate_btn())
 
@@ -573,11 +581,14 @@ server <- function(
       esquisse$render_ggplot(
         id = "regression_plot",
         expr = res$plot,
-        filename = "shinybeez-discounting-k-plot")
+        filename = "shinybeez-discounting-k-plot"
+      )
     })
 
     shiny$observe({
-      if (is.null(res$plot)) return()
+      if (is.null(res$plot)) {
+        return()
+      }
       res$plot <- plot_dd(
         res$dd_fit,
         xlabel = input$xtext,
@@ -589,9 +600,9 @@ server <- function(
       esquisse$render_ggplot(
         id = "regression_plot",
         expr = res$plot,
-        filename = "shinybeez-discounting-k-plot")
+        filename = "shinybeez-discounting-k-plot"
+      )
     }) |>
       shiny$bindEvent(c(calculate_btn(), input$update_plot_btn))
-
   })
 }

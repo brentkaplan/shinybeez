@@ -20,19 +20,20 @@ server <- function(id) {
         size = "l",
         shiny$tags$img(
           src = "static/img/hex-shinybeez.png",
-          height = 115, width = 100
-          ),
-          shiny$HTML(
-            paste0(
-              "
+          height = 115,
+          width = 100
+        ),
+        shiny$HTML(
+          paste0(
+            "
               <br>
               <br>
               Please refer to the welcome page for an overview on
               using the app. We plan to include quick reference items
               here in the future.
               "
-            )
-          ),
+          )
+        ),
         # v2 future addition
         # shiny$tabsetPanel(
         #   id = "modal_tabs",
@@ -46,10 +47,10 @@ server <- function(id) {
         #   )
         # ),
         footer = shiny$tagList(
-          shiny$modalButton('Close')
+          shiny$modalButton("Close")
         ),
         easyClose = TRUE
-        ))
+      ))
     })
   })
 }

@@ -9,8 +9,8 @@ box::use(
 )
 
 box::use(
-  app/logic/utils,
-  app/logic/validate,
+  app / logic / utils,
+  app / logic / validate,
 )
 
 #' @export
@@ -107,10 +107,22 @@ server <- function(id, isgroup = NULL, data_r) {
             buttons = list(
               list(extend = "copy"),
               list(extend = "print"),
-              list(extend = "csv", filename = "ShinyBeez_Demand_Data", title = NULL),
-              list(extend = "excel", filename = "ShinyBeez_Demand_Data", title = NULL),
-              list(extend = "pdf", filename = "ShinyBeez_Demand_Data", title = NULL)
+              list(
+                extend = "csv",
+                filename = "ShinyBeez_Demand_Data",
+                title = NULL
               ),
+              list(
+                extend = "excel",
+                filename = "ShinyBeez_Demand_Data",
+                title = NULL
+              ),
+              list(
+                extend = "pdf",
+                filename = "ShinyBeez_Demand_Data",
+                title = NULL
+              )
+            ),
             fixedColumns = list(leftColumns = 1),
             deferRender = TRUE,
             scrollY = 250,
@@ -167,9 +179,21 @@ server <- function(id, isgroup = NULL, data_r) {
             buttons = list(
               list(extend = "copy"),
               list(extend = "print"),
-              list(extend = "csv", filename = "ShinyBeez_Demand_Descriptives", title = NULL),
-              list(extend = "excel", filename = "ShinyBeez_Demand_Descriptives", title = NULL),
-              list(extend = "pdf", filename = "ShinyBeez_Demand_Descriptives", title = NULL)
+              list(
+                extend = "csv",
+                filename = "ShinyBeez_Demand_Descriptives",
+                title = NULL
+              ),
+              list(
+                extend = "excel",
+                filename = "ShinyBeez_Demand_Descriptives",
+                title = NULL
+              ),
+              list(
+                extend = "pdf",
+                filename = "ShinyBeez_Demand_Descriptives",
+                title = NULL
+              )
             ),
             deferRender = TRUE,
             scrollY = 250,
@@ -185,7 +209,8 @@ server <- function(id, isgroup = NULL, data_r) {
       empirical <- NULL
       rhino$log$info(
         paste0(
-          "Calculating empirical demand data with grouping = ", isgroup()
+          "Calculating empirical demand data with grouping = ",
+          isgroup()
         )
       )
       data_g <- stats$aggregate(y ~ x, data_r$data_d, mean, na.rm = TRUE)
@@ -200,13 +225,19 @@ server <- function(id, isgroup = NULL, data_r) {
           )
           return()
         }
-        data_gg <- stats$aggregate(y ~ x + group, data_r$data_d, mean, na.rm = TRUE)
+        data_gg <- stats$aggregate(
+          y ~ x + group,
+          data_r$data_d,
+          mean,
+          na.rm = TRUE
+        )
         data_gg$id <- "group aggregate"
         data_g_emp <- GetEmpirical(data_g) |>
           dplyr$mutate(
-                 # `GM(O)` = utils$geomean(data_g$x * data_g$y),
-                 dplyr$across(dplyr$where(is.numeric), round, 1),
-                 group = "aggregate") |>
+            # `GM(O)` = utils$geomean(data_g$x * data_g$y),
+            dplyr$across(dplyr$where(is.numeric), round, 1),
+            group = "aggregate"
+          ) |>
           dplyr$relocate(group, .before = id)
         data_gg_emp <- dplyr$group_by(data_gg, group) |>
           dplyr$group_modify(~ GetEmpirical(.x))
@@ -244,9 +275,21 @@ server <- function(id, isgroup = NULL, data_r) {
             buttons = list(
               list(extend = "copy"),
               list(extend = "print"),
-              list(extend = "csv", filename = "ShinyBeez_Demand_Empirical_Measures", title = NULL),
-              list(extend = "excel", filename = "ShinyBeez_Demand_Empirical_Measures", title = NULL),
-              list(extend = "pdf", filename = "ShinyBeez_Demand_Empirical_Measures", title = NULL)
+              list(
+                extend = "csv",
+                filename = "ShinyBeez_Demand_Empirical_Measures",
+                title = NULL
+              ),
+              list(
+                extend = "excel",
+                filename = "ShinyBeez_Demand_Empirical_Measures",
+                title = NULL
+              ),
+              list(
+                extend = "pdf",
+                filename = "ShinyBeez_Demand_Empirical_Measures",
+                title = NULL
+              )
             ),
             deferRender = TRUE,
             scrollY = 250,
@@ -274,13 +317,15 @@ server <- function(id, isgroup = NULL, data_r) {
         # for each unique group, calculate the systematic criteria
         systematic <- data_r$data_d |>
           dplyr$group_by(group) |>
-          dplyr$group_modify(~ CheckUnsystematic(
-            dat = .x,
-            deltaq = input$deltaq,
-            bounce = input$bounce,
-            reversals = input$reversals,
-            ncons0 = input$ncons0
-          ))
+          dplyr$group_modify(
+            ~ CheckUnsystematic(
+              dat = .x,
+              deltaq = input$deltaq,
+              bounce = input$bounce,
+              reversals = input$reversals,
+              ncons0 = input$ncons0
+            )
+          )
       } else {
         systematic <- data_r$data_d |>
           CheckUnsystematic(
@@ -305,9 +350,21 @@ server <- function(id, isgroup = NULL, data_r) {
             buttons = list(
               list(extend = "copy"),
               list(extend = "print"),
-              list(extend = "csv", filename = "ShinyBeez_Demand_Systematic_Criteria", title = NULL),
-              list(extend = "excel", filename = "ShinyBeez_Demand_Systematic_Criteria", title = NULL),
-              list(extend = "pdf", filename = "ShinyBeez_Demand_Systematic_Criteria", title = NULL)
+              list(
+                extend = "csv",
+                filename = "ShinyBeez_Demand_Systematic_Criteria",
+                title = NULL
+              ),
+              list(
+                extend = "excel",
+                filename = "ShinyBeez_Demand_Systematic_Criteria",
+                title = NULL
+              ),
+              list(
+                extend = "pdf",
+                filename = "ShinyBeez_Demand_Systematic_Criteria",
+                title = NULL
+              )
             ),
             deferRender = TRUE,
             scrollY = 250,

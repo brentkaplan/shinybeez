@@ -5,10 +5,10 @@ box::use(
 )
 
 box::use(
-  app/logic/validate,
-  app/view/discounting_data_table,
-  app/view/discounting_results_table,
-  app/view/file_input,
+  app / logic / validate,
+  app / view / discounting_data_table,
+  app / view / discounting_results_table,
+  app / view / file_input,
 )
 
 #' @export
@@ -17,7 +17,6 @@ sidebar_ui <- function(id) {
 
   shiny$tagList(
     file_input$ui(ns("discounting")),
-
     shiny$selectInput(
       inputId = ns("calc_discounting"),
       label = "What are you scoring?",
@@ -29,7 +28,7 @@ sidebar_ui <- function(id) {
       )
     ),
     shiny$uiOutput(
-     outputId = ns("dd_eq")
+      outputId = ns("dd_eq")
     ),
     shiny$uiOutput(
       outputId = ns("dd_method")
@@ -120,16 +119,16 @@ sidebar_server <- function(id) {
             shiny$selectInput(
               inputId = ns("equation"),
               label = "Select equation:",
-            choices = list(
-              "Mazur Hyperbolic" = "Mazur",
-              "Exponential" = "Exponential"
+              choices = list(
+                "Mazur Hyperbolic" = "Mazur",
+                "Exponential" = "Exponential"
               )
             )
-        )
-    } else {
+          )
+        } else {
           shiny$div()
-    }
-  })
+        }
+      })
 
       output$dd_method <- shiny$renderUI({
         if (input$calc_discounting == "Indifference Point Regression") {
@@ -140,22 +139,21 @@ sidebar_server <- function(id) {
               "Fit to Group (pooled)" = "Pooled",
               "Fit to Group (mean)" = "Mean",
               "Two Stage" = "Two Stage"
-              ),
+            ),
             selected = "Pooled"
           )
         }
       })
 
-    output$calculate <- shiny$renderUI({
-      shiny$req(session$userData$data$discounting)
-      shiny$actionButton(
-        inputId = ns("calculate_discounting"),
-        label = "Calculate"
-      )
+      output$calculate <- shiny$renderUI({
+        shiny$req(session$userData$data$discounting)
+        shiny$actionButton(
+          inputId = ns("calculate_discounting"),
+          label = "Calculate"
+        )
+      })
     })
-
-    })
-})
+  })
 }
 
 #' @export
@@ -192,7 +190,10 @@ navpanel_server <- function(id) {
           session$userData$data$discounting,
           type = "discounting"
         )
-      } else if (colnames(session$userData$data$discounting)[1] == "id" & ncol(session$userData$data$discounting) > 3) {
+      } else if (
+        colnames(session$userData$data$discounting)[1] == "id" &
+          ncol(session$userData$data$discounting) > 3
+      ) {
         data_r$data_d <- validate$reshape_data(
           session$userData$data$discounting,
           type = "discounting"
@@ -201,7 +202,6 @@ navpanel_server <- function(id) {
       } else {
         data_r$data_d <- session$userData$data$discounting
       }
-
     })
 
     discounting_data_table$server(
