@@ -545,7 +545,7 @@ sidebar_server <- function(id, data_reactive) {
         )
         choices_with_none <- c(
           "None" = "",
-          stats::setNames(factor_choices, factor_choices)
+          stats$setNames(factor_choices, factor_choices)
         )
 
         f1 <- input$factor1_choice
@@ -564,7 +564,7 @@ sidebar_server <- function(id, data_reactive) {
         shiny$updateSelectInput(
           session,
           "factor2_choice",
-          choices = c("None" = "", stats::setNames(ch2, ch2)),
+          choices = c("None" = "", stats$setNames(ch2, ch2)),
           selected = f2
         )
       },
@@ -616,7 +616,7 @@ sidebar_server <- function(id, data_reactive) {
         shiny$updateSelectInput(
           session,
           "factor2_choice",
-          choices = c("None" = "", stats::setNames(ch2, ch2)),
+          choices = c("None" = "", stats$setNames(ch2, ch2)),
           selected = f2
         )
       },
@@ -668,7 +668,7 @@ sidebar_server <- function(id, data_reactive) {
         shiny$updateSelectInput(
           session,
           "factor1_choice",
-          choices = c("None" = "", stats::setNames(ch1, ch1)),
+          choices = c("None" = "", stats$setNames(ch1, ch1)),
           selected = f1
         )
       },
@@ -898,7 +898,7 @@ sidebar_server <- function(id, data_reactive) {
         shiny$req(input$enable_collapse_factor1, all_levels)
 
         # Isolate the read of the other input to prevent a reactive feedback loop.
-        current_selected_g2 <- shiny::isolate(
+        current_selected_g2 <- shiny$isolate(
           input$f1_group2_levels %||% character(0)
         )
         # Determine what levels are still available for Group 2.
@@ -963,7 +963,7 @@ sidebar_server <- function(id, data_reactive) {
         selected_g1 <- input$f2_group1_levels %||% character(0)
         shiny$req(input$enable_collapse_factor2, all_levels)
 
-        current_selected_g2 <- shiny::isolate(
+        current_selected_g2 <- shiny$isolate(
           input$f2_group2_levels %||% character(0)
         )
         available_for_g2 <- setdiff(all_levels, selected_g1)
@@ -987,7 +987,7 @@ sidebar_server <- function(id, data_reactive) {
         selected_g2 <- input$f2_group2_levels %||% character(0)
         shiny$req(input$enable_collapse_factor2, all_levels)
 
-        current_selected_g1 <- shiny::isolate(
+        current_selected_g1 <- shiny$isolate(
           input$f2_group1_levels %||% character(0)
         )
 
@@ -1015,7 +1015,7 @@ sidebar_server <- function(id, data_reactive) {
 
         shiny$req(input$enable_collapse_factor1, all_levels)
 
-        current_selected_g1 <- shiny::isolate(
+        current_selected_g1 <- shiny$isolate(
           input$f1_group1_levels %||% character(0)
         )
 
@@ -1249,7 +1249,7 @@ sidebar_server <- function(id, data_reactive) {
         x <- suppressWarnings(as.numeric(x))
       }
       mu <- suppressWarnings(mean(x, na.rm = TRUE))
-      sigma <- suppressWarnings(stats::sd(x, na.rm = TRUE))
+      sigma <- suppressWarnings(stats$sd(x, na.rm = TRUE))
       if (!is.finite(sigma) || is.na(sigma)) {
         sigma <- NA_real_
       }
@@ -1277,7 +1277,7 @@ sidebar_server <- function(id, data_reactive) {
       scale <- isTRUE(input$cov_scale)
       x <- df[[base_name]]
       mu <- suppressWarnings(mean(x, na.rm = TRUE))
-      sigma <- suppressWarnings(stats::sd(x, na.rm = TRUE))
+      sigma <- suppressWarnings(stats$sd(x, na.rm = TRUE))
 
       effective_name <- base_name
       if (center || scale) {
@@ -1600,7 +1600,7 @@ navpanel_server <- function(id, sidebar_reactives) {
       scale <- isTRUE(sidebar_reactives$cov_scale())
       x <- df[[base_name]]
       mu <- suppressWarnings(mean(x, na.rm = TRUE))
-      sigma <- suppressWarnings(stats::sd(x, na.rm = TRUE))
+      sigma <- suppressWarnings(stats$sd(x, na.rm = TRUE))
 
       effective_name <- base_name
       if (center || scale) {
@@ -2136,7 +2136,7 @@ navpanel_server <- function(id, sidebar_reactives) {
         random_formula_str <- paste(random_params_for_formula, collapse = " + ")
 
         # Create the final formula object required by fit_demand_mixed (e.g., Q0 + alpha ~ 1)
-        random_effects_formula_to_pass <- stats::as.formula(paste0(
+        random_effects_formula_to_pass <- stats$as.formula(paste0(
           random_formula_str,
           " ~ 1"
         ))
@@ -2147,13 +2147,9 @@ navpanel_server <- function(id, sidebar_reactives) {
         y_is_ll4 <- isTRUE(attr(df, "y_is_ll4"))
 
         # Ensure the authoritative column exists
-        if (!("y_for_model" %in% names(df))) {
-          shiny$showNotification(
-            "Internal error: 'y_for_model' not found.",
-            type = "error"
-          )
-          return(NULL)
-        }
+        shiny$validate(
+          shiny$need("y_for_model" %in% names(df), "Internal error: 'y_for_model' not found.")
+        )
 
         # y_var_actual <- if (
         #   sidebar_reactives$y_var() == "y_transform" &&
@@ -2777,17 +2773,17 @@ navpanel_server <- function(id, sidebar_reactives) {
 
       # Preserve the user's current selections if they are still valid factors
       # Otherwise, reset them to "" (None).
-      selected_color <- shiny::isolate(input$plot_color_by)
+      selected_color <- shiny$isolate(input$plot_color_by)
       if (!selected_color %in% factors_in_model) {
         selected_color <- ""
       }
 
-      selected_linetype <- shiny::isolate(input$plot_linetype_by)
+      selected_linetype <- shiny$isolate(input$plot_linetype_by)
       if (!selected_linetype %in% factors_in_model) {
         selected_linetype <- ""
       }
 
-      selected_facet <- shiny::isolate(input$plot_facet_by)
+      selected_facet <- shiny$isolate(input$plot_facet_by)
       if (!selected_facet %in% factors_in_model) {
         selected_facet <- ""
       }
@@ -3003,7 +2999,7 @@ navpanel_server <- function(id, sidebar_reactives) {
         # Retrieve the factor levels present in the fitted data for the color factor
         fit_data <- model_fit$data
         if (!is.null(fit_data) && plot_color %in% names(fit_data)) {
-          n_levels <- length(unique(stats::na.omit(fit_data[[plot_color]])))
+          n_levels <- length(unique(stats$na.omit(fit_data[[plot_color]])))
           p <- p +
             ggplot2$scale_color_manual(
               values = utils$get_palette_colors(input$plot_palette, n_levels)
