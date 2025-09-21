@@ -1,3 +1,50 @@
 default:
   rhino_log_level: !expr Sys.getenv("RHINO_LOG_LEVEL", "INFO")
   rhino_log_file: !expr Sys.getenv("RHINO_LOG_FILE", "logs/log.txt")
+  
+  # Enhanced logging configuration
+  logging:
+    # Main application log
+    app_log_file: !expr Sys.getenv("APP_LOG_FILE", "logs/app.log")
+    # Error-specific log
+    error_log_file: !expr Sys.getenv("ERROR_LOG_FILE", "logs/errors.log")
+    # Performance monitoring log
+    performance_log_file: !expr Sys.getenv("PERFORMANCE_LOG_FILE", "logs/performance.log")
+    # User activity log
+    activity_log_file: !expr Sys.getenv("ACTIVITY_LOG_FILE", "logs/activity.log")
+    
+    # Log levels for different environments
+    development_log_level: "DEBUG"
+    production_log_level: "INFO"
+    
+    # Performance monitoring settings
+    log_performance: !expr as.logical(Sys.getenv("LOG_PERFORMANCE", "TRUE"))
+    performance_threshold_ms: !expr as.numeric(Sys.getenv("PERFORMANCE_THRESHOLD_MS", "1000"))
+
+development:
+  rhino_log_level: !expr Sys.getenv("RHINO_LOG_LEVEL", "DEBUG")
+  rhino_log_file: !expr Sys.getenv("RHINO_LOG_FILE", "logs/dev-log.txt")
+  
+  logging:
+    app_log_file: "logs/dev-app.log"
+    error_log_file: "logs/dev-errors.log"
+    performance_log_file: "logs/dev-performance.log"
+    activity_log_file: "logs/dev-activity.log"
+    development_log_level: "DEBUG"
+    production_log_level: "DEBUG"
+    log_performance: TRUE
+    performance_threshold_ms: 500
+
+production:
+  rhino_log_level: !expr Sys.getenv("RHINO_LOG_LEVEL", "WARN")
+  rhino_log_file: !expr Sys.getenv("RHINO_LOG_FILE", "logs/prod-log.txt")
+  
+  logging:
+    app_log_file: "logs/prod-app.log"
+    error_log_file: "logs/prod-errors.log"
+    performance_log_file: "logs/prod-performance.log"
+    activity_log_file: "logs/prod-activity.log"
+    development_log_level: "INFO"
+    production_log_level: "WARN"
+    log_performance: TRUE
+    performance_threshold_ms: 2000

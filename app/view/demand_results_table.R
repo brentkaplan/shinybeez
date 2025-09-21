@@ -15,6 +15,7 @@ box::use(
 box::use(
   app / logic / utils,
   app / logic / validate,
+  app / logic / logging_utils
 )
 
 #' @export
@@ -106,6 +107,11 @@ server <- function(
 ) {
   shiny$moduleServer(id, function(input, output, session) {
     ns <- session$ns
+    
+    # Create session-specific logger
+    session_logger <- logging_utils$create_session_logger(session)
+    session_logger$info("Demand results table module initialized", "module_init")
+    
     res <- shiny$reactiveValues(
       data = NULL,
       output = NULL,

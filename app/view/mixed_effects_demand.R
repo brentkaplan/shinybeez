@@ -21,7 +21,8 @@ box::use(
   app / view / file_input,
   app / logic / utils, # For watermarks, etc.
   app / logic / validate, # For data validation and transformations
-  app / logic / mixed_effects_demand_utils
+  app / logic / mixed_effects_demand_utils,
+  app / logic / logging_utils
 )
 
 # Module-local cache for example data
@@ -305,6 +306,11 @@ sidebar_ui <- function(id) {
 sidebar_server <- function(id, data_reactive) {
   shiny$moduleServer(id, function(input, output, session) {
     ns <- session$NS
+    
+    # Create session-specific logger
+    session_logger <- logging_utils$create_session_logger(session)
+    session_logger$info("Mixed Effects Demand sidebar module initialized", "module_init")
+    
     file_input$server(
       "upload_mixed_effects_demand",
       type = "mixed_effects_demand"
@@ -313,10 +319,26 @@ sidebar_server <- function(id, data_reactive) {
     current_data <- shiny$reactive({
       data_uploaded <- session$userData$data$mixed_effects_demand
       if (!is.null(data_uploaded)) {
+        session_logger$data_processing(
+          operation = "user_data_loaded",
+          data_info = list(
+            rows = nrow(data_uploaded),
+            cols = ncol(data_uploaded),
+            source = "user_upload"
+          )
+        )
         return(data_uploaded)
       } else {
         # Load example 'ko' data from module cache if no file is uploaded yet
         ko <- get_default_ko()
+        session_logger$data_processing(
+          operation = "default_data_loaded",
+          data_info = list(
+            rows = nrow(ko),
+            cols = ncol(ko),
+            source = "example_ko_data"
+          )
+        )
         return(ko)
       }
     })
@@ -1320,6 +1342,41 @@ sidebar_server <- function(id, data_reactive) {
 
       list(df = df, model_covariate_name = effective_name, at_list = at_list)
     }
+
+    # Log user interactions with key model parameters
+    shiny$observeEvent(input$model_choice, {
+      if (!is.null(input$model_choice)) {
+        session_logger$user_activity(
+          action = "Model type selected",
+          input_id = "model_choice",
+          input_value = input$model_choice,
+          module = "mixed_effects_demand"
+        )
+      }
+    }, ignoreInit = TRUE)
+    
+    shiny$observeEvent(input$run_mixed_model, {
+      session_logger$user_activity(
+        action = "Mixed effects model run initiated",
+        input_id = "run_mixed_model",
+        module = "mixed_effects_demand"
+      )
+      
+      # Log model configuration
+      session_logger$model_fitting(
+        model_type = "mixed_effects_demand",
+        parameters = list(
+          model_choice = input$model_choice,
+          id_var = input$id_variable_choice,
+          x_var = input$x_variable_choice,
+          y_var = input$y_variable_choice,
+          factors = selected_factors_reactive(),
+          random_effects = input$random_effects_spec,
+          covariance_structure = input$covariance_structure
+        ),
+        status = "started"
+      )
+    }, ignoreInit = TRUE)
 
     return(
       list(

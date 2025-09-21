@@ -2,10 +2,11 @@ box::use(
   bslib,
   rhino,
   sass,
-  shiny,
+  shiny
 )
 
 box::use(
+  app / logic / logging_utils,
   app / view / mixed_effects_demand,
   app / view / demand,
   app / view / discounting,
@@ -15,7 +16,17 @@ box::use(
 #' @export
 ui <- function(id) {
   ns <- shiny$NS(id)
-  rhino$log$info("Starting")
+
+  # Initialize logging system
+  logging_utils$init_logging()
+  rhino$log$info("Starting Shinybeez UI initialization")
+
+  # Log UI initialization
+  logging_utils$log_structured(
+    level = "info",
+    message = "UI initialization started",
+    category = "app_lifecycle"
+  )
 
   # # Get Google Analytics ID from environment variable, with fallback
   # ga_id <- Sys.getenv("GOOGLE_ANALYTICS_ID", "G-Q5TL32WDK3") # Default to shinyapps.io ID
@@ -97,30 +108,137 @@ ui <- function(id) {
 server <- function(id) {
   shiny$moduleServer(id, function(input, output, session) {
     ns <- session$ns
+
+    # Create session-specific logger
+    session_logger <- logging_utils$create_session_logger(session)
+
+    # Log session start
+    session_logger$info("New user session started", "session_lifecycle")
+    session_logger$user_activity("Session initialized", module = "main")
+
+    # Initialize reactive data storage
     session$userData$data <- shiny$reactiveValues()
-    demand$sidebar_server("demand")
-    demand$navpanel_server("demand")
-    discounting$sidebar_server("discounting")
-    discounting$navpanel_server("discounting")
-    # # <<< MIXED EFFECTS DEMAND SERVER CALLS >>>
-    # Assuming file upload for this tab might be handled differently or use a shared mechanism later.
-    # For now, the mixed_effects_demand module itself loads `ko` data.
-    # We pass the data_reactive from where the data is managed.
-    # If each tab has its own file input, session$userData$data[[current_tab_data_name]] would be passed.
-    # For this example, let's assume a shared data source for simplicity initially or handle data within the module.
-    # For 'ko' data, it's loaded within the module.
-    mmd_sidebar_reactives <- mixed_effects_demand$sidebar_server(
-      "mixed_effects_demand",
-      data_reactive = shiny$reactive(session$userData$data$mixed_effects_demand)
-    ) # Example placeholder if data was uploaded
-    mixed_effects_demand$navpanel_server(
-      "mixed_effects_demand",
-      sidebar_reactives = mmd_sidebar_reactives
+
+    # Track navigation changes
+    shiny$observeEvent(
+      input$nav,
+      {
+        if (!is.null(input$nav)) {
+          session_logger$user_activity(
+            action = paste("Navigated to tab:", input$nav),
+            input_id = "nav",
+            input_value = input$nav,
+            module = "main"
+          )
+        }
+      },
+      ignoreInit = TRUE
     )
-    # # <<< END MIXED EFFECTS DEMAND SERVER CALLS >>>
-    info$server("info")
+
+    # Initialize modules with error handling and logging
+    tryCatch(
+      {
+        session_logger$info("Initializing demand module", "module_init")
+        demand$sidebar_server("demand")
+        demand$navpanel_server("demand")
+        session_logger$info(
+          "Demand module initialized successfully",
+          "module_init"
+        )
+      },
+      error = function(e) {
+        session_logger$error_enhanced(
+          "Failed to initialize demand module",
+          error_object = e,
+          context = "module_initialization",
+          user_action = "app_startup"
+        )
+      }
+    )
+
+    tryCatch(
+      {
+        session_logger$info("Initializing discounting module", "module_init")
+        discounting$sidebar_server("discounting")
+        discounting$navpanel_server("discounting")
+        session_logger$info(
+          "Discounting module initialized successfully",
+          "module_init"
+        )
+      },
+      error = function(e) {
+        session_logger$error_enhanced(
+          "Failed to initialize discounting module",
+          error_object = e,
+          context = "module_initialization",
+          user_action = "app_startup"
+        )
+      }
+    )
+
+    # Mixed Effects Demand module with enhanced logging
+    tryCatch(
+      {
+        session_logger$info(
+          "Initializing mixed effects demand module",
+          "module_init"
+        )
+
+        mmd_sidebar_reactives <- mixed_effects_demand$sidebar_server(
+          "mixed_effects_demand",
+          data_reactive = shiny$reactive(
+            session$userData$data$mixed_effects_demand
+          )
+        )
+
+        mixed_effects_demand$navpanel_server(
+          "mixed_effects_demand",
+          sidebar_reactives = mmd_sidebar_reactives
+        )
+
+        session_logger$info(
+          "Mixed effects demand module initialized successfully",
+          "module_init"
+        )
+      },
+      error = function(e) {
+        session_logger$error_enhanced(
+          "Failed to initialize mixed effects demand module",
+          error_object = e,
+          context = "module_initialization",
+          user_action = "app_startup"
+        )
+      }
+    )
+
+    # Initialize info module
+    tryCatch(
+      {
+        session_logger$info("Initializing info module", "module_init")
+        info$server("info")
+        session_logger$info(
+          "Info module initialized successfully",
+          "module_init"
+        )
+      },
+      error = function(e) {
+        session_logger$error_enhanced(
+          "Failed to initialize info module",
+          error_object = e,
+          context = "module_initialization",
+          user_action = "app_startup"
+        )
+      }
+    )
+
+    # Log successful server initialization
+    session_logger$info("All modules initialized successfully", "app_lifecycle")
+
+    # Enhanced session end logging
     session$onSessionEnded(function() {
-      rhino$log$info("Stopping")
+      session_logger$info("User session ended", "session_lifecycle")
+      session_logger$user_activity("Session terminated", module = "main")
+      rhino$log$info("Session stopped: {session$token}")
     })
   })
 }
