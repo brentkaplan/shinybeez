@@ -83,6 +83,7 @@ server <- function(
 
       res <- list()
       if (type() == "27-Item MCQ" && !("I16" %in% names(data_r$data_d))) {
+        rhino$log$debug(paste("Imputation method:", imputation(), "; Transformation:", trans()))
         impute_method <- if (imputation() == "none") NULL else imputation()
         random_impute <- grepl("random", imputation(), ignore.case = TRUE)
         
@@ -111,6 +112,7 @@ server <- function(
         rhino$log$info("Calculating 5.5 Trial PD")
         res$results <- calc_pd(data_r$data_d)
       } else if (type() == "Indifference Point Regression") {
+        rhino$log$debug(paste("Equation:", eq(), "; Aggregation:", agg()))
         rhino$log$info("Calculating Regression")
         res$dd_fit <- fit_dd(data_r$data_d, equation = eq(), method = agg())
         res$results <- results_dd(res$dd_fit) |>

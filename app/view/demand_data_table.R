@@ -91,58 +91,63 @@ server <- function(id, isgroup = NULL, data_r) {
     ns <- session$ns
 
     # show data table
-    output$data_table <- DT$renderDT(server = FALSE, {
-      shiny$req(data_r$data_d)
+    shiny$observe({
+      shiny$req(session$userData$data$demand)
       rhino$log$info("Printing Demand Datatable")
-      DT$datatable(
-        data_r$data_d,
-        rownames = FALSE,
-        extensions = c("Buttons", "Scroller", "FixedColumns"),
-        fillContainer = FALSE,
-        options = list(
-          autoWidth = TRUE,
-          ordering = TRUE,
-          dom = "Bti",
-          buttons = list(
-            list(extend = "copy"),
-            list(extend = "print"),
-            list(
-              extend = "csv",
-              filename = "ShinyBeez_Demand_Data",
-              title = NULL
+      output$data_table <- DT$renderDT(server = FALSE, {
+        DT$datatable(
+          data_r$data_d,
+          rownames = FALSE,
+          extensions = c("Buttons", "Scroller", "FixedColumns"),
+          fillContainer = FALSE,
+          options = list(
+            autoWidth = TRUE,
+            ordering = TRUE,
+            dom = "Bti",
+            buttons = list(
+              list(extend = "copy"),
+              list(extend = "print"),
+              list(
+                extend = "csv",
+                filename = "ShinyBeez_Demand_Data",
+                title = NULL
+              ),
+              list(
+                extend = "excel",
+                filename = "ShinyBeez_Demand_Data",
+                title = NULL
+              ),
+              list(
+                extend = "pdf",
+                filename = "ShinyBeez_Demand_Data",
+                title = NULL
+              )
             ),
-            list(
-              extend = "excel",
-              filename = "ShinyBeez_Demand_Data",
-              title = NULL
-            ),
-            list(
-              extend = "pdf",
-              filename = "ShinyBeez_Demand_Data",
-              title = NULL
-            )
-          ),
-          fixedColumns = list(leftColumns = 1),
-          deferRender = TRUE,
-          scrollY = 250,
-          scrollX = TRUE,
-          scroller = TRUE
+            fixedColumns = list(leftColumns = 1),
+            deferRender = TRUE,
+            scrollY = 250,
+            scrollX = TRUE,
+            scroller = TRUE
+          )
         )
-      )
+      })
     })
 
     # show descriptives table
-    output$descriptives_table <- DT$renderDT(server = FALSE, {
-      shiny$req(data_r$data_d)
+    shiny$observe({
+      shiny$req(session$userData$data$demand)
       rhino$log$info("Printing Demand Descriptives Table")
-
+      descriptives <- NULL
       if (isgroup()) {
-        shiny$validate(
-          shiny$need(
-            "group" %in% colnames(data_r$data_d),
-            "You have selected to group the data but there is no 'group' column in the data."
+        if (!"group" %in% colnames(data_r$data_d)) {
+          shiny$showNotification(
+            "You have selected to group the data but there is no
+            'group' column in the data.",
+            type = "error",
+            duration = 10
           )
-        )
+          return()
+        }
         data_g <- data_r$data_d |>
           dplyr$mutate(group = "aggregate")
         data_g_e <- data_g |>
@@ -161,57 +166,71 @@ server <- function(id, isgroup = NULL, data_r) {
       descriptives <- descriptives |>
         dplyr$mutate(dplyr$across(dplyr$where(is.numeric), round, 2))
 
-      DT$datatable(
-        descriptives,
-        rownames = FALSE,
-        extensions = c("Buttons", "Scroller"),
-        fillContainer = FALSE,
-        options = list(
-          autoWidth = TRUE,
-          ordering = TRUE,
-          dom = "Bti",
-          buttons = list(
-            list(extend = "copy"),
-            list(extend = "print"),
-            list(
-              extend = "csv",
-              filename = "ShinyBeez_Demand_Descriptives",
-              title = NULL
+      output$descriptives_table <- DT$renderDT(server = FALSE, {
+        DT$datatable(
+          descriptives,
+          rownames = FALSE,
+          extensions = c("Buttons", "Scroller"),
+          fillContainer = FALSE,
+          options = list(
+            autoWidth = TRUE,
+            ordering = TRUE,
+            dom = "Bti",
+            buttons = list(
+              list(extend = "copy"),
+              list(extend = "print"),
+              list(
+                extend = "csv",
+                filename = "ShinyBeez_Demand_Descriptives",
+                title = NULL
+              ),
+              list(
+                extend = "excel",
+                filename = "ShinyBeez_Demand_Descriptives",
+                title = NULL
+              ),
+              list(
+                extend = "pdf",
+                filename = "ShinyBeez_Demand_Descriptives",
+                title = NULL
+              )
             ),
-            list(
-              extend = "excel",
-              filename = "ShinyBeez_Demand_Descriptives",
-              title = NULL
-            ),
-            list(
-              extend = "pdf",
-              filename = "ShinyBeez_Demand_Descriptives",
-              title = NULL
-            )
-          ),
-          deferRender = TRUE,
-          scrollY = 250,
-          scroller = TRUE
+            deferRender = TRUE,
+            scrollY = 250,
+            scroller = TRUE
+          )
         )
-      )
+      })
     })
 
     # show empirical table
-    output$empirical_table <- DT$renderDT(server = FALSE, {
-      shiny$req(data_r$data_d)
+    shiny$observe({
+      shiny$req(session$userData$data$demand)
+      empirical <- NULL
       rhino$log$info(
-        paste0("Calculating empirical demand data with grouping = ", isgroup())
+        paste0(
+          "Calculating empirical demand data with grouping = ",
+          isgroup()
+        )
       )
       data_g <- stats$aggregate(y ~ x, data_r$data_d, mean, na.rm = TRUE)
       data_g$id <- "aggregate"
       if (isgroup()) {
-        shiny$validate(
-          shiny$need(
-            "group" %in% colnames(data_r$data_d),
-            "You have selected to group the data but there is no 'group' column in the data."
+        if (!"group" %in% colnames(data_r$data_d)) {
+          shiny$showNotification(
+            "You have selected to group the data but there is no
+            'group' column in the data.",
+            type = "error",
+            duration = 10
           )
+          return()
+        }
+        data_gg <- stats$aggregate(
+          y ~ x + group,
+          data_r$data_d,
+          mean,
+          na.rm = TRUE
         )
-        data_gg <- stats$aggregate(y ~ x + group, data_r$data_d, mean, na.rm = TRUE)
         data_gg$id <- "group aggregate"
         data_g_emp <- GetEmpirical(data_g) |>
           dplyr$mutate(
@@ -228,74 +247,85 @@ server <- function(id, isgroup = NULL, data_r) {
       } else {
         data_g_emp <- GetEmpirical(data_g)
         data_d_emp <- try(GetEmpirical(data_r$data_d), silent = TRUE)
-        shiny$validate(
-          shiny$need(
-            !inherits(data_d_emp, "try-error"),
-            "Do you have a grouping variable you didn't specify in the 'Specs' dropdown?"
+        if (inherits(data_d_emp, "try-error")) {
+          shiny$showNotification(
+            "Do you have a grouping variable you didn't specify in the 'Specs' dropdown?",
+            type = "error",
+            duration = 10
           )
-        )
-        empirical <- dplyr$bind_rows(data_g_emp, data_d_emp)
+          return()
+        } else {
+          empirical <- dplyr$bind_rows(data_g_emp, data_d_emp)
+        }
       }
 
       empirical <- empirical |>
         dplyr$mutate(dplyr$across(dplyr$where(is.numeric), round, 2))
 
-      DT$datatable(
-        empirical,
-        rownames = FALSE,
-        extensions = c("Buttons", "Scroller"),
-        fillContainer = FALSE,
-        options = list(
-          autoWidth = TRUE,
-          ordering = TRUE,
-          dom = "Bti",
-          buttons = list(
-            list(extend = "copy"),
-            list(extend = "print"),
-            list(
-              extend = "csv",
-              filename = "ShinyBeez_Demand_Empirical_Measures",
-              title = NULL
+      output$empirical_table <- DT$renderDT(server = FALSE, {
+        DT$datatable(
+          empirical,
+          rownames = FALSE,
+          extensions = c("Buttons", "Scroller"),
+          fillContainer = FALSE,
+          options = list(
+            autoWidth = TRUE,
+            ordering = TRUE,
+            dom = "Bti",
+            buttons = list(
+              list(extend = "copy"),
+              list(extend = "print"),
+              list(
+                extend = "csv",
+                filename = "ShinyBeez_Demand_Empirical_Measures",
+                title = NULL
+              ),
+              list(
+                extend = "excel",
+                filename = "ShinyBeez_Demand_Empirical_Measures",
+                title = NULL
+              ),
+              list(
+                extend = "pdf",
+                filename = "ShinyBeez_Demand_Empirical_Measures",
+                title = NULL
+              )
             ),
-            list(
-              extend = "excel",
-              filename = "ShinyBeez_Demand_Empirical_Measures",
-              title = NULL
-            ),
-            list(
-              extend = "pdf",
-              filename = "ShinyBeez_Demand_Empirical_Measures",
-              title = NULL
-            )
-          ),
-          deferRender = TRUE,
-          scrollY = 250,
-          scroller = TRUE
+            deferRender = TRUE,
+            scrollY = 250,
+            scroller = TRUE
+          )
         )
-      )
+      })
     })
 
     # show systematic table
-    output$systematic_table <- DT$renderDT(server = FALSE, {
-      shiny$req(data_r$data_d)
+    shiny$observe({
+      shiny$req(session$userData$data$demand)
+      systematic <- NULL
       rhino$log$info("Calculating systematic criteria")
       if (isgroup()) {
-        shiny$validate(
-          shiny$need(
-            "group" %in% colnames(data_r$data_d),
-            "You have selected to group the data but there is no 'group' column in the data."
+        if (!"group" %in% colnames(data_r$data_d)) {
+          shiny$showNotification(
+            "You have selected to group the data but there is no
+            'group' column in the data.",
+            type = "error",
+            duration = 10
           )
-        )
+          return()
+        }
         # for each unique group, calculate the systematic criteria
         systematic <- data_r$data_d |>
           dplyr$group_by(group) |>
-          dplyr$group_modify(~ CheckUnsystematic(
-            dat = .x,
-            deltaq = input$deltaq,
-            bounce = input$bounce,
-            reversals = input$reversals,
-            ncons0 = input$ncons0
-          ))
+          dplyr$group_modify(
+            ~ CheckUnsystematic(
+              dat = .x,
+              deltaq = input$deltaq,
+              bounce = input$bounce,
+              reversals = input$reversals,
+              ncons0 = input$ncons0
+            )
+          )
       } else {
         systematic <- data_r$data_d |>
           CheckUnsystematic(
@@ -307,41 +337,43 @@ server <- function(id, isgroup = NULL, data_r) {
           )
       }
 
-      DT$datatable(
-        systematic,
-        rownames = FALSE,
-        extensions = c("Buttons", "Scroller", "FixedColumns"),
-        fillContainer = FALSE,
-        options = list(
-          autoWidth = FALSE,
-          ordering = TRUE,
-          dom = "Bti",
-          buttons = list(
-            list(extend = "copy"),
-            list(extend = "print"),
-            list(
-              extend = "csv",
-              filename = "ShinyBeez_Demand_Systematic_Criteria",
-              title = NULL
+      output$systematic_table <- DT$renderDT(server = FALSE, {
+        DT$datatable(
+          systematic,
+          rownames = FALSE,
+          extensions = c("Buttons", "Scroller", "FixedColumns"),
+          fillContainer = FALSE,
+          options = list(
+            autoWidth = FALSE,
+            ordering = TRUE,
+            dom = "Bti",
+            buttons = list(
+              list(extend = "copy"),
+              list(extend = "print"),
+              list(
+                extend = "csv",
+                filename = "ShinyBeez_Demand_Systematic_Criteria",
+                title = NULL
+              ),
+              list(
+                extend = "excel",
+                filename = "ShinyBeez_Demand_Systematic_Criteria",
+                title = NULL
+              ),
+              list(
+                extend = "pdf",
+                filename = "ShinyBeez_Demand_Systematic_Criteria",
+                title = NULL
+              )
             ),
-            list(
-              extend = "excel",
-              filename = "ShinyBeez_Demand_Systematic_Criteria",
-              title = NULL
-            ),
-            list(
-              extend = "pdf",
-              filename = "ShinyBeez_Demand_Systematic_Criteria",
-              title = NULL
-            )
-          ),
-          deferRender = TRUE,
-          scrollY = 250,
-          scroller = TRUE,
-          scrollX = TRUE,
-          fixedColumns = list(leftColumns = 1)
+            deferRender = TRUE,
+            scrollY = 250,
+            scroller = TRUE,
+            scrollX = TRUE,
+            fixedColumns = list(leftColumns = 1)
+          )
         )
-      )
+      })
     })
   })
 }

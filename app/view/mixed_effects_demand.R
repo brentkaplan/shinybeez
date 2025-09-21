@@ -2148,7 +2148,10 @@ navpanel_server <- function(id, sidebar_reactives) {
 
         # Ensure the authoritative column exists
         shiny$validate(
-          shiny$need("y_for_model" %in% names(df), "Internal error: 'y_for_model' not found.")
+          shiny$need(
+            "y_for_model" %in% names(df),
+            "Internal error: 'y_for_model' not found."
+          )
         )
 
         # y_var_actual <- if (
