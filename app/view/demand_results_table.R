@@ -139,46 +139,61 @@ server <- function(
         constrainq0
       ))
       if ((is.null(groupcol()) | !groupcol()) | analysis_type %in% "Ind") {
-        res$output <- data_r$data_d |>
-          FitCurves(
-            dat = _,
-            eq = eq,
-            agg = agg,
-            k = k,
-            constrainq0 = constrainq0,
-            detailed = TRUE
-          )
-        res$results <- res$output[[1]] |>
-          dplyr$select(!(Intensity:Pmaxe)) |>
-          dplyr$mutate(
-            dplyr$across(
-              dplyr$all_of(c(
-                "Q0d",
-                "K",
-                "R2",
-                "Q0se",
-                "AbsSS",
-                "SdRes",
-                "Q0Low",
-                "Q0High",
-                "EV",
-                "Omaxd",
-                "Pmaxd",
-                "Omaxa",
-                "Pmaxa"
-              )),
-              \(x) round(x, 2)
-            ),
-            dplyr$across(
-              dplyr$all_of(c(
-                "Alpha",
-                "Alphase",
-                "AlphaLow",
-                "AlphaHigh"
-              )),
-              \(x) round(x, 4)
+        res$output <- tryCatch({
+          data_r$data_d |>
+            FitCurves(
+              dat = _,
+              eq = eq,
+              agg = agg,
+              k = k,
+              constrainq0 = constrainq0,
+              detailed = TRUE
             )
+        }, error = function(e) {
+          rhino$log$error(paste("Error in FitCurves:", e$message))
+          shiny$showNotification(
+            paste("Error fitting demand curves:", e$message, 
+                  "Please check your data and parameters."),
+            type = "error",
+            duration = 10
           )
+          return(NULL)
+        })
+        if (!is.null(res$output)) {
+          res$results <- res$output[[1]] |>
+            dplyr$select(!(Intensity:Pmaxe)) |>
+            dplyr$mutate(
+              dplyr$across(
+                dplyr$all_of(c(
+                  "Q0d",
+                  "K",
+                  "R2",
+                  "Q0se",
+                  "AbsSS",
+                  "SdRes",
+                  "Q0Low",
+                  "Q0High",
+                  "EV",
+                  "Omaxd",
+                  "Pmaxd",
+                  "Omaxa",
+                  "Pmaxa"
+                )),
+                \(x) round(x, 2)
+              ),
+              dplyr$across(
+                dplyr$all_of(c(
+                  "Alpha",
+                  "Alphase",
+                  "AlphaLow",
+                  "AlphaHigh"
+                )),
+                \(x) round(x, 4)
+              )
+            )
+        } else {
+          res$results <- NULL
+        }
       } else {
         if (!"group" %in% colnames(data_r$data_d)) {
           shiny$showNotification(
@@ -195,59 +210,92 @@ server <- function(
           dplyr$group_by(group) |>
           dplyr$group_map(
             ~ {
-              fit_result <- FitCurves(
-                dat = .x,
-                eq = eq,
-                agg = agg,
-                k = k,
-                constrainq0 = constrainq0,
-                detailed = TRUE
-              )
-              list(
-                group = dplyr$first(.x$group),
-                fit_result_1 = fit_result[[1]],
-                fit_result_3 = fit_result[[3]]
-              )
+              fit_result <- tryCatch({
+                FitCurves(
+                  dat = .x,
+                  eq = eq,
+                  agg = agg,
+                  k = k,
+                  constrainq0 = constrainq0,
+                  detailed = TRUE
+                )
+              }, error = function(e) {
+                group_name <- dplyr$first(.x$group)
+                rhino$log$error(paste("Error in FitCurves for group", group_name, ":", e$message))
+                shiny$showNotification(
+                  paste("Error fitting demand curves for group", group_name, ":", e$message, 
+                        "This group will be skipped."),
+                  type = "warning",
+                  duration = 8
+                )
+                return(NULL)
+              })
+              
+              if (!is.null(fit_result)) {
+                list(
+                  group = dplyr$first(.x$group),
+                  fit_result_1 = fit_result[[1]],
+                  fit_result_3 = fit_result[[3]]
+                )
+              } else {
+                NULL
+              }
             },
             .keep = TRUE
           )
-        res$output[[1]] <- dplyr$bind_rows(lapply(tmp, function(x) {
-          cbind(group = x$group, x$fit_result_1)
-        }))
-        res$output[[3]] <- dplyr$bind_rows(lapply(tmp, function(x) {
-          cbind(group = x$group, x$fit_result_3[[1]])
-        }))
-        res$results <- res$output[[1]] |>
-          dplyr$select(!(Intensity:Pmaxe)) |>
-          dplyr$mutate(
-            dplyr$across(
-              dplyr$all_of(c(
-                "Q0d",
-                "K",
-                "R2",
-                "Q0se",
-                "AbsSS",
-                "SdRes",
-                "Q0Low",
-                "Q0High",
-                "EV",
-                "Omaxd",
-                "Pmaxd",
-                "Omaxa",
-                "Pmaxa"
-              )),
-              \(x) round(x, 2)
-            ),
-            dplyr$across(
-              dplyr$all_of(c(
-                "Alpha",
-                "Alphase",
-                "AlphaLow",
-                "AlphaHigh"
-              )),
-              \(x) round(x, 4)
-            )
+        # Filter out NULL results from failed fits
+        tmp <- tmp[!sapply(tmp, is.null)]
+        
+        if (length(tmp) > 0) {
+          res$output[[1]] <- dplyr$bind_rows(lapply(tmp, function(x) {
+            cbind(group = x$group, x$fit_result_1)
+          }))
+          res$output[[3]] <- dplyr$bind_rows(lapply(tmp, function(x) {
+            cbind(group = x$group, x$fit_result_3[[1]])
+          }))
+        } else {
+          shiny$showNotification(
+            "All groups failed to fit. Please check your data and parameters.",
+            type = "error",
+            duration = 10
           )
+          res$output <- NULL
+        }
+        if (!is.null(res$output)) {
+          res$results <- res$output[[1]] |>
+            dplyr$select(!(Intensity:Pmaxe)) |>
+            dplyr$mutate(
+              dplyr$across(
+                dplyr$all_of(c(
+                  "Q0d",
+                  "K",
+                  "R2",
+                  "Q0se",
+                  "AbsSS",
+                  "SdRes",
+                  "Q0Low",
+                  "Q0High",
+                  "EV",
+                  "Omaxd",
+                  "Pmaxd",
+                  "Omaxa",
+                  "Pmaxa"
+                )),
+                \(x) round(x, 2)
+              ),
+              dplyr$across(
+                dplyr$all_of(c(
+                  "Alpha",
+                  "Alphase",
+                  "AlphaLow",
+                  "AlphaHigh"
+                )),
+                \(x) round(x, 4)
+              )
+            )
+        } else {
+          res$results <- NULL
+        }
       }
     }) |>
       shiny$bindEvent(calculate_btn())
@@ -316,6 +364,12 @@ server <- function(
       pt_shape <- 21
       pt_fill <- "white"
       pt_size <- 3
+      
+      # Only create plots if we have valid output from FitCurves
+      if (is.null(res$output)) {
+        return()
+      }
+      
       if (analysis_type %in% c("Mean")) {
         if (!groupcol()) {
           data_g <- aggregate(y ~ x, data_r$data_d, mean, na.rm = TRUE)
