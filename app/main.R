@@ -7,6 +7,7 @@ box::use(
 
 box::use(
   app / logic / logging_utils,
+  app / logic / telemetry_utils,
   app / view / mixed_effects_demand,
   app / view / demand,
   app / view / discounting,
@@ -20,6 +21,9 @@ ui <- function(id) {
   # Initialize logging system
   logging_utils$init_logging()
   rhino$log$info("Starting Shinybeez UI initialization")
+
+  # Initialize telemetry system
+  telemetry_utils$init_telemetry()
 
   # Log UI initialization
   logging_utils$log_structured(
@@ -39,7 +43,17 @@ ui <- function(id) {
     header = shiny$tags$head(
       shiny$includeHTML(
         "app/static/html/g_tag.html"
-      )
+      ),
+      # Add telemetry JavaScript if enabled
+      if (telemetry_utils$is_telemetry_enabled()) {
+        tryCatch({
+          shiny.telemetry::use_telemetry()
+        }, error = function(e) {
+          # Gracefully handle if shiny.telemetry is not available
+          rhino$log$warn("Could not initialize telemetry UI: {e$message}")
+          NULL
+        })
+      }
     ),
     # header = shiny$tags$head(
     #   shiny$HTML(ga_script)
@@ -109,12 +123,32 @@ server <- function(id) {
   shiny$moduleServer(id, function(input, output, session) {
     ns <- session$ns
 
-    # Create session-specific logger
+    # Create session-specific logger and telemetry tracker
     session_logger <- logging_utils$create_session_logger(session)
+    session_telemetry <- telemetry_utils$create_session_telemetry(session)
+
+    # Initialize telemetry session tracking
+    if (telemetry_utils$is_telemetry_enabled()) {
+      tryCatch({
+        telemetry <- telemetry_utils$get_telemetry()
+        if (!is.null(telemetry)) {
+          telemetry$start_session()
+        }
+      }, error = function(e) {
+        session_logger$warn("Failed to start telemetry session: {e$message}")
+      })
+    }
 
     # Log session start
     session_logger$info("New user session started", "session_lifecycle")
     session_logger$user_activity("Session initialized", module = "main")
+    
+    # Track session start in telemetry
+    session_telemetry$track_event("session_start", list(
+      user_agent = session$clientData$user_agent,
+      url = session$clientData$url_hostname,
+      screen_width = session$clientData$pixelratio
+    ))
 
     # Initialize reactive data storage
     session$userData$data <- shiny$reactiveValues()
@@ -130,6 +164,9 @@ server <- function(id) {
             input_value = input$nav,
             module = "main"
           )
+          
+          # Track navigation in telemetry
+          session_telemetry$track_navigation(input$nav)
         }
       },
       ignoreInit = TRUE
@@ -238,6 +275,12 @@ server <- function(id) {
     session$onSessionEnded(function() {
       session_logger$info("User session ended", "session_lifecycle")
       session_logger$user_activity("Session terminated", module = "main")
+      
+      # Track session end in telemetry
+      session_telemetry$track_event("session_end", list(
+        session_duration = difftime(Sys.time(), session$startTime, units = "secs")
+      ))
+      
       rhino$log$info("Session stopped: {session$token}")
     })
   })

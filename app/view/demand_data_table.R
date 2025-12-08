@@ -249,7 +249,10 @@ server <- function(id, isgroup = NULL, data_r) {
         data_d_emp <- try(GetEmpirical(data_r$data_d), silent = TRUE)
         if (inherits(data_d_emp, "try-error")) {
           shiny$showNotification(
-            "Do you have a grouping variable you didn't specify in the 'Specs' dropdown?",
+            paste(
+              "Error calculating empirical demand data:",
+              data_d_emp[1]
+            ),
             type = "error",
             duration = 10
           )

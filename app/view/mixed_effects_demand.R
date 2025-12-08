@@ -306,11 +306,14 @@ sidebar_ui <- function(id) {
 sidebar_server <- function(id, data_reactive) {
   shiny$moduleServer(id, function(input, output, session) {
     ns <- session$NS
-    
+
     # Create session-specific logger
     session_logger <- logging_utils$create_session_logger(session)
-    session_logger$info("Mixed Effects Demand sidebar module initialized", "module_init")
-    
+    session_logger$info(
+      "Mixed Effects Demand sidebar module initialized",
+      "module_init"
+    )
+
     file_input$server(
       "upload_mixed_effects_demand",
       type = "mixed_effects_demand"
@@ -1344,39 +1347,47 @@ sidebar_server <- function(id, data_reactive) {
     }
 
     # Log user interactions with key model parameters
-    shiny$observeEvent(input$model_choice, {
-      if (!is.null(input$model_choice)) {
+    shiny$observeEvent(
+      input$model_choice,
+      {
+        if (!is.null(input$model_choice)) {
+          session_logger$user_activity(
+            action = "Model type selected",
+            input_id = "model_choice",
+            input_value = input$model_choice,
+            module = "mixed_effects_demand"
+          )
+        }
+      },
+      ignoreInit = TRUE
+    )
+
+    shiny$observeEvent(
+      input$run_mixed_model,
+      {
         session_logger$user_activity(
-          action = "Model type selected",
-          input_id = "model_choice",
-          input_value = input$model_choice,
+          action = "Mixed effects model run initiated",
+          input_id = "run_mixed_model",
           module = "mixed_effects_demand"
         )
-      }
-    }, ignoreInit = TRUE)
-    
-    shiny$observeEvent(input$run_mixed_model, {
-      session_logger$user_activity(
-        action = "Mixed effects model run initiated",
-        input_id = "run_mixed_model",
-        module = "mixed_effects_demand"
-      )
-      
-      # Log model configuration
-      session_logger$model_fitting(
-        model_type = "mixed_effects_demand",
-        parameters = list(
-          model_choice = input$model_choice,
-          id_var = input$id_variable_choice,
-          x_var = input$x_variable_choice,
-          y_var = input$y_variable_choice,
-          factors = selected_factors_reactive(),
-          random_effects = input$random_effects_spec,
-          covariance_structure = input$covariance_structure
-        ),
-        status = "started"
-      )
-    }, ignoreInit = TRUE)
+
+        # Log model configuration
+        session_logger$model_fitting(
+          model_type = "mixed_effects_demand",
+          parameters = list(
+            model_choice = input$model_choice,
+            id_var = input$id_variable_choice,
+            x_var = input$x_variable_choice,
+            y_var = input$y_variable_choice,
+            factors = selected_factors_reactive(),
+            random_effects = input$random_effects_spec,
+            covariance_structure = input$covariance_structure
+          ),
+          status = "started"
+        )
+      },
+      ignoreInit = TRUE
+    )
 
     return(
       list(
