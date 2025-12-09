@@ -875,6 +875,12 @@ sidebar_server <- function(id, data_reactive) {
       )
     })
 
+    # =========================================================================
+    # Factor 1 Collapse UI - Separate toggles for Q0 and Alpha
+    # =========================================================================
+    # This design uses explicit checkboxes to opt-in to collapse for each
+
+    # parameter, avoiding NULL input issues from hidden conditionalPanel elements.
     output$collapse_factor1_ui <- shiny$renderUI({
       ns <- session$ns
       shiny$req(
@@ -885,64 +891,129 @@ sidebar_server <- function(id, data_reactive) {
       all_levels <- factor1_levels_reactive()
       shiny$req(all_levels)
 
+      # Helper to create collapse group inputs for a parameter
+      make_collapse_inputs <- function(prefix, param_label) {
+        shiny$tagList(
+          shiny$div(
+            style = "background: rgba(255,255,255,0.05); padding: 10px; border-radius: 5px; margin-top: 10px;",
+            shiny$h6(
+              paste(param_label, "Collapse Groups:"),
+              style = "font-weight: bold; margin-bottom: 10px;"
+            ),
+            shiny$textInput(
+              ns(paste0(prefix, "_group1_name")),
+              "Group 1 Name:",
+              placeholder = "e.g., Low"
+            ),
+            shiny$selectizeInput(
+              ns(paste0(prefix, "_group1_levels")),
+              "Levels for Group 1:",
+              choices = all_levels,
+              multiple = TRUE
+            ),
+            shiny$textInput(
+              ns(paste0(prefix, "_group2_name")),
+              "Group 2 Name:",
+              placeholder = "e.g., High"
+            ),
+            shiny$selectizeInput(
+              ns(paste0(prefix, "_group2_levels")),
+              "Levels for Group 2:",
+              choices = all_levels,
+              multiple = TRUE
+            )
+          )
+        )
+      }
+
       shiny$tagList(
-        shiny$p(paste("Collapsing levels for Factor:", input$factor1_choice)),
-        shiny$textInput(
-          ns("f1_group1_name"),
-          "Name for New Group 1:",
-          placeholder = "e.g., LowDose"
+        shiny$p(
+          shiny$strong(paste("Collapsing levels for:", input$factor1_choice)),
+          style = "margin-bottom: 10px;"
         ),
-        shiny$selectizeInput(
-          ns("f1_group1_levels"),
-          "Selected levels to collapse into Group 1:",
-          choices = all_levels,
-          multiple = TRUE
+        # Separate checkboxes for Q0 and Alpha collapse
+        shiny$checkboxInput(
+          ns("f1_collapse_q0"),
+          shiny$span("Collapse levels for Q0", style = "font-weight: 500;"),
+          value = FALSE
         ),
-        shiny$hr(style = "margin-top: 10px; margin-bottom: 10px;"),
-        shiny$textInput(
-          ns("f1_group2_name"),
-          "Name for New Group 2:",
-          placeholder = "e.g., HighDose"
+        shiny$conditionalPanel(
+          condition = sprintf("input['%s'] == true", ns("f1_collapse_q0")),
+          make_collapse_inputs("f1_q0", "Q0")
         ),
-        shiny$selectizeInput(
-          ns("f1_group2_levels"),
-          "Selected levels to collapse into Group 2:",
-          choices = all_levels,
-          multiple = TRUE
+        shiny$checkboxInput(
+          ns("f1_collapse_alpha"),
+          shiny$span("Collapse levels for Alpha", style = "font-weight: 500;"),
+          value = FALSE
+        ),
+        shiny$conditionalPanel(
+          condition = sprintf("input['%s'] == true", ns("f1_collapse_alpha")),
+          make_collapse_inputs("f1_alpha", "Alpha")
         )
       )
     })
 
-    # This observer is triggered ONLY when the selection for "New Group 1" changes.
-    # Its job is to update the choices and selection for "New Group 2" to prevent overlap.
-    shiny$observeEvent(
-      input$f1_group1_levels,
-      {
-        all_levels <- factor1_levels_reactive()
-        selected_g1 <- input$f1_group1_levels %||% character(0)
-        shiny$req(input$enable_collapse_factor1, all_levels)
+    # =========================================================================
+    # Factor 1 Overlap Prevention Observers
+    # =========================================================================
+    # These observers prevent selecting the same level in both Group 1 and Group 2
+    # by updating the available choices when one group's selection changes.
 
-        # Isolate the read of the other input to prevent a reactive feedback loop.
-        current_selected_g2 <- shiny$isolate(
-          input$f1_group2_levels %||% character(0)
-        )
-        # Determine what levels are still available for Group 2.
-        available_for_g2 <- setdiff(all_levels, selected_g1)
-        # Keep any of Group 2's previous selections that are still valid.
-        new_selected_g2 <- intersect(current_selected_g2, available_for_g2)
+    # Helper function to create overlap prevention observer
+    # (Defined inline to keep related code together)
+    make_overlap_observer <- function(
+      input_g1_id,
+      input_g2_id,
+      update_g2_id,
+      levels_reactive,
+      enable_input_id
+    ) {
+      shiny$observeEvent(
+        input[[input_g1_id]],
+        {
+          all_levels <- levels_reactive()
+          selected_g1 <- input[[input_g1_id]] %||% character(0)
+          shiny$req(input[[enable_input_id]], all_levels)
 
-        shiny$updateSelectizeInput(
-          session,
-          "f1_group2_levels",
-          choices = available_for_g2,
-          selected = new_selected_g2
-        )
-      },
-      ignoreNULL = FALSE,
-      ignoreInit = TRUE
+          current_selected_g2 <- shiny$isolate(
+            input[[input_g2_id]] %||% character(0)
+          )
+          available_for_g2 <- setdiff(all_levels, selected_g1)
+          new_selected_g2 <- intersect(current_selected_g2, available_for_g2)
+
+          shiny$updateSelectizeInput(
+            session,
+            update_g2_id,
+            choices = available_for_g2,
+            selected = new_selected_g2
+          )
+        },
+        ignoreNULL = FALSE,
+        ignoreInit = TRUE
+      )
+    }
+
+    # Factor 1 Q0 collapse: Group 1 selection updates Group 2 choices
+    make_overlap_observer(
+      "f1_q0_group1_levels",
+      "f1_q0_group2_levels",
+      "f1_q0_group2_levels",
+      factor1_levels_reactive,
+      "enable_collapse_factor1"
     )
 
-    # --- Factor 2 collapse UI and logic (mirrors Factor 1) ---
+    # Factor 1 Alpha collapse: Group 1 selection updates Group 2 choices
+    make_overlap_observer(
+      "f1_alpha_group1_levels",
+      "f1_alpha_group2_levels",
+      "f1_alpha_group2_levels",
+      factor1_levels_reactive,
+      "enable_collapse_factor1"
+    )
+
+    # =========================================================================
+    # Factor 2 Collapse UI - Separate toggles for Q0 and Alpha (mirrors Factor 1)
+    # =========================================================================
     output$collapse_factor2_ui <- shiny$renderUI({
       ns <- session$ns
       shiny$req(
@@ -953,231 +1024,296 @@ sidebar_server <- function(id, data_reactive) {
       all_levels <- factor2_levels_reactive()
       shiny$req(all_levels)
 
+      # Helper to create collapse group inputs for a parameter
+      make_collapse_inputs <- function(prefix, param_label) {
+        shiny$tagList(
+          shiny$div(
+            style = "background: rgba(255,255,255,0.05); padding: 10px; border-radius: 5px; margin-top: 10px;",
+            shiny$h6(
+              paste(param_label, "Collapse Groups:"),
+              style = "font-weight: bold; margin-bottom: 10px;"
+            ),
+            shiny$textInput(
+              ns(paste0(prefix, "_group1_name")),
+              "Group 1 Name:",
+              placeholder = "e.g., Low"
+            ),
+            shiny$selectizeInput(
+              ns(paste0(prefix, "_group1_levels")),
+              "Levels for Group 1:",
+              choices = all_levels,
+              multiple = TRUE
+            ),
+            shiny$textInput(
+              ns(paste0(prefix, "_group2_name")),
+              "Group 2 Name:",
+              placeholder = "e.g., High"
+            ),
+            shiny$selectizeInput(
+              ns(paste0(prefix, "_group2_levels")),
+              "Levels for Group 2:",
+              choices = all_levels,
+              multiple = TRUE
+            )
+          )
+        )
+      }
+
       shiny$tagList(
-        shiny$p(paste("Collapsing levels for Factor:", input$factor2_choice)),
-        shiny$textInput(
-          ns("f2_group1_name"),
-          "Name for New Group 1:",
-          placeholder = "e.g., LowDose"
+        shiny$p(
+          shiny$strong(paste("Collapsing levels for:", input$factor2_choice)),
+          style = "margin-bottom: 10px;"
         ),
-        shiny$selectizeInput(
-          ns("f2_group1_levels"),
-          "Selected levels to collapse into Group 1:",
-          choices = all_levels,
-          multiple = TRUE
+        # Separate checkboxes for Q0 and Alpha collapse
+        shiny$checkboxInput(
+          ns("f2_collapse_q0"),
+          shiny$span("Collapse levels for Q0", style = "font-weight: 500;"),
+          value = FALSE
         ),
-        shiny$hr(style = "margin-top: 10px; margin-bottom: 10px;"),
-        shiny$textInput(
-          ns("f2_group2_name"),
-          "Name for New Group 2:",
-          placeholder = "e.g., HighDose"
+        shiny$conditionalPanel(
+          condition = sprintf("input['%s'] == true", ns("f2_collapse_q0")),
+          make_collapse_inputs("f2_q0", "Q0")
         ),
-        shiny$selectizeInput(
-          ns("f2_group2_levels"),
-          "Selected levels to collapse into Group 2:",
-          choices = all_levels,
-          multiple = TRUE
+        shiny$checkboxInput(
+          ns("f2_collapse_alpha"),
+          shiny$span("Collapse levels for Alpha", style = "font-weight: 500;"),
+          value = FALSE
+        ),
+        shiny$conditionalPanel(
+          condition = sprintf("input['%s'] == true", ns("f2_collapse_alpha")),
+          make_collapse_inputs("f2_alpha", "Alpha")
         )
       )
     })
 
-    shiny$observeEvent(
-      input$f2_group1_levels,
-      {
-        all_levels <- factor2_levels_reactive()
-        selected_g1 <- input$f2_group1_levels %||% character(0)
-        shiny$req(input$enable_collapse_factor2, all_levels)
+    # =========================================================================
+    # Factor 2 Overlap Prevention Observers (using same helper as Factor 1)
+    # =========================================================================
 
-        current_selected_g2 <- shiny$isolate(
-          input$f2_group2_levels %||% character(0)
-        )
-        available_for_g2 <- setdiff(all_levels, selected_g1)
-        new_selected_g2 <- intersect(current_selected_g2, available_for_g2)
-
-        shiny$updateSelectizeInput(
-          session,
-          "f2_group2_levels",
-          choices = available_for_g2,
-          selected = new_selected_g2
-        )
-      },
-      ignoreNULL = FALSE,
-      ignoreInit = TRUE
+    # Factor 2 Q0 collapse: Group 1 selection updates Group 2 choices
+    make_overlap_observer(
+      "f2_q0_group1_levels",
+      "f2_q0_group2_levels",
+      "f2_q0_group2_levels",
+      factor2_levels_reactive,
+      "enable_collapse_factor2"
     )
 
-    shiny$observeEvent(
-      input$f2_group2_levels,
-      {
-        all_levels <- factor2_levels_reactive()
-        selected_g2 <- input$f2_group2_levels %||% character(0)
-        shiny$req(input$enable_collapse_factor2, all_levels)
-
-        current_selected_g1 <- shiny$isolate(
-          input$f2_group1_levels %||% character(0)
-        )
-
-        available_for_g1 <- setdiff(all_levels, selected_g2)
-        new_selected_g1 <- intersect(current_selected_g1, available_for_g1)
-
-        shiny$updateSelectizeInput(
-          session,
-          "f2_group1_levels",
-          choices = available_for_g1,
-          selected = new_selected_g1
-        )
-      },
-      ignoreNULL = FALSE,
-      ignoreInit = TRUE
+    # Factor 2 Alpha collapse: Group 1 selection updates Group 2 choices
+    make_overlap_observer(
+      "f2_alpha_group1_levels",
+      "f2_alpha_group2_levels",
+      "f2_alpha_group2_levels",
+      factor2_levels_reactive,
+      "enable_collapse_factor2"
     )
 
-    # This observer does the mirror image: triggered ONLY by "New Group 2" changes.
-    # It updates the choices and selection for "New Group 1".
-    shiny$observeEvent(
-      input$f1_group2_levels,
-      {
-        all_levels <- factor1_levels_reactive()
-        selected_g2 <- input$f1_group2_levels %||% character(0)
+    # =========================================================================
+    # Collapse Levels Reactive
+    # =========================================================================
+    # Processes user's collapse UI inputs into the nested list format required
+    # by beezdemand::fit_demand_mixed.
+    #
+    # NEW DESIGN: Uses explicit checkboxes (f1_collapse_q0, f1_collapse_alpha, etc.)
 
-        shiny$req(input$enable_collapse_factor1, all_levels)
+    # to opt-in to collapse for each parameter. This avoids NULL input issues
+    # from hidden conditionalPanel elements.
+    #
+    # Output format: list(Q0 = list(factor = list(...)), alpha = list(factor = list(...)))
 
-        current_selected_g1 <- shiny$isolate(
-          input$f1_group1_levels %||% character(0)
-        )
-
-        available_for_g1 <- setdiff(all_levels, selected_g2)
-        new_selected_g1 <- intersect(current_selected_g1, available_for_g1)
-
-        shiny$updateSelectizeInput(
-          session,
-          "f1_group1_levels",
-          choices = available_for_g1,
-          selected = new_selected_g1
-        )
-      },
-      ignoreNULL = FALSE,
-      ignoreInit = TRUE
-    )
-
-    # A reactive that processes the user's input from the collapse UI into the
-    # specific nested list format required by the `beezdemand::fit_demand_mixed` function.
-    # Also includes validation to prevent overlapping level assignments.
     parsed_collapse_levels_reactive <- shiny$reactive({
-      final_list <- list()
+      # -----------------------------------------------------------------------
+      # Helper: Build collapse mapping from group name/level inputs
+      # -----------------------------------------------------------------------
+      build_collapse_list <- function(g1_name, g1_levels, g2_name, g2_levels) {
+        collapse_list <- list()
+        if (!is.null(g1_name) && nzchar(g1_name) && length(g1_levels) > 0) {
+          collapse_list[[g1_name]] <- g1_levels
+        }
+        if (!is.null(g2_name) && nzchar(g2_name) && length(g2_levels) > 0) {
+          collapse_list[[g2_name]] <- g2_levels
+        }
+        if (length(collapse_list) == 0) {
+          return(NULL)
+        }
+        collapse_list
+      }
 
-      # Helper to validate and append for one factor
-      handle_factor <- function(
-        enable_flag,
+      # -----------------------------------------------------------------------
+      # Helper: Validate no overlap between group levels
+      # -----------------------------------------------------------------------
+      validate_no_overlap <- function(
+        g1_levels,
+        g2_levels,
+        factor_name,
+        param_label
+      ) {
+        if (length(g1_levels) > 0 && length(g2_levels) > 0) {
+          overlap <- intersect(g1_levels, g2_levels)
+          if (length(overlap) > 0) {
+            shiny$showNotification(
+              paste0(
+                "Overlap in ",
+                param_label,
+                " collapse for '",
+                factor_name,
+                "': ",
+                paste(overlap, collapse = ", ")
+              ),
+              type = "error",
+              duration = 7
+            )
+            return("ERROR_OVERLAP")
+          }
+        }
+        NULL
+      }
+
+      # -----------------------------------------------------------------------
+      # Helper: Process collapse for one parameter (Q0 or Alpha) of one factor
+      # -----------------------------------------------------------------------
+      # Returns: collapse mapping list, or NULL if not enabled/empty
+      process_param_collapse <- function(
+        collapse_enabled,
         factor_name,
         g1_name,
         g1_levels,
         g2_name,
         g2_levels,
-        all_levels
+        param_label
       ) {
-        if (
-          !enable_flag || is.null(factor_name) || factor_name %in% c("None", "")
-        ) {
+        # Guard: Only process if explicitly enabled via checkbox
+        if (!isTRUE(collapse_enabled)) {
           return(NULL)
         }
 
-        # If current levels are insufficient for collapsing UI (threshold 3), ignore
-        if (is.null(all_levels) || length(all_levels) < 3) {
-          return(NULL)
+        # Validate no overlap
+        err <- validate_no_overlap(
+          g1_levels,
+          g2_levels,
+          factor_name,
+          param_label
+        )
+        if (!is.null(err)) {
+          return(err)
         }
 
-        # Overlap validation
-        if (
-          length(g1_levels) > 0 &&
-            length(g2_levels) > 0 &&
-            length(intersect(g1_levels, g2_levels)) > 0
-        ) {
-          shiny$showNotification(
-            paste0(
-              "Overlap detected in selected levels for new groups for factor '",
-              factor_name,
-              "'. Please ensure unique selections."
-            ),
-            type = "error",
-            duration = 7
-          )
-          return("ERROR_OVERLAP")
-        }
-
-        collapse_list_for_factor <- list()
-        if (!is.null(g1_name) && g1_name != "" && length(g1_levels) > 0) {
-          collapse_list_for_factor[[g1_name]] <- g1_levels
-        }
-        if (!is.null(g2_name) && g2_name != "" && length(g2_levels) > 0) {
-          collapse_list_for_factor[[g2_name]] <- g2_levels
-        }
-
-        if (length(collapse_list_for_factor) == 0) {
-          return(NULL)
-        }
-
-        # Enforce at least two resulting levels after collapsing
-        assigned <- unique(c(
-          g1_levels %||% character(0),
-          g2_levels %||% character(0)
-        ))
-        remaining <- setdiff(all_levels %||% character(0), assigned)
-        num_new_groups <- length(collapse_list_for_factor)
-        num_result_levels <- num_new_groups + length(remaining)
-        if (num_result_levels < 2) {
-          shiny$showNotification(
-            paste0(
-              "Collapsing for factor '",
-              factor_name,
-              "' would result in a single level, which is not allowed."
-            ),
-            type = "error",
-            duration = 7
-          )
-          return("ERROR_SINGLE_LEVEL")
-        }
-
-        return(collapse_list_for_factor)
+        # Build and return the collapse mapping
+        build_collapse_list(g1_name, g1_levels, g2_name, g2_levels)
       }
 
-      # Factor 1
-      f1_res <- handle_factor(
-        enable_flag = isTRUE(input$enable_collapse_factor1),
-        factor_name = input$factor1_choice,
-        g1_name = trimws(input$f1_group1_name),
-        g1_levels = input$f1_group1_levels,
-        g2_name = trimws(input$f1_group2_name),
-        g2_levels = input$f1_group2_levels,
-        all_levels = tryCatch(factor1_levels_reactive(), error = function(...) {
-          NULL
-        })
-      )
-      if (is.character(f1_res)) {
-        return(f1_res)
-      }
-      if (is.list(f1_res)) {
-        final_list[[input$factor1_choice]] <- f1_res
+      # -----------------------------------------------------------------------
+      # Process Factor 1
+      # -----------------------------------------------------------------------
+      f1_name <- input$factor1_choice
+      f1_enabled <- isTRUE(input$enable_collapse_factor1) &&
+        !is.null(f1_name) &&
+        !f1_name %in% c("None", "")
+
+      f1_q0 <- NULL
+      f1_alpha <- NULL
+
+      if (f1_enabled) {
+        # Process Q0 collapse for Factor 1
+        f1_q0 <- process_param_collapse(
+          collapse_enabled = input$f1_collapse_q0,
+          factor_name = f1_name,
+          g1_name = trimws(input$f1_q0_group1_name %||% ""),
+          g1_levels = input$f1_q0_group1_levels,
+          g2_name = trimws(input$f1_q0_group2_name %||% ""),
+          g2_levels = input$f1_q0_group2_levels,
+          param_label = "Q0"
+        )
+        if (identical(f1_q0, "ERROR_OVERLAP")) {
+          return(f1_q0)
+        }
+
+        # Process Alpha collapse for Factor 1
+        f1_alpha <- process_param_collapse(
+          collapse_enabled = input$f1_collapse_alpha,
+          factor_name = f1_name,
+          g1_name = trimws(input$f1_alpha_group1_name %||% ""),
+          g1_levels = input$f1_alpha_group1_levels,
+          g2_name = trimws(input$f1_alpha_group2_name %||% ""),
+          g2_levels = input$f1_alpha_group2_levels,
+          param_label = "Alpha"
+        )
+        if (identical(f1_alpha, "ERROR_OVERLAP")) return(f1_alpha)
       }
 
-      # Factor 2
-      f2_res <- handle_factor(
-        enable_flag = isTRUE(input$enable_collapse_factor2),
-        factor_name = input$factor2_choice,
-        g1_name = trimws(input$f2_group1_name),
-        g1_levels = input$f2_group1_levels,
-        g2_name = trimws(input$f2_group2_name),
-        g2_levels = input$f2_group2_levels,
-        all_levels = tryCatch(factor2_levels_reactive(), error = function(...) {
-          NULL
-        })
-      )
-      if (is.character(f2_res)) {
-        return(f2_res)
-      }
-      if (is.list(f2_res)) {
-        final_list[[input$factor2_choice]] <- f2_res
+      # -----------------------------------------------------------------------
+      # Process Factor 2
+      # -----------------------------------------------------------------------
+      f2_name <- input$factor2_choice
+      f2_enabled <- isTRUE(input$enable_collapse_factor2) &&
+        !is.null(f2_name) &&
+        !f2_name %in% c("None", "")
+
+      f2_q0 <- NULL
+      f2_alpha <- NULL
+
+      if (f2_enabled) {
+        # Process Q0 collapse for Factor 2
+        f2_q0 <- process_param_collapse(
+          collapse_enabled = input$f2_collapse_q0,
+          factor_name = f2_name,
+          g1_name = trimws(input$f2_q0_group1_name %||% ""),
+          g1_levels = input$f2_q0_group1_levels,
+          g2_name = trimws(input$f2_q0_group2_name %||% ""),
+          g2_levels = input$f2_q0_group2_levels,
+          param_label = "Q0"
+        )
+        if (identical(f2_q0, "ERROR_OVERLAP")) {
+          return(f2_q0)
+        }
+
+        # Process Alpha collapse for Factor 2
+        f2_alpha <- process_param_collapse(
+          collapse_enabled = input$f2_collapse_alpha,
+          factor_name = f2_name,
+          g1_name = trimws(input$f2_alpha_group1_name %||% ""),
+          g1_levels = input$f2_alpha_group1_levels,
+          g2_name = trimws(input$f2_alpha_group2_name %||% ""),
+          g2_levels = input$f2_alpha_group2_levels,
+          param_label = "Alpha"
+        )
+        if (identical(f2_alpha, "ERROR_OVERLAP")) return(f2_alpha)
       }
 
-      if (length(final_list) > 0) final_list else NULL
+      # -----------------------------------------------------------------------
+      # Build final structure for beezdemand
+      # -----------------------------------------------------------------------
+      q0_collapse <- list()
+      alpha_collapse <- list()
+
+      if (!is.null(f1_q0) && f1_enabled) {
+        q0_collapse[[f1_name]] <- f1_q0
+      }
+      if (!is.null(f2_q0) && f2_enabled) {
+        q0_collapse[[f2_name]] <- f2_q0
+      }
+      if (!is.null(f1_alpha) && f1_enabled) {
+        alpha_collapse[[f1_name]] <- f1_alpha
+      }
+      if (!is.null(f2_alpha) && f2_enabled) {
+        alpha_collapse[[f2_name]] <- f2_alpha
+      }
+
+      # Return NULL if nothing to collapse
+      if (length(q0_collapse) == 0 && length(alpha_collapse) == 0) {
+        return(NULL)
+      }
+
+      # Build final list
+      final_list <- list()
+      if (length(q0_collapse) > 0) {
+        final_list$Q0 <- q0_collapse
+      }
+      if (length(alpha_collapse) > 0) {
+        final_list$alpha <- alpha_collapse
+      }
+
+      final_list
     })
 
     # --- Advanced fitting controls: presets, clamping, and reactive export ---
@@ -1500,7 +1636,16 @@ navpanel_ui <- function(id) {
       ),
       bslib$nav_panel(
         title = "EMMs & EV",
-        DT$DTOutput(ns("emms_ev_table"))
+        shiny$div(
+          shiny$h4("Q0 Estimates"),
+          DT$DTOutput(ns("emms_q0_table")),
+          shiny$hr(),
+          shiny$h4("Alpha Estimates"),
+          DT$DTOutput(ns("emms_alpha_table")),
+          shiny$hr(),
+          shiny$h4("Essential Value (EV)"),
+          DT$DTOutput(ns("emms_ev_table"))
+        )
       ),
       bslib$nav_panel(
         title = "Pairwise Comparisons",
@@ -1640,11 +1785,6 @@ navpanel_ui <- function(id) {
 navpanel_server <- function(id, sidebar_reactives) {
   shiny$moduleServer(id, function(input, output, session) {
     ns <- session$ns
-    # Debug flag: read from R option or environment variable
-    is_debug <- isTRUE(getOption(
-      "shinybeez.debug",
-      as.logical(Sys.getenv("SHINYBEEZ_DEBUG", "0"))
-    ))
 
     # Helper: build transformed covariate column and compute 'at' list
     # Uses covariate controls from sidebar_reactives so the function is local to this module
@@ -1920,7 +2060,6 @@ navpanel_server <- function(id, sidebar_reactives) {
       shiny$req(df_processed, "y_for_model" %in% names(df_processed))
 
       factors <- sidebar_reactives$selected_factors()
-      # browser()
       x_var_sel <- sidebar_reactives$x_var()
       shiny$req(x_var_sel)
 
@@ -2209,8 +2348,6 @@ navpanel_server <- function(id, sidebar_reactives) {
           " ~ 1"
         ))
 
-        # browser()
-        # ## TODO: FIXME this logic so that it works when transforming
         # Read the y-scale flag prepared in data_to_analyze()
         y_is_ll4 <- isTRUE(attr(df, "y_is_ll4"))
 
@@ -2265,6 +2402,8 @@ navpanel_server <- function(id, sidebar_reactives) {
         )
 
         current_collapse_levels <- sidebar_reactives$collapse_levels_reactive()
+
+        # Check for invalid collapse definitions
         if (
           identical(current_collapse_levels, "ERROR_OVERLAP") ||
             identical(current_collapse_levels, "ERROR_SINGLE_LEVEL")
@@ -2282,10 +2421,7 @@ navpanel_server <- function(id, sidebar_reactives) {
           type = "message",
           duration = NULL
         )
-        # browser()
-        if (is_debug) {
-          print(random_effects_formula_to_pass)
-        }
+
         # Prepare covariate info for modeling (ensures transformed column exists)
         cov_info <- build_covariate_modeling_info(df)
         cont_covars_to_pass <- cov_info$model_covariate_name
@@ -2497,24 +2633,25 @@ navpanel_server <- function(id, sidebar_reactives) {
       )
     })
 
-    # EMMs and EV
-    output$emms_ev_table <- DT$renderDT({
+    # EMMs and EV - Shared reactive for EMM data
+    emms_data_reactive <- shiny$reactive({
       model_fit <- fitted_model_reactive()
       shiny$req(model_fit, model_fit$model)
-      sel_factors <- setdiff(
-        sidebar_reactives$selected_factors(),
-        "None"
-      )
-      if (is.null(sel_factors) || length(sel_factors) == 0) {
-        sel_factors <- NULL
+
+      # Use the model's actual factors (handles asymmetric collapse where
+      # Q0 and alpha may have different factor structures)
+      model_factors <- model_fit$param_info$factors
+      if (is.null(model_factors) || length(model_factors) == 0) {
+        model_factors <- NULL
       }
+
       # Build 'at' for covariate conditioning
       df_now <- data_to_analyze()
       cov_info <- build_covariate_modeling_info(df_now)
       emms_data <- tryCatch(
         beezdemand$get_observed_demand_param_emms(
           fit_obj = model_fit,
-          factors_in_emm = sel_factors, # Use selected factors
+          factors_in_emm = model_factors,
           at = cov_info$at_list,
           include_ev = TRUE,
           ci_level = 0.95
@@ -2527,10 +2664,116 @@ navpanel_server <- function(id, sidebar_reactives) {
           NULL
         }
       )
+      emms_data
+    })
+
+    # Q0 Estimates Table
+    output$emms_q0_table <- DT$renderDT({
+      emms_data <- emms_data_reactive()
       shiny$req(emms_data)
+
+      if (nrow(emms_data) == 0) {
+        return(DT$datatable(
+          data.frame(Message = "No Q0 EMMs available"),
+          rownames = FALSE,
+          options = list(dom = "t")
+        ))
+      }
+
+      # Select Q0-related columns: factor columns + Q0 columns
+      # Get factor columns (non-numeric, excluding alpha-specific factor columns)
+      factor_cols <- names(emms_data)[!sapply(emms_data, is.numeric)]
+      # For Q0 table, use original factor name (not _alpha suffix)
+      q0_factor_cols <- factor_cols[!grepl("_alpha$", factor_cols)]
+
+      q0_cols <- names(emms_data)[grepl("Q0", names(emms_data))]
+      q0_table_cols <- c(q0_factor_cols, q0_cols)
+      q0_table_cols <- intersect(q0_table_cols, names(emms_data))
+
+      q0_data <- emms_data[, q0_table_cols, drop = FALSE]
+      # Remove duplicate rows (since alpha levels create duplicates for Q0)
+      q0_data <- dplyr$distinct(q0_data)
+
+      DT$datatable(
+        dplyr$mutate(q0_data, dplyr$across(where(is.numeric), ~ round(., 4))),
+        rownames = FALSE,
+        extensions = c("Buttons"),
+        options = list(
+          scrollX = TRUE,
+          pageLength = 10,
+          dom = "Btip",
+          buttons = list(
+            list(extend = "copy"),
+            list(extend = "print"),
+            list(
+              extend = "csv",
+              filename = "ShinyBeez_MixedEffects_Q0_EMMs",
+              title = NULL
+            ),
+            list(
+              extend = "excel",
+              filename = "ShinyBeez_MixedEffects_Q0_EMMs",
+              title = NULL
+            ),
+            list(
+              extend = "pdf",
+              filename = "ShinyBeez_MixedEffects_Q0_EMMs",
+              title = NULL
+            )
+          )
+        )
+      )
+    })
+
+    # Alpha Estimates Table
+    output$emms_alpha_table <- DT$renderDT({
+      emms_data <- emms_data_reactive()
+      shiny$req(emms_data)
+
+      if (nrow(emms_data) == 0) {
+        return(DT$datatable(
+          data.frame(Message = "No Alpha EMMs available"),
+          rownames = FALSE,
+          options = list(dom = "t")
+        ))
+      }
+
+      # Select alpha-related columns: factor columns + alpha columns
+      factor_cols <- names(emms_data)[!sapply(emms_data, is.numeric)]
+
+      # For alpha table, we need:
+      # 1. Columns ending with _alpha (collapsed factors like dose_alpha)
+      # 2. Original factor columns that weren't collapsed (like drug)
+      alpha_suffix_cols <- factor_cols[grepl("_alpha$", factor_cols)]
+
+      if (length(alpha_suffix_cols) == 0) {
+        # No differential collapse - use all original factor columns
+        alpha_factor_cols <- factor_cols
+      } else {
+        # Get original factor names that were collapsed (e.g., "dose" from "dose_alpha")
+        collapsed_original_names <- sub("_alpha$", "", alpha_suffix_cols)
+        # Get uncollapsed factor columns (not ending in _alpha AND not the original of a collapsed factor)
+        uncollapsed_factor_cols <- factor_cols[
+          !factor_cols %in% collapsed_original_names &
+            !grepl("_alpha$", factor_cols)
+        ]
+        # Combine: collapsed + uncollapsed
+        alpha_factor_cols <- c(alpha_suffix_cols, uncollapsed_factor_cols)
+      }
+
+      alpha_cols <- names(emms_data)[
+        grepl("alpha", names(emms_data)) & !grepl("_alpha$", names(emms_data))
+      ]
+      alpha_table_cols <- c(alpha_factor_cols, alpha_cols)
+      alpha_table_cols <- intersect(alpha_table_cols, names(emms_data))
+
+      alpha_data <- emms_data[, alpha_table_cols, drop = FALSE]
+      # Remove duplicate rows (since Q0 levels create duplicates for alpha)
+      alpha_data <- dplyr$distinct(alpha_data)
+
       DT$datatable(
         dplyr$mutate(
-          emms_data,
+          alpha_data,
           dplyr$across(
             where(is.numeric) & !contains("alpha_natural"),
             ~ round(., 4)
@@ -2551,17 +2794,94 @@ navpanel_server <- function(id, sidebar_reactives) {
             list(extend = "print"),
             list(
               extend = "csv",
-              filename = "ShinyBeez_MixedEffects_EMMs_EV",
+              filename = "ShinyBeez_MixedEffects_Alpha_EMMs",
               title = NULL
             ),
             list(
               extend = "excel",
-              filename = "ShinyBeez_MixedEffects_EMMs_EV",
+              filename = "ShinyBeez_MixedEffects_Alpha_EMMs",
               title = NULL
             ),
             list(
               extend = "pdf",
-              filename = "ShinyBeez_MixedEffects_EMMs_EV",
+              filename = "ShinyBeez_MixedEffects_Alpha_EMMs",
+              title = NULL
+            )
+          )
+        )
+      )
+    })
+
+    # Essential Value (EV) Table
+    output$emms_ev_table <- DT$renderDT({
+      emms_data <- emms_data_reactive()
+      shiny$req(emms_data)
+
+      if (
+        nrow(emms_data) == 0 || !any(grepl("^EV$|^EV_|_EV$", names(emms_data)))
+      ) {
+        return(DT$datatable(
+          data.frame(Message = "No EV estimates available"),
+          rownames = FALSE,
+          options = list(dom = "t")
+        ))
+      }
+
+      # Select EV-related columns: factor columns + EV columns
+      factor_cols <- names(emms_data)[!sapply(emms_data, is.numeric)]
+
+      # For EV (derived from alpha), we need:
+      # 1. Columns ending with _alpha (collapsed factors like dose_alpha)
+      # 2. Original factor columns that weren't collapsed (like drug)
+      alpha_suffix_cols <- factor_cols[grepl("_alpha$", factor_cols)]
+
+      if (length(alpha_suffix_cols) == 0) {
+        # No differential collapse - use all original factor columns
+        ev_factor_cols <- factor_cols
+      } else {
+        # Get original factor names that were collapsed (e.g., "dose" from "dose_alpha")
+        collapsed_original_names <- sub("_alpha$", "", alpha_suffix_cols)
+        # Get uncollapsed factor columns (not ending in _alpha AND not the original of a collapsed factor)
+        uncollapsed_factor_cols <- factor_cols[
+          !factor_cols %in% collapsed_original_names &
+            !grepl("_alpha$", factor_cols)
+        ]
+        # Combine: collapsed + uncollapsed
+        ev_factor_cols <- c(alpha_suffix_cols, uncollapsed_factor_cols)
+      }
+
+      ev_cols <- names(emms_data)[grepl("EV", names(emms_data))]
+      ev_table_cols <- c(ev_factor_cols, ev_cols)
+      ev_table_cols <- intersect(ev_table_cols, names(emms_data))
+
+      ev_data <- emms_data[, ev_table_cols, drop = FALSE]
+      # Remove duplicate rows
+      ev_data <- dplyr$distinct(ev_data)
+
+      DT$datatable(
+        dplyr$mutate(ev_data, dplyr$across(where(is.numeric), ~ round(., 4))),
+        rownames = FALSE,
+        extensions = c("Buttons"),
+        options = list(
+          scrollX = TRUE,
+          pageLength = 10,
+          dom = "Btip",
+          buttons = list(
+            list(extend = "copy"),
+            list(extend = "print"),
+            list(
+              extend = "csv",
+              filename = "ShinyBeez_MixedEffects_EV",
+              title = NULL
+            ),
+            list(
+              extend = "excel",
+              filename = "ShinyBeez_MixedEffects_EV",
+              title = NULL
+            ),
+            list(
+              extend = "pdf",
+              filename = "ShinyBeez_MixedEffects_EV",
               title = NULL
             )
           )
@@ -2570,30 +2890,39 @@ navpanel_server <- function(id, sidebar_reactives) {
     })
 
     # Populate factor selectors for comparisons
+    # Use the model's actual factors (handles asymmetric collapse)
     shiny$observe({
       model_fit <- fitted_model_reactive()
       shiny$req(model_fit, model_fit$model)
-      sel_factors <- setdiff(
-        sidebar_reactives$selected_factors(),
-        "None"
-      )
+
+      # Get factors from the fitted model - source of truth for comparisons
+      model_factors <- model_fit$param_info$factors
+      if (is.null(model_factors)) {
+        model_factors <- character(0)
+      }
 
       output$comparison_factor_selector_ui <- shiny$renderUI({
-        shiny$req(length(sel_factors) > 0)
+        if (length(model_factors) == 0) {
+          return(shiny$helpText(
+            "No factors available for comparison (intercept-only model)."
+          ))
+        }
         shiny$selectInput(
           ns("comparison_factor"),
           "Compare levels of:",
-          choices = sel_factors,
-          selected = sel_factors[1]
+          choices = model_factors,
+          selected = model_factors[1]
         )
       })
 
       output$contrast_by_selector_ui <- shiny$renderUI({
-        shiny$req(length(sel_factors) > 1)
+        if (length(model_factors) <= 1) {
+          return(NULL)
+        }
         main_comparison_factor <- input$comparison_factor
         shiny$req(main_comparison_factor)
 
-        other_factors <- setdiff(sel_factors, main_comparison_factor)
+        other_factors <- setdiff(model_factors, main_comparison_factor)
         if (length(other_factors) == 0) {
           return(NULL)
         }
@@ -2610,13 +2939,31 @@ navpanel_server <- function(id, sidebar_reactives) {
     # Pairwise Comparisons
     comparisons_reactive <- shiny$reactive({
       model_fit <- fitted_model_reactive()
-      shiny$req(model_fit, model_fit$model, input$comparison_factor)
+      shiny$req(model_fit, model_fit$model)
 
+      # Check if model has any factors to compare
+      model_factors <- model_fit$param_info$factors
+      if (is.null(model_factors) || length(model_factors) == 0) {
+        # Intercept-only model - return NULL (no comparisons possible)
+        return(NULL)
+      }
+
+      # Require a valid comparison factor selection
       main_factor <- input$comparison_factor
+      if (
+        is.null(main_factor) ||
+          !nzchar(main_factor) ||
+          !(main_factor %in% model_factors)
+      ) {
+        return(NULL)
+      }
+
       by_factor <- input$contrast_by_factor
 
       specs_str <- main_factor
-      if (!is.null(by_factor) && by_factor != "") {
+      if (
+        !is.null(by_factor) && nzchar(by_factor) && by_factor %in% model_factors
+      ) {
         specs_str <- paste(main_factor, "*", by_factor)
       }
 
@@ -2624,7 +2971,9 @@ navpanel_server <- function(id, sidebar_reactives) {
       # The primary factor for pairwise comparison is implicitly handled by `emmeans`
       # when `specs` defines the interaction.
 
-      contrast_by_arg <- if (!is.null(by_factor) && by_factor != "") {
+      contrast_by_arg <- if (
+        !is.null(by_factor) && nzchar(by_factor) && by_factor %in% model_factors
+      ) {
         by_factor
       } else {
         NULL
@@ -2639,7 +2988,7 @@ navpanel_server <- function(id, sidebar_reactives) {
           fit_obj = model_fit,
           params_to_compare = c("Q0", "alpha"),
           compare_specs = stats$as.formula(paste("~", specs_str)),
-          contrast_by = contrast_by_arg, # Compare `main_factor` within levels of `by_factor`
+          contrast_by = contrast_by_arg,
           at = cov_info$at_list,
           adjust = input$comparison_adjust_method,
           report_ratios = TRUE
@@ -2669,19 +3018,23 @@ navpanel_server <- function(id, sidebar_reactives) {
     output$comparisons_q0_table <- DT$renderDT({
       comps <- comparisons_reactive()
       shiny$req(comps, comps$Q0)
-      display_data <- if (input$comparison_display_type == "ratio") {
-        shiny$req(comps$Q0$contrasts_ratio)
-        dplyr$mutate(
-          comps$Q0$contrasts_ratio,
-          dplyr$across(where(is.numeric), ~ round(., 4))
-        )
+
+      # Get the appropriate data based on display type
+      raw_data <- if (input$comparison_display_type == "ratio") {
+        comps$Q0$contrasts_ratio
       } else {
-        shiny$req(comps$Q0$contrasts_log10)
-        dplyr$mutate(
-          comps$Q0$contrasts_log10,
-          dplyr$across(where(is.numeric), ~ round(., 4))
-        )
+        comps$Q0$contrasts_log10
       }
+
+      # Handle empty or NULL data
+      if (is.null(raw_data) || nrow(raw_data) == 0) {
+        return(NULL)
+      }
+
+      display_data <- dplyr$mutate(
+        raw_data,
+        dplyr$across(where(is.numeric), ~ round(., 4))
+      )
 
       caption_text <- if (input$comparison_display_type == "ratio") {
         "Pairwise Comparisons for Q0 (Natural Scale Ratios)"
@@ -2730,56 +3083,85 @@ navpanel_server <- function(id, sidebar_reactives) {
     # Conditional UI for Q0 Comparisons
     output$comparisons_q0_ui <- shiny$renderUI({
       comps <- comparisons_reactive()
-      if (!is.null(comps) && !is.null(comps$Q0)) {
-        display_data <- if (input$comparison_display_type == "ratio") {
-          comps$Q0$contrasts_ratio
-        } else {
-          comps$Q0$contrasts_log10
-        }
-        if (!is.null(display_data) && nrow(display_data) > 0) {
-          shiny$tagList(
-            shiny$h4("Q0 Comparisons"),
-            DT$DTOutput(ns("comparisons_q0_table"))
-          )
-        }
+      if (is.null(comps) || is.null(comps$Q0)) {
+        return(NULL)
       }
+
+      display_data <- if (input$comparison_display_type == "ratio") {
+        comps$Q0$contrasts_ratio
+      } else {
+        comps$Q0$contrasts_log10
+      }
+
+      # Handle empty comparisons (intercept-only for Q0 due to collapse)
+      if (is.null(display_data) || nrow(display_data) == 0) {
+        return(shiny$tagList(
+          shiny$h4("Q0 Comparisons"),
+          shiny$helpText(
+            shiny$em(
+              "No Q0 comparisons available (Q0 may be intercept-only due to collapsed levels)."
+            )
+          )
+        ))
+      }
+
+      shiny$tagList(
+        shiny$h4("Q0 Comparisons"),
+        DT$DTOutput(ns("comparisons_q0_table"))
+      )
     })
 
     # Conditional UI for Alpha Comparisons
     output$comparisons_alpha_ui <- shiny$renderUI({
       comps <- comparisons_reactive()
-      if (!is.null(comps) && !is.null(comps$alpha)) {
-        display_data <- if (input$comparison_display_type == "ratio") {
-          comps$alpha$contrasts_ratio
-        } else {
-          comps$alpha$contrasts_log10
-        }
-        if (!is.null(display_data) && nrow(display_data) > 0) {
-          shiny$tagList(
-            shiny$h4("Alpha Comparisons"),
-            DT$DTOutput(ns("comparisons_alpha_table"))
-          )
-        }
+      if (is.null(comps) || is.null(comps$alpha)) {
+        return(NULL)
       }
+
+      display_data <- if (input$comparison_display_type == "ratio") {
+        comps$alpha$contrasts_ratio
+      } else {
+        comps$alpha$contrasts_log10
+      }
+
+      # Handle empty comparisons (intercept-only for alpha due to collapse)
+      if (is.null(display_data) || nrow(display_data) == 0) {
+        return(shiny$tagList(
+          shiny$h4("Alpha Comparisons"),
+          shiny$helpText(
+            shiny$em(
+              "No alpha comparisons available (alpha may be intercept-only due to collapsed levels)."
+            )
+          )
+        ))
+      }
+
+      shiny$tagList(
+        shiny$h4("Alpha Comparisons"),
+        DT$DTOutput(ns("comparisons_alpha_table"))
+      )
     })
 
     output$comparisons_alpha_table <- DT$renderDT({
       comps <- comparisons_reactive()
       shiny$req(comps, comps$alpha)
 
-      display_data <- if (input$comparison_display_type == "ratio") {
-        shiny$req(comps$alpha$contrasts_ratio)
-        dplyr$mutate(
-          comps$alpha$contrasts_ratio,
-          dplyr$across(where(is.numeric), ~ round(., 4))
-        )
+      # Get the appropriate data based on display type
+      raw_data <- if (input$comparison_display_type == "ratio") {
+        comps$alpha$contrasts_ratio
       } else {
-        shiny$req(comps$alpha$contrasts_log10)
-        dplyr$mutate(
-          comps$alpha$contrasts_log10,
-          dplyr$across(where(is.numeric), ~ round(., 4))
-        )
+        comps$alpha$contrasts_log10
       }
+
+      # Handle empty or NULL data
+      if (is.null(raw_data) || nrow(raw_data) == 0) {
+        return(NULL)
+      }
+
+      display_data <- dplyr$mutate(
+        raw_data,
+        dplyr$across(where(is.numeric), ~ round(., 4))
+      )
 
       caption_text <- if (input$comparison_display_type == "ratio") {
         "Pairwise Comparisons for Alpha (Natural Scale Ratios)"
@@ -3027,19 +3409,7 @@ navpanel_server <- function(id, sidebar_reactives) {
       } else {
         show_lines_arg <- FALSE
       }
-      # browser()
-      if (is_debug) {
-        print(
-          list(
-            plot_color = plot_color,
-            plot_linetype = plot_linetype,
-            plot_facet_str = plot_facet_str,
-            show_lines_arg = show_lines_arg,
-            current_y_trans = current_y_trans,
-            current_x_trans = current_x_trans
-          )
-        )
-      }
+
       # Build 'at' for covariate conditioning in plot
       df_now <- data_to_analyze()
       cov_info <- build_covariate_modeling_info(df_now)
