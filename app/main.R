@@ -46,13 +46,16 @@ ui <- function(id) {
       ),
       # Add telemetry JavaScript if enabled
       if (telemetry_utils$is_telemetry_enabled()) {
-        tryCatch({
-          shiny.telemetry::use_telemetry()
-        }, error = function(e) {
-          # Gracefully handle if shiny.telemetry is not available
-          rhino$log$warn("Could not initialize telemetry UI: {e$message}")
-          NULL
-        })
+        tryCatch(
+          {
+            shiny.telemetry::use_telemetry()
+          },
+          error = function(e) {
+            # Gracefully handle if shiny.telemetry is not available
+            rhino$log$warn("Could not initialize telemetry UI: {e$message}")
+            NULL
+          }
+        )
       }
     ),
     # header = shiny$tags$head(
@@ -129,48 +132,58 @@ server <- function(id) {
 
     # Initialize telemetry session tracking
     if (telemetry_utils$is_telemetry_enabled()) {
-      tryCatch({
-        telemetry <- telemetry_utils$get_telemetry()
-        if (!is.null(telemetry)) {
-          telemetry$start_session()
+      tryCatch(
+        {
+          telemetry <- telemetry_utils$get_telemetry()
+          if (!is.null(telemetry)) {
+            telemetry$start_session()
+          }
+        },
+        error = function(e) {
+          session_logger$warn("Failed to start telemetry session: {e$message}")
         }
-      }, error = function(e) {
-        session_logger$warn("Failed to start telemetry session: {e$message}")
-      })
+      )
     }
 
     # Log session start
     session_logger$info("New user session started", "session_lifecycle")
     session_logger$user_activity("Session initialized", module = "main")
-    
+
     # Track session start in telemetry
-    session_telemetry$track_event("session_start", list(
-      user_agent = session$clientData$user_agent,
-      url = session$clientData$url_hostname,
-      screen_width = session$clientData$pixelratio
-    ))
+    session_telemetry$track_event(
+      "session_start",
+      list(
+        user_agent = session$clientData$user_agent,
+        url = session$clientData$url_hostname,
+        screen_width = session$clientData$pixelratio
+      )
+    )
 
     # Initialize reactive data storage
     session$userData$data <- shiny$reactiveValues()
 
-    # Track navigation changes
-    shiny$observeEvent(
-      input$nav,
-      {
-        if (!is.null(input$nav)) {
+    # Track navigation changes (log initial tab and all subsequent changes)
+    # Note: nav input is non-namespaced at root level, access via rootScope
+    shiny$observe({
+      # Access root session's input for non-namespaced navbar
+      root_session <- session$rootScope()
+      nav_value <- root_session$input$nav
+
+      if (!is.null(nav_value)) {
+        # Use isolate to prevent infinite loop, but trigger on nav change
+        shiny$isolate({
           session_logger$user_activity(
-            action = paste("Navigated to tab:", input$nav),
+            action = paste("Navigated to tab:", nav_value),
             input_id = "nav",
-            input_value = input$nav,
+            input_value = nav_value,
             module = "main"
           )
-          
+
           # Track navigation in telemetry
-          session_telemetry$track_navigation(input$nav)
-        }
-      },
-      ignoreInit = TRUE
-    )
+          session_telemetry$track_navigation(nav_value)
+        })
+      }
+    })
 
     # Initialize modules with error handling and logging
     tryCatch(
@@ -275,12 +288,19 @@ server <- function(id) {
     session$onSessionEnded(function() {
       session_logger$info("User session ended", "session_lifecycle")
       session_logger$user_activity("Session terminated", module = "main")
-      
+
       # Track session end in telemetry
-      session_telemetry$track_event("session_end", list(
-        session_duration = difftime(Sys.time(), session$startTime, units = "secs")
-      ))
-      
+      session_telemetry$track_event(
+        "session_end",
+        list(
+          session_duration = difftime(
+            Sys.time(),
+            session$startTime,
+            units = "secs"
+          )
+        )
+      )
+
       rhino$log$info("Session stopped: {session$token}")
     })
   })

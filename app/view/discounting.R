@@ -6,6 +6,7 @@ box::use(
 
 box::use(
   app / logic / validate,
+  app / logic / logging_utils,
   app / view / discounting_data_table,
   app / view / discounting_results_table,
   app / view / file_input,
@@ -50,10 +51,24 @@ sidebar_server <- function(id) {
   shiny$moduleServer(id, function(input, output, session) {
     ns <- session$ns
 
+    # Create session-specific logger
+    session_logger <- logging_utils$create_session_logger(session)
+    session_logger$info("Discounting sidebar module initialized", "module_init")
+
     file_input$server(
       "discounting",
       type = "discounting"
     )
+
+    # Log when user initiates calculation
+    shiny$observeEvent(input$calculate_discounting, {
+      session_logger$user_activity(
+        action = "Discounting calculation initiated",
+        input_id = "calculate_discounting",
+        input_value = input$calc_discounting,
+        module = "discounting"
+      )
+    })
 
     shiny$observe({
       shiny$req(session$userData$data$discounting)
@@ -180,6 +195,9 @@ navpanel_ui <- function(id) {
 navpanel_server <- function(id) {
   shiny$moduleServer(id, function(input, output, session) {
     ns <- session$ns
+
+    # Create session-specific logger
+    session_logger <- logging_utils$create_session_logger(session)
 
     data_r <- shiny$reactiveValues(data_d = NULL)
 

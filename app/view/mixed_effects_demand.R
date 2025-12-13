@@ -1786,6 +1786,9 @@ navpanel_server <- function(id, sidebar_reactives) {
   shiny$moduleServer(id, function(input, output, session) {
     ns <- session$ns
 
+    # Create session-specific logger for navpanel
+    session_logger <- logging_utils$create_session_logger(session)
+
     # Helper: build transformed covariate column and compute 'at' list
     # Uses covariate controls from sidebar_reactives so the function is local to this module
     build_covariate_modeling_info <- function(df_in) {
@@ -2426,6 +2429,9 @@ navpanel_server <- function(id, sidebar_reactives) {
         cov_info <- build_covariate_modeling_info(df)
         cont_covars_to_pass <- cov_info$model_covariate_name
 
+        # Track model fitting start time for performance logging
+        model_start_time <- Sys.time()
+
         model_fit <- tryCatch(
           {
             beezdemand$fit_demand_mixed(
@@ -2452,6 +2458,16 @@ navpanel_server <- function(id, sidebar_reactives) {
               type = "error",
               duration = NULL
             )
+            # Log model fitting failure
+            session_logger$model_fitting(
+              model_type = "mixed_effects_demand",
+              parameters = list(
+                equation = sidebar_reactives$equation_form(),
+                factors = sel_factors
+              ),
+              status = "failed",
+              metrics = list(error = e$message)
+            )
             NULL
           }
         )
@@ -2462,11 +2478,49 @@ navpanel_server <- function(id, sidebar_reactives) {
             "Model fitting failed or did not converge.",
             type = "error"
           )
+          # Log convergence failure
+          session_logger$model_fitting(
+            model_type = "mixed_effects_demand",
+            parameters = list(
+              equation = sidebar_reactives$equation_form(),
+              factors = sel_factors
+            ),
+            status = "failed",
+            metrics = list(error = "Model did not converge")
+          )
           return(NULL)
         }
 
         # Persist the scale info for plotting
         model_fit$param_info$y_is_ll4 <- y_is_ll4
+
+        # Calculate fitting duration and log success
+        model_duration_ms <- as.numeric(difftime(
+          Sys.time(),
+          model_start_time,
+          units = "secs"
+        )) *
+          1000
+        session_logger$model_fitting(
+          model_type = "mixed_effects_demand",
+          parameters = list(
+            equation = sidebar_reactives$equation_form(),
+            factors = sel_factors,
+            n_observations = nrow(df)
+          ),
+          status = "completed",
+          metrics = list(fitting_time_ms = round(model_duration_ms))
+        )
+
+        # Log performance if it took a while
+        session_logger$performance(
+          operation_name = "mixed_effects_model_fit",
+          duration_ms = round(model_duration_ms),
+          additional_metrics = list(
+            n_observations = nrow(df),
+            n_factors = length(sel_factors)
+          )
+        )
 
         shiny$removeNotification(notif_id)
         shiny$showNotification("Model fitting complete.", type = "message")

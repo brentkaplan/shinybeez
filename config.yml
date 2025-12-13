@@ -1,7 +1,7 @@
 default:
   rhino_log_level: !expr Sys.getenv("RHINO_LOG_LEVEL", "INFO")
   rhino_log_file: !expr Sys.getenv("RHINO_LOG_FILE", "logs/log.txt")
-  
+
   # Enhanced logging configuration
   logging:
     # Main application log
@@ -12,24 +12,27 @@ default:
     performance_log_file: !expr Sys.getenv("PERFORMANCE_LOG_FILE", "logs/performance.log")
     # User activity log
     activity_log_file: !expr Sys.getenv("ACTIVITY_LOG_FILE", "logs/activity.log")
-    
+
+    # Console logging (always enabled for Docker/shinyapps.io log capture)
+    log_to_console: !expr as.logical(Sys.getenv("LOG_TO_CONSOLE", "TRUE"))
+
     # Log levels for different environments
     development_log_level: "DEBUG"
     production_log_level: "INFO"
-    
+
     # Performance monitoring settings
     log_performance: !expr as.logical(Sys.getenv("LOG_PERFORMANCE", "TRUE"))
     performance_threshold_ms: !expr as.numeric(Sys.getenv("PERFORMANCE_THRESHOLD_MS", "1000"))
-  
+
   # Telemetry configuration
   telemetry:
     enabled: !expr as.logical(Sys.getenv("TELEMETRY_ENABLED", "TRUE"))
     storage_type: !expr Sys.getenv("TELEMETRY_STORAGE", "sqlite")  # sqlite, postgresql, mariadb
-    
+
     # SQLite configuration (for development/single instance)
     sqlite:
       db_path: !expr Sys.getenv("TELEMETRY_DB_PATH", "data/telemetry.sqlite")
-    
+
     # PostgreSQL configuration (for production/scaling)
     postgresql:
       host: !expr Sys.getenv("TELEMETRY_DB_HOST", "localhost")
@@ -37,10 +40,10 @@ default:
       dbname: !expr Sys.getenv("TELEMETRY_DB_NAME", "shinybeez_telemetry")
       user: !expr Sys.getenv("TELEMETRY_DB_USER", "postgres")
       password: !expr Sys.getenv("TELEMETRY_DB_PASSWORD", "")
-    
+
     # Data retention settings
     retention_days: !expr as.numeric(Sys.getenv("TELEMETRY_RETENTION_DAYS", "90"))
-    
+
     # Privacy settings
     track_inputs: !expr as.logical(Sys.getenv("TELEMETRY_TRACK_INPUTS", "FALSE"))  # Don't track input values by default
     anonymize_sessions: !expr as.logical(Sys.getenv("TELEMETRY_ANONYMIZE", "TRUE"))
@@ -48,17 +51,18 @@ default:
 development:
   rhino_log_level: !expr Sys.getenv("RHINO_LOG_LEVEL", "DEBUG")
   rhino_log_file: !expr Sys.getenv("RHINO_LOG_FILE", "logs/dev-log.txt")
-  
+
   logging:
     app_log_file: "logs/dev-app.log"
     error_log_file: "logs/dev-errors.log"
     performance_log_file: "logs/dev-performance.log"
     activity_log_file: "logs/dev-activity.log"
+    log_to_console: TRUE
     development_log_level: "DEBUG"
     production_log_level: "DEBUG"
     log_performance: TRUE
     performance_threshold_ms: 500
-  
+
   telemetry:
     enabled: TRUE
     storage_type: "sqlite"
@@ -71,7 +75,7 @@ development:
 production:
   rhino_log_level: !expr Sys.getenv("RHINO_LOG_LEVEL", "WARN")
   rhino_log_file: !expr Sys.getenv("RHINO_LOG_FILE", "logs/prod-log.txt")
-  
+
   logging:
     app_log_file: "logs/prod-app.log"
     error_log_file: "logs/prod-errors.log"
@@ -81,7 +85,7 @@ production:
     production_log_level: "WARN"
     log_performance: TRUE
     performance_threshold_ms: 2000
-  
+
   telemetry:
     enabled: TRUE
     storage_type: !expr Sys.getenv("TELEMETRY_STORAGE", "postgresql")  # Default to PostgreSQL in production
@@ -101,17 +105,18 @@ production:
 shinyapps:
   rhino_log_level: "INFO"
   rhino_log_file: NA  # shinyapps.io handles logging
-  
+
   logging:
-    app_log_file: NA  # Use shinyapps.io logging
+    app_log_file: NA  # Use shinyapps.io logging - no persistent files
     error_log_file: NA
     performance_log_file: NA
     activity_log_file: NA
+    log_to_console: TRUE  # All logs go to console for shinyapps.io capture
     development_log_level: "INFO"
     production_log_level: "INFO"
     log_performance: TRUE
     performance_threshold_ms: 3000  # Higher threshold for shared hosting
-  
+
   telemetry:
     enabled: !expr as.logical(Sys.getenv("TELEMETRY_ENABLED", "TRUE"))
     storage_type: "sqlite"  # SQLite for shinyapps.io simplicity
@@ -125,17 +130,18 @@ shinyapps:
 shinyproxy:
   rhino_log_level: !expr Sys.getenv("RHINO_LOG_LEVEL", "INFO")
   rhino_log_file: !expr Sys.getenv("RHINO_LOG_FILE", "/var/log/shiny/app.log")
-  
+
   logging:
     app_log_file: "/var/log/shiny/app.log"
     error_log_file: "/var/log/shiny/errors.log"
     performance_log_file: "/var/log/shiny/performance.log"
     activity_log_file: "/var/log/shiny/activity.log"
+    log_to_console: TRUE  # Also log to console for docker logs
     development_log_level: "INFO"
     production_log_level: "INFO"
     log_performance: TRUE
     performance_threshold_ms: 2000
-  
+
   telemetry:
     enabled: !expr as.logical(Sys.getenv("TELEMETRY_ENABLED", "TRUE"))
     storage_type: !expr Sys.getenv("TELEMETRY_STORAGE", "postgresql")

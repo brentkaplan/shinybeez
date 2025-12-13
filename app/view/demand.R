@@ -6,6 +6,7 @@ box::use(
 
 box::use(
   app / logic / validate,
+  app / logic / logging_utils,
   app / view / demand_data_table,
   app / view / demand_results_table,
   app / view / file_input,
@@ -108,6 +109,10 @@ sidebar_server <- function(id) {
   shiny$moduleServer(id, function(input, output, session) {
     ns <- session$ns
 
+    # Create session-specific logger
+    session_logger <- logging_utils$create_session_logger(session)
+    session_logger$info("Demand sidebar module initialized", "module_init")
+
     file_input$server("upload_demand", type = "demand")
 
     # v2 feature
@@ -188,6 +193,16 @@ sidebar_server <- function(id) {
         class = "btn-primary w-100"
       )
     })
+
+    # Log when user initiates calculation
+    shiny$observeEvent(input$calculate_demand, {
+      session_logger$user_activity(
+        action = "Demand model calculation initiated",
+        input_id = "calculate_demand",
+        input_value = input$analysis_type,
+        module = "demand"
+      )
+    })
   })
 }
 
@@ -209,6 +224,9 @@ navpanel_ui <- function(id) {
 navpanel_server <- function(id) {
   shiny$moduleServer(id, function(input, output, session) {
     ns <- session$ns
+
+    # Create session-specific logger
+    session_logger <- logging_utils$create_session_logger(session)
 
     data_r <- shiny$reactiveValues(data_d = NULL)
 
