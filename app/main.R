@@ -32,18 +32,42 @@ ui <- function(id) {
     category = "app_lifecycle"
   )
 
-  # # Get Google Analytics ID from environment variable, with fallback
-  # ga_id <- Sys.getenv("GOOGLE_ANALYTICS_ID", "G-Q5TL32WDK3") # Default to shinyapps.io ID
+  # Get Google Analytics config from environment-aware config.yml
+  ga_config <- config::get("google_analytics")
+  ga_enabled <- isTRUE(ga_config$enabled)
+  ga_id <- ga_config$measurement_id
 
-  # # Read the template and replace the placeholder
-  # ga_template <- readLines("app/static/html/g_tag_dynamic.html", warn = FALSE)
-  # ga_script <- paste(gsub("{{GOOGLE_ANALYTICS_ID}}", ga_id, ga_template), collapse = "\n")
+  # Build GA script tag if enabled and ID is set
+  ga_script_tag <- if (ga_enabled && !is.null(ga_id) && nzchar(ga_id)) {
+    shiny$tagList(
+      shiny$tags$script(
+        async = NA,
+        src = paste0("https://www.googletagmanager.com/gtag/js?id=", ga_id)
+      ),
+      shiny$tags$script(shiny$HTML(sprintf(
+        "
+        window.dataLayer = window.dataLayer || [];
+        function gtag() { dataLayer.push(arguments); }
+        gtag('js', new Date());
+        gtag('config', '%s');
+        function trackPage(pageName) {
+          gtag('event', 'page_view', {
+            page_title: pageName,
+            page_location: window.location.href,
+            event_category: 'Navigation'
+          });
+        }
+      ",
+        ga_id
+      )))
+    )
+  } else {
+    NULL
+  }
 
   bslib$page_navbar(
     header = shiny$tags$head(
-      shiny$includeHTML(
-        "app/static/html/g_tag.html"
-      ),
+      ga_script_tag,
       # Add telemetry JavaScript if enabled
       if (telemetry_utils$is_telemetry_enabled()) {
         tryCatch(

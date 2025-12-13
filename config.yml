@@ -2,6 +2,11 @@ default:
   rhino_log_level: !expr Sys.getenv("RHINO_LOG_LEVEL", "INFO")
   rhino_log_file: !expr Sys.getenv("RHINO_LOG_FILE", "logs/log.txt")
 
+  # Google Analytics configuration
+  google_analytics:
+    enabled: !expr as.logical(Sys.getenv("GA_ENABLED", "FALSE"))
+    measurement_id: !expr Sys.getenv("GA_MEASUREMENT_ID", "")
+
   # Enhanced logging configuration
   logging:
     # Main application log
@@ -106,6 +111,10 @@ shinyapps:
   rhino_log_level: "INFO"
   rhino_log_file: NA  # shinyapps.io handles logging
 
+  google_analytics:
+    enabled: TRUE
+    measurement_id: "G-Q5TL32WDK3"  # shinyapps.io/brentkaplan
+
   logging:
     app_log_file: NA  # Use shinyapps.io logging - no persistent files
     error_log_file: NA
@@ -130,6 +139,10 @@ shinyapps:
 shinyproxy:
   rhino_log_level: !expr Sys.getenv("RHINO_LOG_LEVEL", "INFO")
   rhino_log_file: !expr Sys.getenv("RHINO_LOG_FILE", "/var/log/shiny/app.log")
+
+  google_analytics:
+    enabled: TRUE
+    measurement_id: "G-VWQYRVL2DB"  # shinybeez.app
 
   logging:
     app_log_file: "/var/log/shiny/app.log"
