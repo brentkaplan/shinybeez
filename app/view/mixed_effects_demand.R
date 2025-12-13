@@ -1619,15 +1619,6 @@ navpanel_ui <- function(id) {
     bslib$navset_card_tab(
       id = ns("results_display_tabs"),
       title = "Mixed Model Results",
-      bslib$nav_spacer(),
-      bslib$nav_item(
-        shiny$downloadButton(
-          ns("export_all_xlsx"),
-          "Export All",
-          icon = shiny$icon("download"),
-          class = "btn-primary btn-sm"
-        )
-      ),
       bslib$nav_panel(
         title = "Model Summary",
         shiny$verbatimTextOutput(ns("model_summary_output"))
@@ -1820,6 +1811,14 @@ navpanel_ui <- function(id) {
               )
             )
           )
+        )
+      ),
+      bslib$nav_item(
+        shiny$downloadButton(
+          ns("export_all_xlsx"),
+          "Export All",
+          icon = shiny$icon("download"),
+          class = "btn-link nav-link px-3"
         )
       )
     )
@@ -3631,8 +3630,9 @@ navpanel_server <- function(id, sidebar_reactives) {
         paste0("shinybeez_mixedeffects_export_", timestamp, ".xlsx")
       },
       content = function(file) {
-        model_fit <- fitted_model_reactive()
-        shiny$req(model_fit, model_fit$model)
+        # Check if model is fitted (allow partial export if not)
+        model_fit <- tryCatch(fitted_model_reactive(), error = function(e) NULL)
+        has_model <- !is.null(model_fit) && !is.null(model_fit$model)
 
         wb <- openxlsx$createWorkbook()
 
@@ -3921,78 +3921,93 @@ navpanel_server <- function(id, sidebar_reactives) {
           }
         }
 
-        # --- Sheet 5: Model Summary ---
-        openxlsx$addWorksheet(wb, "Model_Summary")
-        model_summary_text <- tryCatch(
-          utils::capture.output(print(model_fit)),
-          error = function(e) "Model summary not available"
-        )
-        # Write as single column of text lines
-        model_summary_df <- data.frame(
-          Output = model_summary_text,
-          stringsAsFactors = FALSE
-        )
-        openxlsx$writeData(
-          wb,
-          "Model_Summary",
-          model_summary_df,
-          colNames = FALSE
-        )
-        openxlsx$setColWidths(wb, "Model_Summary", cols = 1, widths = 120)
-
-        # --- Sheet 6: Fixed Effects ---
-        openxlsx$addWorksheet(wb, "Fixed_Effects")
-        fe <- nlme$fixef(model_fit)
-        fe_df <- data.frame(Parameter = names(fe), Value = round(fe, 6))
-        openxlsx$writeData(wb, "Fixed_Effects", fe_df)
-        openxlsx$setColWidths(wb, "Fixed_Effects", cols = 1:2, widths = "auto")
-
-        # --- Sheet 7: Random Effects ---
-        openxlsx$addWorksheet(wb, "Random_Effects")
-        re_coefs <- tryCatch(stats$coef(model_fit), error = function(e) NULL)
-        if (!is.null(re_coefs)) {
-          re_df <- as.data.frame(re_coefs)
-          id_col <- model_fit$param_info$id_var
-          re_df[[id_col]] <- rownames(re_df)
-          re_df <- re_df[, c(id_col, setdiff(names(re_df), id_col))]
-          re_df[, sapply(re_df, is.numeric)] <- round(
-            re_df[, sapply(re_df, is.numeric)],
-            6
+        # === MODEL-DEPENDENT SHEETS (only if model is fitted) ===
+        if (has_model) {
+          # --- Sheet 5: Model Summary ---
+          openxlsx$addWorksheet(wb, "Model_Summary")
+          model_summary_text <- tryCatch(
+            utils::capture.output(print(model_fit)),
+            error = function(e) "Model summary not available"
           )
-          openxlsx$writeData(wb, "Random_Effects", re_df)
+          model_summary_df <- data.frame(
+            Output = model_summary_text,
+            stringsAsFactors = FALSE
+          )
+          openxlsx$writeData(
+            wb,
+            "Model_Summary",
+            model_summary_df,
+            colNames = FALSE
+          )
+          openxlsx$setColWidths(wb, "Model_Summary", cols = 1, widths = 120)
+
+          # --- Sheet 6: Fixed Effects ---
+          openxlsx$addWorksheet(wb, "Fixed_Effects")
+          fe <- nlme$fixef(model_fit)
+          fe_df <- data.frame(Parameter = names(fe), Value = round(fe, 6))
+          openxlsx$writeData(wb, "Fixed_Effects", fe_df)
           openxlsx$setColWidths(
             wb,
-            "Random_Effects",
-            cols = 1:ncol(re_df),
+            "Fixed_Effects",
+            cols = 1:2,
             widths = "auto"
           )
-        }
 
-        # --- Sheet 4: Individual Coefficients (if factors present) ---
-        if (!is.null(model_fit$param_info$factors)) {
-          individual_coefs <- tryCatch(
-            beezdemand$get_individual_coefficients(
-              model_fit,
-              params = c("Q0", "alpha"),
-              format = "wide"
-            ),
-            error = function(e) NULL
-          )
-          if (!is.null(individual_coefs) && nrow(individual_coefs) > 0) {
-            openxlsx$addWorksheet(wb, "Individual_Coefficients")
-            individual_coefs[, -1] <- round(individual_coefs[, -1], 6)
-            openxlsx$writeData(wb, "Individual_Coefficients", individual_coefs)
+          # --- Sheet 7: Random Effects ---
+          openxlsx$addWorksheet(wb, "Random_Effects")
+          re_coefs <- tryCatch(stats$coef(model_fit), error = function(e) NULL)
+          if (!is.null(re_coefs)) {
+            re_df <- as.data.frame(re_coefs)
+            id_col <- model_fit$param_info$id_var
+            re_df[[id_col]] <- rownames(re_df)
+            re_df <- re_df[, c(id_col, setdiff(names(re_df), id_col))]
+            re_df[, sapply(re_df, is.numeric)] <- round(
+              re_df[, sapply(re_df, is.numeric)],
+              6
+            )
+            openxlsx$writeData(wb, "Random_Effects", re_df)
             openxlsx$setColWidths(
               wb,
-              "Individual_Coefficients",
-              cols = 1:ncol(individual_coefs),
+              "Random_Effects",
+              cols = 1:ncol(re_df),
               widths = "auto"
             )
           }
-        }
 
-        # --- EMMs Data (Q0, Alpha, EV) ---
-        emms_data <- tryCatch(emms_data_reactive(), error = function(e) NULL)
+          # --- Individual Coefficients (if factors present) ---
+          if (!is.null(model_fit$param_info$factors)) {
+            individual_coefs <- tryCatch(
+              beezdemand$get_individual_coefficients(
+                model_fit,
+                params = c("Q0", "alpha"),
+                format = "wide"
+              ),
+              error = function(e) NULL
+            )
+            if (!is.null(individual_coefs) && nrow(individual_coefs) > 0) {
+              openxlsx$addWorksheet(wb, "Individual_Coefficients")
+              individual_coefs[, -1] <- round(individual_coefs[, -1], 6)
+              openxlsx$writeData(
+                wb,
+                "Individual_Coefficients",
+                individual_coefs
+              )
+              openxlsx$setColWidths(
+                wb,
+                "Individual_Coefficients",
+                cols = 1:ncol(individual_coefs),
+                widths = "auto"
+              )
+            }
+          }
+        } # end has_model
+
+        # --- EMMs Data (Q0, Alpha, EV) - requires model ---
+        emms_data <- if (has_model) {
+          tryCatch(emms_data_reactive(), error = function(e) NULL)
+        } else {
+          NULL
+        }
         if (!is.null(emms_data) && nrow(emms_data) > 0) {
           # Helper to extract parameter-specific columns
           extract_param_data <- function(data, param_pattern, factor_cols) {
@@ -4067,10 +4082,12 @@ navpanel_server <- function(id, sidebar_reactives) {
           }
         }
 
-        # --- Comparisons ---
-        comparisons <- tryCatch(comparisons_reactive(), error = function(e) {
+        # --- Comparisons (requires model) ---
+        comparisons <- if (has_model) {
+          tryCatch(comparisons_reactive(), error = function(e) NULL)
+        } else {
           NULL
-        })
+        }
 
         # Q0 Comparisons (both formats)
         if (!is.null(comparisons$Q0)) {
@@ -4148,28 +4165,30 @@ navpanel_server <- function(id, sidebar_reactives) {
           }
         }
 
-        # --- Plot Sheet ---
-        plot_obj <- tryCatch(plot_object_reactive(), error = function(e) NULL)
-        if (!is.null(plot_obj)) {
-          openxlsx$addWorksheet(wb, "Plot")
-          temp_plot <- tempfile(fileext = ".png")
-          ggplot2$ggsave(
-            temp_plot,
-            plot_obj,
-            width = 10,
-            height = 7,
-            dpi = 150,
-            bg = "white"
-          )
-          openxlsx$insertImage(
-            wb,
-            "Plot",
-            temp_plot,
-            width = 10,
-            height = 7,
-            startRow = 2,
-            startCol = 2
-          )
+        # --- Plot Sheet (requires model) ---
+        if (has_model) {
+          plot_obj <- tryCatch(plot_object_reactive(), error = function(e) NULL)
+          if (!is.null(plot_obj)) {
+            openxlsx$addWorksheet(wb, "Plot")
+            temp_plot <- tempfile(fileext = ".png")
+            ggplot2$ggsave(
+              temp_plot,
+              plot_obj,
+              width = 10,
+              height = 7,
+              dpi = 150,
+              bg = "white"
+            )
+            openxlsx$insertImage(
+              wb,
+              "Plot",
+              temp_plot,
+              width = 10,
+              height = 7,
+              startRow = 2,
+              startCol = 2
+            )
+          }
         }
 
         # Save workbook
