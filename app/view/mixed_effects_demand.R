@@ -8,6 +8,7 @@ box::use(
   esquisse,
   htmltools,
   ggplot2, # For plot customization if needed beyond esquisse
+  ggprism, # For GraphPad Prism themes
   dplyr, # For data manipulation
   readr,
   rlang, # For non-standard evaluation if needed
@@ -1713,6 +1714,35 @@ navpanel_ui <- function(id) {
                 "Consumption (Natural Scale)"
               ),
               shiny$selectInput(
+                ns("plot_theme"),
+                "Plot Theme",
+                choices = c(
+                  "Default (ggplot2)" = "default",
+                  "GraphPad Prism" = "prism",
+                  "Classic" = "classic",
+                  "Minimal" = "minimal"
+                ),
+                selected = "default"
+              ),
+              shiny$numericInput(
+                ns("plot_font_size"),
+                "Base Font Size",
+                value = 14,
+                min = 10,
+                max = 20,
+                step = 1
+              ),
+              shiny$selectInput(
+                ns("plot_legend_position"),
+                "Legend Position",
+                choices = c(
+                  "Right" = "right",
+                  "Bottom" = "bottom",
+                  "None" = "none"
+                ),
+                selected = "right"
+              ),
+              shiny$selectInput(
                 ns("plot_palette"),
                 "Color Palette",
                 choices = c("Okabe-Ito", "HCL Light", "HCL Dark"),
@@ -1756,6 +1786,11 @@ navpanel_ui <- function(id) {
               shiny$checkboxInput(
                 ns("show_observed_points_plot"),
                 "Show Observed Points",
+                value = TRUE
+              ),
+              shiny$checkboxInput(
+                ns("show_watermark"),
+                "Show ShinyBeez Watermark",
                 value = TRUE
               ),
               shiny$actionButton(ns("update_plot_settings"), "Update Plot")
@@ -3486,8 +3521,34 @@ navpanel_server <- function(id, sidebar_reactives) {
         title = input$plot_title,
         xlab = input$plot_xlab,
         ylab = input$plot_ylab
-      ) +
-        utils$add_shiny_logo(utils$watermark_tr)
+      )
+
+      # Apply selected theme with user-specified font size
+      font_size <- if (is.null(input$plot_font_size)) {
+        14
+      } else {
+        input$plot_font_size
+      }
+      p <- switch(
+        input$plot_theme,
+        "prism" = p + ggprism$theme_prism(base_size = font_size),
+        "classic" = p + ggplot2$theme_classic(base_size = font_size),
+        "minimal" = p + ggplot2$theme_minimal(base_size = font_size),
+        p # default: keep existing theme
+      )
+
+      # Apply legend position
+      legend_pos <- if (is.null(input$plot_legend_position)) {
+        "right"
+      } else {
+        input$plot_legend_position
+      }
+      p <- p + ggplot2$theme(legend.position = legend_pos)
+
+      # Add watermark if enabled
+      if (isTRUE(input$show_watermark)) {
+        p <- p + utils$add_shiny_logo(utils$watermark_tr)
+      }
 
       # Apply palette if coloring by a discrete factor
       if (!is.null(plot_color)) {
@@ -3509,12 +3570,16 @@ navpanel_server <- function(id, sidebar_reactives) {
         input$plot_color_by,
         input$plot_linetype_by,
         input$plot_facet_by,
+        input$plot_theme,
+        input$plot_font_size,
+        input$plot_legend_position,
         input$plot_palette,
         input$plot_x_trans_log,
         input$plot_y_trans_log,
         input$show_population_lines,
         input$show_individual_lines,
         input$show_observed_points_plot,
+        input$show_watermark,
         input$plot_title,
         input$plot_xlab,
         input$plot_ylab,

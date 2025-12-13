@@ -6,7 +6,7 @@ box::use(
 )
 
 #' @export
-get_png_br <- function(filename, height_pt = 70, alpha = 0.9) {
+get_png_br <- function(filename, height_pt = 50, alpha = 0.9) {
   grid$rasterGrob(
     png$readPNG(filename),
     interpolate = TRUE,
@@ -20,7 +20,7 @@ get_png_br <- function(filename, height_pt = 70, alpha = 0.9) {
 }
 
 #' @export
-get_png_tr <- function(filename, height_pt = 70, alpha = 0.9) {
+get_png_tr <- function(filename, height_pt = 50, alpha = 0.9) {
   grid$rasterGrob(
     png$readPNG(filename),
     interpolate = TRUE,
