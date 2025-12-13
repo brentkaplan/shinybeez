@@ -9,6 +9,7 @@ box::use(
   htmltools,
   ggplot2, # For plot customization if needed beyond esquisse
   ggprism, # For GraphPad Prism themes
+  openxlsx, # For Excel export
   dplyr, # For data manipulation
   readr,
   rlang, # For non-standard evaluation if needed
@@ -1618,6 +1619,15 @@ navpanel_ui <- function(id) {
     bslib$navset_card_tab(
       id = ns("results_display_tabs"),
       title = "Mixed Model Results",
+      bslib$nav_spacer(),
+      bslib$nav_item(
+        shiny$downloadButton(
+          ns("export_all_xlsx"),
+          "Export All",
+          icon = shiny$icon("download"),
+          class = "btn-primary btn-sm"
+        )
+      ),
       bslib$nav_panel(
         title = "Model Summary",
         shiny$verbatimTextOutput(ns("model_summary_output"))
@@ -3612,6 +3622,559 @@ navpanel_server <- function(id, sidebar_reactives) {
           input$esquisse_height_plot
         }
       ) # default height
+    )
+
+    # Excel Export - Download Handler
+    output$export_all_xlsx <- shiny$downloadHandler(
+      filename = function() {
+        timestamp <- format(Sys.time(), "%Y%m%d_%H%M%S")
+        paste0("shinybeez_mixedeffects_export_", timestamp, ".xlsx")
+      },
+      content = function(file) {
+        model_fit <- fitted_model_reactive()
+        shiny$req(model_fit, model_fit$model)
+
+        wb <- openxlsx$createWorkbook()
+
+        # --- Sheet 1: Summary ---
+        openxlsx$addWorksheet(wb, "Summary")
+
+        # Build summary values first
+        eq_val <- sidebar_reactives$equation_form()
+        eq_str <- if (is.null(eq_val)) "N/A" else as.character(eq_val)
+
+        factors_val <- sidebar_reactives$selected_factors()
+        factors_str <- if (
+          is.null(factors_val) ||
+            length(factors_val) == 0 ||
+            identical(factors_val, "None")
+        ) {
+          "None"
+        } else {
+          paste(factors_val, collapse = ", ")
+        }
+
+        interaction_str <- if (isTRUE(sidebar_reactives$factor_interaction())) {
+          "Yes"
+        } else {
+          "No"
+        }
+
+        id_val <- sidebar_reactives$id_var()
+        id_str <- if (is.null(id_val)) "N/A" else as.character(id_val)
+
+        x_val <- sidebar_reactives$x_var()
+        x_str <- if (is.null(x_val)) "N/A" else as.character(x_val)
+
+        y_val <- sidebar_reactives$y_var()
+        y_str <- if (is.null(y_val)) "N/A" else as.character(y_val)
+
+        # Y transformation is determined by equation_form (zben = LL4 transform)
+        ytrans_str <- if (identical(eq_val, "zben")) {
+          "Log-Log 4 (LL4)"
+        } else {
+          "None"
+        }
+
+        re_val <- sidebar_reactives$random_effects_spec()
+        re_str <- if (is.null(re_val) || length(re_val) == 0) {
+          "N/A"
+        } else {
+          paste(re_val, collapse = ", ")
+        }
+
+        cov_val <- sidebar_reactives$covariance_structure()
+        cov_str <- if (is.null(cov_val)) "N/A" else as.character(cov_val)
+
+        # Build summary data frame
+        summary_items <- c(
+          "shinybeez Mixed-Effects Demand Analysis",
+          "",
+          "Export Date",
+          "shinybeez Version",
+          "",
+          "--- Analysis Settings ---",
+          "Equation",
+          "Factor(s)",
+          "Factor Interaction",
+          "ID Variable",
+          "X Variable",
+          "Y Variable",
+          "Y Transformation",
+          "Random Effects",
+          "Covariance Structure"
+        )
+
+        summary_values <- c(
+          "",
+          "",
+          format(Sys.time(), "%Y-%m-%d %H:%M:%S %Z"),
+          "1.0.0",
+          "",
+          "",
+          eq_str,
+          factors_str,
+          interaction_str,
+          id_str,
+          x_str,
+          y_str,
+          ytrans_str,
+          re_str,
+          cov_str
+        )
+
+        summary_data <- data.frame(
+          Item = summary_items,
+          Value = summary_values,
+          stringsAsFactors = FALSE
+        )
+
+        # Collapse levels info
+        collapse_info <- tryCatch(
+          sidebar_reactives$collapse_levels_reactive(),
+          error = function(e) NULL
+        )
+        if (
+          !is.null(collapse_info) &&
+            !identical(collapse_info, "ERROR_OVERLAP") &&
+            !identical(collapse_info, "ERROR_SINGLE_LEVEL")
+        ) {
+          collapse_rows <- data.frame(
+            Item = c("", "--- Collapse Levels ---"),
+            Value = c("", ""),
+            stringsAsFactors = FALSE
+          )
+          summary_data <- rbind(summary_data, collapse_rows)
+
+          if (!is.null(collapse_info$Q0)) {
+            q0_str <- paste(names(collapse_info$Q0), collapse = ", ")
+            q0_val <- if (nzchar(q0_str)) q0_str else "None"
+            summary_data <- rbind(
+              summary_data,
+              data.frame(
+                Item = "Q0 Collapse",
+                Value = q0_val,
+                stringsAsFactors = FALSE
+              )
+            )
+          }
+          if (!is.null(collapse_info$alpha)) {
+            alpha_str <- paste(names(collapse_info$alpha), collapse = ", ")
+            alpha_val <- if (nzchar(alpha_str)) alpha_str else "None"
+            summary_data <- rbind(
+              summary_data,
+              data.frame(
+                Item = "Alpha Collapse",
+                Value = alpha_val,
+                stringsAsFactors = FALSE
+              )
+            )
+          }
+        }
+
+        # Add Fitting Settings section
+        nlme_ctrl <- tryCatch(
+          sidebar_reactives$nlme_controls(),
+          error = function(e) NULL
+        )
+        if (!is.null(nlme_ctrl)) {
+          fitting_rows <- data.frame(
+            Item = c(
+              "",
+              "--- Fitting Settings ---",
+              "maxIter",
+              "pnlsMaxIter",
+              "msMaxIter",
+              "tolerance",
+              "pnlsTol",
+              "minScale",
+              "niterEM"
+            ),
+            Value = c(
+              "",
+              "",
+              as.character(nlme_ctrl$maxIter),
+              as.character(nlme_ctrl$pnlsMaxIter),
+              as.character(nlme_ctrl$msMaxIter),
+              as.character(nlme_ctrl$tolerance),
+              as.character(nlme_ctrl$pnlsTol),
+              as.character(nlme_ctrl$minScale),
+              as.character(nlme_ctrl$niterEM)
+            ),
+            stringsAsFactors = FALSE
+          )
+          summary_data <- rbind(summary_data, fitting_rows)
+        }
+
+        openxlsx$writeData(wb, "Summary", summary_data, colNames = FALSE)
+
+        # Style the title
+        title_style <- openxlsx$createStyle(
+          fontSize = 16,
+          textDecoration = "bold"
+        )
+        openxlsx$addStyle(wb, "Summary", title_style, rows = 1, cols = 1)
+
+        # Style section headers
+        header_style <- openxlsx$createStyle(textDecoration = "bold")
+        header_rows <- which(grepl("^---", summary_data$Item))
+        for (row in header_rows) {
+          openxlsx$addStyle(wb, "Summary", header_style, rows = row, cols = 1)
+        }
+
+        openxlsx$setColWidths(wb, "Summary", cols = 1:2, widths = c(35, 50))
+
+        # --- Sheet 2: Data ---
+        openxlsx$addWorksheet(wb, "Data")
+        raw_data <- tryCatch(data_to_analyze(), error = function(e) NULL)
+        if (!is.null(raw_data) && nrow(raw_data) > 0) {
+          openxlsx$writeData(wb, "Data", raw_data)
+          openxlsx$setColWidths(
+            wb,
+            "Data",
+            cols = 1:ncol(raw_data),
+            widths = "auto"
+          )
+        }
+
+        # --- Sheet 3: Descriptives ---
+        openxlsx$addWorksheet(wb, "Descriptives")
+        if (!is.null(raw_data) && "y_for_model" %in% names(raw_data)) {
+          factors <- sidebar_reactives$selected_factors()
+          x_var_sel <- sidebar_reactives$x_var()
+          grouping_vars <- c(factors, x_var_sel)
+          grouping_vars <- grouping_vars[!grouping_vars %in% c("None", "")]
+          grouping_vars_present <- intersect(grouping_vars, names(raw_data))
+
+          if (length(grouping_vars_present) == 0) {
+            desc_data <- raw_data |>
+              dplyr$summarise(
+                N = dplyr$n(),
+                Mean_Y_Model = mean(y_for_model, na.rm = TRUE),
+                SD_Y_Model = stats$sd(y_for_model, na.rm = TRUE),
+                Median_Y_Model = stats$median(y_for_model, na.rm = TRUE),
+                .groups = "drop"
+              )
+          } else {
+            desc_data <- raw_data |>
+              dplyr$group_by(dplyr$across(dplyr$all_of(
+                grouping_vars_present
+              ))) |>
+              dplyr$summarise(
+                N = dplyr$n(),
+                Mean_Y_Model = mean(y_for_model, na.rm = TRUE),
+                SD_Y_Model = stats$sd(y_for_model, na.rm = TRUE),
+                Median_Y_Model = stats$median(y_for_model, na.rm = TRUE),
+                .groups = "drop"
+              )
+          }
+          desc_data <- dplyr$mutate(
+            desc_data,
+            dplyr$across(where(is.numeric), ~ round(., 3))
+          )
+          openxlsx$writeData(wb, "Descriptives", desc_data)
+          openxlsx$setColWidths(
+            wb,
+            "Descriptives",
+            cols = 1:ncol(desc_data),
+            widths = "auto"
+          )
+        }
+
+        # --- Sheet 4: Systematic Criteria ---
+        openxlsx$addWorksheet(wb, "Systematic_Criteria")
+        df_raw <- tryCatch(
+          sidebar_reactives$data_to_analyze_trigger(),
+          error = function(e) NULL
+        )
+        if (!is.null(df_raw)) {
+          id_col <- sidebar_reactives$id_var()
+          x_col <- sidebar_reactives$x_var()
+          y_col <- sidebar_reactives$y_var()
+          if (all(c(id_col, x_col, y_col) %in% names(df_raw))) {
+            df_sys <- df_raw[, c(id_col, x_col, y_col), drop = FALSE]
+            names(df_sys) <- c("id", "x", "y")
+            suppressWarnings({
+              df_sys$x <- as.numeric(df_sys$x)
+              df_sys$y <- as.numeric(df_sys$y)
+            })
+            df_sys <- df_sys[!is.na(df_sys$y), , drop = FALSE]
+            systematic <- tryCatch(
+              beezdemand$CheckUnsystematic(
+                dat = df_sys,
+                deltaq = 0.025,
+                bounce = 0.1,
+                reversals = 0,
+                ncons0 = 2
+              ),
+              error = function(e) NULL
+            )
+            if (!is.null(systematic) && nrow(systematic) > 0) {
+              openxlsx$writeData(wb, "Systematic_Criteria", systematic)
+              openxlsx$setColWidths(
+                wb,
+                "Systematic_Criteria",
+                cols = 1:ncol(systematic),
+                widths = "auto"
+              )
+            }
+          }
+        }
+
+        # --- Sheet 5: Model Summary ---
+        openxlsx$addWorksheet(wb, "Model_Summary")
+        model_summary_text <- tryCatch(
+          utils::capture.output(print(model_fit)),
+          error = function(e) "Model summary not available"
+        )
+        # Write as single column of text lines
+        model_summary_df <- data.frame(
+          Output = model_summary_text,
+          stringsAsFactors = FALSE
+        )
+        openxlsx$writeData(
+          wb,
+          "Model_Summary",
+          model_summary_df,
+          colNames = FALSE
+        )
+        openxlsx$setColWidths(wb, "Model_Summary", cols = 1, widths = 120)
+
+        # --- Sheet 6: Fixed Effects ---
+        openxlsx$addWorksheet(wb, "Fixed_Effects")
+        fe <- nlme$fixef(model_fit)
+        fe_df <- data.frame(Parameter = names(fe), Value = round(fe, 6))
+        openxlsx$writeData(wb, "Fixed_Effects", fe_df)
+        openxlsx$setColWidths(wb, "Fixed_Effects", cols = 1:2, widths = "auto")
+
+        # --- Sheet 7: Random Effects ---
+        openxlsx$addWorksheet(wb, "Random_Effects")
+        re_coefs <- tryCatch(stats$coef(model_fit), error = function(e) NULL)
+        if (!is.null(re_coefs)) {
+          re_df <- as.data.frame(re_coefs)
+          id_col <- model_fit$param_info$id_var
+          re_df[[id_col]] <- rownames(re_df)
+          re_df <- re_df[, c(id_col, setdiff(names(re_df), id_col))]
+          re_df[, sapply(re_df, is.numeric)] <- round(
+            re_df[, sapply(re_df, is.numeric)],
+            6
+          )
+          openxlsx$writeData(wb, "Random_Effects", re_df)
+          openxlsx$setColWidths(
+            wb,
+            "Random_Effects",
+            cols = 1:ncol(re_df),
+            widths = "auto"
+          )
+        }
+
+        # --- Sheet 4: Individual Coefficients (if factors present) ---
+        if (!is.null(model_fit$param_info$factors)) {
+          individual_coefs <- tryCatch(
+            beezdemand$get_individual_coefficients(
+              model_fit,
+              params = c("Q0", "alpha"),
+              format = "wide"
+            ),
+            error = function(e) NULL
+          )
+          if (!is.null(individual_coefs) && nrow(individual_coefs) > 0) {
+            openxlsx$addWorksheet(wb, "Individual_Coefficients")
+            individual_coefs[, -1] <- round(individual_coefs[, -1], 6)
+            openxlsx$writeData(wb, "Individual_Coefficients", individual_coefs)
+            openxlsx$setColWidths(
+              wb,
+              "Individual_Coefficients",
+              cols = 1:ncol(individual_coefs),
+              widths = "auto"
+            )
+          }
+        }
+
+        # --- EMMs Data (Q0, Alpha, EV) ---
+        emms_data <- tryCatch(emms_data_reactive(), error = function(e) NULL)
+        if (!is.null(emms_data) && nrow(emms_data) > 0) {
+          # Helper to extract parameter-specific columns
+          extract_param_data <- function(data, param_pattern, factor_cols) {
+            param_cols <- names(data)[
+              grepl(param_pattern, names(data), ignore.case = TRUE) &
+                !grepl(
+                  paste0("_", param_pattern, "$"),
+                  names(data),
+                  ignore.case = TRUE
+                )
+            ]
+            if (length(param_cols) == 0) {
+              return(NULL)
+            }
+            cols_to_use <- intersect(c(factor_cols, param_cols), names(data))
+            result <- data[, cols_to_use, drop = FALSE]
+            result <- dplyr$distinct(result)
+            return(result)
+          }
+
+          factor_cols <- names(emms_data)[!sapply(emms_data, is.numeric)]
+
+          # Sheet 5: Q0 Estimates
+          q0_data <- extract_param_data(emms_data, "q0|Q0", factor_cols)
+          if (!is.null(q0_data) && nrow(q0_data) > 0) {
+            openxlsx$addWorksheet(wb, "Q0_Estimates")
+            q0_data[, sapply(q0_data, is.numeric)] <- round(
+              q0_data[, sapply(q0_data, is.numeric)],
+              6
+            )
+            openxlsx$writeData(wb, "Q0_Estimates", q0_data)
+            openxlsx$setColWidths(
+              wb,
+              "Q0_Estimates",
+              cols = 1:ncol(q0_data),
+              widths = "auto"
+            )
+          }
+
+          # Sheet 6: Alpha Estimates
+          alpha_data <- extract_param_data(emms_data, "alpha", factor_cols)
+          if (!is.null(alpha_data) && nrow(alpha_data) > 0) {
+            openxlsx$addWorksheet(wb, "Alpha_Estimates")
+            alpha_data[, sapply(alpha_data, is.numeric)] <- round(
+              alpha_data[, sapply(alpha_data, is.numeric)],
+              8
+            )
+            openxlsx$writeData(wb, "Alpha_Estimates", alpha_data)
+            openxlsx$setColWidths(
+              wb,
+              "Alpha_Estimates",
+              cols = 1:ncol(alpha_data),
+              widths = "auto"
+            )
+          }
+
+          # Sheet 7: EV Estimates
+          ev_data <- extract_param_data(emms_data, "EV", factor_cols)
+          if (!is.null(ev_data) && nrow(ev_data) > 0) {
+            openxlsx$addWorksheet(wb, "EV_Estimates")
+            ev_data[, sapply(ev_data, is.numeric)] <- round(
+              ev_data[, sapply(ev_data, is.numeric)],
+              4
+            )
+            openxlsx$writeData(wb, "EV_Estimates", ev_data)
+            openxlsx$setColWidths(
+              wb,
+              "EV_Estimates",
+              cols = 1:ncol(ev_data),
+              widths = "auto"
+            )
+          }
+        }
+
+        # --- Comparisons ---
+        comparisons <- tryCatch(comparisons_reactive(), error = function(e) {
+          NULL
+        })
+
+        # Q0 Comparisons (both formats)
+        if (!is.null(comparisons$Q0)) {
+          if (
+            !is.null(comparisons$Q0$contrasts_ratio) &&
+              nrow(comparisons$Q0$contrasts_ratio) > 0
+          ) {
+            openxlsx$addWorksheet(wb, "Q0_Comparisons_Ratio")
+            ratio_df <- dplyr$mutate(
+              comparisons$Q0$contrasts_ratio,
+              dplyr$across(where(is.numeric), ~ round(., 4))
+            )
+            openxlsx$writeData(wb, "Q0_Comparisons_Ratio", ratio_df)
+            openxlsx$setColWidths(
+              wb,
+              "Q0_Comparisons_Ratio",
+              cols = 1:ncol(ratio_df),
+              widths = "auto"
+            )
+          }
+          if (
+            !is.null(comparisons$Q0$contrasts_log10) &&
+              nrow(comparisons$Q0$contrasts_log10) > 0
+          ) {
+            openxlsx$addWorksheet(wb, "Q0_Comparisons_Log10")
+            log10_df <- dplyr$mutate(
+              comparisons$Q0$contrasts_log10,
+              dplyr$across(where(is.numeric), ~ round(., 4))
+            )
+            openxlsx$writeData(wb, "Q0_Comparisons_Log10", log10_df)
+            openxlsx$setColWidths(
+              wb,
+              "Q0_Comparisons_Log10",
+              cols = 1:ncol(log10_df),
+              widths = "auto"
+            )
+          }
+        }
+
+        # Alpha Comparisons (both formats)
+        if (!is.null(comparisons$alpha)) {
+          if (
+            !is.null(comparisons$alpha$contrasts_ratio) &&
+              nrow(comparisons$alpha$contrasts_ratio) > 0
+          ) {
+            openxlsx$addWorksheet(wb, "Alpha_Comparisons_Ratio")
+            ratio_df <- dplyr$mutate(
+              comparisons$alpha$contrasts_ratio,
+              dplyr$across(where(is.numeric), ~ round(., 4))
+            )
+            openxlsx$writeData(wb, "Alpha_Comparisons_Ratio", ratio_df)
+            openxlsx$setColWidths(
+              wb,
+              "Alpha_Comparisons_Ratio",
+              cols = 1:ncol(ratio_df),
+              widths = "auto"
+            )
+          }
+          if (
+            !is.null(comparisons$alpha$contrasts_log10) &&
+              nrow(comparisons$alpha$contrasts_log10) > 0
+          ) {
+            openxlsx$addWorksheet(wb, "Alpha_Comparisons_Log10")
+            log10_df <- dplyr$mutate(
+              comparisons$alpha$contrasts_log10,
+              dplyr$across(where(is.numeric), ~ round(., 4))
+            )
+            openxlsx$writeData(wb, "Alpha_Comparisons_Log10", log10_df)
+            openxlsx$setColWidths(
+              wb,
+              "Alpha_Comparisons_Log10",
+              cols = 1:ncol(log10_df),
+              widths = "auto"
+            )
+          }
+        }
+
+        # --- Plot Sheet ---
+        plot_obj <- tryCatch(plot_object_reactive(), error = function(e) NULL)
+        if (!is.null(plot_obj)) {
+          openxlsx$addWorksheet(wb, "Plot")
+          temp_plot <- tempfile(fileext = ".png")
+          ggplot2$ggsave(
+            temp_plot,
+            plot_obj,
+            width = 10,
+            height = 7,
+            dpi = 150,
+            bg = "white"
+          )
+          openxlsx$insertImage(
+            wb,
+            "Plot",
+            temp_plot,
+            width = 10,
+            height = 7,
+            startRow = 2,
+            startCol = 2
+          )
+        }
+
+        # Save workbook
+        openxlsx$saveWorkbook(wb, file, overwrite = TRUE)
+      }
     )
   })
 }
