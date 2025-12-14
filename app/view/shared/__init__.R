@@ -2,4 +2,10 @@
 #'
 #' Reusable UI components shared across demand, discounting, and mixed effects modules.
 
-# Shared components will be added here
+box::use(
+  . / data_table,
+  . / plot_settings
+)
+
+#' @export
+box::export(data_table, plot_settings)
