@@ -28,7 +28,8 @@ box::use(
   app / logic / mixed_effects / collapse_levels,
   app / logic / mixed_effects / data_prep,
   app / logic / mixed_effects / model_fitting,
-  app / logic / mixed_effects / emms_utils
+  app / logic / mixed_effects / emms_utils,
+  app / logic / mixed_effects / export_utils
 )
 
 # Module-local cache for example data
