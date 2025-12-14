@@ -2934,7 +2934,9 @@ navpanel_server <- function(id, sidebar_reactives) {
       }
 
       # Handle empty or NULL data
-      if (is.null(raw_data) || nrow(raw_data) == 0) {
+      if (
+        is.null(raw_data) || !is.data.frame(raw_data) || nrow(raw_data) == 0
+      ) {
         return(NULL)
       }
 
@@ -3001,7 +3003,11 @@ navpanel_server <- function(id, sidebar_reactives) {
       }
 
       # Handle empty comparisons (intercept-only for Q0 due to collapse)
-      if (is.null(display_data) || nrow(display_data) == 0) {
+      if (
+        is.null(display_data) ||
+          !is.data.frame(display_data) ||
+          nrow(display_data) == 0
+      ) {
         return(shiny$tagList(
           shiny$h4("Q0 Comparisons"),
           shiny$helpText(
@@ -3032,7 +3038,11 @@ navpanel_server <- function(id, sidebar_reactives) {
       }
 
       # Handle empty comparisons (intercept-only for alpha due to collapse)
-      if (is.null(display_data) || nrow(display_data) == 0) {
+      if (
+        is.null(display_data) ||
+          !is.data.frame(display_data) ||
+          nrow(display_data) == 0
+      ) {
         return(shiny$tagList(
           shiny$h4("Alpha Comparisons"),
           shiny$helpText(
@@ -3061,7 +3071,9 @@ navpanel_server <- function(id, sidebar_reactives) {
       }
 
       # Handle empty or NULL data
-      if (is.null(raw_data) || nrow(raw_data) == 0) {
+      if (
+        is.null(raw_data) || !is.data.frame(raw_data) || nrow(raw_data) == 0
+      ) {
         return(NULL)
       }
 

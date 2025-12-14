@@ -122,3 +122,50 @@ describe("prepare_systematic_input", {
     expect_equal(result$id, c("p1", "p2"))
   })
 })
+
+
+# ------------------------------------------------------------------------------
+# is_valid_comparison_data() tests
+# ------------------------------------------------------------------------------
+
+describe("is_valid_comparison_data", {
+  it("returns TRUE for valid non-empty data frame", {
+    df <- data.frame(contrast = "a - b", estimate = 0.5)
+    expect_true(mixed_effects_demand_utils$is_valid_comparison_data(df))
+  })
+
+  it("returns FALSE for NULL", {
+    expect_false(mixed_effects_demand_utils$is_valid_comparison_data(NULL))
+  })
+
+  it("returns FALSE for empty data frame", {
+    df <- data.frame(contrast = character(0), estimate = numeric(0))
+    expect_false(mixed_effects_demand_utils$is_valid_comparison_data(df))
+  })
+
+  it("returns FALSE for non-data.frame objects", {
+    expect_false(mixed_effects_demand_utils$is_valid_comparison_data(list(
+      a = 1
+    )))
+    expect_false(mixed_effects_demand_utils$is_valid_comparison_data("string"))
+    expect_false(mixed_effects_demand_utils$is_valid_comparison_data(123))
+    expect_false(mixed_effects_demand_utils$is_valid_comparison_data(c(
+      1,
+      2,
+      3
+    )))
+  })
+
+  it("returns FALSE for tibble with zero rows", {
+    # Simulates what beezdemand returns when contrast fails
+    empty_tibble <- tibble::tibble()
+    expect_false(mixed_effects_demand_utils$is_valid_comparison_data(
+      empty_tibble
+    ))
+  })
+
+  it("returns TRUE for tibble with data", {
+    tbl <- tibble::tibble(contrast = "a - b", estimate = 0.5, p.value = 0.03)
+    expect_true(mixed_effects_demand_utils$is_valid_comparison_data(tbl))
+  })
+})

@@ -45,3 +45,17 @@ prepare_systematic_input <- function(df, id_col, x_col, y_col) {
 
   out
 }
+
+
+#' Check if comparison data is valid for display
+#'
+#' Validates that comparison data from beezdemand is a non-empty data frame.
+#' This handles edge cases where contrast calculations fail and return
+#' non-data.frame objects or empty results.
+#'
+#' @param data The comparison data to validate (e.g., contrasts_log10, contrasts_ratio)
+#' @return TRUE if data is a valid non-empty data frame, FALSE otherwise
+#' @export
+is_valid_comparison_data <- function(data) {
+  !is.null(data) && is.data.frame(data) && nrow(data) > 0
+}
