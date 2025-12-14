@@ -23,3 +23,7 @@ library(shiny)
 library(shiny.telemetry)
 library(tidyr)
 library(vroom)
+
+# Testing dependencies
+library(testthat)
+library(shinytest2)

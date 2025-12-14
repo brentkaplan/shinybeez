@@ -23,7 +23,6 @@ inst/doc
 # Other files #
 ###########
 other/
-tests/
 logs/log-*
 *-workspace
 manuscript/o*
