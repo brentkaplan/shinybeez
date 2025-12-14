@@ -195,7 +195,7 @@ build_nlme_control <- function(
   min_scale = 0.001,
   n_iter_em = 25L
 ) {
-  # Preset configurations
+  # Preset configurations matching the shinybeez UI
   presets <- list(
     default = list(
       maxIter = 50L,
@@ -206,6 +206,35 @@ build_nlme_control <- function(
       minScale = 0.001,
       niterEM = 25L
     ),
+    # Shinybeez UI presets
+    Balanced = list(
+      maxIter = 100L,
+      pnlsMaxIter = 7L,
+      msMaxIter = 100L,
+      tolerance = 1e-3,
+      pnlsTol = 1e-3,
+      minScale = 1e-3,
+      niterEM = 50L
+    ),
+    Faster = list(
+      maxIter = 60L,
+      pnlsMaxIter = 10L,
+      msMaxIter = 80L,
+      tolerance = 3e-3,
+      pnlsTol = 3e-3,
+      minScale = 5e-3,
+      niterEM = 30L
+    ),
+    Stricter = list(
+      maxIter = 200L,
+      pnlsMaxIter = 30L,
+      msMaxIter = 200L,
+      tolerance = 1e-5,
+      pnlsTol = 1e-4,
+      minScale = 1e-4,
+      niterEM = 80L
+    ),
+    # Legacy aliases
     relaxed = list(
       maxIter = 200L,
       pnlsMaxIter = 20L,

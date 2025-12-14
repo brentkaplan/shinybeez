@@ -1280,39 +1280,9 @@ sidebar_server <- function(id, data_reactive) {
     })
 
     # --- Advanced fitting controls: presets, clamping, and reactive export ---
-    balanced_defaults <- list(
-      maxIter = 100L,
-      pnlsMaxIter = 7L,
-      msMaxIter = 100L,
-      tolerance = 1e-3,
-      pnlsTol = 1e-3,
-      minScale = 1e-3,
-      niterEM = 50L
-    )
-
+    # Use extracted model_fitting module for preset values
     apply_preset <- function(preset) {
-      vals <- switch(
-        preset,
-        "Faster" = list(
-          maxIter = 60L,
-          pnlsMaxIter = 10L,
-          msMaxIter = 80L,
-          tolerance = 3e-3,
-          pnlsTol = 3e-3,
-          minScale = 5e-3,
-          niterEM = 30L
-        ),
-        "Stricter" = list(
-          maxIter = 200L,
-          pnlsMaxIter = 30L,
-          msMaxIter = 200L,
-          tolerance = 1e-5,
-          pnlsTol = 1e-4,
-          minScale = 1e-4,
-          niterEM = 80L
-        ),
-        balanced_defaults
-      )
+      vals <- model_fitting$build_nlme_control(preset = preset)
       shiny$updateNumericInput(session, "maxIter", value = vals$maxIter)
       shiny$updateNumericInput(session, "pnlsMaxIter", value = vals$pnlsMaxIter)
       shiny$updateNumericInput(session, "msMaxIter", value = vals$msMaxIter)
