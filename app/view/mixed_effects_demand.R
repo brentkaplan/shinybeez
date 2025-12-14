@@ -29,7 +29,8 @@ box::use(
   app / logic / mixed_effects / data_prep,
   app / logic / mixed_effects / model_fitting,
   app / logic / mixed_effects / emms_utils,
-  app / logic / mixed_effects / export_utils
+  app / logic / mixed_effects / export_utils,
+  app / logic / mixed_effects / validation_utils
 )
 
 # Module-local cache for example data
@@ -2933,10 +2934,8 @@ navpanel_server <- function(id, sidebar_reactives) {
         comps$Q0$contrasts_log10
       }
 
-      # Handle empty or NULL data
-      if (
-        is.null(raw_data) || !is.data.frame(raw_data) || nrow(raw_data) == 0
-      ) {
+      # Handle empty or NULL data using validation_utils
+      if (!validation_utils$is_valid_comparison_data(raw_data)) {
         return(NULL)
       }
 
@@ -3070,10 +3069,8 @@ navpanel_server <- function(id, sidebar_reactives) {
         comps$alpha$contrasts_log10
       }
 
-      # Handle empty or NULL data
-      if (
-        is.null(raw_data) || !is.data.frame(raw_data) || nrow(raw_data) == 0
-      ) {
+      # Handle empty or NULL data using validation_utils
+      if (!validation_utils$is_valid_comparison_data(raw_data)) {
         return(NULL)
       }
 
