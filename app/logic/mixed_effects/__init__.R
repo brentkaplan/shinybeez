@@ -4,8 +4,9 @@
 
 box::use(
   . / collapse_levels,
-  . / data_prep
+  . / data_prep,
+  . / model_fitting
 )
 
 #' @export
-box::export(collapse_levels, data_prep)
+box::export(collapse_levels, data_prep, model_fitting)
