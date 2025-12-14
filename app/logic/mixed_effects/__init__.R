@@ -3,8 +3,9 @@
 #' Exports utility functions for mixed effects demand analysis.
 
 box::use(
-  . / collapse_levels
+  . / collapse_levels,
+  . / data_prep
 )
 
 #' @export
-box::export(collapse_levels)
+box::export(collapse_levels, data_prep)
