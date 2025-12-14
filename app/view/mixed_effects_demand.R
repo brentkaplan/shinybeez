@@ -3515,48 +3515,24 @@ navpanel_server <- function(id, sidebar_reactives) {
           )
         }
 
-        # --- Sheet 3: Descriptives ---
+        # --- Sheet 3: Descriptives (using export_utils module) ---
         openxlsx$addWorksheet(wb, "Descriptives")
         if (!is.null(raw_data) && "y_for_model" %in% names(raw_data)) {
           factors <- sidebar_reactives$selected_factors()
           x_var_sel <- sidebar_reactives$x_var()
           grouping_vars <- c(factors, x_var_sel)
           grouping_vars <- grouping_vars[!grouping_vars %in% c("None", "")]
-          grouping_vars_present <- intersect(grouping_vars, names(raw_data))
 
-          if (length(grouping_vars_present) == 0) {
-            desc_data <- raw_data |>
-              dplyr$summarise(
-                N = dplyr$n(),
-                Mean_Y_Model = mean(y_for_model, na.rm = TRUE),
-                SD_Y_Model = stats$sd(y_for_model, na.rm = TRUE),
-                Median_Y_Model = stats$median(y_for_model, na.rm = TRUE),
-                .groups = "drop"
-              )
-          } else {
-            desc_data <- raw_data |>
-              dplyr$group_by(dplyr$across(dplyr$all_of(
-                grouping_vars_present
-              ))) |>
-              dplyr$summarise(
-                N = dplyr$n(),
-                Mean_Y_Model = mean(y_for_model, na.rm = TRUE),
-                SD_Y_Model = stats$sd(y_for_model, na.rm = TRUE),
-                Median_Y_Model = stats$median(y_for_model, na.rm = TRUE),
-                .groups = "drop"
-              )
+          desc_data <- export_utils$build_descriptives(raw_data, grouping_vars)
+          if (!is.null(desc_data) && nrow(desc_data) > 0) {
+            openxlsx$writeData(wb, "Descriptives", desc_data)
+            openxlsx$setColWidths(
+              wb,
+              "Descriptives",
+              cols = 1:ncol(desc_data),
+              widths = "auto"
+            )
           }
-          desc_data <- dplyr$mutate(
-            desc_data,
-            dplyr$across(where(is.numeric), ~ round(., 3))
-          )
-          openxlsx$writeData(wb, "Descriptives", desc_data)
-          openxlsx$setColWidths(
-            wb,
-            "Descriptives",
-            cols = 1:ncol(desc_data),
-            widths = "auto"
-          )
         }
 
         # --- Sheet 4: Systematic Criteria ---
