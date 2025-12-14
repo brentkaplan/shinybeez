@@ -114,7 +114,7 @@ data_table$ui(ns("my_table"))
 data_table$server(
   "my_table",
   data_reactive = my_data,
-  filename_prefix = "ShinyBeez_Export"
+  filename_prefix = "shinybeez_Export"
 )
 ```
 
@@ -189,8 +189,8 @@ cov_result <- model_fitting$process_covariate(
   scale = FALSE
 )
 
-# Build nlme controls with preset
-ctrl <- model_fitting$build_nlme_control(preset = "relaxed")
+# Build nlme controls with preset (Balanced, Faster, Stricter available)
+ctrl <- model_fitting$build_nlme_control(preset = "Balanced")
 
 # Process collapse levels
 result <- collapse_levels$process_param_collapse(
@@ -202,6 +202,23 @@ result <- collapse_levels$process_param_collapse(
 )
 ```
 
+## Inline Logic Replacements in mixed_effects_demand.R
+
+The following inline logic has been replaced with module calls:
+
+| Original Inline Code | Module Replacement |
+|---------------------|--------------------|
+| Column guessing helpers | `data_prep$guess_variable_columns()` |
+| Nlme preset definitions | `model_fitting$build_nlme_control(preset)` |
+| Collapse helper functions | `collapse_levels$process_param_collapse()` |
+| Covariate processing (2 instances) | `model_fitting$process_covariate()` |
+| Excel summary sheet building | `export_utils$build_summary_sheet()` |
+| Excel collapse info section | `export_utils$add_collapse_info()` |
+| Excel fitting settings section | `export_utils$add_fitting_settings()` |
+| Excel descriptives building | `export_utils$build_descriptives()` |
+
+**Result**: `mixed_effects_demand.R` reduced from 4200 → 3853 lines (347 lines, 8.3% reduction)
+
 ## Migration Notes
 
 When refactoring code to use these modules:
@@ -211,3 +228,7 @@ When refactoring code to use these modules:
 3. **Handle Shiny side effects** (notifications) in the view layer, not logic layer
 4. **Add tests** for any new logic functions
 5. **Run tests** after each change to catch regressions
+
+## Branding
+
+All export filenames and UI labels use lowercase `shinybeez` branding (e.g., `shinybeez_MixedEffects_Data.xlsx`).
