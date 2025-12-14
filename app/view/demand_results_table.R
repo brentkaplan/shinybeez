@@ -107,11 +107,14 @@ server <- function(
 ) {
   shiny$moduleServer(id, function(input, output, session) {
     ns <- session$ns
-    
+
     # Create session-specific logger
     session_logger <- logging_utils$create_session_logger(session)
-    session_logger$info("Demand results table module initialized", "module_init")
-    
+    session_logger$info(
+      "Demand results table module initialized",
+      "module_init"
+    )
+
     res <- shiny$reactiveValues(
       data = NULL,
       output = NULL,
@@ -145,26 +148,32 @@ server <- function(
         constrainq0
       ))
       if ((is.null(groupcol()) | !groupcol()) | analysis_type %in% "Ind") {
-        res$output <- tryCatch({
-          data_r$data_d |>
-            FitCurves(
-              dat = _,
-              eq = eq,
-              agg = agg,
-              k = k,
-              constrainq0 = constrainq0,
-              detailed = TRUE
+        res$output <- tryCatch(
+          {
+            data_r$data_d |>
+              FitCurves(
+                dat = _,
+                eq = eq,
+                agg = agg,
+                k = k,
+                constrainq0 = constrainq0,
+                detailed = TRUE
+              )
+          },
+          error = function(e) {
+            rhino$log$error(paste("Error in FitCurves:", e$message))
+            shiny$showNotification(
+              paste(
+                "Error fitting demand curves:",
+                e$message,
+                "Please check your data and parameters."
+              ),
+              type = "error",
+              duration = 10
             )
-        }, error = function(e) {
-          rhino$log$error(paste("Error in FitCurves:", e$message))
-          shiny$showNotification(
-            paste("Error fitting demand curves:", e$message, 
-                  "Please check your data and parameters."),
-            type = "error",
-            duration = 10
-          )
-          return(NULL)
-        })
+            return(NULL)
+          }
+        )
         if (!is.null(res$output)) {
           res$results <- res$output[[1]] |>
             dplyr$select(!(Intensity:Pmaxe)) |>
@@ -216,27 +225,40 @@ server <- function(
           dplyr$group_by(group) |>
           dplyr$group_map(
             ~ {
-              fit_result <- tryCatch({
-                FitCurves(
-                  dat = .x,
-                  eq = eq,
-                  agg = agg,
-                  k = k,
-                  constrainq0 = constrainq0,
-                  detailed = TRUE
-                )
-              }, error = function(e) {
-                group_name <- dplyr$first(.x$group)
-                rhino$log$error(paste("Error in FitCurves for group", group_name, ":", e$message))
-                shiny$showNotification(
-                  paste("Error fitting demand curves for group", group_name, ":", e$message, 
-                        "This group will be skipped."),
-                  type = "warning",
-                  duration = 8
-                )
-                return(NULL)
-              })
-              
+              fit_result <- tryCatch(
+                {
+                  FitCurves(
+                    dat = .x,
+                    eq = eq,
+                    agg = agg,
+                    k = k,
+                    constrainq0 = constrainq0,
+                    detailed = TRUE
+                  )
+                },
+                error = function(e) {
+                  group_name <- dplyr$first(.x$group)
+                  rhino$log$error(paste(
+                    "Error in FitCurves for group",
+                    group_name,
+                    ":",
+                    e$message
+                  ))
+                  shiny$showNotification(
+                    paste(
+                      "Error fitting demand curves for group",
+                      group_name,
+                      ":",
+                      e$message,
+                      "This group will be skipped."
+                    ),
+                    type = "warning",
+                    duration = 8
+                  )
+                  return(NULL)
+                }
+              )
+
               if (!is.null(fit_result)) {
                 list(
                   group = dplyr$first(.x$group),
@@ -251,7 +273,7 @@ server <- function(
           )
         # Filter out NULL results from failed fits
         tmp <- tmp[!sapply(tmp, is.null)]
-        
+
         if (length(tmp) > 0) {
           res$output[[1]] <- dplyr$bind_rows(lapply(tmp, function(x) {
             cbind(group = x$group, x$fit_result_1)
@@ -323,17 +345,17 @@ server <- function(
             list(extend = "print"),
             list(
               extend = "csv",
-              filename = "ShinyBeez_Demand_ModelResults",
+              filename = "shinybeez_Demand_ModelResults",
               title = NULL
             ),
             list(
               extend = "excel",
-              filename = "ShinyBeez_Demand_ModelResults",
+              filename = "shinybeez_Demand_ModelResults",
               title = NULL
             ),
             list(
               extend = "pdf",
-              filename = "ShinyBeez_Demand_ModelResults",
+              filename = "shinybeez_Demand_ModelResults",
               title = NULL
             )
           ),
@@ -370,12 +392,12 @@ server <- function(
       pt_shape <- 21
       pt_fill <- "white"
       pt_size <- 3
-      
+
       # Only create plots if we have valid output from FitCurves
       if (is.null(res$output)) {
         return()
       }
-      
+
       if (analysis_type %in% c("Mean")) {
         if (!groupcol()) {
           data_g <- aggregate(y ~ x, data_r$data_d, mean, na.rm = TRUE)

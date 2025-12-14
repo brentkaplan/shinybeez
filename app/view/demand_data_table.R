@@ -109,17 +109,17 @@ server <- function(id, isgroup = NULL, data_r) {
               list(extend = "print"),
               list(
                 extend = "csv",
-                filename = "ShinyBeez_Demand_Data",
+                filename = "shinybeez_Demand_Data",
                 title = NULL
               ),
               list(
                 extend = "excel",
-                filename = "ShinyBeez_Demand_Data",
+                filename = "shinybeez_Demand_Data",
                 title = NULL
               ),
               list(
                 extend = "pdf",
-                filename = "ShinyBeez_Demand_Data",
+                filename = "shinybeez_Demand_Data",
                 title = NULL
               )
             ),
@@ -181,17 +181,17 @@ server <- function(id, isgroup = NULL, data_r) {
               list(extend = "print"),
               list(
                 extend = "csv",
-                filename = "ShinyBeez_Demand_Descriptives",
+                filename = "shinybeez_Demand_Descriptives",
                 title = NULL
               ),
               list(
                 extend = "excel",
-                filename = "ShinyBeez_Demand_Descriptives",
+                filename = "shinybeez_Demand_Descriptives",
                 title = NULL
               ),
               list(
                 extend = "pdf",
-                filename = "ShinyBeez_Demand_Descriptives",
+                filename = "shinybeez_Demand_Descriptives",
                 title = NULL
               )
             ),
@@ -280,17 +280,17 @@ server <- function(id, isgroup = NULL, data_r) {
               list(extend = "print"),
               list(
                 extend = "csv",
-                filename = "ShinyBeez_Demand_Empirical_Measures",
+                filename = "shinybeez_Demand_Empirical_Measures",
                 title = NULL
               ),
               list(
                 extend = "excel",
-                filename = "ShinyBeez_Demand_Empirical_Measures",
+                filename = "shinybeez_Demand_Empirical_Measures",
                 title = NULL
               ),
               list(
                 extend = "pdf",
-                filename = "ShinyBeez_Demand_Empirical_Measures",
+                filename = "shinybeez_Demand_Empirical_Measures",
                 title = NULL
               )
             ),
@@ -355,17 +355,17 @@ server <- function(id, isgroup = NULL, data_r) {
               list(extend = "print"),
               list(
                 extend = "csv",
-                filename = "ShinyBeez_Demand_Systematic_Criteria",
+                filename = "shinybeez_Demand_Systematic_Criteria",
                 title = NULL
               ),
               list(
                 extend = "excel",
-                filename = "ShinyBeez_Demand_Systematic_Criteria",
+                filename = "shinybeez_Demand_Systematic_Criteria",
                 title = NULL
               ),
               list(
                 extend = "pdf",
-                filename = "ShinyBeez_Demand_Systematic_Criteria",
+                filename = "shinybeez_Demand_Systematic_Criteria",
                 title = NULL
               )
             ),

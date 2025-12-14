@@ -132,17 +132,17 @@ server <- function(id, data_r, type = NULL) {
               list(extend = "print"),
               list(
                 extend = "csv",
-                filename = "ShinyBeez_Discounting_Data",
+                filename = "shinybeez_Discounting_Data",
                 title = NULL
               ),
               list(
                 extend = "excel",
-                filename = "ShinyBeez_Discounting_Data",
+                filename = "shinybeez_Discounting_Data",
                 title = NULL
               ),
               list(
                 extend = "pdf",
-                filename = "ShinyBeez_Discounting_Data",
+                filename = "shinybeez_Discounting_Data",
                 title = NULL
               )
             ),
@@ -180,17 +180,17 @@ server <- function(id, data_r, type = NULL) {
               list(extend = "print"),
               list(
                 extend = "csv",
-                filename = "ShinyBeez_Discounting_Missings",
+                filename = "shinybeez_Discounting_Missings",
                 title = NULL
               ),
               list(
                 extend = "excel",
-                filename = "ShinyBeez_Discounting_Missings",
+                filename = "shinybeez_Discounting_Missings",
                 title = NULL
               ),
               list(
                 extend = "pdf",
-                filename = "ShinyBeez_Discounting_Missings",
+                filename = "shinybeez_Discounting_Missings",
                 title = NULL
               )
             ),
@@ -234,17 +234,17 @@ server <- function(id, data_r, type = NULL) {
               list(extend = "print"),
               list(
                 extend = "csv",
-                filename = "ShinyBeez_Discounting_SystematicCriteria",
+                filename = "shinybeez_Discounting_SystematicCriteria",
                 title = NULL
               ),
               list(
                 extend = "excel",
-                filename = "ShinyBeez_Discounting_SystematicCriteria",
+                filename = "shinybeez_Discounting_SystematicCriteria",
                 title = NULL
               ),
               list(
                 extend = "pdf",
-                filename = "ShinyBeez_Discounting_SystematicCriteria",
+                filename = "shinybeez_Discounting_SystematicCriteria",
                 title = NULL
               )
             ),
