@@ -24,7 +24,10 @@ box::use(
   app / logic / utils, # For watermarks, etc.
   app / logic / validate, # For data validation and transformations
   app / logic / mixed_effects_demand_utils,
-  app / logic / logging_utils
+  app / logic / logging_utils,
+  app / logic / mixed_effects / collapse_levels,
+  app / logic / mixed_effects / data_prep,
+  app / logic / mixed_effects / model_fitting
 )
 
 # Module-local cache for example data
