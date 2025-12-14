@@ -8,7 +8,7 @@ box::use(
 box::use(
   app / logic / logging_utils,
   app / logic / telemetry_utils,
-  app / view / mixed_effects_demand,
+  app / view / mixed_effects_demand_coordinator,
   app / view / demand,
   app / view / discounting,
   app / view / info,
@@ -115,7 +115,7 @@ ui <- function(id) {
       ),
       shiny$conditionalPanel(
         "input.nav === 'MixedEffectsDemand'",
-        mixed_effects_demand$sidebar_ui(ns("mixed_effects_demand"))
+        mixed_effects_demand_coordinator$sidebar_ui(ns("mixed_effects_demand"))
       )
     ),
     bslib$nav_panel(
@@ -135,7 +135,7 @@ ui <- function(id) {
     bslib$nav_panel(
       value = "MixedEffectsDemand",
       title = "Mixed Effects Demand",
-      mixed_effects_demand$navpanel_ui(ns("mixed_effects_demand"))
+      mixed_effects_demand_coordinator$navpanel_ui(ns("mixed_effects_demand"))
     ),
     bslib$nav_spacer(),
     bslib$nav_item(
@@ -258,14 +258,14 @@ server <- function(id) {
           "module_init"
         )
 
-        mmd_sidebar_reactives <- mixed_effects_demand$sidebar_server(
+        mmd_sidebar_reactives <- mixed_effects_demand_coordinator$sidebar_server(
           "mixed_effects_demand",
           data_reactive = shiny$reactive(
             session$userData$data$mixed_effects_demand
           )
         )
 
-        mixed_effects_demand$navpanel_server(
+        mixed_effects_demand_coordinator$navpanel_server(
           "mixed_effects_demand",
           sidebar_reactives = mmd_sidebar_reactives
         )
