@@ -351,18 +351,6 @@ sidebar_server <- function(id, data_reactive) {
       }
     })
 
-    # Helper for robust, case-insensitive guessing that returns original names
-    guess_first_match <- function(candidates, cols) {
-      cols_lower <- tolower(cols)
-      for (cand in candidates) {
-        idx <- which(cols_lower == cand)
-        if (length(idx) > 0) {
-          return(cols[idx[1]])
-        }
-      }
-      return(NA_character_)
-    }
-
     # A. Update ID/X/Y choices ONLY when data changes
     shiny$observeEvent(
       current_data(),
@@ -370,44 +358,12 @@ sidebar_server <- function(id, data_reactive) {
         df <- current_data()
         shiny$req(df)
         col_names <- names(df)
-        cols_lower <- tolower(col_names)
 
-        likely_id <- guess_first_match(
-          c(
-            "monkey",
-            "id",
-            "subject",
-            "participant",
-            "subjid",
-            "subj_id",
-            "responseid"
-          ),
-          col_names
-        )
-        if (is.na(likely_id)) {
-          likely_id <- col_names[1]
-        }
-
-        likely_x <- guess_first_match(
-          c("x", "price", "ratio"),
-          col_names
-        )
-        if (is.na(likely_x) && length(col_names) >= 2) {
-          likely_x <- col_names[2]
-        }
-
-        likely_y <- guess_first_match(
-          c("y", "y_ll4", "consumption", "response"),
-          col_names
-        )
-        if (is.na(likely_y) && length(col_names) >= 3) {
-          likely_y <- col_names[3]
-        }
-
-        # On data change, initialize sensible defaults (do not preserve prior selections)
-        id_selected <- likely_id
-        x_selected <- likely_x
-        y_selected <- likely_y
+        # Use extracted data_prep module for column guessing
+        guessed <- data_prep$guess_variable_columns(df)
+        id_selected <- guessed$id
+        x_selected <- guessed$x
+        y_selected <- guessed$y
 
         # Explicitly set selected values to avoid defaulting to first choice
         shiny$updateSelectInput(
