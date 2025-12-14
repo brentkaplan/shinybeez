@@ -257,3 +257,21 @@ build_export_filename <- function(
   timestamp <- generate_export_timestamp()
   paste0(prefix, "_", timestamp, ".", extension)
 }
+
+#' Build standard DT export buttons configuration
+#'
+#' Creates a consistent button configuration for DT tables with copy, print,
+#' CSV, Excel, and PDF export options.
+#'
+#' @param filename Filename prefix for exports (without extension)
+#' @return List of button configurations for DT options
+#' @export
+build_dt_buttons <- function(filename) {
+  list(
+    list(extend = "copy"),
+    list(extend = "print"),
+    list(extend = "csv", filename = filename, title = NULL),
+    list(extend = "excel", filename = filename, title = NULL),
+    list(extend = "pdf", filename = filename, title = NULL)
+  )
+}

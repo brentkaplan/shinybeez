@@ -214,3 +214,41 @@ describe("build_export_filename", {
     expect_match(result, "^my_export_\\d{8}_\\d{6}\\.csv$")
   })
 })
+
+# ------------------------------------------------------------------------------
+# build_dt_buttons() tests
+# ------------------------------------------------------------------------------
+
+describe("build_dt_buttons", {
+  it("returns list with 5 button configurations", {
+    result <- export_utils$build_dt_buttons("test_file")
+    expect_type(result, "list")
+    expect_length(result, 5)
+  })
+
+  it("includes copy and print buttons", {
+    result <- export_utils$build_dt_buttons("test_file")
+    extends <- sapply(result, function(x) x$extend)
+    expect_true("copy" %in% extends)
+    expect_true("print" %in% extends)
+  })
+
+  it("includes csv, excel, pdf with correct filename", {
+    result <- export_utils$build_dt_buttons("my_export")
+    csv_btn <- result[[which(sapply(result, function(x) x$extend == "csv"))]]
+    excel_btn <- result[[which(sapply(result, function(x) {
+      x$extend == "excel"
+    }))]]
+    pdf_btn <- result[[which(sapply(result, function(x) x$extend == "pdf"))]]
+
+    expect_equal(csv_btn$filename, "my_export")
+    expect_equal(excel_btn$filename, "my_export")
+    expect_equal(pdf_btn$filename, "my_export")
+  })
+
+  it("sets title to NULL for file exports", {
+    result <- export_utils$build_dt_buttons("test")
+    csv_btn <- result[[which(sapply(result, function(x) x$extend == "csv"))]]
+    expect_null(csv_btn$title)
+  })
+})

@@ -447,24 +447,8 @@ navpanel_server <- function(id, sidebar_reactives) {
           pageLength = 5,
           autoWidth = TRUE,
           dom = "Bti",
-          buttons = list(
-            list(extend = "copy"),
-            list(extend = "print"),
-            list(
-              extend = "csv",
-              filename = "shinybeez_MixedEffects_Input_Data",
-              title = NULL
-            ),
-            list(
-              extend = "excel",
-              filename = "shinybeez_MixedEffects_Input_Data",
-              title = NULL
-            ),
-            list(
-              extend = "pdf",
-              filename = "shinybeez_MixedEffects_Input_Data",
-              title = NULL
-            )
+          buttons = export_utils$build_dt_buttons(
+            "shinybeez_MixedEffects_Input_Data"
           ),
           deferRender = TRUE,
           scroller = TRUE
@@ -523,24 +507,8 @@ navpanel_server <- function(id, sidebar_reactives) {
           pageLength = 10,
           autoWidth = TRUE,
           dom = "Bti",
-          buttons = list(
-            list(extend = "copy"),
-            list(extend = "print"),
-            list(
-              extend = "csv",
-              filename = "shinybeez_MixedEffects_Descriptives",
-              title = NULL
-            ),
-            list(
-              extend = "excel",
-              filename = "shinybeez_MixedEffects_Descriptives",
-              title = NULL
-            ),
-            list(
-              extend = "pdf",
-              filename = "shinybeez_MixedEffects_Descriptives",
-              title = NULL
-            )
+          buttons = export_utils$build_dt_buttons(
+            "shinybeez_MixedEffects_Descriptives"
           )
         ),
         filter = "top",
@@ -654,24 +622,8 @@ navpanel_server <- function(id, sidebar_reactives) {
             autoWidth = FALSE,
             ordering = TRUE,
             dom = "Bti",
-            buttons = list(
-              list(extend = "copy"),
-              list(extend = "print"),
-              list(
-                extend = "csv",
-                filename = "shinybeez_MixedEffects_Systematic_Criteria",
-                title = NULL
-              ),
-              list(
-                extend = "excel",
-                filename = "shinybeez_MixedEffects_Systematic_Criteria",
-                title = NULL
-              ),
-              list(
-                extend = "pdf",
-                filename = "shinybeez_MixedEffects_Systematic_Criteria",
-                title = NULL
-              )
+            buttons = export_utils$build_dt_buttons(
+              "shinybeez_MixedEffects_Systematic_Criteria"
             ),
             deferRender = TRUE,
             scrollY = 250,
@@ -891,24 +843,8 @@ navpanel_server <- function(id, sidebar_reactives) {
         extensions = c("Buttons"),
         options = list(
           dom = "Btip",
-          buttons = list(
-            list(extend = "copy"),
-            list(extend = "print"),
-            list(
-              extend = "csv",
-              filename = "shinybeez_MixedEffects_Fixed_Effects",
-              title = NULL
-            ),
-            list(
-              extend = "excel",
-              filename = "shinybeez_MixedEffects_Fixed_Effects",
-              title = NULL
-            ),
-            list(
-              extend = "pdf",
-              filename = "shinybeez_MixedEffects_Fixed_Effects",
-              title = NULL
-            )
+          buttons = export_utils$build_dt_buttons(
+            "shinybeez_MixedEffects_Fixed_Effects"
           )
         )
       )
@@ -947,24 +883,8 @@ navpanel_server <- function(id, sidebar_reactives) {
           extensions = c("Buttons"),
           options = list(
             dom = "Btip",
-            buttons = list(
-              list(extend = "copy"),
-              list(extend = "print"),
-              list(
-                extend = "csv",
-                filename = "shinybeez_MixedEffects_Individual_Coefficients",
-                title = NULL
-              ),
-              list(
-                extend = "excel",
-                filename = "shinybeez_MixedEffects_Individual_Coefficients",
-                title = NULL
-              ),
-              list(
-                extend = "pdf",
-                filename = "shinybeez_MixedEffects_Individual_Coefficients",
-                title = NULL
-              )
+            buttons = export_utils$build_dt_buttons(
+              "shinybeez_MixedEffects_Individual_Coefficients"
             )
           )
         )
@@ -1009,24 +929,8 @@ navpanel_server <- function(id, sidebar_reactives) {
           pageLength = 5,
           autoWidth = TRUE,
           dom = "Btip",
-          buttons = list(
-            list(extend = "copy"),
-            list(extend = "print"),
-            list(
-              extend = "csv",
-              filename = "shinybeez_MixedEffects_Random_Effects",
-              title = NULL
-            ),
-            list(
-              extend = "excel",
-              filename = "shinybeez_MixedEffects_Random_Effects",
-              title = NULL
-            ),
-            list(
-              extend = "pdf",
-              filename = "shinybeez_MixedEffects_Random_Effects",
-              title = NULL
-            )
+          buttons = export_utils$build_dt_buttons(
+            "shinybeez_MixedEffects_Random_Effects"
           )
         ),
         class = "compact hover", # Added class for styling
@@ -1103,24 +1007,8 @@ navpanel_server <- function(id, sidebar_reactives) {
           scrollX = TRUE,
           pageLength = 10,
           dom = "Btip",
-          buttons = list(
-            list(extend = "copy"),
-            list(extend = "print"),
-            list(
-              extend = "csv",
-              filename = "shinybeez_MixedEffects_Q0_EMMs",
-              title = NULL
-            ),
-            list(
-              extend = "excel",
-              filename = "shinybeez_MixedEffects_Q0_EMMs",
-              title = NULL
-            ),
-            list(
-              extend = "pdf",
-              filename = "shinybeez_MixedEffects_Q0_EMMs",
-              title = NULL
-            )
+          buttons = export_utils$build_dt_buttons(
+            "shinybeez_MixedEffects_Q0_EMMs"
           )
         )
       )
@@ -1190,24 +1078,8 @@ navpanel_server <- function(id, sidebar_reactives) {
           scrollX = TRUE,
           pageLength = 10,
           dom = "Btip",
-          buttons = list(
-            list(extend = "copy"),
-            list(extend = "print"),
-            list(
-              extend = "csv",
-              filename = "shinybeez_MixedEffects_Alpha_EMMs",
-              title = NULL
-            ),
-            list(
-              extend = "excel",
-              filename = "shinybeez_MixedEffects_Alpha_EMMs",
-              title = NULL
-            ),
-            list(
-              extend = "pdf",
-              filename = "shinybeez_MixedEffects_Alpha_EMMs",
-              title = NULL
-            )
+          buttons = export_utils$build_dt_buttons(
+            "shinybeez_MixedEffects_Alpha_EMMs"
           )
         )
       )
@@ -1267,25 +1139,7 @@ navpanel_server <- function(id, sidebar_reactives) {
           scrollX = TRUE,
           pageLength = 10,
           dom = "Btip",
-          buttons = list(
-            list(extend = "copy"),
-            list(extend = "print"),
-            list(
-              extend = "csv",
-              filename = "shinybeez_MixedEffects_EV",
-              title = NULL
-            ),
-            list(
-              extend = "excel",
-              filename = "shinybeez_MixedEffects_EV",
-              title = NULL
-            ),
-            list(
-              extend = "pdf",
-              filename = "shinybeez_MixedEffects_EV",
-              title = NULL
-            )
-          )
+          buttons = export_utils$build_dt_buttons("shinybeez_MixedEffects_EV")
         )
       )
     })
@@ -1456,24 +1310,8 @@ navpanel_server <- function(id, sidebar_reactives) {
           pageLength = 5,
           autoWidth = TRUE,
           dom = "Btip",
-          buttons = list(
-            list(extend = "copy"),
-            list(extend = "print"),
-            list(
-              extend = "csv",
-              filename = "shinybeez_MixedEffects_Q0_Comparisons",
-              title = NULL
-            ),
-            list(
-              extend = "excel",
-              filename = "shinybeez_MixedEffects_Q0_Comparisons",
-              title = NULL
-            ),
-            list(
-              extend = "pdf",
-              filename = "shinybeez_MixedEffects_Q0_Comparisons",
-              title = NULL
-            )
+          buttons = export_utils$build_dt_buttons(
+            "shinybeez_MixedEffects_Q0_Comparisons"
           )
         ),
         class = "compact hover",
@@ -1591,24 +1429,8 @@ navpanel_server <- function(id, sidebar_reactives) {
           pageLength = 5,
           autoWidth = TRUE,
           dom = "Btip",
-          buttons = list(
-            list(extend = "copy"),
-            list(extend = "print"),
-            list(
-              extend = "csv",
-              filename = "shinybeez_MixedEffects_Alpha_Comparisons",
-              title = NULL
-            ),
-            list(
-              extend = "excel",
-              filename = "shinybeez_MixedEffects_Alpha_Comparisons",
-              title = NULL
-            ),
-            list(
-              extend = "pdf",
-              filename = "shinybeez_MixedEffects_Alpha_Comparisons",
-              title = NULL
-            )
+          buttons = export_utils$build_dt_buttons(
+            "shinybeez_MixedEffects_Alpha_Comparisons"
           )
         ),
         class = "compact hover",
