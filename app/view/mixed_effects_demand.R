@@ -1305,69 +1305,30 @@ sidebar_server <- function(id, data_reactive) {
       list(name = covar, mu = mu, sigma = sigma)
     })
 
-    # Helper: build transformed covariate column and compute 'at' list for downstream APIs
+    # Helper: build transformed covariate column using extracted module
     build_covariate_modeling_info <- function(df_in) {
-      df <- df_in
       covar <- input$covariate_choice
-      if (is.null(covar) || !nzchar(covar) || !(covar %in% names(df))) {
-        return(list(df = df, model_covariate_name = NULL, at_list = NULL))
+      if (is.null(covar) || !nzchar(covar) || !(covar %in% names(df_in))) {
+        return(list(df = df_in, model_covariate_name = NULL, at_list = NULL))
       }
 
-      # Ensure numeric base column
-      base_name <- covar
-      base_vec <- df[[covar]]
-      if (is.character(base_vec)) {
-        base_name_num <- paste0(covar, "_num")
-        df[[base_name_num]] <- suppressWarnings(as.numeric(base_vec))
-        base_name <- base_name_num
+      result <- model_fitting$process_covariate(
+        df = df_in,
+        covariate_col = covar,
+        center = isTRUE(input$cov_center),
+        scale = isTRUE(input$cov_scale),
+        at_value = input$cov_at
+      )
+
+      # Show notification if scale failed
+      if (isTRUE(result$transform_info$scale_failed)) {
+        shiny$showNotification(
+          "Scale requested but SD is not positive; applying centering only.",
+          type = "warning"
+        )
       }
 
-      center <- isTRUE(input$cov_center)
-      scale <- isTRUE(input$cov_scale)
-      x <- df[[base_name]]
-      mu <- suppressWarnings(mean(x, na.rm = TRUE))
-      sigma <- suppressWarnings(stats$sd(x, na.rm = TRUE))
-
-      effective_name <- base_name
-      if (center || scale) {
-        if (
-          isTRUE(scale) && (is.na(sigma) || !is.finite(sigma) || sigma <= 0)
-        ) {
-          shiny$showNotification(
-            "Scale requested but SD is not positive; applying centering only.",
-            type = "warning"
-          )
-          scale <- FALSE
-        }
-        if (isTRUE(scale)) {
-          effective_name <- paste0(base_name, "_cs")
-          df[[effective_name]] <- (x - mu) / sigma
-        } else if (isTRUE(center)) {
-          effective_name <- paste0(base_name, "_c")
-          df[[effective_name]] <- (x - mu)
-        }
-      } else {
-        # If not transforming and base is numeric-like character, column already created
-        if (!(base_name %in% names(df))) df[[base_name]] <- x
-      }
-
-      # Build 'at' list using natural-scale input, transformed consistently
-      at_val_nat <- suppressWarnings(as.numeric(input$cov_at))
-      at_list <- NULL
-      if (!is.null(at_val_nat) && is.finite(at_val_nat)) {
-        at_val <- at_val_nat
-        if (center || scale) {
-          if (isTRUE(scale) && is.finite(sigma) && sigma > 0) {
-            at_val <- (at_val_nat - mu) / sigma
-          } else if (isTRUE(center)) {
-            at_val <- (at_val_nat - mu)
-          }
-        }
-        at_list <- list(at_val)
-        names(at_list) <- effective_name
-      }
-
-      list(df = df, model_covariate_name = effective_name, at_list = at_list)
+      result
     }
 
     # Log user interactions with key model parameters
@@ -1719,69 +1680,31 @@ navpanel_server <- function(id, sidebar_reactives) {
     # Create session-specific logger for navpanel
     session_logger <- logging_utils$create_session_logger(session)
 
-    # Helper: build transformed covariate column and compute 'at' list
-    # Uses covariate controls from sidebar_reactives so the function is local to this module
+    # Helper: build transformed covariate column using extracted module
+    # Uses covariate controls from sidebar_reactives
     build_covariate_modeling_info <- function(df_in) {
-      df <- df_in
       covar <- sidebar_reactives$covariate()
-      if (is.null(covar) || !nzchar(covar) || !(covar %in% names(df))) {
-        return(list(df = df, model_covariate_name = NULL, at_list = NULL))
+      if (is.null(covar) || !nzchar(covar) || !(covar %in% names(df_in))) {
+        return(list(df = df_in, model_covariate_name = NULL, at_list = NULL))
       }
 
-      # Ensure numeric base column (coerce character numeric-like to numeric)
-      base_name <- covar
-      base_vec <- df[[covar]]
-      if (is.character(base_vec)) {
-        base_name_num <- paste0(covar, "_num")
-        df[[base_name_num]] <- suppressWarnings(as.numeric(base_vec))
-        base_name <- base_name_num
+      result <- model_fitting$process_covariate(
+        df = df_in,
+        covariate_col = covar,
+        center = isTRUE(sidebar_reactives$cov_center()),
+        scale = isTRUE(sidebar_reactives$cov_scale()),
+        at_value = sidebar_reactives$cov_at_natural()
+      )
+
+      # Show notification if scale failed
+      if (isTRUE(result$transform_info$scale_failed)) {
+        shiny$showNotification(
+          "Scale requested but SD is not positive; applying centering only.",
+          type = "warning"
+        )
       }
 
-      center <- isTRUE(sidebar_reactives$cov_center())
-      scale <- isTRUE(sidebar_reactives$cov_scale())
-      x <- df[[base_name]]
-      mu <- suppressWarnings(mean(x, na.rm = TRUE))
-      sigma <- suppressWarnings(stats$sd(x, na.rm = TRUE))
-
-      effective_name <- base_name
-      if (center || scale) {
-        if (
-          isTRUE(scale) && (is.na(sigma) || !is.finite(sigma) || sigma <= 0)
-        ) {
-          shiny$showNotification(
-            "Scale requested but SD is not positive; applying centering only.",
-            type = "warning"
-          )
-          scale <- FALSE
-        }
-        if (isTRUE(scale)) {
-          effective_name <- paste0(base_name, "_cs")
-          df[[effective_name]] <- (x - mu) / sigma
-        } else if (isTRUE(center)) {
-          effective_name <- paste0(base_name, "_c")
-          df[[effective_name]] <- (x - mu)
-        }
-      } else {
-        if (!(base_name %in% names(df))) df[[base_name]] <- x
-      }
-
-      # Build 'at' list using the natural-scale "at" value transformed consistently
-      at_val_nat <- suppressWarnings(as.numeric(sidebar_reactives$cov_at_natural()))
-      at_list <- NULL
-      if (!is.null(at_val_nat) && is.finite(at_val_nat)) {
-        at_val <- at_val_nat
-        if (center || scale) {
-          if (isTRUE(scale) && is.finite(sigma) && sigma > 0) {
-            at_val <- (at_val_nat - mu) / sigma
-          } else if (isTRUE(center)) {
-            at_val <- (at_val_nat - mu)
-          }
-        }
-        at_list <- list(at_val)
-        names(at_list) <- effective_name
-      }
-
-      list(df = df, model_covariate_name = effective_name, at_list = at_list)
+      result
     }
 
     data_to_analyze <- shiny$reactive({
