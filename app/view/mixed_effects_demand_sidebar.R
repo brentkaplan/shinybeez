@@ -71,15 +71,6 @@ sidebar_ui <- function(id) {
       choices = list(),
       selected = NULL
     ),
-    # shiny$selectInput(
-    #   ns("y_trans_choice"),
-    #   label = "Select Y transformation:",
-    #   choices = list(
-    #     "None" = "none",
-    #     "LL4" = "ll4"
-    #   ),
-    #   selected = "none"
-    # ),
     shiny$hr(),
     shiny$h5("Fixed Effects Factors (Optional):"),
     shiny$selectInput(

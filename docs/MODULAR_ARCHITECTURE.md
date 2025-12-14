@@ -17,7 +17,8 @@ app/
 │   │   ├── data_prep.R             # Column guessing, data preparation
 │   │   ├── model_fitting.R         # Covariate transforms, nlme controls
 │   │   ├── emms_utils.R            # EMM data processing
-│   │   └── export_utils.R          # Excel export helpers
+│   │   ├── export_utils.R          # Excel export helpers
+│   │   └── validation_utils.R      # Data validation helpers
 │   ├── demand/                     # Demand-specific logic (future)
 │   ├── discounting/                # Discounting-specific logic (future)
 │   ├── logging_utils.R             # Centralized logging
@@ -31,12 +32,11 @@ app/
 │   │   ├── data_table.R            # DT-based data table
 │   │   ├── plot_settings.R         # Plot settings sidebar
 │   │   └── systematic_criteria.R   # Systematic criteria panel
-│   ├── mixed_effects/              # Mixed effects module (future)
-│   │   ├── __init__.R
-│   │   └── components/
+│   ├── mixed_effects_demand_coordinator.R  # Coordinator (25 lines)
+│   ├── mixed_effects_demand_sidebar.R      # Sidebar UI/server (1388 lines)
+│   ├── mixed_effects_demand_navpanel.R     # Navpanel UI/server (2488 lines)
 │   ├── demand.R                    # Demand tab
 │   ├── discounting.R               # Discounting tab
-│   ├── mixed_effects_demand.R      # Mixed effects tab (being decomposed)
 │   └── ...
 └── main.R                          # App entry point
 ```

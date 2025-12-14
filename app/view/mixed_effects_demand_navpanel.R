@@ -360,71 +360,7 @@ navpanel_server <- function(id, sidebar_reactives) {
         attr(df, "y_is_ll4") <- FALSE
       }
 
-      # y_var_col_name <- sidebar_reactives$y_var()
-      # y_transform_method <- sidebar_reactives$y_transform()
-      # shiny$req(y_var_col_name, y_transform_method)
-      # if (y_transform_method == "ll4") {
-      #   if (y_var_col_name %in% names(df)) {
-      #     # Create a new column for the transformed Y, or use y_ll4 if it's already the target
-      #     # and the selected y_var IS y_ll4 (avoiding re-transforming y_ll4)
-      #     if (y_var_col_name == "y_ll4" && "y_ll4" %in% names(df)) {
-      #       df[["y_for_model"]] <- df[[y_var_col_name]]
-      #       shiny$showNotification(
-      #         paste(
-      #           "Using existing column '",
-      #           y_var_col_name,
-      #           "' for y_for_model (LL4)."
-      #         ),
-      #         type = "message",
-      #         duration = 3
-      #       )
-      #     } else {
-      #       shiny$showNotification(
-      #         paste(
-      #           "Applying LL4 transformation to '",
-      #           y_var_col_name,
-      #           "' and using as y_for_model."
-      #         ),
-      #         type = "message",
-      #         duration = 3
-      #       )
-      #       df[["y_for_model"]] <- beezdemand$ll4(df[[y_var_col_name]])
-      #     }
-      #   } else {
-      #     shiny$showNotification(
-      #       paste(
-      #         "Selected Y variable '",
-      #         y_var_col_name,
-      #         "' not found for transformation."
-      #       ),
-      #       type = "error"
-      #     )
-      #     return(NULL)
-      #   }
-      # } else {
-      #   # "none" transformation
-      #   # If no transformation, y_for_model is just the selected y_variable_choice
-      #   if (y_var_col_name %in% names(df)) {
-      #     df[["y_for_model"]] <- df[[y_var_col_name]]
-      #     shiny$showNotification(
-      #       paste(
-      #         "Using existing column '",
-      #         y_var_col_name,
-      #         "' and using as y_for_model."
-      #       ),
-      #       type = "message",
-      #       duration = 3
-      #     )
-      #   } else {
-      #     shiny$showNotification(
-      #       paste("Selected Y variable '", y_var_col_name, "' not found."),
-      #       type = "error"
-      #     )
-      #     return(NULL)
-      #   }
-      # }
-
-      # convert any nonfactors selected to factors
+      # Convert any nonfactors selected to factors
       factors_to_convert <- setdiff(
         sidebar_reactives$selected_factors(),
         "None"
@@ -754,54 +690,6 @@ navpanel_server <- function(id, sidebar_reactives) {
         df <- data_to_analyze()
         shiny$req(df)
 
-        # rand_eff_spec <- sidebar_reactives$random_effects_spec() # e.g., c("alpha", "q0")
-
-        # # Construct the formula string for the random effects.
-        # # These MUST match the parameter names Q0 and alpha used in fit_demand_mixed's fixed effects list.
-        # # Your sidebar_reactives$random_effects_spec() gives c("alpha", "q0")
-        # # We need to map these to the internal parameter names used by fit_demand_mixed if they differ,
-        # # but fit_demand_mixed internally uses "Q0" and "alpha".
-        # # So, if rand_eff_spec contains "q0", it should map to the "Q0" parameter.
-
-        # random_params_for_formula <- character(0)
-        # if ("q0" %in% rand_eff_spec) {
-        #   random_params_for_formula <- c(random_params_for_formula, "Q0")
-        # }
-        # if ("alpha" %in% rand_eff_spec) {
-        #   random_params_for_formula <- c(random_params_for_formula, "alpha")
-        # }
-
-        # if (length(random_params_for_formula) == 0) {
-        #   shiny$showNotification(
-        #     "No random effects selected for model parameters.",
-        #     type = "error"
-        #   )
-        #   return(NULL)
-        # }
-
-        # # The formula for pdMat should be ~ Param1 + Param2 ...
-        # # This refers to the parameters for which random effects are desired.
-        # random_effects_formula_inner_str <- paste(
-        #   random_params_for_formula,
-        #   collapse = " + "
-        # )
-        # random_effects_formula_for_pdMat <- stats$as.formula(paste0(
-        #   "~ ",
-        #   random_effects_formula_inner_str
-        # ))
-
-        # cov_struct_choice <- sidebar_reactives$covariance_structure()
-
-        # # Create the pdMat object
-        # # This structure (a pdMat object) is directly passed to the `random` argument of `nlme()`
-        # # when `groups` is also specified. `fit_demand_mixed` handles this correctly.
-        # if (cov_struct_choice == "pdSymm") {
-        #   random_effects_arg <- nlme$pdSymm(random_effects_formula_for_pdMat)
-        # } else {
-        #   # "pdDiag" or default
-        #   random_effects_arg <- nlme$pdDiag(random_effects_formula_for_pdMat)
-        # }
-
         # Get the user's selected parameters for random effects (e.g., c("alpha", "q0"))
         rand_eff_spec <- sidebar_reactives$random_effects_spec()
 
@@ -842,28 +730,6 @@ navpanel_server <- function(id, sidebar_reactives) {
             "Internal error: 'y_for_model' not found."
           )
         )
-
-        # y_var_actual <- if (
-        #   sidebar_reactives$y_var() == "y_transform" &&
-        #     !("y_ll4" %in% names(df))
-        # ) {
-        #   shiny$req("y_ll4" %in% names(df)) # ensure transformation happened
-        #   "y_ll4"
-        # } else {
-        #   "y" # Defaulting to y_ll4 as per ZBEn
-        # }
-
-        # if (!(y_var_actual %in% names(df))) {
-        #   shiny$showNotification(
-        #     paste(
-        #       "Required Y variable '",
-        #       y_var_actual,
-        #       "' not found in the data."
-        #     ),
-        #     type = "error"
-        #   )
-        #   return(NULL)
-        # }
 
         sel_factors <- setdiff(
           sidebar_reactives$selected_factors(),
@@ -1755,17 +1621,12 @@ navpanel_server <- function(id, sidebar_reactives) {
     shiny$observe({
       model_fit <- fitted_model_reactive()
       shiny$req(model_fit, model_fit$model)
-      # sel_factors <- setdiff(
-      #   sidebar_reactives$selected_factors(),
-      #   "None"
-      # )
       # Use the factors from the fitted model as the source of truth
       factors_in_model <- model_fit$param_info$factors
       if (is.null(factors_in_model)) {
         factors_in_model <- character(0)
       }
       choices_with_none <- c("None" = "", factors_in_model)
-      # choices_with_none <- c("None" = "", sel_factors)
 
       # Preserve the user's current selections if they are still valid factors
       # Otherwise, reset them to "" (None).
@@ -1816,33 +1677,6 @@ navpanel_server <- function(id, sidebar_reactives) {
         choices = choices_with_none,
         selected = selected_facet
       )
-
-      # shiny$updateSelectInput(
-      #   session,
-      #   "plot_color_by",
-      #   choices = choices_with_none,
-      #   selected = if (!is.null(sel_factors) && length(sel_factors) > 0) {
-      #     sel_factors[1]
-      #   } else {
-      #     ""
-      #   }
-      # )
-      # shiny$updateSelectInput(
-      #   session,
-      #   "plot_linetype_by",
-      #   choices = choices_with_none,
-      #   selected = if (!is.null(sel_factors) && length(sel_factors) > 1) {
-      #     sel_factors[2]
-      #   } else {
-      #     ""
-      #   }
-      # )
-      # shiny$updateSelectInput(
-      #   session,
-      #   "plot_facet_by",
-      #   choices = choices_with_none,
-      #   selected = ""
-      # )
     }) |>
       shiny$bindEvent(fitted_model_reactive())
 
@@ -1850,19 +1684,7 @@ navpanel_server <- function(id, sidebar_reactives) {
       model_fit <- fitted_model_reactive()
       shiny$req(model_fit, model_fit$model)
 
-      # plot_color <- if (input$plot_color_by == "") NULL else input$plot_color_by
-      # plot_linetype <- if (input$plot_linetype_by == "") {
-      #   NULL
-      # } else {
-      #   input$plot_linetype_by
-      # }
-      # plot_facet_str <- if (input$plot_facet_by == "") {
-      #   NULL
-      # } else {
-      #   paste("~", input$plot_facet_by)
-      # }
-
-      # --- START: ROBUST PLOTTING LOGIC ---
+      # --- ROBUST PLOTTING LOGIC ---
       # Get the list of factors that are actually in the fitted model. This is the source of truth.
       valid_factors_in_model <- model_fit$param_info$factors
       if (is.null(valid_factors_in_model)) {
