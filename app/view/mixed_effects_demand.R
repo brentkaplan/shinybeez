@@ -3445,175 +3445,44 @@ navpanel_server <- function(id, sidebar_reactives) {
 
         wb <- openxlsx$createWorkbook()
 
-        # --- Sheet 1: Summary ---
+        # --- Sheet 1: Summary (using export_utils module) ---
         openxlsx$addWorksheet(wb, "Summary")
 
-        # Build summary values first
-        eq_val <- sidebar_reactives$equation_form()
-        eq_str <- if (is.null(eq_val)) "N/A" else as.character(eq_val)
-
-        factors_val <- sidebar_reactives$selected_factors()
-        factors_str <- if (
-          is.null(factors_val) ||
-            length(factors_val) == 0 ||
-            identical(factors_val, "None")
-        ) {
-          "None"
-        } else {
-          paste(factors_val, collapse = ", ")
-        }
-
-        interaction_str <- if (isTRUE(sidebar_reactives$factor_interaction())) {
-          "Yes"
-        } else {
-          "No"
-        }
-
-        id_val <- sidebar_reactives$id_var()
-        id_str <- if (is.null(id_val)) "N/A" else as.character(id_val)
-
-        x_val <- sidebar_reactives$x_var()
-        x_str <- if (is.null(x_val)) "N/A" else as.character(x_val)
-
-        y_val <- sidebar_reactives$y_var()
-        y_str <- if (is.null(y_val)) "N/A" else as.character(y_val)
-
-        # Y transformation is determined by equation_form (zben = LL4 transform)
-        ytrans_str <- if (identical(eq_val, "zben")) {
-          "Log-Log 4 (LL4)"
-        } else {
-          "None"
-        }
-
-        re_val <- sidebar_reactives$random_effects_spec()
-        re_str <- if (is.null(re_val) || length(re_val) == 0) {
-          "N/A"
-        } else {
-          paste(re_val, collapse = ", ")
-        }
-
-        cov_val <- sidebar_reactives$covariance_structure()
-        cov_str <- if (is.null(cov_val)) "N/A" else as.character(cov_val)
-
-        # Build summary data frame
-        summary_items <- c(
-          "shinybeez Mixed-Effects Demand Analysis",
-          "",
-          "Export Date",
-          "shinybeez Version",
-          "",
-          "--- Analysis Settings ---",
-          "Equation",
-          "Factor(s)",
-          "Factor Interaction",
-          "ID Variable",
-          "X Variable",
-          "Y Variable",
-          "Y Transformation",
-          "Random Effects",
-          "Covariance Structure"
+        # Build summary using extracted module
+        settings <- list(
+          equation = sidebar_reactives$equation_form(),
+          factors = sidebar_reactives$selected_factors(),
+          factor_interaction = sidebar_reactives$factor_interaction(),
+          id_var = sidebar_reactives$id_var(),
+          x_var = sidebar_reactives$x_var(),
+          y_var = sidebar_reactives$y_var(),
+          random_effects = sidebar_reactives$random_effects_spec(),
+          covariance_structure = sidebar_reactives$covariance_structure()
+        )
+        summary_data <- export_utils$build_summary_sheet(
+          settings,
+          version = "1.0.0"
         )
 
-        summary_values <- c(
-          "",
-          "",
-          format(Sys.time(), "%Y-%m-%d %H:%M:%S %Z"),
-          "1.0.0",
-          "",
-          "",
-          eq_str,
-          factors_str,
-          interaction_str,
-          id_str,
-          x_str,
-          y_str,
-          ytrans_str,
-          re_str,
-          cov_str
-        )
-
-        summary_data <- data.frame(
-          Item = summary_items,
-          Value = summary_values,
-          stringsAsFactors = FALSE
-        )
-
-        # Collapse levels info
+        # Add collapse levels info using module
         collapse_info <- tryCatch(
           sidebar_reactives$collapse_levels_reactive(),
           error = function(e) NULL
         )
-        if (
-          !is.null(collapse_info) &&
-            !identical(collapse_info, "ERROR_OVERLAP") &&
-            !identical(collapse_info, "ERROR_SINGLE_LEVEL")
-        ) {
-          collapse_rows <- data.frame(
-            Item = c("", "--- Collapse Levels ---"),
-            Value = c("", ""),
-            stringsAsFactors = FALSE
-          )
-          summary_data <- rbind(summary_data, collapse_rows)
+        summary_data <- export_utils$add_collapse_info(
+          summary_data,
+          collapse_info
+        )
 
-          if (!is.null(collapse_info$Q0)) {
-            q0_str <- paste(names(collapse_info$Q0), collapse = ", ")
-            q0_val <- if (nzchar(q0_str)) q0_str else "None"
-            summary_data <- rbind(
-              summary_data,
-              data.frame(
-                Item = "Q0 Collapse",
-                Value = q0_val,
-                stringsAsFactors = FALSE
-              )
-            )
-          }
-          if (!is.null(collapse_info$alpha)) {
-            alpha_str <- paste(names(collapse_info$alpha), collapse = ", ")
-            alpha_val <- if (nzchar(alpha_str)) alpha_str else "None"
-            summary_data <- rbind(
-              summary_data,
-              data.frame(
-                Item = "Alpha Collapse",
-                Value = alpha_val,
-                stringsAsFactors = FALSE
-              )
-            )
-          }
-        }
-
-        # Add Fitting Settings section
+        # Add fitting settings using module
         nlme_ctrl <- tryCatch(
           sidebar_reactives$nlme_controls(),
           error = function(e) NULL
         )
-        if (!is.null(nlme_ctrl)) {
-          fitting_rows <- data.frame(
-            Item = c(
-              "",
-              "--- Fitting Settings ---",
-              "maxIter",
-              "pnlsMaxIter",
-              "msMaxIter",
-              "tolerance",
-              "pnlsTol",
-              "minScale",
-              "niterEM"
-            ),
-            Value = c(
-              "",
-              "",
-              as.character(nlme_ctrl$maxIter),
-              as.character(nlme_ctrl$pnlsMaxIter),
-              as.character(nlme_ctrl$msMaxIter),
-              as.character(nlme_ctrl$tolerance),
-              as.character(nlme_ctrl$pnlsTol),
-              as.character(nlme_ctrl$minScale),
-              as.character(nlme_ctrl$niterEM)
-            ),
-            stringsAsFactors = FALSE
-          )
-          summary_data <- rbind(summary_data, fitting_rows)
-        }
+        summary_data <- export_utils$add_fitting_settings(
+          summary_data,
+          nlme_ctrl
+        )
 
         openxlsx$writeData(wb, "Summary", summary_data, colNames = FALSE)
 
