@@ -1086,57 +1086,9 @@ sidebar_server <- function(id, data_reactive) {
 
     parsed_collapse_levels_reactive <- shiny$reactive({
       # -----------------------------------------------------------------------
-      # Helper: Build collapse mapping from group name/level inputs
+      # Helper: Process collapse using extracted module, with notification
       # -----------------------------------------------------------------------
-      build_collapse_list <- function(g1_name, g1_levels, g2_name, g2_levels) {
-        collapse_list <- list()
-        if (!is.null(g1_name) && nzchar(g1_name) && length(g1_levels) > 0) {
-          collapse_list[[g1_name]] <- g1_levels
-        }
-        if (!is.null(g2_name) && nzchar(g2_name) && length(g2_levels) > 0) {
-          collapse_list[[g2_name]] <- g2_levels
-        }
-        if (length(collapse_list) == 0) {
-          return(NULL)
-        }
-        collapse_list
-      }
-
-      # -----------------------------------------------------------------------
-      # Helper: Validate no overlap between group levels
-      # -----------------------------------------------------------------------
-      validate_no_overlap <- function(
-        g1_levels,
-        g2_levels,
-        factor_name,
-        param_label
-      ) {
-        if (length(g1_levels) > 0 && length(g2_levels) > 0) {
-          overlap <- intersect(g1_levels, g2_levels)
-          if (length(overlap) > 0) {
-            shiny$showNotification(
-              paste0(
-                "Overlap in ",
-                param_label,
-                " collapse for '",
-                factor_name,
-                "': ",
-                paste(overlap, collapse = ", ")
-              ),
-              type = "error",
-              duration = 7
-            )
-            return("ERROR_OVERLAP")
-          }
-        }
-        NULL
-      }
-
-      # -----------------------------------------------------------------------
-      # Helper: Process collapse for one parameter (Q0 or Alpha) of one factor
-      # -----------------------------------------------------------------------
-      # Returns: collapse mapping list, or NULL if not enabled/empty
-      process_param_collapse <- function(
+      process_collapse_with_notification <- function(
         collapse_enabled,
         factor_name,
         g1_name,
@@ -1145,24 +1097,27 @@ sidebar_server <- function(id, data_reactive) {
         g2_levels,
         param_label
       ) {
-        # Guard: Only process if explicitly enabled via checkbox
-        if (!isTRUE(collapse_enabled)) {
-          return(NULL)
-        }
-
-        # Validate no overlap
-        err <- validate_no_overlap(
-          g1_levels,
-          g2_levels,
-          factor_name,
-          param_label
+        result <- collapse_levels$process_param_collapse(
+          collapse_enabled = collapse_enabled,
+          g1_name = g1_name,
+          g1_levels = g1_levels,
+          g2_name = g2_name,
+          g2_levels = g2_levels,
+          factor_name = factor_name,
+          param_label = param_label
         )
-        if (!is.null(err)) {
-          return(err)
+
+        # Show notification if there was an error
+        if (!is.null(result$error)) {
+          shiny$showNotification(
+            result$error$error_message,
+            type = "error",
+            duration = 7
+          )
+          return("ERROR_OVERLAP")
         }
 
-        # Build and return the collapse mapping
-        build_collapse_list(g1_name, g1_levels, g2_name, g2_levels)
+        result$collapse
       }
 
       # -----------------------------------------------------------------------
@@ -1177,8 +1132,8 @@ sidebar_server <- function(id, data_reactive) {
       f1_alpha <- NULL
 
       if (f1_enabled) {
-        # Process Q0 collapse for Factor 1
-        f1_q0 <- process_param_collapse(
+        # Process Q0 collapse for Factor 1 using module
+        f1_q0 <- process_collapse_with_notification(
           collapse_enabled = input$f1_collapse_q0,
           factor_name = f1_name,
           g1_name = trimws(input$f1_q0_group1_name %||% ""),
@@ -1191,8 +1146,8 @@ sidebar_server <- function(id, data_reactive) {
           return(f1_q0)
         }
 
-        # Process Alpha collapse for Factor 1
-        f1_alpha <- process_param_collapse(
+        # Process Alpha collapse for Factor 1 using module
+        f1_alpha <- process_collapse_with_notification(
           collapse_enabled = input$f1_collapse_alpha,
           factor_name = f1_name,
           g1_name = trimws(input$f1_alpha_group1_name %||% ""),
@@ -1216,8 +1171,8 @@ sidebar_server <- function(id, data_reactive) {
       f2_alpha <- NULL
 
       if (f2_enabled) {
-        # Process Q0 collapse for Factor 2
-        f2_q0 <- process_param_collapse(
+        # Process Q0 collapse for Factor 2 using module
+        f2_q0 <- process_collapse_with_notification(
           collapse_enabled = input$f2_collapse_q0,
           factor_name = f2_name,
           g1_name = trimws(input$f2_q0_group1_name %||% ""),
@@ -1230,8 +1185,8 @@ sidebar_server <- function(id, data_reactive) {
           return(f2_q0)
         }
 
-        # Process Alpha collapse for Factor 2
-        f2_alpha <- process_param_collapse(
+        # Process Alpha collapse for Factor 2 using module
+        f2_alpha <- process_collapse_with_notification(
           collapse_enabled = input$f2_collapse_alpha,
           factor_name = f2_name,
           g1_name = trimws(input$f2_alpha_group1_name %||% ""),
