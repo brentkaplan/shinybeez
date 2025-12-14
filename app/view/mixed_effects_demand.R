@@ -1638,7 +1638,7 @@ navpanel_ui <- function(id) {
               ),
               shiny$checkboxInput(
                 ns("show_watermark"),
-                "Show ShinyBeez Watermark",
+                "Show shinybeez Watermark",
                 value = TRUE
               ),
               shiny$actionButton(ns("update_plot_settings"), "Update Plot")
@@ -1888,17 +1888,17 @@ navpanel_server <- function(id, sidebar_reactives) {
             list(extend = "print"),
             list(
               extend = "csv",
-              filename = "ShinyBeez_MixedEffects_Input_Data",
+              filename = "shinybeez_MixedEffects_Input_Data",
               title = NULL
             ),
             list(
               extend = "excel",
-              filename = "ShinyBeez_MixedEffects_Input_Data",
+              filename = "shinybeez_MixedEffects_Input_Data",
               title = NULL
             ),
             list(
               extend = "pdf",
-              filename = "ShinyBeez_MixedEffects_Input_Data",
+              filename = "shinybeez_MixedEffects_Input_Data",
               title = NULL
             )
           ),
@@ -1964,17 +1964,17 @@ navpanel_server <- function(id, sidebar_reactives) {
             list(extend = "print"),
             list(
               extend = "csv",
-              filename = "ShinyBeez_MixedEffects_Descriptives",
+              filename = "shinybeez_MixedEffects_Descriptives",
               title = NULL
             ),
             list(
               extend = "excel",
-              filename = "ShinyBeez_MixedEffects_Descriptives",
+              filename = "shinybeez_MixedEffects_Descriptives",
               title = NULL
             ),
             list(
               extend = "pdf",
-              filename = "ShinyBeez_MixedEffects_Descriptives",
+              filename = "shinybeez_MixedEffects_Descriptives",
               title = NULL
             )
           )
@@ -2095,17 +2095,17 @@ navpanel_server <- function(id, sidebar_reactives) {
               list(extend = "print"),
               list(
                 extend = "csv",
-                filename = "ShinyBeez_MixedEffects_Systematic_Criteria",
+                filename = "shinybeez_MixedEffects_Systematic_Criteria",
                 title = NULL
               ),
               list(
                 extend = "excel",
-                filename = "ShinyBeez_MixedEffects_Systematic_Criteria",
+                filename = "shinybeez_MixedEffects_Systematic_Criteria",
                 title = NULL
               ),
               list(
                 extend = "pdf",
-                filename = "ShinyBeez_MixedEffects_Systematic_Criteria",
+                filename = "shinybeez_MixedEffects_Systematic_Criteria",
                 title = NULL
               )
             ),
@@ -2402,17 +2402,17 @@ navpanel_server <- function(id, sidebar_reactives) {
             list(extend = "print"),
             list(
               extend = "csv",
-              filename = "ShinyBeez_MixedEffects_Fixed_Effects",
+              filename = "shinybeez_MixedEffects_Fixed_Effects",
               title = NULL
             ),
             list(
               extend = "excel",
-              filename = "ShinyBeez_MixedEffects_Fixed_Effects",
+              filename = "shinybeez_MixedEffects_Fixed_Effects",
               title = NULL
             ),
             list(
               extend = "pdf",
-              filename = "ShinyBeez_MixedEffects_Fixed_Effects",
+              filename = "shinybeez_MixedEffects_Fixed_Effects",
               title = NULL
             )
           )
@@ -2458,17 +2458,17 @@ navpanel_server <- function(id, sidebar_reactives) {
               list(extend = "print"),
               list(
                 extend = "csv",
-                filename = "ShinyBeez_MixedEffects_Individual_Coefficients",
+                filename = "shinybeez_MixedEffects_Individual_Coefficients",
                 title = NULL
               ),
               list(
                 extend = "excel",
-                filename = "ShinyBeez_MixedEffects_Individual_Coefficients",
+                filename = "shinybeez_MixedEffects_Individual_Coefficients",
                 title = NULL
               ),
               list(
                 extend = "pdf",
-                filename = "ShinyBeez_MixedEffects_Individual_Coefficients",
+                filename = "shinybeez_MixedEffects_Individual_Coefficients",
                 title = NULL
               )
             )
@@ -2520,17 +2520,17 @@ navpanel_server <- function(id, sidebar_reactives) {
             list(extend = "print"),
             list(
               extend = "csv",
-              filename = "ShinyBeez_MixedEffects_Random_Effects",
+              filename = "shinybeez_MixedEffects_Random_Effects",
               title = NULL
             ),
             list(
               extend = "excel",
-              filename = "ShinyBeez_MixedEffects_Random_Effects",
+              filename = "shinybeez_MixedEffects_Random_Effects",
               title = NULL
             ),
             list(
               extend = "pdf",
-              filename = "ShinyBeez_MixedEffects_Random_Effects",
+              filename = "shinybeez_MixedEffects_Random_Effects",
               title = NULL
             )
           )
@@ -2614,17 +2614,17 @@ navpanel_server <- function(id, sidebar_reactives) {
             list(extend = "print"),
             list(
               extend = "csv",
-              filename = "ShinyBeez_MixedEffects_Q0_EMMs",
+              filename = "shinybeez_MixedEffects_Q0_EMMs",
               title = NULL
             ),
             list(
               extend = "excel",
-              filename = "ShinyBeez_MixedEffects_Q0_EMMs",
+              filename = "shinybeez_MixedEffects_Q0_EMMs",
               title = NULL
             ),
             list(
               extend = "pdf",
-              filename = "ShinyBeez_MixedEffects_Q0_EMMs",
+              filename = "shinybeez_MixedEffects_Q0_EMMs",
               title = NULL
             )
           )
@@ -2701,17 +2701,17 @@ navpanel_server <- function(id, sidebar_reactives) {
             list(extend = "print"),
             list(
               extend = "csv",
-              filename = "ShinyBeez_MixedEffects_Alpha_EMMs",
+              filename = "shinybeez_MixedEffects_Alpha_EMMs",
               title = NULL
             ),
             list(
               extend = "excel",
-              filename = "ShinyBeez_MixedEffects_Alpha_EMMs",
+              filename = "shinybeez_MixedEffects_Alpha_EMMs",
               title = NULL
             ),
             list(
               extend = "pdf",
-              filename = "ShinyBeez_MixedEffects_Alpha_EMMs",
+              filename = "shinybeez_MixedEffects_Alpha_EMMs",
               title = NULL
             )
           )
@@ -2778,17 +2778,17 @@ navpanel_server <- function(id, sidebar_reactives) {
             list(extend = "print"),
             list(
               extend = "csv",
-              filename = "ShinyBeez_MixedEffects_EV",
+              filename = "shinybeez_MixedEffects_EV",
               title = NULL
             ),
             list(
               extend = "excel",
-              filename = "ShinyBeez_MixedEffects_EV",
+              filename = "shinybeez_MixedEffects_EV",
               title = NULL
             ),
             list(
               extend = "pdf",
-              filename = "ShinyBeez_MixedEffects_EV",
+              filename = "shinybeez_MixedEffects_EV",
               title = NULL
             )
           )
@@ -2967,17 +2967,17 @@ navpanel_server <- function(id, sidebar_reactives) {
             list(extend = "print"),
             list(
               extend = "csv",
-              filename = "ShinyBeez_MixedEffects_Q0_Comparisons",
+              filename = "shinybeez_MixedEffects_Q0_Comparisons",
               title = NULL
             ),
             list(
               extend = "excel",
-              filename = "ShinyBeez_MixedEffects_Q0_Comparisons",
+              filename = "shinybeez_MixedEffects_Q0_Comparisons",
               title = NULL
             ),
             list(
               extend = "pdf",
-              filename = "ShinyBeez_MixedEffects_Q0_Comparisons",
+              filename = "shinybeez_MixedEffects_Q0_Comparisons",
               title = NULL
             )
           )
@@ -3094,17 +3094,17 @@ navpanel_server <- function(id, sidebar_reactives) {
             list(extend = "print"),
             list(
               extend = "csv",
-              filename = "ShinyBeez_MixedEffects_Alpha_Comparisons",
+              filename = "shinybeez_MixedEffects_Alpha_Comparisons",
               title = NULL
             ),
             list(
               extend = "excel",
-              filename = "ShinyBeez_MixedEffects_Alpha_Comparisons",
+              filename = "shinybeez_MixedEffects_Alpha_Comparisons",
               title = NULL
             ),
             list(
               extend = "pdf",
-              filename = "ShinyBeez_MixedEffects_Alpha_Comparisons",
+              filename = "shinybeez_MixedEffects_Alpha_Comparisons",
               title = NULL
             )
           )

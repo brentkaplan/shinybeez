@@ -32,7 +32,7 @@ ui <- function(id, height = "300px") {
 server <- function(
   id,
   data_reactive,
-  filename_prefix = "ShinyBeez_Data",
+  filename_prefix = "shinybeez_Data",
   scroll_y = 300,
   scroll_x = TRUE,
   fixed_columns = 1L,
