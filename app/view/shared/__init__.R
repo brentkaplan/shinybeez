@@ -4,8 +4,9 @@
 
 box::use(
   . / data_table,
-  . / plot_settings
+  . / plot_settings,
+  . / systematic_criteria
 )
 
 #' @export
-box::export(data_table, plot_settings)
+box::export(data_table, plot_settings, systematic_criteria)
