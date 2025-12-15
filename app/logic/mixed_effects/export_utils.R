@@ -275,3 +275,44 @@ build_dt_buttons <- function(filename) {
     list(extend = "pdf", filename = filename, title = NULL)
   )
 }
+
+#' Write a comparison sheet to an Excel workbook
+#'
+#' Helper to reduce repetitive code when exporting comparison data.
+#'
+#' @param wb openxlsx workbook object
+#' @param sheet_name Name for the worksheet
+#' @param data Data frame to write
+#' @param digits Number of decimal places for rounding
+#' @param openxlsx The openxlsx module reference
+#' @param dplyr The dplyr module reference
+#' @return Invisibly returns TRUE if written, FALSE otherwise
+#' @export
+write_comparison_sheet <- function(
+  wb,
+  sheet_name,
+  data,
+  digits = 4,
+  openxlsx,
+  dplyr
+) {
+  if (is.null(data) || !is.data.frame(data) || nrow(data) == 0) {
+    return(invisible(FALSE))
+  }
+
+  rounded_data <- dplyr$mutate(
+    data,
+    dplyr$across(where(is.numeric), ~ round(., digits))
+  )
+
+  openxlsx$addWorksheet(wb, sheet_name)
+  openxlsx$writeData(wb, sheet_name, rounded_data)
+  openxlsx$setColWidths(
+    wb,
+    sheet_name,
+    cols = seq_len(ncol(rounded_data)),
+    widths = "auto"
+  )
+
+  invisible(TRUE)
+}

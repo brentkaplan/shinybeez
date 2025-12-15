@@ -470,38 +470,12 @@ navpanel_server <- function(id, sidebar_reactives) {
       shiny$req(x_var_sel)
 
       grouping_vars <- c(factors, x_var_sel)
-      grouping_vars_present <- intersect(grouping_vars, names(df_processed))
+      desc_data <- export_utils$build_descriptives(df_processed, grouping_vars)
+      shiny$req(desc_data)
 
-      if (length(grouping_vars_present) == 0) {
-        desc_data <- df_processed |>
-          dplyr$summarise(
-            N = dplyr$n(),
-            Mean_Y_Model = mean(y_for_model, na.rm = TRUE),
-            SD_Y_Model = stats$sd(y_for_model, na.rm = TRUE),
-            Median_Y_Model = stats$median(y_for_model, na.rm = TRUE),
-            .groups = "drop"
-          )
-      } else {
-        desc_data <- df_processed |>
-          dplyr$group_by(dplyr$across(dplyr$all_of(
-            grouping_vars_present
-          ))) |>
-          dplyr$summarise(
-            N = dplyr$n(),
-            Mean_Y_Model = mean(y_for_model, na.rm = TRUE),
-            SD_Y_Model = stats$sd(y_for_model, na.rm = TRUE),
-            Median_Y_Model = stats$median(y_for_model, na.rm = TRUE),
-            .groups = "drop"
-          )
-      }
       DT$datatable(
-        dplyr$mutate(
-          desc_data,
-          dplyr$across(where(is.numeric), ~ round(., 3))
-        ),
-        caption = paste(
-          "Descriptive Statistics for Y variable used in model (y_for_model)"
-        ),
+        desc_data,
+        caption = "Descriptive Statistics for Y variable used in model (y_for_model)",
         rownames = FALSE,
         extensions = c("Buttons"),
         options = list(
@@ -1711,36 +1685,11 @@ navpanel_server <- function(id, sidebar_reactives) {
         } else {
           NULL
         }
-        if (!is.null(emms_data) && nrow(emms_data) > 0) {
-          # Helper to extract parameter-specific columns
-          extract_param_data <- function(data, param_pattern, factor_cols) {
-            param_cols <- names(data)[
-              grepl(param_pattern, names(data), ignore.case = TRUE) &
-                !grepl(
-                  paste0("_", param_pattern, "$"),
-                  names(data),
-                  ignore.case = TRUE
-                )
-            ]
-            if (length(param_cols) == 0) {
-              return(NULL)
-            }
-            cols_to_use <- intersect(c(factor_cols, param_cols), names(data))
-            result <- data[, cols_to_use, drop = FALSE]
-            result <- dplyr$distinct(result)
-            return(result)
-          }
-
-          factor_cols <- names(emms_data)[!sapply(emms_data, is.numeric)]
-
+        if (emms_utils$has_emm_content(emms_data)) {
           # Sheet 5: Q0 Estimates
-          q0_data <- extract_param_data(emms_data, "q0|Q0", factor_cols)
+          q0_data <- emms_utils$prepare_q0_display_data(emms_data, digits = 6)
           if (!is.null(q0_data) && nrow(q0_data) > 0) {
             openxlsx$addWorksheet(wb, "Q0_Estimates")
-            q0_data[, sapply(q0_data, is.numeric)] <- round(
-              q0_data[, sapply(q0_data, is.numeric)],
-              6
-            )
             openxlsx$writeData(wb, "Q0_Estimates", q0_data)
             openxlsx$setColWidths(
               wb,
@@ -1751,13 +1700,13 @@ navpanel_server <- function(id, sidebar_reactives) {
           }
 
           # Sheet 6: Alpha Estimates
-          alpha_data <- extract_param_data(emms_data, "alpha", factor_cols)
+          alpha_data <- emms_utils$prepare_alpha_display_data(
+            emms_data,
+            digits = 4,
+            digits_natural = 8
+          )
           if (!is.null(alpha_data) && nrow(alpha_data) > 0) {
             openxlsx$addWorksheet(wb, "Alpha_Estimates")
-            alpha_data[, sapply(alpha_data, is.numeric)] <- round(
-              alpha_data[, sapply(alpha_data, is.numeric)],
-              8
-            )
             openxlsx$writeData(wb, "Alpha_Estimates", alpha_data)
             openxlsx$setColWidths(
               wb,
@@ -1768,13 +1717,9 @@ navpanel_server <- function(id, sidebar_reactives) {
           }
 
           # Sheet 7: EV Estimates
-          ev_data <- extract_param_data(emms_data, "EV", factor_cols)
+          ev_data <- emms_utils$prepare_ev_display_data(emms_data, digits = 4)
           if (!is.null(ev_data) && nrow(ev_data) > 0) {
             openxlsx$addWorksheet(wb, "EV_Estimates")
-            ev_data[, sapply(ev_data, is.numeric)] <- round(
-              ev_data[, sapply(ev_data, is.numeric)],
-              4
-            )
             openxlsx$writeData(wb, "EV_Estimates", ev_data)
             openxlsx$setColWidths(
               wb,
@@ -1786,86 +1731,50 @@ navpanel_server <- function(id, sidebar_reactives) {
         }
 
         # --- Comparisons (requires model) ---
-        comparisons <- if (has_model) {
+        comps <- if (has_model) {
           tryCatch(comparisons_reactive(), error = function(e) NULL)
         } else {
           NULL
         }
 
         # Q0 Comparisons (both formats)
-        if (!is.null(comparisons$Q0)) {
-          if (
-            !is.null(comparisons$Q0$contrasts_ratio) &&
-              nrow(comparisons$Q0$contrasts_ratio) > 0
-          ) {
-            openxlsx$addWorksheet(wb, "Q0_Comparisons_Ratio")
-            ratio_df <- dplyr$mutate(
-              comparisons$Q0$contrasts_ratio,
-              dplyr$across(where(is.numeric), ~ round(., 4))
-            )
-            openxlsx$writeData(wb, "Q0_Comparisons_Ratio", ratio_df)
-            openxlsx$setColWidths(
-              wb,
-              "Q0_Comparisons_Ratio",
-              cols = 1:ncol(ratio_df),
-              widths = "auto"
-            )
-          }
-          if (
-            !is.null(comparisons$Q0$contrasts_log10) &&
-              nrow(comparisons$Q0$contrasts_log10) > 0
-          ) {
-            openxlsx$addWorksheet(wb, "Q0_Comparisons_Log10")
-            log10_df <- dplyr$mutate(
-              comparisons$Q0$contrasts_log10,
-              dplyr$across(where(is.numeric), ~ round(., 4))
-            )
-            openxlsx$writeData(wb, "Q0_Comparisons_Log10", log10_df)
-            openxlsx$setColWidths(
-              wb,
-              "Q0_Comparisons_Log10",
-              cols = 1:ncol(log10_df),
-              widths = "auto"
-            )
-          }
+        if (!is.null(comps$Q0)) {
+          export_utils$write_comparison_sheet(
+            wb,
+            "Q0_Comparisons_Ratio",
+            comps$Q0$contrasts_ratio,
+            4,
+            openxlsx,
+            dplyr
+          )
+          export_utils$write_comparison_sheet(
+            wb,
+            "Q0_Comparisons_Log10",
+            comps$Q0$contrasts_log10,
+            4,
+            openxlsx,
+            dplyr
+          )
         }
 
         # Alpha Comparisons (both formats)
-        if (!is.null(comparisons$alpha)) {
-          if (
-            !is.null(comparisons$alpha$contrasts_ratio) &&
-              nrow(comparisons$alpha$contrasts_ratio) > 0
-          ) {
-            openxlsx$addWorksheet(wb, "Alpha_Comparisons_Ratio")
-            ratio_df <- dplyr$mutate(
-              comparisons$alpha$contrasts_ratio,
-              dplyr$across(where(is.numeric), ~ round(., 4))
-            )
-            openxlsx$writeData(wb, "Alpha_Comparisons_Ratio", ratio_df)
-            openxlsx$setColWidths(
-              wb,
-              "Alpha_Comparisons_Ratio",
-              cols = 1:ncol(ratio_df),
-              widths = "auto"
-            )
-          }
-          if (
-            !is.null(comparisons$alpha$contrasts_log10) &&
-              nrow(comparisons$alpha$contrasts_log10) > 0
-          ) {
-            openxlsx$addWorksheet(wb, "Alpha_Comparisons_Log10")
-            log10_df <- dplyr$mutate(
-              comparisons$alpha$contrasts_log10,
-              dplyr$across(where(is.numeric), ~ round(., 4))
-            )
-            openxlsx$writeData(wb, "Alpha_Comparisons_Log10", log10_df)
-            openxlsx$setColWidths(
-              wb,
-              "Alpha_Comparisons_Log10",
-              cols = 1:ncol(log10_df),
-              widths = "auto"
-            )
-          }
+        if (!is.null(comps$alpha)) {
+          export_utils$write_comparison_sheet(
+            wb,
+            "Alpha_Comparisons_Ratio",
+            comps$alpha$contrasts_ratio,
+            4,
+            openxlsx,
+            dplyr
+          )
+          export_utils$write_comparison_sheet(
+            wb,
+            "Alpha_Comparisons_Log10",
+            comps$alpha$contrasts_log10,
+            4,
+            openxlsx,
+            dplyr
+          )
         }
 
         # --- Plot Sheet (requires model) ---
