@@ -979,30 +979,17 @@ navpanel_server <- function(id, sidebar_reactives) {
       emms_data <- emms_data_reactive()
       shiny$req(emms_data)
 
-      if (nrow(emms_data) == 0) {
+      q0_data <- emms_utils$prepare_q0_display_data(emms_data)
+      if (is.null(q0_data)) {
         return(DT$datatable(
-          data.frame(Message = "No Q0 EMMs available"),
+          emms_utils$build_empty_emm_message("Q0"),
           rownames = FALSE,
           options = list(dom = "t")
         ))
       }
 
-      # Select Q0-related columns: factor columns + Q0 columns
-      # Get factor columns (non-numeric, excluding alpha-specific factor columns)
-      factor_cols <- names(emms_data)[!sapply(emms_data, is.numeric)]
-      # For Q0 table, use original factor name (not _alpha suffix)
-      q0_factor_cols <- factor_cols[!grepl("_alpha$", factor_cols)]
-
-      q0_cols <- names(emms_data)[grepl("Q0", names(emms_data))]
-      q0_table_cols <- c(q0_factor_cols, q0_cols)
-      q0_table_cols <- intersect(q0_table_cols, names(emms_data))
-
-      q0_data <- emms_data[, q0_table_cols, drop = FALSE]
-      # Remove duplicate rows (since alpha levels create duplicates for Q0)
-      q0_data <- dplyr$distinct(q0_data)
-
       DT$datatable(
-        dplyr$mutate(q0_data, dplyr$across(where(is.numeric), ~ round(., 4))),
+        q0_data,
         rownames = FALSE,
         extensions = c("Buttons"),
         options = list(
@@ -1021,59 +1008,17 @@ navpanel_server <- function(id, sidebar_reactives) {
       emms_data <- emms_data_reactive()
       shiny$req(emms_data)
 
-      if (nrow(emms_data) == 0) {
+      alpha_data <- emms_utils$prepare_alpha_display_data(emms_data)
+      if (is.null(alpha_data)) {
         return(DT$datatable(
-          data.frame(Message = "No Alpha EMMs available"),
+          emms_utils$build_empty_emm_message("Alpha"),
           rownames = FALSE,
           options = list(dom = "t")
         ))
       }
 
-      # Select alpha-related columns: factor columns + alpha columns
-      factor_cols <- names(emms_data)[!sapply(emms_data, is.numeric)]
-
-      # For alpha table, we need:
-      # 1. Columns ending with _alpha (collapsed factors like dose_alpha)
-      # 2. Original factor columns that weren't collapsed (like drug)
-      alpha_suffix_cols <- factor_cols[grepl("_alpha$", factor_cols)]
-
-      if (length(alpha_suffix_cols) == 0) {
-        # No differential collapse - use all original factor columns
-        alpha_factor_cols <- factor_cols
-      } else {
-        # Get original factor names that were collapsed (e.g., "dose" from "dose_alpha")
-        collapsed_original_names <- sub("_alpha$", "", alpha_suffix_cols)
-        # Get uncollapsed factor columns (not ending in _alpha AND not the original of a collapsed factor)
-        uncollapsed_factor_cols <- factor_cols[
-          !factor_cols %in% collapsed_original_names &
-            !grepl("_alpha$", factor_cols)
-        ]
-        # Combine: collapsed + uncollapsed
-        alpha_factor_cols <- c(alpha_suffix_cols, uncollapsed_factor_cols)
-      }
-
-      alpha_cols <- names(emms_data)[
-        grepl("alpha", names(emms_data)) & !grepl("_alpha$", names(emms_data))
-      ]
-      alpha_table_cols <- c(alpha_factor_cols, alpha_cols)
-      alpha_table_cols <- intersect(alpha_table_cols, names(emms_data))
-
-      alpha_data <- emms_data[, alpha_table_cols, drop = FALSE]
-      # Remove duplicate rows (since Q0 levels create duplicates for alpha)
-      alpha_data <- dplyr$distinct(alpha_data)
-
       DT$datatable(
-        dplyr$mutate(
-          alpha_data,
-          dplyr$across(
-            where(is.numeric) & !contains("alpha_natural"),
-            ~ round(., 4)
-          ),
-          dplyr$across(
-            where(is.numeric) & contains("alpha_natural"),
-            ~ round(., 8)
-          )
-        ),
+        alpha_data,
         rownames = FALSE,
         extensions = c("Buttons"),
         options = list(
@@ -1092,49 +1037,17 @@ navpanel_server <- function(id, sidebar_reactives) {
       emms_data <- emms_data_reactive()
       shiny$req(emms_data)
 
-      if (
-        nrow(emms_data) == 0 || !any(grepl("^EV$|^EV_|_EV$", names(emms_data)))
-      ) {
+      ev_data <- emms_utils$prepare_ev_display_data(emms_data)
+      if (is.null(ev_data)) {
         return(DT$datatable(
-          data.frame(Message = "No EV estimates available"),
+          emms_utils$build_empty_emm_message("EV"),
           rownames = FALSE,
           options = list(dom = "t")
         ))
       }
 
-      # Select EV-related columns: factor columns + EV columns
-      factor_cols <- names(emms_data)[!sapply(emms_data, is.numeric)]
-
-      # For EV (derived from alpha), we need:
-      # 1. Columns ending with _alpha (collapsed factors like dose_alpha)
-      # 2. Original factor columns that weren't collapsed (like drug)
-      alpha_suffix_cols <- factor_cols[grepl("_alpha$", factor_cols)]
-
-      if (length(alpha_suffix_cols) == 0) {
-        # No differential collapse - use all original factor columns
-        ev_factor_cols <- factor_cols
-      } else {
-        # Get original factor names that were collapsed (e.g., "dose" from "dose_alpha")
-        collapsed_original_names <- sub("_alpha$", "", alpha_suffix_cols)
-        # Get uncollapsed factor columns (not ending in _alpha AND not the original of a collapsed factor)
-        uncollapsed_factor_cols <- factor_cols[
-          !factor_cols %in% collapsed_original_names &
-            !grepl("_alpha$", factor_cols)
-        ]
-        # Combine: collapsed + uncollapsed
-        ev_factor_cols <- c(alpha_suffix_cols, uncollapsed_factor_cols)
-      }
-
-      ev_cols <- names(emms_data)[grepl("EV", names(emms_data))]
-      ev_table_cols <- c(ev_factor_cols, ev_cols)
-      ev_table_cols <- intersect(ev_table_cols, names(emms_data))
-
-      ev_data <- emms_data[, ev_table_cols, drop = FALSE]
-      # Remove duplicate rows
-      ev_data <- dplyr$distinct(ev_data)
-
       DT$datatable(
-        dplyr$mutate(ev_data, dplyr$across(where(is.numeric), ~ round(., 4))),
+        ev_data,
         rownames = FALSE,
         extensions = c("Buttons"),
         options = list(

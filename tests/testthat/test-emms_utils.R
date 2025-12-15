@@ -209,3 +209,221 @@ describe("has_emm_content", {
     expect_false(emms_utils$has_emm_content(list(x = 1)))
   })
 })
+
+# ------------------------------------------------------------------------------
+# get_factor_columns() tests
+# ------------------------------------------------------------------------------
+
+describe("get_factor_columns", {
+  it("returns non-numeric column names", {
+    df <- data.frame(
+      Treatment = c("A", "B"),
+      Dose = c("Low", "High"),
+      Q0 = c(10, 20),
+      stringsAsFactors = FALSE
+    )
+    result <- emms_utils$get_factor_columns(df)
+    expect_equal(sort(result), c("Dose", "Treatment"))
+  })
+
+  it("returns empty for NULL input", {
+    result <- emms_utils$get_factor_columns(NULL)
+    expect_equal(result, character(0))
+  })
+
+  it("returns empty for data with only numeric columns", {
+    df <- data.frame(x = 1:3, y = 4:6)
+    result <- emms_utils$get_factor_columns(df)
+    expect_equal(result, character(0))
+  })
+})
+
+# ------------------------------------------------------------------------------
+# get_q0_factor_columns() tests
+# ------------------------------------------------------------------------------
+
+describe("get_q0_factor_columns", {
+  it("excludes _alpha suffix columns", {
+    df <- data.frame(
+      Treatment = c("A", "B"),
+      Dose_alpha = c("Low", "High"),
+      Q0 = c(10, 20),
+      stringsAsFactors = FALSE
+    )
+    result <- emms_utils$get_q0_factor_columns(df)
+    expect_equal(result, "Treatment")
+    expect_false("Dose_alpha" %in% result)
+  })
+
+  it("includes all factor columns when no _alpha suffix present", {
+    df <- data.frame(
+      Treatment = c("A", "B"),
+      Dose = c("Low", "High"),
+      Q0 = c(10, 20),
+      stringsAsFactors = FALSE
+    )
+    result <- emms_utils$get_q0_factor_columns(df)
+    expect_equal(sort(result), c("Dose", "Treatment"))
+  })
+})
+
+# ------------------------------------------------------------------------------
+# get_alpha_factor_columns() tests
+# ------------------------------------------------------------------------------
+
+describe("get_alpha_factor_columns", {
+  it("returns all factor columns when no _alpha suffix present", {
+    df <- data.frame(
+      Treatment = c("A", "B"),
+      Dose = c("Low", "High"),
+      alpha = c(0.001, 0.002),
+      stringsAsFactors = FALSE
+    )
+    result <- emms_utils$get_alpha_factor_columns(df)
+    expect_equal(sort(result), c("Dose", "Treatment"))
+  })
+
+  it("handles asymmetric collapse with _alpha suffix", {
+    df <- data.frame(
+      Treatment = c("A", "B"),
+      Dose = c("Low", "High"),
+      Dose_alpha = c("Collapsed1", "Collapsed2"),
+      alpha = c(0.001, 0.002),
+      stringsAsFactors = FALSE
+    )
+    result <- emms_utils$get_alpha_factor_columns(df)
+    # Should include Dose_alpha and Treatment, but not original Dose
+    expect_true("Dose_alpha" %in% result)
+    expect_true("Treatment" %in% result)
+    expect_false("Dose" %in% result)
+  })
+})
+
+# ------------------------------------------------------------------------------
+# has_ev_columns() tests
+# ------------------------------------------------------------------------------
+
+describe("has_ev_columns", {
+  it("returns TRUE when EV column exists", {
+    df <- data.frame(EV = c(100, 200))
+    expect_true(emms_utils$has_ev_columns(df))
+  })
+
+  it("returns TRUE for EV_ prefixed columns", {
+    df <- data.frame(EV_SE = c(10, 20))
+    expect_true(emms_utils$has_ev_columns(df))
+  })
+
+  it("returns FALSE when no EV columns", {
+    df <- data.frame(Q0 = c(10, 20), alpha = c(0.001, 0.002))
+    expect_false(emms_utils$has_ev_columns(df))
+  })
+
+  it("returns FALSE for NULL input", {
+    expect_false(emms_utils$has_ev_columns(NULL))
+  })
+})
+
+# ------------------------------------------------------------------------------
+# build_empty_emm_message() tests
+# ------------------------------------------------------------------------------
+
+describe("build_empty_emm_message", {
+  it("builds message for Q0", {
+    result <- emms_utils$build_empty_emm_message("Q0")
+    expect_equal(result$Message, "No Q0 EMMs available")
+  })
+
+  it("builds message for Alpha", {
+    result <- emms_utils$build_empty_emm_message("Alpha")
+    expect_equal(result$Message, "No Alpha EMMs available")
+  })
+
+  it("builds message for EV", {
+    result <- emms_utils$build_empty_emm_message("EV")
+    expect_equal(result$Message, "No EV EMMs available")
+  })
+})
+
+# ------------------------------------------------------------------------------
+# prepare_q0_display_data() tests
+# ------------------------------------------------------------------------------
+
+describe("prepare_q0_display_data", {
+  it("prepares Q0 data excluding _alpha columns", {
+    df <- data.frame(
+      Treatment = c("A", "B"),
+      Dose_alpha = c("Low", "High"),
+      Q0 = c(10.12345, 20.12345),
+      stringsAsFactors = FALSE
+    )
+    result <- emms_utils$prepare_q0_display_data(df)
+    expect_true("Treatment" %in% names(result))
+    expect_true("Q0" %in% names(result))
+    expect_false("Dose_alpha" %in% names(result))
+    expect_equal(result$Q0, c(10.1235, 20.1235), tolerance = 1e-4) # rounded to 4
+  })
+
+  it("returns NULL for empty data", {
+    expect_null(emms_utils$prepare_q0_display_data(NULL))
+    expect_null(emms_utils$prepare_q0_display_data(data.frame()))
+  })
+
+  it("removes duplicate rows", {
+    df <- data.frame(
+      Treatment = c("A", "A", "B"),
+      Q0 = c(10, 10, 20)
+    )
+    result <- emms_utils$prepare_q0_display_data(df)
+    expect_equal(nrow(result), 2)
+  })
+})
+
+# ------------------------------------------------------------------------------
+# prepare_alpha_display_data() tests
+# ------------------------------------------------------------------------------
+
+describe("prepare_alpha_display_data", {
+  it("prepares alpha data with correct rounding", {
+    df <- data.frame(
+      Treatment = c("A", "B"),
+      alpha = c(0.00123456, 0.00234567),
+      alpha_natural = c(0.000012345678, 0.000023456789),
+      stringsAsFactors = FALSE
+    )
+    result <- emms_utils$prepare_alpha_display_data(df)
+    expect_equal(result$alpha, c(0.0012, 0.0023)) # 4 digits
+    expect_equal(result$alpha_natural, c(0.00001235, 0.00002346)) # 8 digits
+  })
+
+  it("returns NULL for empty data", {
+    expect_null(emms_utils$prepare_alpha_display_data(NULL))
+  })
+})
+
+# ------------------------------------------------------------------------------
+# prepare_ev_display_data() tests
+# ------------------------------------------------------------------------------
+
+describe("prepare_ev_display_data", {
+  it("prepares EV data with correct factor columns", {
+    df <- data.frame(
+      Treatment = c("A", "B"),
+      EV = c(100.12345, 200.12345),
+      stringsAsFactors = FALSE
+    )
+    result <- emms_utils$prepare_ev_display_data(df)
+    expect_true("Treatment" %in% names(result))
+    expect_true("EV" %in% names(result))
+    expect_equal(result$EV, c(100.1235, 200.1235), tolerance = 1e-4)
+  })
+
+  it("returns NULL when no EV columns", {
+    df <- data.frame(Treatment = c("A", "B"), Q0 = c(10, 20))
+    expect_null(emms_utils$prepare_ev_display_data(df))
+  })
+
+  it("returns NULL for empty data", {
+    expect_null(emms_utils$prepare_ev_display_data(NULL))
+  })
+})
