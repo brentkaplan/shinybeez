@@ -345,9 +345,9 @@ Standardize on one approach.
 
 ### Immediate (Next Session)
 
-1. **5.2** Add shinytest2 integration tests for critical workflows
-2. **1.1** Extract plotting logic to separate module
-3. **1.2** Extract comparisons logic to separate module
+1. ~~**1.1** Extract plotting logic to separate module~~ ✅ DONE (Dec 2024)
+2. **1.2** Extract comparisons logic to separate module
+3. **5.2** Add shinytest2 integration tests for critical workflows
 
 ### Short-Term (1-2 Sessions)
 
@@ -367,6 +367,16 @@ Standardize on one approach.
 - **2.1** Wire shared data_table (marginal benefit)
 - **4.5** Async model fitting (high complexity)
 - **6.1** Lint warnings (cosmetic)
+
+### Future Enhancement: Plotting Options for Demand/Discounting Tabs
+
+Adopt the same plotting configuration options from mixed effects to the demand and discounting tabs:
+- Color/linetype/facet aesthetic selectors
+- Theme selection (prism, classic, minimal)
+- Legend position
+- Color palette selection
+- Axis transformations (log scale)
+- Reuse `app/logic/mixed_effects/plotting.R` helpers where applicable
 
 ---
 
@@ -391,9 +401,9 @@ Standardize on one approach.
 
 | Metric | Current | Target |
 |--------|---------|--------|
-| Unit tests | 296 | 400+ |
+| Unit tests | 362 | 400+ |
 | Integration tests | 0 | 10+ |
-| Largest view file | 2,133 lines | <1,500 lines |
+| Largest view file | 2,030 lines | <1,500 lines |
 | Test coverage (estimated) | ~60% logic | 80%+ logic |
 | CI/CD passing | Yes | Maintain |
 
@@ -409,6 +419,7 @@ app/logic/mixed_effects/
 ├── model_fitting.R         # Covariate + nlme
 ├── emms_utils.R            # EMM formatting
 ├── export_utils.R          # Excel + DT buttons
+├── plotting.R              # Plot aesthetics + theming
 └── validation_utils.R      # Validation helpers
 
 app/view/
