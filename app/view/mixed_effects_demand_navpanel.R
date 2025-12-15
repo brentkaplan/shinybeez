@@ -25,6 +25,7 @@ box::use(
   app / logic / mixed_effects / emms_utils,
   app / logic / mixed_effects / export_utils,
   app / logic / mixed_effects / model_fitting,
+  app / logic / mixed_effects / plotting,
   app / logic / mixed_effects / validation_utils
 )
 
@@ -1450,54 +1451,31 @@ navpanel_server <- function(id, sidebar_reactives) {
       }
       choices_with_none <- c("None" = "", factors_in_model)
 
-      # Preserve the user's current selections if they are still valid factors
-      # Otherwise, reset them to "" (None).
-      selected_color <- shiny$isolate(input$plot_color_by)
-      if (!selected_color %in% factors_in_model) {
-        selected_color <- ""
-      }
-
-      selected_linetype <- shiny$isolate(input$plot_linetype_by)
-      if (!selected_linetype %in% factors_in_model) {
-        selected_linetype <- ""
-      }
-
-      selected_facet <- shiny$isolate(input$plot_facet_by)
-      if (!selected_facet %in% factors_in_model) {
-        selected_facet <- ""
-      }
-
-      # Set smart defaults if the model has factors and selections are now empty
-      if (length(factors_in_model) > 0) {
-        if (selected_color == "" && selected_linetype != factors_in_model[1]) {
-          selected_color <- factors_in_model[1]
-        }
-        if (
-          length(factors_in_model) > 1 &&
-            selected_linetype == "" &&
-            selected_color != factors_in_model[2]
-        ) {
-          selected_linetype <- factors_in_model[2]
-        }
-      }
+      # Compute smart defaults using plotting module
+      defaults <- plotting$compute_aesthetic_defaults(
+        current_color = shiny$isolate(input$plot_color_by) %||% "",
+        current_linetype = shiny$isolate(input$plot_linetype_by) %||% "",
+        current_facet = shiny$isolate(input$plot_facet_by) %||% "",
+        factors_in_model = factors_in_model
+      )
 
       shiny$updateSelectInput(
         session,
         "plot_color_by",
         choices = choices_with_none,
-        selected = selected_color
+        selected = defaults$color
       )
       shiny$updateSelectInput(
         session,
         "plot_linetype_by",
         choices = choices_with_none,
-        selected = selected_linetype
+        selected = defaults$linetype
       )
       shiny$updateSelectInput(
         session,
         "plot_facet_by",
         choices = choices_with_none,
-        selected = selected_facet
+        selected = defaults$facet
       )
     }) |>
       shiny$bindEvent(fitted_model_reactive())
@@ -1506,54 +1484,25 @@ navpanel_server <- function(id, sidebar_reactives) {
       model_fit <- fitted_model_reactive()
       shiny$req(model_fit, model_fit$model)
 
-      # --- ROBUST PLOTTING LOGIC ---
-      # Get the list of factors that are actually in the fitted model. This is the source of truth.
-      valid_factors_in_model <- model_fit$param_info$factors
-      if (is.null(valid_factors_in_model)) {
-        valid_factors_in_model <- character(0)
-      }
+      # Get valid factors from the fitted model
+      valid_factors <- model_fit$param_info$factors %||% character(0)
 
-      # Validate selected color aesthetic. If the selection is empty or not a valid factor
-      # in the current model, treat it as NULL.
-      plot_color <- input$plot_color_by
+      # Validate aesthetics using plotting module
+      aesthetics <- plotting$build_validated_aesthetics(
+        color_input = input$plot_color_by,
+        linetype_input = input$plot_linetype_by,
+        facet_input = input$plot_facet_by,
+        valid_factors = valid_factors
+      )
+
+      # Check if there's content to plot
       if (
-        is.null(plot_color) ||
-          !nzchar(plot_color) ||
-          !(plot_color %in% valid_factors_in_model)
+        !plotting$has_plot_content(
+          input$show_population_lines,
+          input$show_individual_lines,
+          input$show_observed_points_plot
+        )
       ) {
-        plot_color <- NULL
-      }
-
-      # Validate selected linetype aesthetic.
-      plot_linetype <- input$plot_linetype_by
-      if (
-        is.null(plot_linetype) ||
-          !nzchar(plot_linetype) ||
-          !(plot_linetype %in% valid_factors_in_model)
-      ) {
-        plot_linetype <- NULL
-      }
-
-      # Validate selected facet aesthetic.
-      plot_facet_var <- input$plot_facet_by
-      plot_facet_str <- NULL # Default to no facet
-      if (
-        !is.null(plot_facet_var) &&
-          nzchar(plot_facet_var) &&
-          (plot_facet_var %in% valid_factors_in_model)
-      ) {
-        plot_facet_str <- paste("~", plot_facet_var)
-      }
-      # --- END: ROBUST PLOTTING LOGIC ---
-
-      pred_lines_to_show <- c()
-      if (input$show_population_lines) {
-        pred_lines_to_show <- c(pred_lines_to_show, "population")
-      }
-      if (input$show_individual_lines) {
-        pred_lines_to_show <- c(pred_lines_to_show, "individual")
-      }
-      if (length(pred_lines_to_show) == 0 && !input$show_observed_points_plot) {
         shiny$showNotification(
           "Nothing to plot. Select observed points or prediction lines.",
           type = "warning"
@@ -1561,41 +1510,14 @@ navpanel_server <- function(id, sidebar_reactives) {
         return(ggplot2$ggplot() + ggplot2$theme_void())
       }
 
-      # Determine inv_fun based on original y_var.
-      # Assuming LL4 transform always leads to log10 scale for 'zben'.
-      # If y_var was y_ll4, it's already log10. If it was y, it got transformed.
-      # inv_transform_fun <- beezdemand$ll4_inv # Assuming ll4_inv is 10^x or
-      # similar
+      # Build plot arguments using plotting module helpers
+      show_lines_arg <- plotting$build_pred_lines_arg(
+        input$show_population_lines,
+        input$show_individual_lines
+      )
 
       y_is_ll4 <- isTRUE(model_fit$param_info$y_is_ll4)
       inv_transform_fun <- if (y_is_ll4) beezdemand$ll4_inv else identity
-
-      # If y_trans is log, use inv_fun, otherwise plot directly.
-      # The plot function's inv_fun is for the MODEL's y-scale back to natural.
-      # The y_trans in plot is for the VISUAL scale of the y-axis.
-      current_y_trans <- if (input$plot_y_trans_log) {
-        "pseudo_log"
-      } else {
-        "identity"
-      }
-      current_x_trans <- if (input$plot_x_trans_log) {
-        "pseudo_log"
-      } else {
-        "identity"
-      }
-
-      # Simplify show_pred_lines
-      if (length(pred_lines_to_show) == 0) {
-        show_lines_arg <- FALSE
-      } else if (all(c("population", "individual") %in% pred_lines_to_show)) {
-        show_lines_arg <- c("population", "individual")
-      } else if ("population" %in% pred_lines_to_show) {
-        show_lines_arg <- "population" # or TRUE
-      } else if ("individual" %in% pred_lines_to_show) {
-        show_lines_arg <- "individual"
-      } else {
-        show_lines_arg <- FALSE
-      }
 
       # Build 'at' for covariate conditioning in plot
       df_now <- data_to_analyze()
@@ -1603,17 +1525,13 @@ navpanel_server <- function(id, sidebar_reactives) {
 
       p <- plot(
         model_fit,
-        inv_fun = inv_transform_fun, # To get natural scale for predictions
-        y_trans = current_y_trans, # Visual scale for y-axis
-        x_trans = current_x_trans, # Visual scale for x-axis
+        inv_fun = inv_transform_fun,
+        y_trans = plotting$get_axis_transform(input$plot_y_trans_log),
+        x_trans = plotting$get_axis_transform(input$plot_x_trans_log),
         at = cov_info$at_list,
-        facet_formula = if (!is.null(plot_facet_str)) {
-          stats$as.formula(plot_facet_str)
-        } else {
-          NULL
-        },
-        color_by = plot_color,
-        linetype_by = plot_linetype,
+        facet_formula = aesthetics$facet_formula,
+        color_by = aesthetics$color,
+        linetype_by = aesthetics$linetype,
         show_observed_data = input$show_observed_points_plot,
         show_pred_lines = show_lines_arg,
         title = input$plot_title,
@@ -1621,27 +1539,10 @@ navpanel_server <- function(id, sidebar_reactives) {
         ylab = input$plot_ylab
       )
 
-      # Apply selected theme with user-specified font size
-      font_size <- if (is.null(input$plot_font_size)) {
-        14
-      } else {
-        input$plot_font_size
-      }
-      p <- switch(
-        input$plot_theme,
-        "prism" = p + ggprism$theme_prism(base_size = font_size),
-        "classic" = p + ggplot2$theme_classic(base_size = font_size),
-        "minimal" = p + ggplot2$theme_minimal(base_size = font_size),
-        p # default: keep existing theme
-      )
-
-      # Apply legend position
-      legend_pos <- if (is.null(input$plot_legend_position)) {
-        "right"
-      } else {
-        input$plot_legend_position
-      }
-      p <- p + ggplot2$theme(legend.position = legend_pos)
+      # Apply theme and styling using plotting module
+      font_size <- input$plot_font_size %||% 14
+      p <- plotting$apply_plot_theme(p, input$plot_theme, font_size)
+      p <- plotting$apply_legend_position(p, input$plot_legend_position)
 
       # Add watermark if enabled
       if (isTRUE(input$show_watermark)) {
@@ -1649,17 +1550,13 @@ navpanel_server <- function(id, sidebar_reactives) {
       }
 
       # Apply palette if coloring by a discrete factor
-      if (!is.null(plot_color)) {
-        # Retrieve the factor levels present in the fitted data for the color factor
-        fit_data <- model_fit$data
-        if (!is.null(fit_data) && plot_color %in% names(fit_data)) {
-          n_levels <- length(unique(stats$na.omit(fit_data[[plot_color]])))
-          p <- p +
-            ggplot2$scale_color_manual(
-              values = utils$get_palette_colors(input$plot_palette, n_levels)
-            )
-        }
-      }
+      p <- plotting$apply_color_palette(
+        p,
+        color_var = aesthetics$color,
+        fit_data = model_fit$data,
+        palette_name = input$plot_palette,
+        get_palette_fn = utils$get_palette_colors
+      )
 
       return(p)
     }) |>

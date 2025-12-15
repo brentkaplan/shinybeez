@@ -8,6 +8,7 @@ box::use(
   . / model_fitting,
   . / emms_utils,
   . / export_utils,
+  . / plotting,
   . / validation_utils
 )
 
@@ -18,5 +19,6 @@ box::export(
   model_fitting,
   emms_utils,
   export_utils,
+  plotting,
   validation_utils
 )
