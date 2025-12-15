@@ -3,12 +3,12 @@ box::use(
   bslib,
   dplyr,
   DT,
-  rhino,
   shiny,
   stats,
 )
 
 box::use(
+  app / logic / logging_utils,
   app / logic / utils,
   app / logic / validate,
 )
@@ -90,10 +90,16 @@ server <- function(id, isgroup = NULL, data_r) {
   shiny$moduleServer(id, function(input, output, session) {
     ns <- session$ns
 
+    # Create session-specific logger
+    session_logger <- logging_utils$create_session_logger(session)
+
     # show data table
     shiny$observe({
       shiny$req(session$userData$data$demand)
-      rhino$log$info("Printing Demand Datatable")
+      session_logger$info(
+        "Rendering Demand data table",
+        category = "module_init"
+      )
       output$data_table <- DT$renderDT(server = FALSE, {
         DT$datatable(
           data_r$data_d,

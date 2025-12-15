@@ -4,9 +4,12 @@ box::use(
   dplyr,
   DT,
   purrr,
-  rhino,
   shiny,
   stats,
+)
+
+box::use(
+  app / logic / logging_utils,
 )
 
 #' @export
@@ -22,6 +25,9 @@ ui <- function(id) {
 server <- function(id, data_r, type = NULL) {
   shiny$moduleServer(id, function(input, output, session) {
     ns <- session$ns
+
+    # Create session-specific logger
+    session_logger <- logging_utils$create_session_logger(session)
 
     shiny$observe({
       shiny$req(session$userData$data$discounting)

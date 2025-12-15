@@ -1,13 +1,13 @@
 box::use(
   bsicons,
   bslib,
-  rhino,
   shiny,
   tools,
   vroom,
 )
 
 box::use(
+  app / logic / logging_utils,
   app / logic / validate,
 )
 
@@ -40,10 +40,16 @@ ui <- function(id) {
 #' @export
 server <- function(id, type = "demand") {
   shiny$moduleServer(id, function(input, output, session) {
+    # Create session-specific logger
+    session_logger <- logging_utils$create_session_logger(session)
+
     shiny$observe({
       ext <- tools$file_ext(input$upload$name)
       if (type == "demand") {
-        rhino$log$info(paste0("Reading demand file: ", input$upload$name))
+        session_logger$info(
+          paste0("Reading demand file: ", input$upload$name),
+          category = "data_processing"
+        )
         tmp <- switch(
           ext,
           csv = vroom$vroom(
@@ -86,7 +92,10 @@ server <- function(id, type = "demand") {
           session$userData$data$demand <- validate$obliterate_empty_cols(tmp)
         }
       } else if (type == "discounting") {
-        rhino$log$info(paste0("Reading discounting file: ", input$upload$name))
+        session_logger$info(
+          paste0("Reading discounting file: ", input$upload$name),
+          category = "data_processing"
+        )
         tmp <- switch(
           ext,
           csv = vroom$vroom(
@@ -132,10 +141,10 @@ server <- function(id, type = "demand") {
           )
         }
       } else if (type == "mixed_effects_demand") {
-        rhino$log$info(paste0(
-          "Reading mixed effects demand file: ",
-          input$upload$name
-        ))
+        session_logger$info(
+          paste0("Reading mixed effects demand file: ", input$upload$name),
+          category = "data_processing"
+        )
         tmp <- switch(
           ext,
           csv = vroom$vroom(
