@@ -224,6 +224,21 @@ has_ev_columns <- function(emms_data) {
   any(grepl("^EV$|^EV_|_EV$", names(emms_data)))
 }
 
+#' Build DT options for EMM tables
+#'
+#' @param filename_prefix Prefix for export filename
+#' @param export_utils_ref Reference to export_utils module
+#' @return List of DT options
+#' @export
+build_emm_dt_options <- function(filename_prefix, export_utils_ref) {
+  list(
+    scrollX = TRUE,
+    pageLength = 10,
+    dom = "Btip",
+    buttons = export_utils_ref$build_dt_buttons(filename_prefix)
+  )
+}
+
 #' Build empty EMM message data frame
 #'
 #' @param param_name Parameter name ("Q0", "Alpha", "EV")

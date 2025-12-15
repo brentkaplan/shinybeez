@@ -899,7 +899,6 @@ navpanel_server <- function(id, sidebar_reactives) {
     output$emms_q0_table <- DT$renderDT({
       emms_data <- emms_data_reactive()
       shiny$req(emms_data)
-
       q0_data <- emms_utils$prepare_q0_display_data(emms_data)
       if (is.null(q0_data)) {
         return(DT$datatable(
@@ -908,18 +907,13 @@ navpanel_server <- function(id, sidebar_reactives) {
           options = list(dom = "t")
         ))
       }
-
       DT$datatable(
         q0_data,
         rownames = FALSE,
         extensions = c("Buttons"),
-        options = list(
-          scrollX = TRUE,
-          pageLength = 10,
-          dom = "Btip",
-          buttons = export_utils$build_dt_buttons(
-            "shinybeez_MixedEffects_Q0_EMMs"
-          )
+        options = emms_utils$build_emm_dt_options(
+          "shinybeez_MixedEffects_Q0_EMMs",
+          export_utils
         )
       )
     })
@@ -928,7 +922,6 @@ navpanel_server <- function(id, sidebar_reactives) {
     output$emms_alpha_table <- DT$renderDT({
       emms_data <- emms_data_reactive()
       shiny$req(emms_data)
-
       alpha_data <- emms_utils$prepare_alpha_display_data(emms_data)
       if (is.null(alpha_data)) {
         return(DT$datatable(
@@ -937,18 +930,13 @@ navpanel_server <- function(id, sidebar_reactives) {
           options = list(dom = "t")
         ))
       }
-
       DT$datatable(
         alpha_data,
         rownames = FALSE,
         extensions = c("Buttons"),
-        options = list(
-          scrollX = TRUE,
-          pageLength = 10,
-          dom = "Btip",
-          buttons = export_utils$build_dt_buttons(
-            "shinybeez_MixedEffects_Alpha_EMMs"
-          )
+        options = emms_utils$build_emm_dt_options(
+          "shinybeez_MixedEffects_Alpha_EMMs",
+          export_utils
         )
       )
     })
@@ -971,11 +959,9 @@ navpanel_server <- function(id, sidebar_reactives) {
         ev_data,
         rownames = FALSE,
         extensions = c("Buttons"),
-        options = list(
-          scrollX = TRUE,
-          pageLength = 10,
-          dom = "Btip",
-          buttons = export_utils$build_dt_buttons("shinybeez_MixedEffects_EV")
+        options = emms_utils$build_emm_dt_options(
+          "shinybeez_MixedEffects_EV_EMMs",
+          export_utils
         )
       )
     })
