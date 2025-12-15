@@ -2,6 +2,11 @@
 
 This document describes the modular architecture implemented for the shinybeez application.
 
+**Branch:** `refactor/modular-architecture`
+**Last Updated:** December 2024
+**Tests:** 296 passing
+**See Also:** [REFACTORING_ROADMAP.md](./REFACTORING_ROADMAP.md) for next steps
+
 ## Overview
 
 The application follows the [rhino](https://appsilon.github.io/rhino/) framework pattern with `box` modules for clean separation of concerns.
@@ -33,8 +38,8 @@ app/
 │   │   ├── plot_settings.R         # Plot settings sidebar
 │   │   └── systematic_criteria.R   # Systematic criteria panel
 │   ├── mixed_effects_demand_coordinator.R  # Coordinator (25 lines)
-│   ├── mixed_effects_demand_sidebar.R      # Sidebar UI/server (1388 lines)
-│   ├── mixed_effects_demand_navpanel.R     # Navpanel UI/server (2488 lines)
+│   ├── mixed_effects_demand_sidebar.R      # Sidebar UI/server (1,379 lines)
+│   ├── mixed_effects_demand_navpanel.R     # Navpanel UI/server (2,133 lines)
 │   ├── demand.R                    # Demand tab
 │   ├── discounting.R               # Discounting tab
 │   └── ...
@@ -90,13 +95,26 @@ EMM (Estimated Marginal Means) data processing.
 
 ### `app/logic/mixed_effects/export_utils.R`
 
-Excel export helpers.
+Excel export and DT table helpers.
 
 **Exports:**
 - `build_summary_sheet()` - Build summary data for Excel export
 - `add_collapse_info()`, `add_fitting_settings()` - Add sections to summary
 - `build_descriptives()` - Build descriptives summary
 - `generate_export_timestamp()`, `build_export_filename()` - Filename helpers
+- `build_dt_buttons()` - Standard DT export button configuration
+
+### `app/logic/mixed_effects/validation_utils.R`
+
+Data validation helpers for reactive contexts.
+
+**Exports:**
+- `is_valid_dataframe()` - Check for valid non-empty data frame
+- `is_valid_comparison_data()` - Validate comparison output
+- `is_valid_emms_data()` - Validate EMMs output
+- `is_valid_model_fit()` - Validate model fit object
+- `is_ready_for_analysis()` - Check data has required columns
+- `safe_nrow()` - Get row count without errors on NULL/invalid data
 
 ## Shared View Components
 
@@ -160,14 +178,15 @@ testthat::test_dir("tests/testthat")
 **Test Files:**
 - `test-collapse_levels.R` - 48 tests
 - `test-data_prep.R` - 45 tests
-- `test-model_fitting.R` - 55 tests
+- `test-model_fitting.R` - 57 tests
 - `test-emms_utils.R` - 27 tests
-- `test-export_utils.R` - 25 tests
+- `test-export_utils.R` - 33 tests
+- `test-validation_utils.R` - 31 tests
 - `test-validate.R` - 24 tests
-- `test-mixed_effects_demand_utils.R` - 12 tests
+- `test-mixed_effects_demand_utils.R` - 21 tests
 - `test-module_imports.R` - 25 tests (integration)
 
-Total: **261 tests**
+Total: **296 tests**
 
 ## Usage Example
 
@@ -216,8 +235,15 @@ The following inline logic has been replaced with module calls:
 | Excel collapse info section | `export_utils$add_collapse_info()` |
 | Excel fitting settings section | `export_utils$add_fitting_settings()` |
 | Excel descriptives building | `export_utils$build_descriptives()` |
+| DT button configurations (11x) | `export_utils$build_dt_buttons()` |
+| Comparison data validation | `validation_utils$is_valid_comparison_data()` |
 
-**Result**: `mixed_effects_demand.R` reduced from 4200 → 3853 lines (347 lines, 8.3% reduction)
+**Result**: Original `mixed_effects_demand.R` (4,200 lines) split into:
+- `mixed_effects_demand_sidebar.R` (1,379 lines)
+- `mixed_effects_demand_navpanel.R` (2,133 lines)
+- `mixed_effects_demand_coordinator.R` (25 lines)
+
+**Total reduction:** 663 lines (15.8%)
 
 ## Migration Notes
 
