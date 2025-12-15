@@ -22,6 +22,7 @@ box::use(
   app / logic / utils,
   app / logic / logging_utils,
   app / logic / mixed_effects_demand_utils,
+  app / logic / mixed_effects / comparisons,
   app / logic / mixed_effects / emms_utils,
   app / logic / mixed_effects / export_utils,
   app / logic / mixed_effects / model_fitting,
@@ -1152,13 +1153,10 @@ navpanel_server <- function(id, sidebar_reactives) {
       shiny$req(model_fit, model_fit$model)
 
       # Get factors from the fitted model - source of truth for comparisons
-      model_factors <- model_fit$param_info$factors
-      if (is.null(model_factors)) {
-        model_factors <- character(0)
-      }
+      model_factors <- model_fit$param_info$factors %||% character(0)
 
       output$comparison_factor_selector_ui <- shiny$renderUI({
-        if (length(model_factors) == 0) {
+        if (!comparisons$can_compare(model_factors)) {
           return(shiny$helpText(
             "No factors available for comparison (intercept-only model)."
           ))
@@ -1172,13 +1170,13 @@ navpanel_server <- function(id, sidebar_reactives) {
       })
 
       output$contrast_by_selector_ui <- shiny$renderUI({
-        if (length(model_factors) <= 1) {
-          return(NULL)
-        }
         main_comparison_factor <- input$comparison_factor
         shiny$req(main_comparison_factor)
 
-        other_factors <- setdiff(model_factors, main_comparison_factor)
+        other_factors <- comparisons$get_other_factors(
+          model_factors,
+          main_comparison_factor
+        )
         if (length(other_factors) == 0) {
           return(NULL)
         }
@@ -1199,41 +1197,28 @@ navpanel_server <- function(id, sidebar_reactives) {
 
       # Check if model has any factors to compare
       model_factors <- model_fit$param_info$factors
-      if (is.null(model_factors) || length(model_factors) == 0) {
-        # Intercept-only model - return NULL (no comparisons possible)
+      if (!comparisons$can_compare(model_factors)) {
         return(NULL)
       }
 
       # Require a valid comparison factor selection
       main_factor <- input$comparison_factor
-      if (
-        is.null(main_factor) ||
-          !nzchar(main_factor) ||
-          !(main_factor %in% model_factors)
-      ) {
+      if (!comparisons$is_valid_comparison_factor(main_factor, model_factors)) {
         return(NULL)
       }
 
       by_factor <- input$contrast_by_factor
 
-      specs_str <- main_factor
-      if (
-        !is.null(by_factor) && nzchar(by_factor) && by_factor %in% model_factors
-      ) {
-        specs_str <- paste(main_factor, "*", by_factor)
-      }
-
-      # The factor to compare `by` should be the `contrast_by` argument
-      # The primary factor for pairwise comparison is implicitly handled by `emmeans`
-      # when `specs` defines the interaction.
-
-      contrast_by_arg <- if (
-        !is.null(by_factor) && nzchar(by_factor) && by_factor %in% model_factors
-      ) {
-        by_factor
-      } else {
-        NULL
-      }
+      # Build specs string and contrast_by arg using module helpers
+      specs_str <- comparisons$build_specs_string(
+        main_factor,
+        by_factor,
+        model_factors
+      )
+      contrast_by_arg <- comparisons$get_contrast_by_arg(
+        by_factor,
+        model_factors
+      )
 
       # Build 'at' for covariate conditioning
       df_now <- data_to_analyze()
@@ -1243,7 +1228,7 @@ navpanel_server <- function(id, sidebar_reactives) {
         beezdemand$get_demand_comparisons(
           fit_obj = model_fit,
           params_to_compare = c("Q0", "alpha"),
-          compare_specs = stats$as.formula(paste("~", specs_str)),
+          compare_specs = comparisons$build_specs_formula(specs_str),
           contrast_by = contrast_by_arg,
           at = cov_info$at_list,
           adjust = input$comparison_adjust_method,
@@ -1276,27 +1261,21 @@ navpanel_server <- function(id, sidebar_reactives) {
       shiny$req(comps, comps$Q0)
 
       # Get the appropriate data based on display type
-      raw_data <- if (input$comparison_display_type == "ratio") {
-        comps$Q0$contrasts_ratio
-      } else {
-        comps$Q0$contrasts_log10
-      }
+      raw_data <- comparisons$get_comparison_data(
+        comps$Q0,
+        input$comparison_display_type
+      )
 
-      # Handle empty or NULL data using validation_utils
-      if (!validation_utils$is_valid_comparison_data(raw_data)) {
+      # Handle empty or NULL data
+      if (comparisons$is_empty_comparison(raw_data)) {
         return(NULL)
       }
 
-      display_data <- dplyr$mutate(
-        raw_data,
-        dplyr$across(where(is.numeric), ~ round(., 4))
+      display_data <- comparisons$round_comparison_data(raw_data)
+      caption_text <- comparisons$build_comparison_caption(
+        "Q0",
+        input$comparison_display_type
       )
-
-      caption_text <- if (input$comparison_display_type == "ratio") {
-        "Pairwise Comparisons for Q0 (Natural Scale Ratios)"
-      } else {
-        "Pairwise Comparisons for Q0 (log10 difference)"
-      }
 
       DT$datatable(
         display_data,
@@ -1327,25 +1306,18 @@ navpanel_server <- function(id, sidebar_reactives) {
         return(NULL)
       }
 
-      display_data <- if (input$comparison_display_type == "ratio") {
-        comps$Q0$contrasts_ratio
-      } else {
-        comps$Q0$contrasts_log10
-      }
+      display_data <- comparisons$get_comparison_data(
+        comps$Q0,
+        input$comparison_display_type
+      )
 
       # Handle empty comparisons (intercept-only for Q0 due to collapse)
-      if (
-        is.null(display_data) ||
-          !is.data.frame(display_data) ||
-          nrow(display_data) == 0
-      ) {
+      if (comparisons$is_empty_comparison(display_data)) {
         return(shiny$tagList(
           shiny$h4("Q0 Comparisons"),
-          shiny$helpText(
-            shiny$em(
-              "No Q0 comparisons available (Q0 may be intercept-only due to collapsed levels)."
-            )
-          )
+          shiny$helpText(shiny$em(comparisons$build_empty_comparison_message(
+            "Q0"
+          )))
         ))
       }
 
@@ -1362,25 +1334,18 @@ navpanel_server <- function(id, sidebar_reactives) {
         return(NULL)
       }
 
-      display_data <- if (input$comparison_display_type == "ratio") {
-        comps$alpha$contrasts_ratio
-      } else {
-        comps$alpha$contrasts_log10
-      }
+      display_data <- comparisons$get_comparison_data(
+        comps$alpha,
+        input$comparison_display_type
+      )
 
       # Handle empty comparisons (intercept-only for alpha due to collapse)
-      if (
-        is.null(display_data) ||
-          !is.data.frame(display_data) ||
-          nrow(display_data) == 0
-      ) {
+      if (comparisons$is_empty_comparison(display_data)) {
         return(shiny$tagList(
           shiny$h4("Alpha Comparisons"),
-          shiny$helpText(
-            shiny$em(
-              "No alpha comparisons available (alpha may be intercept-only due to collapsed levels)."
-            )
-          )
+          shiny$helpText(shiny$em(comparisons$build_empty_comparison_message(
+            "alpha"
+          )))
         ))
       }
 
@@ -1395,27 +1360,21 @@ navpanel_server <- function(id, sidebar_reactives) {
       shiny$req(comps, comps$alpha)
 
       # Get the appropriate data based on display type
-      raw_data <- if (input$comparison_display_type == "ratio") {
-        comps$alpha$contrasts_ratio
-      } else {
-        comps$alpha$contrasts_log10
-      }
+      raw_data <- comparisons$get_comparison_data(
+        comps$alpha,
+        input$comparison_display_type
+      )
 
-      # Handle empty or NULL data using validation_utils
-      if (!validation_utils$is_valid_comparison_data(raw_data)) {
+      # Handle empty or NULL data
+      if (comparisons$is_empty_comparison(raw_data)) {
         return(NULL)
       }
 
-      display_data <- dplyr$mutate(
-        raw_data,
-        dplyr$across(where(is.numeric), ~ round(., 4))
+      display_data <- comparisons$round_comparison_data(raw_data)
+      caption_text <- comparisons$build_comparison_caption(
+        "alpha",
+        input$comparison_display_type
       )
-
-      caption_text <- if (input$comparison_display_type == "ratio") {
-        "Pairwise Comparisons for Alpha (Natural Scale Ratios)"
-      } else {
-        "Pairwise Comparisons for Alpha (log10 difference)"
-      }
 
       DT$datatable(
         display_data,

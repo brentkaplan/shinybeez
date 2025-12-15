@@ -4,6 +4,7 @@
 
 box::use(
   . / collapse_levels,
+  . / comparisons,
   . / data_prep,
   . / model_fitting,
   . / emms_utils,
@@ -15,6 +16,7 @@ box::use(
 #' @export
 box::export(
   collapse_levels,
+  comparisons,
   data_prep,
   model_fitting,
   emms_utils,
