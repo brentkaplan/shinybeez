@@ -3,7 +3,7 @@
 This document outlines the next steps for refactoring, performance optimization, and testing improvements for the shinybeez application.
 
 **Branch:** `refactor/modular-architecture`
-**Last Updated:** December 2024
+**Last Updated:** December 14, 2024
 
 ---
 
@@ -15,11 +15,11 @@ This document outlines the next steps for refactoring, performance optimization,
 |--------|--------|-------|--------|
 | `mixed_effects_demand.R` | 4,200 lines | Split into 3 files | -100% (deleted) |
 | Sidebar module | - | 1,379 lines | New |
-| Navpanel module | - | 2,133 lines | New |
+| Navpanel module | - | 1,621 lines | New (reduced from 2,133) |
 | Coordinator module | - | 25 lines | New |
-| **Total view code** | 4,200 lines | 3,537 lines | -663 lines (15.8%) |
-| Unit tests | 0 | 296 | +296 |
-| Logic modules extracted | 0 | 6 | +6 |
+| **Total view code** | 4,200 lines | 3,025 lines | -1,175 lines (28%) |
+| Unit tests | 0 | 437 | +437 |
+| Logic modules extracted | 0 | 10 | +10 |
 
 ### Extracted Logic Modules
 
@@ -28,9 +28,13 @@ This document outlines the next steps for refactoring, performance optimization,
 | `collapse_levels.R` | 186 | Factor level collapsing |
 | `data_prep.R` | 184 | Column guessing, data prep |
 | `model_fitting.R` | 304 | Covariate transforms, nlme controls |
-| `emms_utils.R` | 156 | EMM data processing |
-| `export_utils.R` | 277 | Excel export + DT button helpers |
+| `emms_utils.R` | 350 | EMM data processing + display helpers |
+| `export_utils.R` | 345 | Excel export + DT button helpers |
 | `validation_utils.R` | 76 | Data validation helpers |
+| `comparisons.R` | 218 | Pairwise comparison helpers |
+| `plotting.R` | 223 | Plot configuration + aesthetics |
+| `model_output_utils.R` | 120 | Model output extraction |
+| `systematic_utils.R` | 115 | Systematic criteria computation |
 
 ---
 
@@ -54,48 +58,43 @@ app/view/mixed_effects/
 └── plot_download.R     # Download handlers (optional)
 ```
 
-### 1.2 Extract Comparisons Logic (~250 lines)
+### 1.2 Extract Comparisons Logic (~250 lines) ✅ DONE
 
-**Files:** `mixed_effects_demand_navpanel.R` lines 1145-1435
-**Priority:** High
-**Effort:** Medium
+**Status:** Completed December 2024
 
-The comparisons section contains:
-- Factor selector population
-- `comparisons_reactive` with beezdemand calls
-- Q0 and Alpha comparison table rendering
+Created `app/logic/mixed_effects/comparisons.R` with:
+- `build_specs_string()`, `build_specs_formula()` - Build comparison specs
+- `get_comparison_data()`, `prepare_comparison_display()` - Data extraction
+- `get_comparison_ui_state()` - UI state management (hide/show_empty/show_table)
+- `round_comparison_data()`, validation helpers, caption builders
 
-**Action:**
-```
-app/logic/mixed_effects/
-├── comparisons.R       # Pure comparison logic
-```
+### 1.3 Extract EMMs Display Logic (~150 lines) ✅ DONE
 
-### 1.3 Extract EMMs Display Logic (~150 lines)
+**Status:** Completed December 2024
 
-**Files:** `mixed_effects_demand_navpanel.R` lines 970-1145
-**Priority:** Medium
-**Effort:** Low
+Added to `app/logic/mixed_effects/emms_utils.R`:
+- `prepare_q0_display_data()`, `prepare_alpha_display_data()`, `prepare_ev_display_data()`
+- `get_q0_factor_columns()`, `get_alpha_factor_columns()` - Asymmetric collapse support
+- `build_emm_dt_options()` - DT table options helper
+- `build_empty_emm_message()` - Empty state messages
 
-Q0, Alpha, and EV table rendering share patterns that could be consolidated.
+### 1.4 Extract Systematic Criteria Logic (~100 lines) ✅ DONE
 
-**Action:**
-- Create `render_emms_table()` helper function
-- Reduce ~50 lines per table (150 lines total)
+**Status:** Completed December 2024
 
-### 1.4 Extract Systematic Criteria Logic (~100 lines)
+Created `app/logic/mixed_effects/systematic_utils.R` with:
+- `compute_systematic_criteria()` - Compute criteria with optional grouping
+- `validate_group_vars()` - Validate grouping variables
 
-**Files:** `mixed_effects_demand_navpanel.R` lines 533-635
-**Priority:** Medium
-**Effort:** Low
+### 1.5 Extract Model Output Logic ✅ DONE
 
-Move systematic criteria calculation to logic layer.
+**Status:** Completed December 2024
 
-**Action:**
-```
-app/logic/mixed_effects/
-├── systematic.R        # Systematic criteria calculation
-```
+Created `app/logic/mixed_effects/model_output_utils.R` with:
+- `get_fixed_effects_df()` - Extract fixed effects as data frame
+- `get_random_effects_df()` - Extract random effects as data frame
+- `get_individual_coefficients_df()` - Extract individual coefficients
+- `has_valid_model()` - Model validation helper
 
 ---
 
@@ -346,21 +345,22 @@ Standardize on one approach.
 ### Immediate (Next Session)
 
 1. ~~**1.1** Extract plotting logic to separate module~~ ✅ DONE (Dec 2024)
-2. **1.2** Extract comparisons logic to separate module
-3. **5.2** Add shinytest2 integration tests for critical workflows
+2. ~~**1.2** Extract comparisons logic to separate module~~ ✅ DONE (Dec 2024)
+3. ~~**1.3** Extract EMMs display logic~~ ✅ DONE (Dec 2024)
+4. ~~**1.4** Extract systematic criteria logic~~ ✅ DONE (Dec 2024)
+5. **5.2** Add shinytest2 integration tests for critical workflows
 
 ### Short-Term (1-2 Sessions)
 
-4. **3.1** Extract collapse UI section
-5. **4.2** Add debounce to expensive reactives
-6. **5.4** Add tests for demand/discounting modules
+6. **3.1** Extract collapse UI section
+7. **4.2** Add debounce to expensive reactives
+8. **5.4** Add tests for demand/discounting modules
+9. Continue navpanel reduction (1,621 → <1,500 lines)
 
 ### Medium-Term (Future)
 
-7. **1.3** Extract EMMs display logic
-8. **1.4** Extract systematic criteria logic
-9. **6.2** Consolidate validation logic
-10. **6.3** Standardize logging
+10. **6.2** Consolidate validation logic
+11. **6.3** Standardize logging
 
 ### Low Priority / As-Needed
 
@@ -401,10 +401,10 @@ Adopt the same plotting configuration options from mixed effects to the demand a
 
 | Metric | Current | Target |
 |--------|---------|--------|
-| Unit tests | 362 | 400+ |
+| Unit tests | 437 | 450+ |
 | Integration tests | 0 | 10+ |
-| Largest view file | 2,030 lines | <1,500 lines |
-| Test coverage (estimated) | ~60% logic | 80%+ logic |
+| Largest view file | 1,621 lines | <1,500 lines |
+| Test coverage (estimated) | ~70% logic | 80%+ logic |
 | CI/CD passing | Yes | Maintain |
 
 ---
@@ -415,17 +415,20 @@ Adopt the same plotting configuration options from mixed effects to the demand a
 app/logic/mixed_effects/
 ├── __init__.R              # Exports all modules
 ├── collapse_levels.R       # Factor collapsing
+├── comparisons.R           # Pairwise comparison helpers
 ├── data_prep.R             # Column guessing
-├── model_fitting.R         # Covariate + nlme
-├── emms_utils.R            # EMM formatting
+├── emms_utils.R            # EMM formatting + display
 ├── export_utils.R          # Excel + DT buttons
+├── model_fitting.R         # Covariate + nlme
+├── model_output_utils.R    # Model output extraction
 ├── plotting.R              # Plot aesthetics + theming
+├── systematic_utils.R      # Systematic criteria computation
 └── validation_utils.R      # Validation helpers
 
 app/view/
-├── mixed_effects_demand_coordinator.R  # Entry point
-├── mixed_effects_demand_sidebar.R      # Sidebar UI/server
-├── mixed_effects_demand_navpanel.R     # Main content UI/server
+├── mixed_effects_demand_coordinator.R  # Entry point (25 lines)
+├── mixed_effects_demand_sidebar.R      # Sidebar UI/server (1,379 lines)
+├── mixed_effects_demand_navpanel.R     # Main content UI/server (1,621 lines)
 └── shared/
     ├── data_table.R        # Reusable DT table
     ├── plot_settings.R     # Plot settings sidebar

@@ -1442,7 +1442,7 @@ navpanel_server <- function(id, sidebar_reactives) {
           export_utils$write_data_sheet(wb, "Descriptives", desc_data, openxlsx)
         }
 
-        # --- Sheet 4: Systematic Criteria ---
+        # --- Sheet 4: Systematic Criteria (with groupings if selected) ---
         df_raw <- tryCatch(
           sidebar_reactives$data_to_analyze_trigger(),
           error = function(e) NULL
@@ -1452,6 +1452,11 @@ navpanel_server <- function(id, sidebar_reactives) {
           id_col = sidebar_reactives$id_var(),
           x_col = sidebar_reactives$x_var(),
           y_col = sidebar_reactives$y_var(),
+          group_vars = input$systematic_group_by,
+          deltaq = input$deltaq %||% 0.025,
+          bounce = input$bounce %||% 0.10,
+          reversals = input$reversals %||% 0,
+          ncons0 = input$ncons0 %||% 2,
           beezdemand_ref = beezdemand
         )
         export_utils$write_data_sheet(

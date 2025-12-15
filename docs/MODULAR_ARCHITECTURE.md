@@ -3,8 +3,8 @@
 This document describes the modular architecture implemented for the shinybeez application.
 
 **Branch:** `refactor/modular-architecture`
-**Last Updated:** December 2024
-**Tests:** 296 passing
+**Last Updated:** December 14, 2024
+**Tests:** 437 passing
 **See Also:** [REFACTORING_ROADMAP.md](./REFACTORING_ROADMAP.md) for next steps
 
 ## Overview
@@ -23,6 +23,10 @@ app/
 │   │   ├── model_fitting.R         # Covariate transforms, nlme controls
 │   │   ├── emms_utils.R            # EMM data processing
 │   │   ├── export_utils.R          # Excel export helpers
+│   │   ├── model_output_utils.R    # Model output extraction helpers
+│   │   ├── systematic_utils.R      # Systematic criteria computation
+│   │   ├── comparisons.R           # Pairwise comparison helpers
+│   │   ├── plotting.R              # Plot configuration helpers
 │   │   └── validation_utils.R      # Data validation helpers
 │   ├── demand/                     # Demand-specific logic (future)
 │   ├── discounting/                # Discounting-specific logic (future)
@@ -90,8 +94,56 @@ EMM (Estimated Marginal Means) data processing.
 **Exports:**
 - `extract_q0_columns()`, `extract_alpha_columns()`, `extract_ev_columns()`
 - `round_numeric_columns()` - Round numeric columns in data frame
-- `format_comparison_results()` - Format comparison results for display
 - `has_emm_content()` - Check if EMM data has content
+- `prepare_q0_display_data()`, `prepare_alpha_display_data()`, `prepare_ev_display_data()` - Prepare EMM data for display
+- `get_q0_factor_columns()`, `get_alpha_factor_columns()` - Get factor columns for asymmetric collapse
+- `build_emm_dt_options()` - Build DT options for EMM tables
+- `build_empty_emm_message()` - Build placeholder message for empty EMMs
+
+### `app/logic/mixed_effects/model_output_utils.R`
+
+Model output extraction and formatting helpers.
+
+**Exports:**
+- `get_fixed_effects_df()` - Extract fixed effects as data frame
+- `get_random_effects_df()` - Extract random effects as data frame
+- `get_individual_coefficients_df()` - Extract individual coefficients
+- `has_valid_model()` - Check if model has valid output
+
+### `app/logic/mixed_effects/systematic_utils.R`
+
+Systematic criteria computation helpers.
+
+**Exports:**
+- `compute_systematic_criteria()` - Compute systematic criteria with optional grouping
+- `validate_group_vars()` - Validate grouping variables exist in data
+
+### `app/logic/mixed_effects/comparisons.R`
+
+Pairwise comparison helpers.
+
+**Exports:**
+- `build_specs_string()`, `build_specs_formula()` - Build comparison specs
+- `get_other_factors()`, `get_contrast_by_arg()` - Factor selection helpers
+- `get_comparison_data()` - Extract comparison data by display type
+- `is_empty_comparison()`, `can_compare()` - Validation helpers
+- `build_comparison_caption()`, `build_empty_comparison_message()` - UI text helpers
+- `prepare_comparison_display()` - Prepare comparison data for display
+- `get_comparison_ui_state()` - Determine UI state (hide/show_empty/show_table)
+- `round_comparison_data()` - Round numeric columns in comparisons
+
+### `app/logic/mixed_effects/plotting.R`
+
+Plot configuration and aesthetic helpers.
+
+**Exports:**
+- `validate_aesthetic()` - Validate aesthetic selection against factors
+- `compute_aesthetic_defaults()` - Compute smart defaults for aesthetics
+- `build_validated_aesthetics()` - Build validated aesthetic mappings
+- `has_plot_content()` - Check if there's content to plot
+- `build_pred_lines_arg()` - Build prediction lines argument
+- `apply_plot_theme()`, `apply_legend_position()`, `apply_color_palette()` - Theme helpers
+- `get_axis_transform()` - Get axis transformation function
 
 ### `app/logic/mixed_effects/export_utils.R`
 
@@ -103,6 +155,8 @@ Excel export and DT table helpers.
 - `build_descriptives()` - Build descriptives summary
 - `generate_export_timestamp()`, `build_export_filename()` - Filename helpers
 - `build_dt_buttons()` - Standard DT export button configuration
+- `write_data_sheet()` - Write data frame to Excel sheet with auto-width
+- `write_comparison_sheet()` - Write comparison data with rounding
 
 ### `app/logic/mixed_effects/validation_utils.R`
 
@@ -179,14 +233,16 @@ testthat::test_dir("tests/testthat")
 - `test-collapse_levels.R` - 48 tests
 - `test-data_prep.R` - 45 tests
 - `test-model_fitting.R` - 57 tests
-- `test-emms_utils.R` - 27 tests
+- `test-emms_utils.R` - 67 tests (expanded for display helpers)
 - `test-export_utils.R` - 33 tests
 - `test-validation_utils.R` - 31 tests
 - `test-validate.R` - 24 tests
 - `test-mixed_effects_demand_utils.R` - 21 tests
 - `test-module_imports.R` - 25 tests (integration)
+- `test-comparisons.R` - 32 tests
+- `test-plotting.R` - 53 tests
 
-Total: **296 tests**
+Total: **437 tests**
 
 ## Usage Example
 
@@ -240,10 +296,10 @@ The following inline logic has been replaced with module calls:
 
 **Result**: Original `mixed_effects_demand.R` (4,200 lines) split into:
 - `mixed_effects_demand_sidebar.R` (1,379 lines)
-- `mixed_effects_demand_navpanel.R` (2,133 lines)
+- `mixed_effects_demand_navpanel.R` (1,621 lines) - reduced from 2,133
 - `mixed_effects_demand_coordinator.R` (25 lines)
 
-**Total reduction:** 663 lines (15.8%)
+**Total reduction:** 1,175 lines (28% from original)
 
 ## Migration Notes
 
