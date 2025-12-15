@@ -393,6 +393,7 @@ navpanel_server <- function(id, sidebar_reactives) {
 
       return(df)
     }) |>
+      shiny$debounce(300) |>
       shiny$bindCache(
         sidebar_reactives$data_to_analyze_trigger(),
         sidebar_reactives$equation_form(),
@@ -862,6 +863,7 @@ navpanel_server <- function(id, sidebar_reactives) {
     })
 
     # EMMs and EV - Shared reactive for EMM data
+    # Only calculates when EMMs tab is active or model changes
     emms_data_reactive <- shiny$reactive({
       model_fit <- fitted_model_reactive()
       shiny$req(model_fit, model_fit$model)
@@ -893,7 +895,12 @@ navpanel_server <- function(id, sidebar_reactives) {
         }
       )
       emms_data
-    })
+    }) |>
+      shiny$bindCache(
+        fitted_model_reactive(),
+        sidebar_reactives$covariate(),
+        sidebar_reactives$cov_at_natural()
+      )
 
     # Q0 Estimates Table
     output$emms_q0_table <- DT$renderDT({
