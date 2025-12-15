@@ -167,3 +167,51 @@ round_comparison_data <- function(data, digits = 4) {
   data[numeric_cols] <- lapply(data[numeric_cols], round, digits = digits)
   data
 }
+
+#' Prepare comparison display data
+#'
+#' Extracts, validates, and formats comparison data for display.
+#'
+#' @param comp_result Comparison result for a single parameter (e.g., comps$Q0)
+#' @param display_type Display type ("ratio" or "log10")
+#' @param param_name Parameter name for caption ("Q0" or "alpha")
+#' @return List with display_data and caption_text, or NULL if no data
+#' @export
+prepare_comparison_display <- function(comp_result, display_type, param_name) {
+  if (is.null(comp_result)) {
+    return(NULL)
+  }
+
+  raw_data <- get_comparison_data(comp_result, display_type)
+
+  if (is_empty_comparison(raw_data)) {
+    return(NULL)
+  }
+
+  list(
+    display_data = round_comparison_data(raw_data),
+    caption_text = build_comparison_caption(param_name, display_type)
+  )
+}
+
+#' Check comparison UI state
+#'
+#' Determines what to show in the comparison UI based on data availability.
+#'
+#' @param comp_result Comparison result for a single parameter
+#' @param display_type Display type ("ratio" or "log10")
+#' @return Character: "show_table", "show_empty_message", or "hide"
+#' @export
+get_comparison_ui_state <- function(comp_result, display_type) {
+  if (is.null(comp_result)) {
+    return("hide")
+  }
+
+  display_data <- get_comparison_data(comp_result, display_type)
+
+  if (is_empty_comparison(display_data)) {
+    return("show_empty_message")
+  }
+
+  "show_table"
+}

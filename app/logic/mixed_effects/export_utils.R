@@ -276,6 +276,34 @@ build_dt_buttons <- function(filename) {
   )
 }
 
+#' Write a data sheet to an Excel workbook
+#'
+#' Generic helper to write a data frame to an Excel sheet with auto-width columns.
+#'
+#' @param wb openxlsx workbook object
+#' @param sheet_name Name for the worksheet
+#' @param data Data frame to write
+#' @param openxlsx The openxlsx module reference
+#' @param col_names Whether to write column names (default TRUE)
+#' @return Invisibly returns TRUE if written, FALSE otherwise
+#' @export
+write_data_sheet <- function(wb, sheet_name, data, openxlsx, col_names = TRUE) {
+  if (is.null(data) || !is.data.frame(data) || nrow(data) == 0) {
+    return(invisible(FALSE))
+  }
+
+  openxlsx$addWorksheet(wb, sheet_name)
+  openxlsx$writeData(wb, sheet_name, data, colNames = col_names)
+  openxlsx$setColWidths(
+    wb,
+    sheet_name,
+    cols = seq_len(ncol(data)),
+    widths = "auto"
+  )
+
+  invisible(TRUE)
+}
+
 #' Write a comparison sheet to an Excel workbook
 #'
 #' Helper to reduce repetitive code when exporting comparison data.

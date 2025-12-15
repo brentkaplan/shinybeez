@@ -26,7 +26,9 @@ box::use(
   app / logic / mixed_effects / emms_utils,
   app / logic / mixed_effects / export_utils,
   app / logic / mixed_effects / model_fitting,
+  app / logic / mixed_effects / model_output_utils,
   app / logic / mixed_effects / plotting,
+  app / logic / mixed_effects / systematic_utils,
   app / logic / mixed_effects / validation_utils
 )
 
@@ -523,7 +525,6 @@ navpanel_server <- function(id, sidebar_reactives) {
 
       # Guard against race: ensure selected columns exist in current data
       if (!all(c(id_col, x_col, y_col) %in% names(df_raw))) {
-        # Wait for select inputs to update to the new dataset; skip this cycle
         return(invisible(NULL))
       }
 
@@ -537,56 +538,35 @@ navpanel_server <- function(id, sidebar_reactives) {
       }
 
       group_vars <- input$systematic_group_by
-      systematic <- NULL
 
-      # Compute systematic criteria, optionally by multiple grouping factors
-      if (!is.null(group_vars) && length(group_vars) > 0) {
-        # Validate selected group vars exist
-        missing_groups <- setdiff(group_vars, names(df_raw))
-        if (length(missing_groups) > 0) {
-          shiny$showNotification(
-            paste0(
-              "Selected group-by variable(s) not found: ",
-              paste(missing_groups, collapse = ", ")
-            ),
-            type = "error",
-            duration = 10
-          )
-          return()
-        }
-        df_sys <- df_raw[, c(id_col, x_col, y_col, group_vars), drop = FALSE]
-        names(df_sys)[1:3] <- c("id", "x", "y")
-        suppressWarnings({
-          df_sys$x <- as.numeric(df_sys$x)
-          df_sys$y <- as.numeric(df_sys$y)
-        })
-        df_sys <- df_sys[!is.na(df_sys$y), , drop = FALSE]
-        systematic <- df_sys |>
-          dplyr$group_by(dplyr$across(dplyr$all_of(group_vars))) |>
-          dplyr$group_modify(
-            ~ beezdemand$CheckUnsystematic(
-              dat = .x[, c("id", "x", "y")],
-              deltaq = input$deltaq,
-              bounce = input$bounce,
-              reversals = input$reversals,
-              ncons0 = input$ncons0
-            )
-          )
-      } else {
-        df_sys <- mixed_effects_demand_utils$prepare_systematic_input(
-          df = df_raw,
-          id_col = id_col,
-          x_col = x_col,
-          y_col = y_col
+      # Validate group vars if provided
+      missing_groups <- systematic_utils$validate_group_vars(group_vars, df_raw)
+      if (length(missing_groups) > 0) {
+        shiny$showNotification(
+          paste0(
+            "Selected group-by variable(s) not found: ",
+            paste(missing_groups, collapse = ", ")
+          ),
+          type = "error",
+          duration = 10
         )
-        systematic <- beezdemand$CheckUnsystematic(
-          dat = df_sys,
-          deltaq = input$deltaq,
-          bounce = input$bounce,
-          reversals = input$reversals,
-          ncons0 = input$ncons0
-        )
+        return()
       }
+
+      # Compute systematic criteria using helper
+      systematic <- systematic_utils$compute_systematic_criteria(
+        df_raw = df_raw,
+        id_col = id_col,
+        x_col = x_col,
+        y_col = y_col,
+        group_vars = group_vars,
+        deltaq = input$deltaq,
+        bounce = input$bounce,
+        reversals = input$reversals,
+        ncons0 = input$ncons0,
+        beezdemand_ref = beezdemand,
+        prepare_fn = mixed_effects_demand_utils$prepare_systematic_input
+      )
 
       output$systematic_table <- DT$renderDT(server = FALSE, {
         DT$datatable(
@@ -812,9 +792,10 @@ navpanel_server <- function(id, sidebar_reactives) {
     output$fixed_effects_table <- DT$renderDT({
       model_fit <- fitted_model_reactive()
       shiny$req(model_fit, model_fit$model)
-      fe <- nlme$fixef(model_fit)
+      fe_df <- model_output_utils$get_fixed_effects_df(model_fit)
+      shiny$req(fe_df)
       DT$datatable(
-        data.frame(Parameter = names(fe), Value = round(fe, 4)),
+        fe_df,
         rownames = FALSE,
         extensions = c("Buttons"),
         options = list(
@@ -830,31 +811,19 @@ navpanel_server <- function(id, sidebar_reactives) {
       model_fit <- fitted_model_reactive()
       shiny$req(model_fit, model_fit$model)
 
-      # Check if there are any fixed effects selected
-      if (is.null(model_fit$param_info$factors)) {
-        return(NULL) # Return NULL if no fixed effects are selected
-      }
-
-      individual_coefs_wide <- tryCatch(
-        beezdemand$get_individual_coefficients(
-          model_fit,
-          params = c("Q0", "alpha"),
-          format = "wide"
-        ),
-        error = function(e) {
-          shiny$showNotification(
-            paste("Error extracting individual coefficients:", e$message),
-            type = "error"
-          )
-          NULL
-        }
+      individual_coefs <- model_output_utils$get_individual_coefficients_df(
+        model_fit,
+        beezdemand_ref = beezdemand
       )
-      individual_coefs_wide[, -1] <- round(individual_coefs_wide[, -1], 4)
+
+      if (is.null(individual_coefs)) {
+        return(NULL)
+      }
 
       shiny$tagList(
         shiny$h3("Individual Random Effects"),
         DT$datatable(
-          individual_coefs_wide,
+          individual_coefs,
           rownames = FALSE,
           extensions = c("Buttons"),
           options = list(
@@ -871,33 +840,11 @@ navpanel_server <- function(id, sidebar_reactives) {
       model_fit <- fitted_model_reactive()
       shiny$req(model_fit, model_fit$model)
 
-      re_coefs <- tryCatch(
-        stats$coef(model_fit),
-        error = function(e) {
-          shiny$showNotification(
-            paste("Error extracting coefficients:", e$message),
-            type = "error"
-          )
-          NULL
-        }
-      )
-      shiny$req(re_coefs)
-      re_df <- as.data.frame(re_coefs)
-
-      id_column_name <- model_fit$param_info$id_var
-      shiny$req(id_column_name) # Ensure id_var is available
-
-      re_df[[id_column_name]] <- rownames(re_df)
-
-      re_df <- re_df |>
-        dplyr$select(
-          !!rlang$sym(id_column_name),
-          dplyr$everything()
-        ) |>
-        dplyr$mutate(dplyr$across(where(is.numeric), ~ round(., 4)))
+      re_df <- model_output_utils$get_random_effects_df(model_fit)
+      shiny$req(re_df)
 
       DT$datatable(
-        re_df, # Removed the direct round() here as it's done in dplyr
+        re_df,
         rownames = FALSE,
         extensions = c("Buttons"),
         options = list(
@@ -909,8 +856,8 @@ navpanel_server <- function(id, sidebar_reactives) {
             "shinybeez_MixedEffects_Random_Effects"
           )
         ),
-        class = "compact hover", # Added class for styling
-        filter = "top" # Added column filters
+        class = "compact hover",
+        filter = "top"
       )
     })
 
@@ -1147,28 +1094,18 @@ navpanel_server <- function(id, sidebar_reactives) {
       comps <- comparisons_reactive()
       shiny$req(comps, comps$Q0)
 
-      # Get the appropriate data based on display type
-      raw_data <- comparisons$get_comparison_data(
+      prep <- comparisons$prepare_comparison_display(
         comps$Q0,
-        input$comparison_display_type
+        input$comparison_display_type,
+        "Q0"
       )
-
-      # Handle empty or NULL data
-      if (comparisons$is_empty_comparison(raw_data)) {
-        return(NULL)
-      }
-
-      display_data <- comparisons$round_comparison_data(raw_data)
-      caption_text <- comparisons$build_comparison_caption(
-        "Q0",
-        input$comparison_display_type
-      )
+      shiny$req(prep)
 
       DT$datatable(
-        display_data,
+        prep$display_data,
         caption = htmltools$tags$caption(
           style = "caption-side: top; text-align: center;",
-          caption_text
+          prep$caption_text
         ),
         rownames = FALSE,
         extensions = c("Buttons"),
@@ -1189,56 +1126,46 @@ navpanel_server <- function(id, sidebar_reactives) {
     # Conditional UI for Q0 Comparisons
     output$comparisons_q0_ui <- shiny$renderUI({
       comps <- comparisons_reactive()
-      if (is.null(comps) || is.null(comps$Q0)) {
-        return(NULL)
-      }
-
-      display_data <- comparisons$get_comparison_data(
+      state <- comparisons$get_comparison_ui_state(
         comps$Q0,
         input$comparison_display_type
       )
-
-      # Handle empty comparisons (intercept-only for Q0 due to collapse)
-      if (comparisons$is_empty_comparison(display_data)) {
-        return(shiny$tagList(
+      switch(
+        state,
+        "hide" = NULL,
+        "show_empty_message" = shiny$tagList(
           shiny$h4("Q0 Comparisons"),
           shiny$helpText(shiny$em(comparisons$build_empty_comparison_message(
             "Q0"
           )))
-        ))
-      }
-
-      shiny$tagList(
-        shiny$h4("Q0 Comparisons"),
-        DT$DTOutput(ns("comparisons_q0_table"))
+        ),
+        "show_table" = shiny$tagList(
+          shiny$h4("Q0 Comparisons"),
+          DT$DTOutput(ns("comparisons_q0_table"))
+        )
       )
     })
 
     # Conditional UI for Alpha Comparisons
     output$comparisons_alpha_ui <- shiny$renderUI({
       comps <- comparisons_reactive()
-      if (is.null(comps) || is.null(comps$alpha)) {
-        return(NULL)
-      }
-
-      display_data <- comparisons$get_comparison_data(
+      state <- comparisons$get_comparison_ui_state(
         comps$alpha,
         input$comparison_display_type
       )
-
-      # Handle empty comparisons (intercept-only for alpha due to collapse)
-      if (comparisons$is_empty_comparison(display_data)) {
-        return(shiny$tagList(
+      switch(
+        state,
+        "hide" = NULL,
+        "show_empty_message" = shiny$tagList(
           shiny$h4("Alpha Comparisons"),
           shiny$helpText(shiny$em(comparisons$build_empty_comparison_message(
             "alpha"
           )))
-        ))
-      }
-
-      shiny$tagList(
-        shiny$h4("Alpha Comparisons"),
-        DT$DTOutput(ns("comparisons_alpha_table"))
+        ),
+        "show_table" = shiny$tagList(
+          shiny$h4("Alpha Comparisons"),
+          DT$DTOutput(ns("comparisons_alpha_table"))
+        )
       )
     })
 
@@ -1246,28 +1173,18 @@ navpanel_server <- function(id, sidebar_reactives) {
       comps <- comparisons_reactive()
       shiny$req(comps, comps$alpha)
 
-      # Get the appropriate data based on display type
-      raw_data <- comparisons$get_comparison_data(
+      prep <- comparisons$prepare_comparison_display(
         comps$alpha,
-        input$comparison_display_type
+        input$comparison_display_type,
+        "alpha"
       )
-
-      # Handle empty or NULL data
-      if (comparisons$is_empty_comparison(raw_data)) {
-        return(NULL)
-      }
-
-      display_data <- comparisons$round_comparison_data(raw_data)
-      caption_text <- comparisons$build_comparison_caption(
-        "alpha",
-        input$comparison_display_type
-      )
+      shiny$req(prep)
 
       DT$datatable(
-        display_data,
+        prep$display_data,
         caption = htmltools$tags$caption(
           style = "caption-side: top; text-align: center;",
-          caption_text
+          prep$caption_text
         ),
         rownames = FALSE,
         extensions = c("Buttons"),
@@ -1526,77 +1443,37 @@ navpanel_server <- function(id, sidebar_reactives) {
         openxlsx$setColWidths(wb, "Summary", cols = 1:2, widths = c(35, 50))
 
         # --- Sheet 2: Data ---
-        openxlsx$addWorksheet(wb, "Data")
         raw_data <- tryCatch(data_to_analyze(), error = function(e) NULL)
-        if (!is.null(raw_data) && nrow(raw_data) > 0) {
-          openxlsx$writeData(wb, "Data", raw_data)
-          openxlsx$setColWidths(
-            wb,
-            "Data",
-            cols = 1:ncol(raw_data),
-            widths = "auto"
-          )
-        }
+        export_utils$write_data_sheet(wb, "Data", raw_data, openxlsx)
 
-        # --- Sheet 3: Descriptives (using export_utils module) ---
-        openxlsx$addWorksheet(wb, "Descriptives")
+        # --- Sheet 3: Descriptives ---
         if (!is.null(raw_data) && "y_for_model" %in% names(raw_data)) {
           factors <- sidebar_reactives$selected_factors()
           x_var_sel <- sidebar_reactives$x_var()
           grouping_vars <- c(factors, x_var_sel)
           grouping_vars <- grouping_vars[!grouping_vars %in% c("None", "")]
-
           desc_data <- export_utils$build_descriptives(raw_data, grouping_vars)
-          if (!is.null(desc_data) && nrow(desc_data) > 0) {
-            openxlsx$writeData(wb, "Descriptives", desc_data)
-            openxlsx$setColWidths(
-              wb,
-              "Descriptives",
-              cols = 1:ncol(desc_data),
-              widths = "auto"
-            )
-          }
+          export_utils$write_data_sheet(wb, "Descriptives", desc_data, openxlsx)
         }
 
         # --- Sheet 4: Systematic Criteria ---
-        openxlsx$addWorksheet(wb, "Systematic_Criteria")
         df_raw <- tryCatch(
           sidebar_reactives$data_to_analyze_trigger(),
           error = function(e) NULL
         )
-        if (!is.null(df_raw)) {
-          id_col <- sidebar_reactives$id_var()
-          x_col <- sidebar_reactives$x_var()
-          y_col <- sidebar_reactives$y_var()
-          if (all(c(id_col, x_col, y_col) %in% names(df_raw))) {
-            df_sys <- df_raw[, c(id_col, x_col, y_col), drop = FALSE]
-            names(df_sys) <- c("id", "x", "y")
-            suppressWarnings({
-              df_sys$x <- as.numeric(df_sys$x)
-              df_sys$y <- as.numeric(df_sys$y)
-            })
-            df_sys <- df_sys[!is.na(df_sys$y), , drop = FALSE]
-            systematic <- tryCatch(
-              beezdemand$CheckUnsystematic(
-                dat = df_sys,
-                deltaq = 0.025,
-                bounce = 0.1,
-                reversals = 0,
-                ncons0 = 2
-              ),
-              error = function(e) NULL
-            )
-            if (!is.null(systematic) && nrow(systematic) > 0) {
-              openxlsx$writeData(wb, "Systematic_Criteria", systematic)
-              openxlsx$setColWidths(
-                wb,
-                "Systematic_Criteria",
-                cols = 1:ncol(systematic),
-                widths = "auto"
-              )
-            }
-          }
-        }
+        systematic <- systematic_utils$compute_systematic_criteria(
+          df_raw = df_raw,
+          id_col = sidebar_reactives$id_var(),
+          x_col = sidebar_reactives$x_var(),
+          y_col = sidebar_reactives$y_var(),
+          beezdemand_ref = beezdemand
+        )
+        export_utils$write_data_sheet(
+          wb,
+          "Systematic_Criteria",
+          systematic,
+          openxlsx
+        )
 
         # === MODEL-DEPENDENT SHEETS (only if model is fitted) ===
         if (has_model) {
@@ -1619,64 +1496,31 @@ navpanel_server <- function(id, sidebar_reactives) {
           openxlsx$setColWidths(wb, "Model_Summary", cols = 1, widths = 120)
 
           # --- Sheet 6: Fixed Effects ---
-          openxlsx$addWorksheet(wb, "Fixed_Effects")
-          fe <- nlme$fixef(model_fit)
-          fe_df <- data.frame(Parameter = names(fe), Value = round(fe, 6))
-          openxlsx$writeData(wb, "Fixed_Effects", fe_df)
-          openxlsx$setColWidths(
-            wb,
-            "Fixed_Effects",
-            cols = 1:2,
-            widths = "auto"
+          fe_df <- model_output_utils$get_fixed_effects_df(
+            model_fit,
+            digits = 6
           )
+          export_utils$write_data_sheet(wb, "Fixed_Effects", fe_df, openxlsx)
 
           # --- Sheet 7: Random Effects ---
-          openxlsx$addWorksheet(wb, "Random_Effects")
-          re_coefs <- tryCatch(stats$coef(model_fit), error = function(e) NULL)
-          if (!is.null(re_coefs)) {
-            re_df <- as.data.frame(re_coefs)
-            id_col <- model_fit$param_info$id_var
-            re_df[[id_col]] <- rownames(re_df)
-            re_df <- re_df[, c(id_col, setdiff(names(re_df), id_col))]
-            re_df[, sapply(re_df, is.numeric)] <- round(
-              re_df[, sapply(re_df, is.numeric)],
-              6
-            )
-            openxlsx$writeData(wb, "Random_Effects", re_df)
-            openxlsx$setColWidths(
-              wb,
-              "Random_Effects",
-              cols = 1:ncol(re_df),
-              widths = "auto"
-            )
-          }
+          re_df <- model_output_utils$get_random_effects_df(
+            model_fit,
+            digits = 6
+          )
+          export_utils$write_data_sheet(wb, "Random_Effects", re_df, openxlsx)
 
           # --- Individual Coefficients (if factors present) ---
-          if (!is.null(model_fit$param_info$factors)) {
-            individual_coefs <- tryCatch(
-              beezdemand$get_individual_coefficients(
-                model_fit,
-                params = c("Q0", "alpha"),
-                format = "wide"
-              ),
-              error = function(e) NULL
-            )
-            if (!is.null(individual_coefs) && nrow(individual_coefs) > 0) {
-              openxlsx$addWorksheet(wb, "Individual_Coefficients")
-              individual_coefs[, -1] <- round(individual_coefs[, -1], 6)
-              openxlsx$writeData(
-                wb,
-                "Individual_Coefficients",
-                individual_coefs
-              )
-              openxlsx$setColWidths(
-                wb,
-                "Individual_Coefficients",
-                cols = 1:ncol(individual_coefs),
-                widths = "auto"
-              )
-            }
-          }
+          individual_coefs <- model_output_utils$get_individual_coefficients_df(
+            model_fit,
+            beezdemand_ref = beezdemand,
+            digits = 6
+          )
+          export_utils$write_data_sheet(
+            wb,
+            "Individual_Coefficients",
+            individual_coefs,
+            openxlsx
+          )
         } # end has_model
 
         # --- EMMs Data (Q0, Alpha, EV) - requires model ---
@@ -1686,48 +1530,23 @@ navpanel_server <- function(id, sidebar_reactives) {
           NULL
         }
         if (emms_utils$has_emm_content(emms_data)) {
-          # Sheet 5: Q0 Estimates
           q0_data <- emms_utils$prepare_q0_display_data(emms_data, digits = 6)
-          if (!is.null(q0_data) && nrow(q0_data) > 0) {
-            openxlsx$addWorksheet(wb, "Q0_Estimates")
-            openxlsx$writeData(wb, "Q0_Estimates", q0_data)
-            openxlsx$setColWidths(
-              wb,
-              "Q0_Estimates",
-              cols = 1:ncol(q0_data),
-              widths = "auto"
-            )
-          }
+          export_utils$write_data_sheet(wb, "Q0_Estimates", q0_data, openxlsx)
 
-          # Sheet 6: Alpha Estimates
           alpha_data <- emms_utils$prepare_alpha_display_data(
             emms_data,
             digits = 4,
             digits_natural = 8
           )
-          if (!is.null(alpha_data) && nrow(alpha_data) > 0) {
-            openxlsx$addWorksheet(wb, "Alpha_Estimates")
-            openxlsx$writeData(wb, "Alpha_Estimates", alpha_data)
-            openxlsx$setColWidths(
-              wb,
-              "Alpha_Estimates",
-              cols = 1:ncol(alpha_data),
-              widths = "auto"
-            )
-          }
+          export_utils$write_data_sheet(
+            wb,
+            "Alpha_Estimates",
+            alpha_data,
+            openxlsx
+          )
 
-          # Sheet 7: EV Estimates
           ev_data <- emms_utils$prepare_ev_display_data(emms_data, digits = 4)
-          if (!is.null(ev_data) && nrow(ev_data) > 0) {
-            openxlsx$addWorksheet(wb, "EV_Estimates")
-            openxlsx$writeData(wb, "EV_Estimates", ev_data)
-            openxlsx$setColWidths(
-              wb,
-              "EV_Estimates",
-              cols = 1:ncol(ev_data),
-              widths = "auto"
-            )
-          }
+          export_utils$write_data_sheet(wb, "EV_Estimates", ev_data, openxlsx)
         }
 
         # --- Comparisons (requires model) ---
