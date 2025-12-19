@@ -393,7 +393,6 @@ navpanel_server <- function(id, sidebar_reactives) {
 
       return(df)
     }) |>
-      shiny$debounce(300) |>
       shiny$bindCache(
         sidebar_reactives$data_to_analyze_trigger(),
         sidebar_reactives$equation_form(),
@@ -895,12 +894,7 @@ navpanel_server <- function(id, sidebar_reactives) {
         }
       )
       emms_data
-    }) |>
-      shiny$bindCache(
-        fitted_model_reactive(),
-        sidebar_reactives$covariate(),
-        sidebar_reactives$cov_at_natural()
-      )
+    })
 
     # Q0 Estimates Table
     output$emms_q0_table <- DT$renderDT({
