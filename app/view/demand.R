@@ -50,10 +50,6 @@ sidebar_ui <- function(id) {
         shiny$uiOutput(
           ns("num_free")
         ),
-        # v2 feature
-        # shiny$uiOutput(
-        #   outputId = ns("groupname")
-        # )
       )
     ),
     shiny$selectInput(
@@ -61,28 +57,9 @@ sidebar_ui <- function(id) {
       label = "Select equation:",
       choices = c(
         "Exponentiated (with k)",
-        # v2 feature
-        # "Exponentiated (no k)",
         "Exponential (with k)"
       )
     ),
-    # v2 feature
-    # shiny$selectInput(
-    #   inputId = ns("free"),
-    #   label = bslib$tooltip(
-    #     trigger = list(
-    #     "Did you assess $0 (free)?",
-    #     bsicons$bs_icon("info-circle")
-    #     ),
-    #     "Currently an experimental feature. Selecting Yes will only work
-    #     with a fixed k value."
-    #   ),
-    #   choices = c(
-    #     "Yes (constrain Q0 to observed)" = TRUE,
-    #     "No (do not constrain Q0 to observed)" = FALSE
-    #     ),
-    #   selected = FALSE
-    # ),
     shiny$uiOutput(
       ns("k_value")
     ),
@@ -93,8 +70,6 @@ sidebar_ui <- function(id) {
         "Fit to Group (pooled)" = "Pooled",
         "Fit to Group (mean)" = "Mean",
         "Two Stage" = "Ind"
-        # v2 feature
-        # "Mixed Effects" = "MEM"
       ),
       selected = "Pooled"
     ),
@@ -114,17 +89,6 @@ sidebar_server <- function(id) {
     session_logger$info("Demand sidebar module initialized", "module_init")
 
     file_input$server("upload_demand", type = "demand")
-
-    # v2 feature
-    # output$groupname <- shiny$renderUI({
-    #   if (input$group) {
-    #     shiny$textInput(
-    #       inputId = ns("groupcol"),
-    #       label = "What is your grouping column name?"
-    #     )
-    #   }
-    # })
-    # shiny$observe({
 
     output$num_free <- shiny$renderUI({
       if (input$check_free) {

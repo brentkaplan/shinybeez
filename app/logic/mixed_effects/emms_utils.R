@@ -208,7 +208,6 @@ get_alpha_factor_columns <- function(emms_data) {
       !grepl("_alpha$", factor_cols)
   ]
 
-  # Combine: collapsed + uncollapsed
   c(alpha_suffix_cols, uncollapsed_factor_cols)
 }
 

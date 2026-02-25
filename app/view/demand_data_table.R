@@ -240,7 +240,6 @@ server <- function(id, isgroup = NULL, data_r) {
         data_gg$id <- "group aggregate"
         data_g_emp <- GetEmpirical(data_g) |>
           dplyr$mutate(
-            # `GM(O)` = utils$geomean(data_g$x * data_g$y),
             dplyr$across(dplyr$where(is.numeric), round, 1),
             group = "aggregate"
           ) |>

@@ -185,7 +185,7 @@ reshape_data <- function(dat, type = "demand") {
     if (ncol(dat) == 28) {
       dat |>
         beezdiscounting$wide_to_long_mcq(dat = _)
-    } else if (ncol(dat) < 28 & length(unique(dat$id)) == length(dat$id)) {
+    } else if (ncol(dat) < 28 && length(unique(dat$id)) == length(dat$id)) {
       dat |>
         tidyr$pivot_longer(
           cols = 2:ncol(dat),

@@ -86,7 +86,7 @@ server <- function(
         rhino$log$debug(paste("Imputation method:", imputation(), "; Transformation:", trans()))
         impute_method <- if (imputation() == "none") NULL else imputation()
         random_impute <- grepl("random", imputation(), ignore.case = TRUE)
-        
+
         calc_results <- score_mcq27(
           data_r$data_d,
           impute_method = impute_method,
@@ -100,10 +100,24 @@ server <- function(
           dplyr$mutate_at(dplyr$vars(dplyr$contains("_cons")), ~ round(., 3))
         res$data <- calc_results$data
         res$summary <- summarize_mcq(res$results)
-        
-        plot_data <- if (any(names(res$data) %in% "newresponse")) res$data |> dplyr$mutate(response = newresponse) else res$data
-        res$propplot <- plot_data |> prop_ss() |> plot() + beezdemand$theme_apa() + utils$add_shiny_logo(utils$watermark_tr)
-        res$boxplot <- res$results |> plot() + beezdemand$theme_apa() + ggplot2$scale_x_discrete(labels = c("Small k", "Medium k", "Large k", "Geomean k", "Overall k")) + utils$add_shiny_logo(utils$watermark_tr)
+
+        plot_data <- if (any(names(res$data) %in% "newresponse")) {
+          res$data |> dplyr$mutate(response = newresponse)
+        } else {
+          res$data
+        }
+        res$propplot <- plot_data |>
+          prop_ss() |>
+          plot() +
+          beezdemand$theme_apa() +
+          utils$add_shiny_logo(utils$watermark_tr)
+        res$boxplot <- res$results |>
+          plot() +
+          beezdemand$theme_apa() +
+          ggplot2$scale_x_discrete(
+            labels = c("Small k", "Medium k", "Large k", "Geomean k", "Overall k")
+          ) +
+          utils$add_shiny_logo(utils$watermark_tr)
 
       } else if (type() == "5.5 Trial Delay Discounting") {
         rhino$log$info("Calculating 5.5 Trial DD")
@@ -148,13 +162,13 @@ server <- function(
     esquisse$render_ggplot(id = "boxplot_plot", expr = main_calc_reactive()$boxplot)
 
     plot_object_reactive <- shiny$eventReactive(c(calculate_btn(), input$update_plot_btn), {
-        shiny$req(main_calc_reactive()$dd_fit)
-        plot_dd(
-          main_calc_reactive()$dd_fit,
-          xlabel = input$xtext,
-          ylabel = input$ytext,
-          logx = input$xlog
-        ) +
+      shiny$req(main_calc_reactive()$dd_fit)
+      plot_dd(
+        main_calc_reactive()$dd_fit,
+        xlabel = input$xtext,
+        ylabel = input$ytext,
+        logx = input$xlog
+      ) +
         ggplot2$ggtitle(input$title) +
         utils$add_shiny_logo(utils$watermark_tr)
     })

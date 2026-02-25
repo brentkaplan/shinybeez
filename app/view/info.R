@@ -34,18 +34,6 @@ server <- function(id) {
               "
           )
         ),
-        # v2 future addition
-        # shiny$tabsetPanel(
-        #   id = "modal_tabs",
-        #   shiny$tabPanel(
-        #     title = "Demand",
-        #     value = "tab_demand",
-        #   ),
-        #   shiny$tabPanel(
-        #     title = "Discounting",
-        #     value = "tab_discounting"
-        #   )
-        # ),
         footer = shiny$tagList(
           shiny$modalButton("Close")
         ),

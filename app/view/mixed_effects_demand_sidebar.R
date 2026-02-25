@@ -122,7 +122,16 @@ sidebar_ui <- function(id) {
           "Covariate value for EMMs/plots (natural scale)",
           bsicons$bs_icon("question-circle")
         ),
-        "Sets the value at which the continuous covariate is held constant when calculating Estimated Marginal Means (EMMs), pairwise comparisons, and drawing prediction lines in the plot.\n\nEnter this on the natural scale = the raw units of your data column (before any centering/scaling). If 'Center' and/or 'Scale' are checked, this natural-scale value is internally transformed using the column's global mean/SD to condition the model."
+        paste0(
+          "Sets the value at which the continuous covariate is held constant ",
+          "when calculating Estimated Marginal Means (EMMs), pairwise ",
+          "comparisons, and drawing prediction lines in the plot.\n\n",
+          "Enter this on the natural scale = the raw units of your data ",
+          "column (before any centering/scaling). If 'Center' and/or ",
+          "'Scale' are checked, this natural-scale value is internally ",
+          "transformed using the column's global mean/SD to condition ",
+          "the model."
+        )
       ),
       value = NA,
       step = 0.1
@@ -154,7 +163,11 @@ sidebar_ui <- function(id) {
         icon = bsicons$bs_icon("gear"),
         shiny$p(
           style = "margin-bottom: 6px; color: #6c757d;",
-          "Tip: Start with Balanced. If PNLS stalls, raise pnlsMaxIter to 20–30 and tighten pnlsTol to 1e-4; if the outer loop stops early, try maxIter 150–200."
+          paste0(
+            "Tip: Start with Balanced. If PNLS stalls, raise pnlsMaxIter ",
+            "to 20-30 and tighten pnlsTol to 1e-4; if the outer loop ",
+            "stops early, try maxIter 150-200."
+          )
         ),
         shiny$div(
           style = "margin-bottom: 8px;",
@@ -253,7 +266,10 @@ sidebar_ui <- function(id) {
               "minScale (PNLS step shrink)",
               bsicons$bs_icon("info-circle")
             ),
-            "Minimum step shrink for PNLS backtracking. Lower (1e-4) for finer steps if overshooting; higher (1e-2) for speed."
+            paste0(
+              "Minimum step shrink for PNLS backtracking. Lower (1e-4) ",
+              "for finer steps if overshooting; higher (1e-2) for speed."
+            )
           ),
           value = 1e-3,
           min = 1e-4,
@@ -1359,7 +1375,6 @@ sidebar_server <- function(id, data_reactive) {
         id_var = shiny$reactive(input$id_variable_choice),
         x_var = shiny$reactive(input$x_variable_choice),
         y_var = shiny$reactive(input$y_variable_choice),
-        # y_transform = shiny$reactive(input$y_trans_choice),
         selected_factors = selected_factors_reactive,
         factor_interaction = shiny$reactive(input$factor_interaction),
         random_effects_spec = shiny$reactive(input$random_effects_spec),

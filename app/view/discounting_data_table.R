@@ -42,7 +42,6 @@ server <- function(id, data_r, type = NULL) {
               id = "data",
               "Data",
               shiny$div(
-                # style = "min-height:500px; max-height:100vh; overflow:auto;",
                 DT$DTOutput(ns("data_table"))
               )
             ),

@@ -82,9 +82,6 @@ ui <- function(id) {
         )
       }
     ),
-    # header = shiny$tags$head(
-    #   shiny$HTML(ga_script)
-    # ),
     title = shiny$tags$span(
       style = "font-size: 200%;",
       shiny$tags$img(

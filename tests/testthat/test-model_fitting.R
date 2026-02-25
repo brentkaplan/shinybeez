@@ -97,7 +97,7 @@ describe("transform_at_value", {
       center = TRUE,
       scale = TRUE
     )
-    expect_equal(result, 0.5) # (25 - 20) / 10
+    expect_equal(result, 0.5)
   })
 
   it("returns NA for non-finite input", {

@@ -16,7 +16,6 @@ ui <- function(id) {
   ns <- shiny$NS(id)
   shiny$tagList(
     shiny$fileInput(
-      # style = "padding-bottom: -10px;",
       inputId = ns("upload"),
       label = bslib$tooltip(
         trigger = list(
@@ -27,13 +26,7 @@ ui <- function(id) {
               templates on the welcome page."
       ),
       accept = c(".csv", ".tsv")
-    ),
-    # v2 feature
-    # actionButton(
-    #   style = "margin-bottom: 15px; margin-top: -15px;",
-    #   inputId = ns("load_ex_data"),
-    #   label = "Or Load Example Data"
-    # ),
+    )
   )
 }
 
@@ -62,7 +55,6 @@ server <- function(id, type = "demand") {
             delim = "\t",
             show_col_types = FALSE
           )
-          # validate("Invalid file; Please upload a .csv or .tsv file")
         )
         chk_data <- validate$check_data(tmp, type = "demand")
         if (is.character(chk_data)) {
@@ -108,7 +100,6 @@ server <- function(id, type = "demand") {
             delim = "\t",
             show_col_types = FALSE
           )
-          # validate("Invalid file; Please upload a .csv or .tsv file")
         )
 
         chk_data <- validate$check_data(tmp, type = "discounting")
@@ -157,7 +148,6 @@ server <- function(id, type = "demand") {
             delim = "\t",
             show_col_types = FALSE
           )
-          # validate("Invalid file; Please upload a .csv or .tsv file")
         )
 
         chk_data <- validate$check_data(tmp, type = "mixed_effects_demand")
@@ -193,33 +183,5 @@ server <- function(id, type = "demand") {
     }) |>
       shiny$bindEvent(input[["upload"]])
 
-    # v2 feature
-    # observe({
-    #   if (type == "demand") {
-    #     print(paste0("Loading example data: ", type))
-    #     session$userData$data$demand <-  read.csv("app/static/data/example_data.csv",
-    #                                               check.names = FALSE)
-    #     # print(session$userData$data$demand)
-    #   } else {
-    #
-    #     if (type == "27-Item MCQ") {
-    #       # session$userData$data$discounting <- readRDS("app/static/data/mcq27.rds")
-    #       session$userData$data$discounting <- readRDS("app/static/data/mcq27.rds")
-    #
-    #     } else if (type == "5.5 Trial Delay Discounting") {
-    #       # session$userData$data$discounting <- readRDS("app/static/data/five.fivetrial_dd.rds")
-    #       session$userData$data$discounting <-  readRDS("app/static/data/five.fivetrial_dd.rds")
-    #
-    #     } # else if (type == "5.5 Trial Probability Discounting") {
-    #     # session$userData$data$discounting <- readRDS("app/static/data/five.fivetrial_pd.rds")
-    #     # return(readRDS("app/static/data/five.fivetrial_pd.rds"))
-    #
-    #   }
-    # }) |>
-    #   bindEvent(input[["load_ex_data"]])
   })
 }
-
-# .on_unload <- function(ns) {
-#   log$info("Closing")
-# }

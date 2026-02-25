@@ -1,7 +1,7 @@
 // Sidebar container styling - Light mode (default)
 .sidebar-container {
-  background-color: #ffffff;
-  padding: 0 0;
+  background-color: #fff;
+  padding: 0;
   height: 100%;
   color: #212529;
 
@@ -37,7 +37,7 @@
 
     // Add hover effect to toggle button
     &:hover {
-      background-color: rgba(121, 82, 179, 0.05);
+      background-color: rgb(121 82 179 / 5%);
     }
   }
 
@@ -54,14 +54,14 @@
       // Better hover states for links
       &:hover,
       &:focus {
-        background-color: rgba(121, 82, 179, 0.1);
+        background-color: rgb(121 82 179 / 10%);
         color: #7952b3;
         border-radius: 5px;
       }
 
       // Active state for links
       &.active {
-        background-color: rgba(121, 82, 179, 0.2);
+        background-color: rgb(121 82 179 / 20%);
         color: #7952b3;
         font-weight: 500;
       }
@@ -82,7 +82,7 @@
 
   // Add subtle dividers between major sections
   > div:not(:last-child) {
-    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+    border-bottom: 1px solid rgb(0 0 0 / 5%);
     margin-bottom: 1rem;
     padding-bottom: 0.5rem;
   }
@@ -112,6 +112,7 @@
 [data-bs-theme="dark"] {
   .sidebar-container {
     background-color: #2d2d2d !important;
+
     // border-right-color: #343a40 !important;
     color: #f8f9fa !important;
 
@@ -128,7 +129,7 @@
       }
 
       &:hover {
-        background-color: rgba(255, 255, 255, 0.1) !important;
+        background-color: rgb(255 255 255 / 10%) !important;
       }
     }
 
@@ -142,19 +143,19 @@
 
       &:hover,
       &:focus {
-        background-color: rgba(255, 255, 255, 0.1) !important;
-        color: #ffffff !important;
+        background-color: rgb(255 255 255 / 10%) !important;
+        color: #fff !important;
       }
 
       &.active {
-        background-color: rgba(255, 255, 255, 0.2) !important;
-        color: #ffffff !important;
+        background-color: rgb(255 255 255 / 20%) !important;
+        color: #fff !important;
         font-weight: 500 !important;
       }
     }
 
     > div:not(:last-child) {
-      border-bottom-color: rgba(255, 255, 255, 0.1) !important;
+      border-bottom-color: rgb(255 255 255 / 10%) !important;
     }
   }
 }

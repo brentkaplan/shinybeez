@@ -691,7 +691,6 @@ navpanel_server <- function(id, sidebar_reactives) {
           {
             beezdemand$fit_demand_mixed(
               data = df,
-              # y_var = y_var_actual,
               y_var = "y_for_model",
               x_var = sidebar_reactives$x_var(), # Assuming 'x' is the price/ratio column from ko
               id_var = sidebar_reactives$id_var(), # Assuming 'monkey' is the ID from ko
