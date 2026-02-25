@@ -36,7 +36,7 @@ compute_descriptives <- function(data, is_grouped = FALSE) {
   }
 
   descriptives |>
-    dplyr$mutate(dplyr$across(dplyr$where(is.numeric), round, 2))
+    dplyr$mutate(dplyr$across(dplyr$where(is.numeric), \(x) round(x, 2)))
 }
 
 #' Compute empirical demand measures
@@ -58,7 +58,7 @@ compute_empirical_measures <- function(data, is_grouped = FALSE) {
 
     emp_agg <- GetEmpirical(data_agg) |>
       dplyr$mutate(
-        dplyr$across(dplyr$where(is.numeric), round, 1),
+        dplyr$across(dplyr$where(is.numeric), \(x) round(x, 1)),
         group = "aggregate"
       ) |>
       dplyr$relocate(group, .before = id)
@@ -74,5 +74,5 @@ compute_empirical_measures <- function(data, is_grouped = FALSE) {
   }
 
   empirical |>
-    dplyr$mutate(dplyr$across(dplyr$where(is.numeric), round, 2))
+    dplyr$mutate(dplyr$across(dplyr$where(is.numeric), \(x) round(x, 2)))
 }

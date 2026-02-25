@@ -1,14 +1,13 @@
 box::use(
   bslib,
-  beezdiscounting,
   dplyr,
   DT,
-  purrr,
   shiny,
   stats,
 )
 
 box::use(
+  app / logic / discounting / systematic,
   app / logic / logging_utils,
 )
 
@@ -210,18 +209,11 @@ server <- function(id, data_r, type = NULL) {
         if (type() %in% "27-Item MCQ") {
           systematic <- NULL
         } else if (type() %in% "Indifference Point Regression") {
-          systematic <- data_r$data_d |>
-            dplyr$group_split(id) |>
-            purrr$map_dfr(
-              ~ beezdiscounting$check_unsystematic(
-                .x,
-                ll = 1,
-                c1 = input$c1,
-                c2 = input$c2
-              )
-            ) |>
-            dplyr$mutate(id = factor(id, levels = unique(data_r$data_d$id))) |>
-            dplyr$arrange(id)
+          systematic <- systematic$compute_systematic_discounting(
+            data_r$data_d,
+            c1 = input$c1,
+            c2 = input$c2
+          )
         }
         DT$datatable(
           systematic,

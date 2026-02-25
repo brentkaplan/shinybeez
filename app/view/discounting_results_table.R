@@ -1,6 +1,6 @@
 box::use(
   beezdemand,
-  beezdiscounting[...],
+  beezdiscounting[calc_dd, calc_pd, plot_dd, prop_ss],
   bslib,
   dplyr,
   DT,
@@ -15,6 +15,8 @@ box::use(
 )
 
 box::use(
+  app / logic / discounting / regression,
+  app / logic / discounting / scoring,
   app / logic / utils,
 )
 
@@ -84,22 +86,14 @@ server <- function(
       res <- list()
       if (type() == "27-Item MCQ" && !("I16" %in% names(data_r$data_d))) {
         rhino$log$debug(paste("Imputation method:", imputation(), "; Transformation:", trans()))
-        impute_method <- if (imputation() == "none") NULL else imputation()
-        random_impute <- grepl("random", imputation(), ignore.case = TRUE)
-
-        calc_results <- score_mcq27(
+        mcq_out <- scoring$score_and_format_mcq(
           data_r$data_d,
-          impute_method = impute_method,
-          random = random_impute,
-          return_data = TRUE,
+          imputation = imputation(),
           trans = trans()
         )
-        res$results <- calc_results$results |>
-          dplyr$mutate_at(dplyr$vars(dplyr$contains("_k")), ~ round(., 6)) |>
-          dplyr$mutate_at(dplyr$vars(dplyr$contains("_prop")), ~ round(., 3)) |>
-          dplyr$mutate_at(dplyr$vars(dplyr$contains("_cons")), ~ round(., 3))
-        res$data <- calc_results$data
-        res$summary <- summarize_mcq(res$results)
+        res$results <- mcq_out$results
+        res$data <- mcq_out$data
+        res$summary <- mcq_out$summary
 
         plot_data <- if (any(names(res$data) %in% "newresponse")) {
           res$data |> dplyr$mutate(response = newresponse)
@@ -128,11 +122,13 @@ server <- function(
       } else if (type() == "Indifference Point Regression") {
         rhino$log$debug(paste("Equation:", eq(), "; Aggregation:", agg()))
         rhino$log$info("Calculating Regression")
-        res$dd_fit <- fit_dd(data_r$data_d, equation = eq(), method = agg())
-        res$results <- results_dd(res$dd_fit) |>
-          dplyr$mutate(dplyr$across(where(is.numeric), \(x) round(x, 4))) |>
-          dplyr$mutate(id = factor(id, levels = unique(data_r$data_d$id))) |>
-          dplyr$arrange(id)
+        reg_out <- regression$fit_and_format_regression(
+          data_r$data_d,
+          equation = eq(),
+          method = agg()
+        )
+        res$dd_fit <- reg_out$dd_fit
+        res$results <- reg_out$results
       }
       return(res)
     })

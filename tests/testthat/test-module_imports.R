@@ -56,6 +56,42 @@ describe("module imports", {
       mixed_effects_demand_utils$prepare_systematic_input
     ))
   })
+
+  it("can import demand/empirical module", {
+    box::use(app / logic / demand / empirical)
+    expect_true(is.function(empirical$compute_descriptives))
+    expect_true(is.function(empirical$compute_empirical_measures))
+  })
+
+  it("can import demand/fitting module", {
+    box::use(app / logic / demand / fitting)
+    expect_true(is.function(fitting$resolve_equation))
+    expect_true(is.function(fitting$fit_demand_ungrouped))
+    expect_true(is.function(fitting$fit_demand_grouped))
+  })
+
+  it("can import demand/systematic module", {
+    box::use(app / logic / demand / systematic)
+    expect_true(is.function(systematic$compute_systematic))
+  })
+
+  it("can import discounting/systematic module", {
+    box::use(app / logic / discounting / systematic)
+    expect_true(is.function(systematic$compute_systematic_discounting))
+  })
+
+  it("can import discounting/scoring module", {
+    box::use(app / logic / discounting / scoring)
+    expect_true(is.function(scoring$resolve_imputation))
+    expect_true(is.function(scoring$format_mcq_results))
+    expect_true(is.function(scoring$score_and_format_mcq))
+  })
+
+  it("can import discounting/regression module", {
+    box::use(app / logic / discounting / regression)
+    expect_true(is.function(regression$format_regression_results))
+    expect_true(is.function(regression$fit_and_format_regression))
+  })
 })
 
 # ------------------------------------------------------------------------------

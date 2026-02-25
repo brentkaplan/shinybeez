@@ -1,5 +1,16 @@
 #' Discounting Logic Module
 #'
-#' Business logic functions for discounting analysis.
+#' Exports utility functions for discounting analysis.
 
-# Logic functions will be added here
+box::use(
+  . / regression,
+  . / scoring,
+  . / systematic,
+)
+
+#' @export
+box::export(
+  regression,
+  scoring,
+  systematic
+)
