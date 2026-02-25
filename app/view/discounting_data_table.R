@@ -32,6 +32,7 @@ server <- function(id, data_r, type = NULL) {
       shiny$req(session$userData$data$discounting)
 
       output$data_box <- shiny$renderUI({
+        shiny$req(data_r$data_d)
         shiny$req(type())
 
         if (type() == "27-Item MCQ" & !("I16" %in% names(data_r$data_d))) {
@@ -97,6 +98,7 @@ server <- function(id, data_r, type = NULL) {
         }
       })
 
+      shiny$req(data_r$data_d)
       if (type() %in% "27-Item MCQ") {
         if (any(is.na((data_r$data_d$response)))) {
           shiny$showNotification(
@@ -118,7 +120,7 @@ server <- function(id, data_r, type = NULL) {
         }
       }
 
-      rhino$log$info("Printing Discounting Datatable")
+      session_logger$info("Printing Discounting Datatable", "module_init")
       output$data_table <- DT$renderDT(server = FALSE, {
         DT$datatable(
           data_r$data_d,
@@ -207,16 +209,23 @@ server <- function(id, data_r, type = NULL) {
 
       output$systematic_table <- DT$renderDT(server = FALSE, {
         if (type() %in% "27-Item MCQ") {
-          systematic <- NULL
+          sys_result <- NULL
         } else if (type() %in% "Indifference Point Regression") {
-          systematic <- systematic$compute_systematic_discounting(
-            data_r$data_d,
-            c1 = input$c1,
-            c2 = input$c2
+          sys_result <- tryCatch(
+            systematic$compute_systematic_discounting(
+              data_r$data_d,
+              c1 = input$c1,
+              c2 = input$c2
+            ),
+            error = function(e) {
+              shiny$showNotification(e$message, type = "error", duration = 10)
+              NULL
+            }
           )
         }
+        shiny$req(sys_result)
         DT$datatable(
-          systematic,
+          sys_result,
           rownames = FALSE,
           extensions = c("Buttons", "Scroller"),
           fillContainer = FALSE,
