@@ -1,5 +1,5 @@
 box::use(
-  beezdemand[FitCurves, theme_apa],
+  beezdemand[theme_apa],
   bslib,
   dplyr,
   DT[datatable, DTOutput, renderDT],
@@ -8,11 +8,11 @@ box::use(
   htmltools[tagList],
   rhino,
   shiny,
-  stats[aggregate, coef],
-  tidyr[pivot_longer],
+  stats[aggregate],
 )
 
 box::use(
+  app / logic / demand / fitting,
   app / logic / utils,
   app / logic / validate,
   app / logic / logging_utils
@@ -123,207 +123,49 @@ server <- function(
     )
 
     shiny$observe({
-      if (kval() %in% validate$k_values) {
-        k <- as.numeric(kval())
-      } else {
-        k <- kval()
-      }
+      eq_code <- fitting$resolve_equation(eq())
+      k <- fitting$resolve_k_value(kval(), validate$k_values)
+      agg_val <- fitting$resolve_aggregation(agg())
+      constrainq0 <- fitting$resolve_q0_constraint(q0_val(), fix_q0())
       analysis_type <- agg()
-      eq <- if (eq() %in% "Exponentiated (with k)") {
-        "koff"
-      } else if (eq() %in% "Exponential (with k)") {
-        "hs"
-      }
-      agg <- if (is.null(agg()) | agg() %in% "Ind") NULL else agg()
-      constrainq0 <- if (is.null(q0_val()) | !fix_q0()) NULL else q0_val()
+      is_grouped <- !is.null(groupcol()) && groupcol() && analysis_type != "Ind"
 
-      rhino$log$info(paste(
-        "Calculating demand with options: agg =",
-        agg,
-        "; k =",
-        k,
-        "; eq =",
-        eq,
-        "; constrainq0 =",
-        constrainq0
-      ))
-      if ((is.null(groupcol()) | !groupcol()) | analysis_type %in% "Ind") {
-        res$output <- tryCatch(
-          {
-            data_r$data_d |>
-              FitCurves(
-                dat = _,
-                eq = eq,
-                agg = agg,
-                k = k,
-                constrainq0 = constrainq0,
-                detailed = TRUE
-              )
-          },
-          error = function(e) {
-            rhino$log$error(paste("Error in FitCurves:", e$message))
-            shiny$showNotification(
-              paste(
-                "Error fitting demand curves:",
-                e$message,
-                "Please check your data and parameters."
-              ),
-              type = "error",
-              duration = 10
+      session_logger$info(
+        paste("Fitting demand: eq =", eq_code, "; k =", k,
+              "; agg =", agg_val, "; grouped =", is_grouped),
+        "model_fitting"
+      )
+
+      fit_result <- tryCatch(
+        {
+          if (is_grouped) {
+            fitting$fit_demand_grouped(
+              data_r$data_d, eq = eq_code, agg = agg_val,
+              k = k, constrainq0 = constrainq0
             )
-            return(NULL)
+          } else {
+            fitting$fit_demand_ungrouped(
+              data_r$data_d, eq = eq_code, agg = agg_val,
+              k = k, constrainq0 = constrainq0
+            )
           }
-        )
-        if (!is.null(res$output)) {
-          res$results <- res$output[[1]] |>
-            dplyr$select(!(Intensity:Pmaxe)) |>
-            dplyr$mutate(
-              dplyr$across(
-                dplyr$all_of(c(
-                  "Q0d",
-                  "K",
-                  "R2",
-                  "Q0se",
-                  "AbsSS",
-                  "SdRes",
-                  "Q0Low",
-                  "Q0High",
-                  "EV",
-                  "Omaxd",
-                  "Pmaxd",
-                  "Omaxa",
-                  "Pmaxa"
-                )),
-                \(x) round(x, 2)
-              ),
-              dplyr$across(
-                dplyr$all_of(c(
-                  "Alpha",
-                  "Alphase",
-                  "AlphaLow",
-                  "AlphaHigh"
-                )),
-                \(x) round(x, 4)
-              )
-            )
-        } else {
-          res$results <- NULL
+        },
+        error = function(e) {
+          rhino$log$error(paste("Error in FitCurves:", e$message))
+          shiny$showNotification(
+            paste("Error fitting demand curves:", e$message),
+            type = "error", duration = 10
+          )
+          NULL
         }
+      )
+
+      if (!is.null(fit_result)) {
+        res$output <- fit_result$output
+        res$results <- fit_result$results
       } else {
-        if (!"group" %in% colnames(data_r$data_d)) {
-          shiny$showNotification(
-            "You have selected to group the data but there is no
-            'group' column in the data.",
-            type = "error",
-            duration = 10
-          )
-          return()
-        }
-
-        res$output <- vector("list", length = 3)
-        tmp <- data_r$data_d |>
-          dplyr$group_by(group) |>
-          dplyr$group_map(
-            ~ {
-              fit_result <- tryCatch(
-                {
-                  FitCurves(
-                    dat = .x,
-                    eq = eq,
-                    agg = agg,
-                    k = k,
-                    constrainq0 = constrainq0,
-                    detailed = TRUE
-                  )
-                },
-                error = function(e) {
-                  group_name <- dplyr$first(.x$group)
-                  rhino$log$error(paste(
-                    "Error in FitCurves for group",
-                    group_name,
-                    ":",
-                    e$message
-                  ))
-                  shiny$showNotification(
-                    paste(
-                      "Error fitting demand curves for group",
-                      group_name,
-                      ":",
-                      e$message,
-                      "This group will be skipped."
-                    ),
-                    type = "warning",
-                    duration = 8
-                  )
-                  return(NULL)
-                }
-              )
-
-              if (!is.null(fit_result)) {
-                list(
-                  group = dplyr$first(.x$group),
-                  fit_result_1 = fit_result[[1]],
-                  fit_result_3 = fit_result[[3]]
-                )
-              } else {
-                NULL
-              }
-            },
-            .keep = TRUE
-          )
-        # Filter out NULL results from failed fits
-        tmp <- tmp[!sapply(tmp, is.null)]
-
-        if (length(tmp) > 0) {
-          res$output[[1]] <- dplyr$bind_rows(lapply(tmp, function(x) {
-            cbind(group = x$group, x$fit_result_1)
-          }))
-          res$output[[3]] <- dplyr$bind_rows(lapply(tmp, function(x) {
-            cbind(group = x$group, x$fit_result_3[[1]])
-          }))
-        } else {
-          shiny$showNotification(
-            "All groups failed to fit. Please check your data and parameters.",
-            type = "error",
-            duration = 10
-          )
-          res$output <- NULL
-        }
-        if (!is.null(res$output)) {
-          res$results <- res$output[[1]] |>
-            dplyr$select(!(Intensity:Pmaxe)) |>
-            dplyr$mutate(
-              dplyr$across(
-                dplyr$all_of(c(
-                  "Q0d",
-                  "K",
-                  "R2",
-                  "Q0se",
-                  "AbsSS",
-                  "SdRes",
-                  "Q0Low",
-                  "Q0High",
-                  "EV",
-                  "Omaxd",
-                  "Pmaxd",
-                  "Omaxa",
-                  "Pmaxa"
-                )),
-                \(x) round(x, 2)
-              ),
-              dplyr$across(
-                dplyr$all_of(c(
-                  "Alpha",
-                  "Alphase",
-                  "AlphaLow",
-                  "AlphaHigh"
-                )),
-                \(x) round(x, 4)
-              )
-            )
-        } else {
-          res$results <- NULL
-        }
+        res$output <- NULL
+        res$results <- NULL
       }
     }) |>
       shiny$bindEvent(calculate_btn())

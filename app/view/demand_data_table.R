@@ -1,15 +1,13 @@
 box::use(
-  beezdemand[CheckUnsystematic, GetDescriptives, GetEmpirical],
   bslib,
-  dplyr,
   DT,
   shiny,
-  stats,
 )
 
 box::use(
+  app / logic / demand / empirical,
+  app / logic / demand / systematic,
   app / logic / logging_utils,
-  app / logic / utils,
   app / logic / validate,
 )
 
@@ -142,35 +140,16 @@ server <- function(id, isgroup = NULL, data_r) {
     # show descriptives table
     shiny$observe({
       shiny$req(session$userData$data$demand)
-      rhino$log$info("Printing Demand Descriptives Table")
-      descriptives <- NULL
-      if (isgroup()) {
-        if (!"group" %in% colnames(data_r$data_d)) {
-          shiny$showNotification(
-            "You have selected to group the data but there is no
-            'group' column in the data.",
-            type = "error",
-            duration = 10
-          )
-          return()
-        }
-        data_g <- data_r$data_d |>
-          dplyr$mutate(group = "aggregate")
-        data_g_e <- data_g |>
-          GetDescriptives(dat = _, bwplot = FALSE) |>
-          dplyr$mutate(group = "aggregate")
-        data_d_e <- data_r$data_d |>
-          dplyr$group_by(group) |>
-          dplyr$group_modify(~ GetDescriptives(dat = .x, bwplot = FALSE))
-        descriptives <- dplyr$bind_rows(data_g_e, data_d_e) |>
-          dplyr$relocate(group, .before = Price)
-      } else {
-        descriptives <- data_r$data_d |>
-          GetDescriptives(dat = _, bwplot = FALSE)
-      }
+      session_logger$info("Computing demand descriptives", "data_processing")
 
-      descriptives <- descriptives |>
-        dplyr$mutate(dplyr$across(dplyr$where(is.numeric), round, 2))
+      descriptives <- tryCatch(
+        empirical$compute_descriptives(data_r$data_d, is_grouped = isgroup()),
+        error = function(e) {
+          shiny$showNotification(e$message, type = "error", duration = 10)
+          NULL
+        }
+      )
+      shiny$req(descriptives)
 
       output$descriptives_table <- DT$renderDT(server = FALSE, {
         DT$datatable(
@@ -212,67 +191,26 @@ server <- function(id, isgroup = NULL, data_r) {
     # show empirical table
     shiny$observe({
       shiny$req(session$userData$data$demand)
-      empirical <- NULL
-      rhino$log$info(
-        paste0(
-          "Calculating empirical demand data with grouping = ",
-          isgroup()
-        )
+      session_logger$info(
+        paste0("Computing empirical measures, grouped = ", isgroup()),
+        "data_processing"
       )
-      data_g <- stats$aggregate(y ~ x, data_r$data_d, mean, na.rm = TRUE)
-      data_g$id <- "aggregate"
-      if (isgroup()) {
-        if (!"group" %in% colnames(data_r$data_d)) {
-          shiny$showNotification(
-            "You have selected to group the data but there is no
-            'group' column in the data.",
-            type = "error",
-            duration = 10
-          )
-          return()
-        }
-        data_gg <- stats$aggregate(
-          y ~ x + group,
-          data_r$data_d,
-          mean,
-          na.rm = TRUE
-        )
-        data_gg$id <- "group aggregate"
-        data_g_emp <- GetEmpirical(data_g) |>
-          dplyr$mutate(
-            dplyr$across(dplyr$where(is.numeric), round, 1),
-            group = "aggregate"
-          ) |>
-          dplyr$relocate(group, .before = id)
-        data_gg_emp <- dplyr$group_by(data_gg, group) |>
-          dplyr$group_modify(~ GetEmpirical(.x))
-        data_d_emp <- dplyr$group_by(data_r$data_d, group) |>
-          dplyr$group_modify(~ GetEmpirical(.x))
-        empirical <- dplyr$bind_rows(data_g_emp, data_gg_emp, data_d_emp)
-      } else {
-        data_g_emp <- GetEmpirical(data_g)
-        data_d_emp <- try(GetEmpirical(data_r$data_d), silent = TRUE)
-        if (inherits(data_d_emp, "try-error")) {
-          shiny$showNotification(
-            paste(
-              "Error calculating empirical demand data:",
-              data_d_emp[1]
-            ),
-            type = "error",
-            duration = 10
-          )
-          return()
-        } else {
-          empirical <- dplyr$bind_rows(data_g_emp, data_d_emp)
-        }
-      }
 
-      empirical <- empirical |>
-        dplyr$mutate(dplyr$across(dplyr$where(is.numeric), round, 2))
+      emp_result <- tryCatch(
+        empirical$compute_empirical_measures(
+          data_r$data_d,
+          is_grouped = isgroup()
+        ),
+        error = function(e) {
+          shiny$showNotification(e$message, type = "error", duration = 10)
+          NULL
+        }
+      )
+      shiny$req(emp_result)
 
       output$empirical_table <- DT$renderDT(server = FALSE, {
         DT$datatable(
-          empirical,
+          emp_result,
           rownames = FALSE,
           extensions = c("Buttons", "Scroller"),
           fillContainer = FALSE,
@@ -310,44 +248,27 @@ server <- function(id, isgroup = NULL, data_r) {
     # show systematic table
     shiny$observe({
       shiny$req(session$userData$data$demand)
-      systematic <- NULL
-      rhino$log$info("Calculating systematic criteria")
-      if (isgroup()) {
-        if (!"group" %in% colnames(data_r$data_d)) {
-          shiny$showNotification(
-            "You have selected to group the data but there is no
-            'group' column in the data.",
-            type = "error",
-            duration = 10
-          )
-          return()
+      session_logger$info("Computing systematic criteria", "data_processing")
+
+      sys_result <- tryCatch(
+        systematic$compute_systematic(
+          data_r$data_d,
+          deltaq = input$deltaq,
+          bounce = input$bounce,
+          reversals = input$reversals,
+          ncons0 = input$ncons0,
+          is_grouped = isgroup()
+        ),
+        error = function(e) {
+          shiny$showNotification(e$message, type = "error", duration = 10)
+          NULL
         }
-        # for each unique group, calculate the systematic criteria
-        systematic <- data_r$data_d |>
-          dplyr$group_by(group) |>
-          dplyr$group_modify(
-            ~ CheckUnsystematic(
-              dat = .x,
-              deltaq = input$deltaq,
-              bounce = input$bounce,
-              reversals = input$reversals,
-              ncons0 = input$ncons0
-            )
-          )
-      } else {
-        systematic <- data_r$data_d |>
-          CheckUnsystematic(
-            dat = _,
-            deltaq = input$deltaq,
-            bounce = input$bounce,
-            reversals = input$reversals,
-            ncons0 = input$ncons0
-          )
-      }
+      )
+      shiny$req(sys_result)
 
       output$systematic_table <- DT$renderDT(server = FALSE, {
         DT$datatable(
-          systematic,
+          sys_result,
           rownames = FALSE,
           extensions = c("Buttons", "Scroller", "FixedColumns"),
           fillContainer = FALSE,

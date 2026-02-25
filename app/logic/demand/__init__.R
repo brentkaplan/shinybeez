@@ -1,5 +1,16 @@
-#' Demand Logic Module
+#' Fixed-Effects Demand Logic Module
 #'
-#' Business logic functions for demand analysis.
+#' Exports utility functions for fixed-effects demand analysis.
 
-# Logic functions will be added here
+box::use(
+  . / empirical,
+  . / fitting,
+  . / systematic
+)
+
+#' @export
+box::export(
+  empirical,
+  fitting,
+  systematic
+)
