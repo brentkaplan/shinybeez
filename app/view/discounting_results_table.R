@@ -1,6 +1,6 @@
 box::use(
   beezdemand,
-  beezdiscounting[calc_dd, calc_pd, plot_dd, prop_ss],
+  beezdiscounting[plot_dd, prop_ss],
   bslib,
   dplyr,
   DT,
@@ -15,6 +15,7 @@ box::use(
 )
 
 box::use(
+  app / logic / discounting / five_trial,
   app / logic / discounting / regression,
   app / logic / discounting / scoring,
   app / logic / utils,
@@ -115,10 +116,10 @@ server <- function(
 
       } else if (type() == "5.5 Trial Delay Discounting") {
         rhino$log$info("Calculating 5.5 Trial DD")
-        res$results <- calc_dd(data_r$data_d)
+        res$results <- five_trial$compute_five_trial_dd(data_r$data_d)
       } else if (type() == "5.5 Trial Probability Discounting") {
         rhino$log$info("Calculating 5.5 Trial PD")
-        res$results <- calc_pd(data_r$data_d)
+        res$results <- five_trial$compute_five_trial_pd(data_r$data_d)
       } else if (type() == "Indifference Point Regression") {
         rhino$log$debug(paste("Equation:", eq(), "; Aggregation:", agg()))
         rhino$log$info("Calculating Regression")

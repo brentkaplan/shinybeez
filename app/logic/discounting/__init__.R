@@ -3,6 +3,7 @@
 #' Exports utility functions for discounting analysis.
 
 box::use(
+  . / five_trial,
   . / regression,
   . / scoring,
   . / systematic,
@@ -10,6 +11,7 @@ box::use(
 
 #' @export
 box::export(
+  five_trial,
   regression,
   scoring,
   systematic
