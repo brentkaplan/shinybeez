@@ -109,18 +109,8 @@ check_data <- function(dat, type = "demand") {
       )
     } else if ("id" %in% colnames(dat)) {
       return_msg <- assertthat$validate_that(
-        colnames(dat)[1] == c("id"),
-        msg = "The first column is not `id`"
-      )
-      if (is.character(return_msg)) {
-        return(return_msg)
-      }
-      return_msg <- assertthat$validate_that(
-        all(sapply(
-          readr$parse_number(colnames(dat)[2:length(colnames(dat))]),
-          is.numeric
-        )),
-        msg = "The column names are not numeric"
+        identical(colnames(dat), c("id", "x", "y")),
+        msg = "Indifference point data must have exactly three columns: id, x, y"
       )
       if (is.character(return_msg)) {
         return(return_msg)

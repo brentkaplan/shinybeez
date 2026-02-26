@@ -60,7 +60,6 @@ describe("Error handling - wrong format for discounting", {
   app <- NULL
 
   it("shows error when uploading demand data to discounting tab", {
-    skip("Validation gap: wide demand CSV passes discounting check (id + numeric cols)")
     app <<- create_app_driver()
     app$set_inputs(!!ids$nav := "Discounting")
     app$wait_for_idle(duration = 1000)
