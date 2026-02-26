@@ -1,10 +1,10 @@
 #' Demand Curve Fitting
 #'
-#' Pure functions for fitting demand curves via beezdemand::FitCurves,
+#' Pure functions for fitting demand curves via beezdemand::fit_demand_fixed,
 #' with support for grouped and ungrouped data.
 
 box::use(
-  beezdemand[FitCurves],
+  beezdemand[fit_demand_fixed],
   dplyr,
 )
 
@@ -29,7 +29,7 @@ resolve_equation <- function(eq_label) {
 #'
 #' @param kval Character or numeric k value from UI
 #' @param k_values Numeric vector of recognized k values
-#' @return Numeric or character k value for FitCurves
+#' @return Numeric or character k value for fit_demand_fixed
 #' @export
 resolve_k_value <- function(kval, k_values) {
   if (kval %in% as.character(k_values)) {
@@ -39,7 +39,7 @@ resolve_k_value <- function(kval, k_values) {
   }
 }
 
-#' Resolve aggregation parameter for FitCurves
+#' Resolve aggregation parameter for fit_demand_fixed
 #'
 #' @param agg_label Character analysis type from UI
 #' @return NULL (for individual) or the aggregation type
@@ -65,9 +65,9 @@ results_cols_2dp <- c(
 )
 results_cols_4dp <- c("Alpha", "Alphase", "AlphaLow", "AlphaHigh")
 
-#' Format FitCurves output into a clean results data frame
+#' Format fit_demand_fixed output into a clean results data frame
 #'
-#' @param output List output from FitCurves (with detailed = TRUE)
+#' @param output List output from fit_demand_fixed (or synthetic grouped list)
 #' @return Formatted data frame with rounded columns
 #' @export
 format_demand_results <- function(output) {
@@ -86,17 +86,16 @@ format_demand_results <- function(output) {
 #' @param agg Aggregation type (NULL, "Pooled", "Mean")
 #' @param k Numeric or character k value
 #' @param constrainq0 NULL or numeric Q0 constraint
-#' @return List with output (raw FitCurves result) and results (formatted df),
+#' @return List with output (raw fit_demand_fixed result) and results (formatted df),
 #'   or NULL on error
 #' @export
 fit_demand_ungrouped <- function(data, eq, agg, k, constrainq0 = NULL) {
-  output <- FitCurves(
-    dat = data,
-    eq = eq,
+  output <- fit_demand_fixed(
+    data = data,
+    equation = eq,
     agg = agg,
     k = k,
-    constrainq0 = constrainq0,
-    detailed = TRUE
+    constrainq0 = constrainq0
   )
   list(
     output = output,
@@ -111,7 +110,7 @@ fit_demand_ungrouped <- function(data, eq, agg, k, constrainq0 = NULL) {
 #' @param agg Aggregation type (NULL, "Pooled", "Mean")
 #' @param k Numeric or character k value
 #' @param constrainq0 NULL or numeric Q0 constraint
-#' @return List with output (raw FitCurves result) and results (formatted df),
+#' @return List with output (raw fit_demand_fixed result) and results (formatted df),
 #'   or NULL if all groups fail
 #' @export
 fit_demand_grouped <- function(data, eq, agg, k, constrainq0 = NULL) {
@@ -124,13 +123,12 @@ fit_demand_grouped <- function(data, eq, agg, k, constrainq0 = NULL) {
     dplyr$group_map(
       ~ {
         fit_result <- tryCatch(
-          FitCurves(
-            dat = .x,
-            eq = eq,
+          fit_demand_fixed(
+            data = .x,
+            equation = eq,
             agg = agg,
             k = k,
-            constrainq0 = constrainq0,
-            detailed = TRUE
+            constrainq0 = constrainq0
           ),
           error = function(e) NULL
         )

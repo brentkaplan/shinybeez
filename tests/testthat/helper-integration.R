@@ -119,21 +119,29 @@ create_app_driver <- function(...) {
   # default 10s timeout. Raise it to match load_timeout.
   options(chromote.timeout = 30)
 
-  shinytest2::AppDriver$new(
-    app_dir = find_project_root(),
-    name = "shinybeez",
-    height = 900,
-    width = 1200,
-    load_timeout = 30000,
-    timeout = 15000,
-    seed = 12345,
-    check_names = FALSE,
-    # Override .Rprofile's shiny.port=3838 with a random port
-    options = list(
-      shiny.testmode = TRUE,
-      shiny.port = httpuv::randomPort(),
-      shiny.host = "127.0.0.1"
+  tryCatch(
+    shinytest2::AppDriver$new(
+      app_dir = find_project_root(),
+      name = "shinybeez",
+      height = 900,
+      width = 1200,
+      load_timeout = 30000,
+      timeout = 15000,
+      seed = 12345,
+      check_names = FALSE,
+      # Override .Rprofile's shiny.port=3838 with a random port
+      options = list(
+        shiny.testmode = TRUE,
+        shiny.port = httpuv::randomPort(),
+        shiny.host = "127.0.0.1"
+      ),
+      ...
     ),
-    ...
+    error = function(e) {
+      testthat::skip(paste(
+        "`shinytest2::AppDriver` can not be initialized as Chrome failed:",
+        conditionMessage(e)
+      ))
+    }
   )
 }

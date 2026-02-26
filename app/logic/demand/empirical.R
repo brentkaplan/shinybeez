@@ -4,7 +4,7 @@
 #' demand measures, with optional group handling.
 
 box::use(
-  beezdemand[GetDescriptives, GetEmpirical],
+  beezdemand[get_descriptive_summary, get_empirical_measures],
   dplyr,
   stats[aggregate],
 )
@@ -22,17 +22,15 @@ compute_descriptives <- function(data, is_grouped = FALSE) {
     }
     data_agg <- data |>
       dplyr$mutate(group = "aggregate")
-    desc_agg <- data_agg |>
-      GetDescriptives(dat = _, bwplot = FALSE) |>
+    desc_agg <- get_descriptive_summary(data = data_agg)$statistics |>
       dplyr$mutate(group = "aggregate")
     desc_by_group <- data |>
       dplyr$group_by(group) |>
-      dplyr$group_modify(~ GetDescriptives(dat = .x, bwplot = FALSE))
+      dplyr$group_modify(~ get_descriptive_summary(data = .x)$statistics)
     descriptives <- dplyr$bind_rows(desc_agg, desc_by_group) |>
       dplyr$relocate(group, .before = Price)
   } else {
-    descriptives <- data |>
-      GetDescriptives(dat = _, bwplot = FALSE)
+    descriptives <- get_descriptive_summary(data = data)$statistics
   }
 
   descriptives |>
@@ -56,20 +54,20 @@ compute_empirical_measures <- function(data, is_grouped = FALSE) {
     data_group_agg <- aggregate(y ~ x + group, data, mean, na.rm = TRUE)
     data_group_agg$id <- "group aggregate"
 
-    emp_agg <- GetEmpirical(data_agg) |>
+    emp_agg <- get_empirical_measures(data_agg)$measures |>
       dplyr$mutate(
         dplyr$across(dplyr$where(is.numeric), \(x) round(x, 1)),
         group = "aggregate"
       ) |>
       dplyr$relocate(group, .before = id)
     emp_group_agg <- dplyr$group_by(data_group_agg, group) |>
-      dplyr$group_modify(~ GetEmpirical(.x))
+      dplyr$group_modify(~ get_empirical_measures(.x)$measures)
     emp_individual <- dplyr$group_by(data, group) |>
-      dplyr$group_modify(~ GetEmpirical(.x))
+      dplyr$group_modify(~ get_empirical_measures(.x)$measures)
     empirical <- dplyr$bind_rows(emp_agg, emp_group_agg, emp_individual)
   } else {
-    emp_agg <- GetEmpirical(data_agg)
-    emp_individual <- GetEmpirical(data)
+    emp_agg <- get_empirical_measures(data_agg)$measures
+    emp_individual <- get_empirical_measures(data)$measures
     empirical <- dplyr$bind_rows(emp_agg, emp_individual)
   }
 
