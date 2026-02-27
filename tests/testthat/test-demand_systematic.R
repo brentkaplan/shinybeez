@@ -60,9 +60,9 @@ describe("compute_systematic (ungrouped)", {
     result <- systematic$compute_systematic(d)
 
     expect_s3_class(result, "data.frame")
-    expected_cols <- c("id", "TotalPass", "DeltaQ", "DeltaQPass",
-                       "Bounce", "BouncePass", "Reversals",
-                       "ReversalsPass", "NumPosValues")
+    expected_cols <- c("id", "systematic", "trend_stat", "trend_pass",
+                       "bounce_stat", "bounce_pass", "reversals",
+                       "reversals_pass", "n_positive")
     for (col in expected_cols) {
       expect_true(
         col %in% names(result),
@@ -115,8 +115,8 @@ describe("compute_systematic (ungrouped)", {
 
     # The BouncePass column should differ for id "2"
     expect_false(
-      identical(result_lenient$BouncePass, result_strict$BouncePass),
-      info = "Different bounce thresholds should produce different BouncePass results"
+      identical(result_lenient$bounce_pass, result_strict$bounce_pass),
+      info = "Different bounce thresholds should produce different bounce_pass results"
     )
   })
 })
@@ -159,9 +159,9 @@ describe("compute_systematic (grouped)", {
     d <- make_grouped_demand_data()
     result <- systematic$compute_systematic(d, is_grouped = TRUE)
 
-    expected_cols <- c("group", "id", "TotalPass", "DeltaQ", "DeltaQPass",
-                       "Bounce", "BouncePass", "Reversals",
-                       "ReversalsPass", "NumPosValues")
+    expected_cols <- c("group", "id", "systematic", "trend_stat", "trend_pass",
+                       "bounce_stat", "bounce_pass", "reversals",
+                       "reversals_pass", "n_positive")
     for (col in expected_cols) {
       expect_true(
         col %in% names(result),
@@ -199,8 +199,8 @@ describe("compute_systematic (grouped)", {
 
     # The BouncePass column should differ for id "2" in group B
     expect_false(
-      identical(result_lenient$BouncePass, result_strict$BouncePass),
-      info = "Different bounce thresholds should produce different BouncePass in grouped mode"
+      identical(result_lenient$bounce_pass, result_strict$bounce_pass),
+      info = "Different bounce thresholds should produce different bounce_pass in grouped mode"
     )
   })
 })
