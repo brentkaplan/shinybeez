@@ -1,5 +1,6 @@
 .PHONY: test test-unit test-integration test-integration-full lint check app \
-       docker-build docker-run docker-up docker-stop docker-logs docker-clean
+       docker-build docker-run docker-up docker-stop docker-logs docker-clean \
+       docker-smoke
 
 ## Run all testthat tests (unit + integration with minimal fixtures)
 test:
@@ -53,3 +54,21 @@ docker-logs:
 ## Docker: remove containers, images, and volumes
 docker-clean:
 	docker compose -f docker-compose.dev.yml down --rmi local --volumes
+
+## Docker: smoke test (build, start, poll for HTTP 200, teardown)
+docker-smoke:
+	docker compose -f docker-compose.dev.yml up -d --build
+	@echo "Waiting for app to respond (up to 120s)..."
+	@for i in $$(seq 1 12); do \
+		if curl -sf http://localhost:3838 > /dev/null 2>&1; then \
+			echo "App responded OK after $$((i * 10))s"; \
+			docker compose -f docker-compose.dev.yml down; \
+			exit 0; \
+		fi; \
+		echo "  attempt $$i/12 — waiting 10s..."; \
+		sleep 10; \
+	done; \
+	echo "ERROR: App did not respond within 120s"; \
+	docker compose -f docker-compose.dev.yml logs; \
+	docker compose -f docker-compose.dev.yml down; \
+	exit 1
