@@ -15,8 +15,8 @@ describe("Discounting - MCQ 27-Item scoring", {
   app <- NULL
 
   it("starts the app, selects MCQ, and uploads data", {
-
     app <<- create_app_driver()
+    require_app(app)
     app$set_inputs(!!ids$nav := "Discounting")
     app$wait_for_idle(duration = 1000)
     app$set_inputs(!!ids$discounting$calc_type := "27-Item MCQ")
@@ -32,13 +32,13 @@ describe("Discounting - MCQ 27-Item scoring", {
   })
 
   it("shows the calculate button after upload", {
-
+    require_app(app)
     html <- app$get_html(paste0("#", ids$discounting$calculate))
     expect_true(any(nchar(html) > 0))
   })
 
   it("configures imputation and transform", {
-
+    require_app(app)
     app$set_inputs(!!ids$discounting$imputation := "none", wait_ = FALSE)
     app$set_inputs(!!ids$discounting$trans := "none", wait_ = FALSE)
     Sys.sleep(1)
@@ -46,7 +46,7 @@ describe("Discounting - MCQ 27-Item scoring", {
   })
 
   it("runs MCQ calculation and renders results", {
-
+    require_app(app)
     app$click(selector = paste0("#", ids$discounting$calculate))
     wait_for_calc(app)
     html <- app$get_html(".datatables")
@@ -63,8 +63,8 @@ describe("Discounting - IP Regression Pooled", {
   app <- NULL
 
   it("starts the app, selects IP Regression, and uploads data", {
-
     app <<- create_app_driver()
+    require_app(app)
     app$set_inputs(!!ids$nav := "Discounting")
     app$wait_for_idle(duration = 1000)
     app$set_inputs(
@@ -82,7 +82,7 @@ describe("Discounting - IP Regression Pooled", {
   })
 
   it("configures Mazur equation (defaults to Pooled)", {
-
+    require_app(app)
     app$set_inputs(!!ids$discounting$equation := "Mazur", wait_ = FALSE)
     Sys.sleep(1)
     val <- app$get_value(input = ids$discounting$analysis_type)
@@ -90,7 +90,7 @@ describe("Discounting - IP Regression Pooled", {
   })
 
   it("runs pooled IP regression and renders results", {
-
+    require_app(app)
     app$click(selector = paste0("#", ids$discounting$calculate))
     wait_for_calc(app, sleep_secs = 10)
     html <- app$get_html(".datatables")
@@ -107,8 +107,8 @@ describe("Discounting - IP Regression Two Stage", {
   app <- NULL
 
   it("starts the app, selects IP Regression, and uploads data", {
-
     app <<- create_app_driver()
+    require_app(app)
     app$set_inputs(!!ids$nav := "Discounting")
     app$wait_for_idle(duration = 1000)
     app$set_inputs(
@@ -126,7 +126,7 @@ describe("Discounting - IP Regression Two Stage", {
   })
 
   it("configures Mazur equation and Two Stage analysis", {
-
+    require_app(app)
     app$set_inputs(!!ids$discounting$equation := "Mazur", wait_ = FALSE)
     Sys.sleep(1)
     app$set_inputs(!!ids$discounting$analysis_type := "Two Stage", wait_ = FALSE)
@@ -138,7 +138,7 @@ describe("Discounting - IP Regression Two Stage", {
   })
 
   it("runs Two Stage IP regression and renders results", {
-
+    require_app(app)
     app$click(selector = paste0("#", ids$discounting$calculate))
     wait_for_calc(app, sleep_secs = 10)
     html <- app$get_html(".datatables")
@@ -155,9 +155,9 @@ describe("Discounting - 5.5-Trial Delay Discounting (full)", {
   app <- NULL
 
   it("uploads and calculates 5.5-Trial DD", {
-
     skip_if_not_full_tests()
     app <<- create_app_driver()
+    require_app(app)
     app$set_inputs(!!ids$nav := "Discounting")
     app$wait_for_idle(duration = 1000)
     app$set_inputs(
@@ -186,9 +186,9 @@ describe("Discounting - 5.5-Trial Probability Discounting (full)", {
   app <- NULL
 
   it("uploads and calculates 5.5-Trial PD", {
-
     skip_if_not_full_tests()
     app <<- create_app_driver()
+    require_app(app)
     app$set_inputs(!!ids$nav := "Discounting")
     app$wait_for_idle(duration = 1000)
     app$set_inputs(
@@ -217,9 +217,9 @@ describe("Discounting - MCQ with GGM imputation (full)", {
   app <- NULL
 
   it("uploads MCQ with missings, applies GGM, and calculates", {
-
     skip_if_not_full_tests()
     app <<- create_app_driver()
+    require_app(app)
     app$set_inputs(!!ids$nav := "Discounting")
     app$wait_for_idle(duration = 1000)
     app$set_inputs(!!ids$discounting$calc_type := "27-Item MCQ")

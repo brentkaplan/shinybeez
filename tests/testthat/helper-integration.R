@@ -24,6 +24,10 @@ skip_if_not_full_tests <- function() {
   )
 }
 
+require_app <- function(app) {
+  if (is.null(app)) skip("App driver not available")
+}
+
 # ---------------------------------------------------------------------------
 # Path helpers
 # ---------------------------------------------------------------------------

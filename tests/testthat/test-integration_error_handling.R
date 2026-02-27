@@ -14,6 +14,7 @@ describe("Error handling - calculate button hidden without data", {
   })
 
   it("does not show demand calculate button before upload", {
+    require_app(app)
     app$set_inputs(!!ids$nav := "Demand")
     app$wait_for_idle(duration = 1000)
     # The calculate button is rendered via renderUI only after data upload
@@ -22,6 +23,7 @@ describe("Error handling - calculate button hidden without data", {
   })
 
   it("does not show discounting calculate button before upload", {
+    require_app(app)
     app$set_inputs(!!ids$nav := "Discounting")
     app$wait_for_idle(duration = 1000)
     html <- app$get_html(paste0("#", ids$discounting$calculate))
@@ -39,6 +41,7 @@ describe("Error handling - wrong format for demand", {
 
   it("shows error when uploading MCQ data to demand tab", {
     app <<- create_app_driver()
+    require_app(app)
     app$set_inputs(!!ids$nav := "Demand")
     app$wait_for_idle(duration = 1000)
     app$upload_file(
@@ -61,6 +64,7 @@ describe("Error handling - wrong format for discounting", {
 
   it("shows error when uploading demand data to discounting tab", {
     app <<- create_app_driver()
+    require_app(app)
     app$set_inputs(!!ids$nav := "Discounting")
     app$wait_for_idle(duration = 1000)
     app$upload_file(
@@ -83,6 +87,7 @@ describe("Error handling - wrong format for mixed effects", {
 
   it("shows error when uploading MCQ data to mixed effects tab", {
     app <<- create_app_driver()
+    require_app(app)
     app$set_inputs(!!ids$nav := "MixedEffectsDemand")
     app$wait_for_idle(duration = 2000)
     app$upload_file(
