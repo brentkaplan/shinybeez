@@ -2,12 +2,6 @@
 # Tests all 4 scoring methods: MCQ 27-Item, IP Regression (Pooled & Two Stage),
 # 5.5-Trial DD, 5.5-Trial PD.
 
-# Helper: wait for calculation to complete
-wait_for_calc <- function(app, sleep_secs = 5) {
-  Sys.sleep(sleep_secs)
-  app$wait_for_idle(duration = 2000)
-}
-
 # ==========================================================================
 # MCQ 27-Item scoring (minimal fixture)
 # ==========================================================================

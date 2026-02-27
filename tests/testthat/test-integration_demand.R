@@ -1,13 +1,6 @@
 # Integration tests: Demand tab workflows
 # Tests upload, configuration, and calculation for all demand analysis types.
 
-# Helper: wait for calculation to complete
-# Uses a short idle duration with a sleep buffer for model fitting
-wait_for_calc <- function(app, sleep_secs = 5) {
-  Sys.sleep(sleep_secs)
-  app$wait_for_idle(duration = 2000)
-}
-
 # ==========================================================================
 # Pooled analysis (minimal fixture)
 # ==========================================================================
@@ -28,7 +21,8 @@ describe("Demand - pooled analysis", {
       !!ids$demand$upload := fixture_path("demand-minimal.csv")
     )
     app$wait_for_idle(duration = 2000)
-    expect_true(TRUE)
+    html <- app$get_html(".datatables")
+    expect_true(any(nchar(html) > 0))
   })
 
   it("renders the data table after upload", {

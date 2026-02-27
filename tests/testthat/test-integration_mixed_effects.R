@@ -1,12 +1,6 @@
 # Integration tests: Mixed Effects Demand tab workflows
 # Tests default ko data auto-load, upload minimal fixture, and full examples.
 
-# Helper: wait for calculation to complete
-wait_for_calc <- function(app, sleep_secs = 5) {
-  Sys.sleep(sleep_secs)
-  app$wait_for_idle(duration = 2000)
-}
-
 # ==========================================================================
 # Default ko data (auto-loaded on tab navigation)
 # ==========================================================================
@@ -49,7 +43,8 @@ describe("Mixed Effects - default ko data", {
     require_app(app)
     app$click(selector = paste0("#", ids$mixed$run))
     wait_for_calc(app, sleep_secs = 30)
-    expect_true(TRUE)
+    err_html <- app$get_html(".shiny-notification-error")
+    expect_true(is.null(err_html) || !grepl("Error", err_html))
   })
 
   it("renders model summary output", {
@@ -103,7 +98,8 @@ describe("Mixed Effects - upload minimal fixture", {
     Sys.sleep(1)
     app$click(selector = paste0("#", ids$mixed$run))
     wait_for_calc(app, sleep_secs = 30)
-    expect_true(TRUE)
+    err_html <- app$get_html(".shiny-notification-error")
+    expect_true(is.null(err_html) || !grepl("Error", err_html))
   })
 
   it("renders model summary for uploaded data", {
