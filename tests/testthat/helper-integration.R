@@ -7,6 +7,19 @@ if (requireNamespace("shinytest2", quietly = TRUE)) {
 }
 
 # ---------------------------------------------------------------------------
+# Chrome CI flags
+# ---------------------------------------------------------------------------
+
+if (nzchar(Sys.getenv("CI")) || nzchar(Sys.getenv("CHROMOTE_CHROME"))) {
+  chromote::set_chrome_args(c(
+    chromote::get_chrome_args(),
+    "--no-sandbox",
+    "--disable-gpu",
+    "--disable-dev-shm-usage"
+  ))
+}
+
+# ---------------------------------------------------------------------------
 # Skip helpers
 # ---------------------------------------------------------------------------
 
@@ -106,12 +119,45 @@ ids <- list(
 )
 
 # ---------------------------------------------------------------------------
-# Shared helpers
+# Condition-based wait helpers
 # ---------------------------------------------------------------------------
 
-wait_for_calc <- function(app, sleep_secs = 5) {
-  Sys.sleep(sleep_secs)
-  app$wait_for_idle(duration = 2000)
+wait_for_datatable <- function(app, timeout_ms = 15000) {
+  app$wait_for_js(
+    "document.querySelector('.datatables table tbody tr') !== null",
+    timeout = timeout_ms
+  )
+  app$wait_for_idle(duration = 500, timeout = timeout_ms)
+}
+
+wait_for_output <- function(app, output_id, timeout_ms = 15000) {
+  # Use idle-based detection: wait until Shiny has been idle for 1s.
+  # More robust than JS element checks for outputs wrapped in renderUI
+  # (e.g., discounting results inside uiOutput → DTOutput chain).
+  app$wait_for_idle(duration = 1000, timeout = timeout_ms)
+}
+
+wait_for_notification <- function(app, type = "error", timeout_ms = 10000) {
+  selector <- paste0(".shiny-notification-", type)
+  js <- sprintf("document.querySelector('%s') !== null", selector)
+  app$wait_for_js(js, timeout = timeout_ms)
+  app$wait_for_idle(duration = 500, timeout = timeout_ms)
+}
+
+wait_for_input <- function(app, input_id, timeout_ms = 5000) {
+  app$wait_for_value(input = input_id, timeout = timeout_ms)
+  app$wait_for_idle(duration = 500, timeout = timeout_ms)
+}
+
+navigate_to_tab <- function(app, tab_value) {
+  app$set_inputs(!!ids$nav := tab_value)
+  app$wait_for_idle(duration = 500)
+}
+
+upload_and_wait <- function(app, input_id, file_path, timeout_ms = 15000) {
+  args <- stats::setNames(list(file_path), input_id)
+  do.call(app$upload_file, args)
+  wait_for_datatable(app, timeout_ms = timeout_ms)
 }
 
 # ---------------------------------------------------------------------------

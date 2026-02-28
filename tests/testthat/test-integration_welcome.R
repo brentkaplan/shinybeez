@@ -24,36 +24,36 @@ describe("Welcome tab and navigation", {
 
   it("navigates to Demand tab", {
     require_app(app)
-    app$set_inputs(!!ids$nav := "Demand")
-    app$wait_for_idle(duration = 1000)
+    navigate_to_tab(app, "Demand")
     expect_equal(app$get_value(input = ids$nav), "Demand")
   })
 
   it("navigates to Discounting tab", {
     require_app(app)
-    app$set_inputs(!!ids$nav := "Discounting")
-    app$wait_for_idle(duration = 1000)
+    navigate_to_tab(app, "Discounting")
     expect_equal(app$get_value(input = ids$nav), "Discounting")
   })
 
   it("navigates to Mixed Effects Demand tab", {
     require_app(app)
-    app$set_inputs(!!ids$nav := "MixedEffectsDemand")
-    app$wait_for_idle(duration = 1000)
+    navigate_to_tab(app, "MixedEffectsDemand")
     expect_equal(app$get_value(input = ids$nav), "MixedEffectsDemand")
   })
 
   it("navigates back to Welcome tab", {
     require_app(app)
-    app$set_inputs(!!ids$nav := "Welcome")
-    app$wait_for_idle(duration = 1000)
+    navigate_to_tab(app, "Welcome")
     expect_equal(app$get_value(input = ids$nav), "Welcome")
   })
 
   it("opens the info modal", {
     require_app(app)
     app$click(selector = paste0("#", ids$info$trigger))
-    app$wait_for_idle(duration = 1000)
+    app$wait_for_js(
+      "document.querySelector('.modal-dialog') !== null",
+      timeout = 5000
+    )
+    app$wait_for_idle(duration = 500)
     modal_html <- app$get_html(".modal-dialog")
     expect_true(grepl("Helpful information", modal_html))
   })
@@ -61,8 +61,11 @@ describe("Welcome tab and navigation", {
   it("closes the info modal", {
     require_app(app)
     app$click(selector = ".modal-footer button")
-    app$wait_for_idle(duration = 1000)
-    # Modal should be gone
+    app$wait_for_js(
+      "document.querySelector('.modal-dialog') === null",
+      timeout = 5000
+    )
+    app$wait_for_idle(duration = 500)
     modal_html <- app$get_html(".modal-dialog")
     # After closing, modal-dialog should not be present or be empty
     expect_true(is.null(modal_html) || !grepl("Helpful information", modal_html))
