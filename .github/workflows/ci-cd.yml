@@ -50,6 +50,14 @@ jobs:
     - name: Setup renv
       uses: r-lib/actions/setup-renv@v2
 
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+
+    - name: Install .rhino JS dependencies
+      run: cd .rhino && npm ci
+
     - name: Install Chrome for integration tests
       uses: browser-actions/setup-chrome@v1
       with:
