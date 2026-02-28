@@ -4,3 +4,5 @@
 !package-lock.json
 !.eslintrc.json
 !.stylelintrc.json
+!babel.config.json
+!webpack.config.js
