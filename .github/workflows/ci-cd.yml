@@ -149,7 +149,7 @@ jobs:
       if: github.event_name != 'pull_request'
       uses: anchore/sbom-action@v0
       with:
-        image: ${{ steps.meta.outputs.tags }}
+        image: ${{ env.REGISTRY }}/brentkaplan/${{ env.IMAGE_NAME }}:${{ github.ref_name }}
         format: spdx-json
         output-file: sbom.spdx.json
 
