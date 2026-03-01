@@ -1278,14 +1278,14 @@ navpanel_server <- function(id, sidebar_reactives) {
         y_trans = plotting$get_axis_transform(input$plot_y_trans_log),
         x_trans = plotting$get_axis_transform(input$plot_x_trans_log),
         at = cov_info$at_list,
-        facet_formula = aesthetics$facet_formula,
+        facet = aesthetics$facet_formula,
         color_by = aesthetics$color,
         linetype_by = aesthetics$linetype,
-        show_observed_data = input$show_observed_points_plot,
-        show_pred_lines = show_lines_arg,
+        show_observed = input$show_observed_points_plot,
+        show_pred = show_lines_arg,
         title = input$plot_title,
-        xlab = input$plot_xlab,
-        ylab = input$plot_ylab
+        x_lab = input$plot_xlab,
+        y_lab = input$plot_ylab
       )
 
       # Apply theme and styling using plotting module
