@@ -81,7 +81,6 @@ jobs:
     runs-on: ubuntu-latest
     name: Build Docker Image
     outputs:
-      image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.build.outputs.digest }}
       image-digest: ${{ steps.build.outputs.digest }}
 
     steps:
@@ -255,6 +254,8 @@ jobs:
     runs-on: ubuntu-latest
     name: Security Scan
     if: github.event_name != 'pull_request'
+    permissions:
+      security-events: write
 
     steps:
     - name: Log in to Docker Hub
@@ -267,7 +268,7 @@ jobs:
     - name: Run Trivy vulnerability scanner
       uses: aquasecurity/trivy-action@0.28.0
       with:
-        image-ref: ${{ needs.build.outputs.image-ref }}
+        image-ref: docker.io/brentkaplan/shinybeez@${{ needs.build.outputs.image-digest }}
         format: 'sarif'
         output: 'trivy-results.sarif'
         severity: 'CRITICAL,HIGH'
