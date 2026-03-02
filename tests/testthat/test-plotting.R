@@ -182,24 +182,6 @@ describe("build_facet_formula", {
   })
 })
 
-# Test get_axis_transform
-describe("get_axis_transform", {
-  it("returns 'pseudo_log' when TRUE", {
-    result <- plotting$get_axis_transform(TRUE)
-    expect_equal(result, "pseudo_log")
-  })
-
-  it("returns 'identity' when FALSE", {
-    result <- plotting$get_axis_transform(FALSE)
-    expect_equal(result, "identity")
-  })
-
-  it("returns 'identity' when NULL", {
-    result <- plotting$get_axis_transform(NULL)
-    expect_equal(result, "identity")
-  })
-})
-
 # Test build_validated_aesthetics
 describe("build_validated_aesthetics", {
   it("validates and returns all aesthetics", {
@@ -211,6 +193,7 @@ describe("build_validated_aesthetics", {
     )
     expect_equal(result$color, "A")
     expect_equal(result$linetype, "B")
+    expect_null(result$shape)
     expect_s3_class(result$facet_formula, "formula")
   })
 
@@ -223,7 +206,30 @@ describe("build_validated_aesthetics", {
     )
     expect_null(result$color)
     expect_null(result$linetype)
+    expect_null(result$shape)
     expect_null(result$facet_formula)
+  })
+
+  it("validates shape_input when provided", {
+    result <- plotting$build_validated_aesthetics(
+      color_input = "A",
+      linetype_input = "B",
+      facet_input = "",
+      valid_factors = c("A", "B"),
+      shape_input = "A"
+    )
+    expect_equal(result$shape, "A")
+  })
+
+  it("returns NULL for invalid shape_input", {
+    result <- plotting$build_validated_aesthetics(
+      color_input = "A",
+      linetype_input = "B",
+      facet_input = "",
+      valid_factors = c("A", "B"),
+      shape_input = "invalid"
+    )
+    expect_null(result$shape)
   })
 })
 

@@ -189,34 +189,29 @@ apply_color_palette <- function(
   p
 }
 
-#' Get axis transformation string
-#'
-#' @param use_log Logical, whether to use log transformation
-#' @return "pseudo_log" or "identity"
-#' @export
-get_axis_transform <- function(use_log) {
-  if (isTRUE(use_log)) "pseudo_log" else "identity"
-}
-
 #' Build validated plot aesthetics from user inputs
 #'
-#' Validates color, linetype, and facet selections against the model's factors.
+#' Validates color, linetype, shape, and facet selections against the model's
+#' factors.
 #'
 #' @param color_input Raw color input from UI
 #' @param linetype_input Raw linetype input from UI
 #' @param facet_input Raw facet input from UI
 #' @param valid_factors Character vector of valid factor names from model
-#' @return List with validated color, linetype, and facet_formula
+#' @param shape_input Raw shape input from UI (optional)
+#' @return List with validated color, linetype, shape, and facet_formula
 #' @export
 build_validated_aesthetics <- function(
   color_input,
   linetype_input,
   facet_input,
-  valid_factors
+  valid_factors,
+  shape_input = NULL
 ) {
   list(
     color = validate_aesthetic(color_input, valid_factors),
     linetype = validate_aesthetic(linetype_input, valid_factors),
+    shape = validate_aesthetic(shape_input, valid_factors),
     facet_formula = build_facet_formula(facet_input, valid_factors)
   )
 }

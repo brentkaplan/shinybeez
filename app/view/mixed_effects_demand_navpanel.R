@@ -184,6 +184,11 @@ navpanel_ui <- function(id) {
                 "Mixed Model Demand Plot"
               ),
               shiny$textInput(
+                ns("plot_subtitle"),
+                "Plot Subtitle",
+                ""
+              ),
+              shiny$textInput(
                 ns("plot_xlab"),
                 "X-axis Label",
                 "Price (Fixed Ratio)"
@@ -203,6 +208,12 @@ navpanel_ui <- function(id) {
                   "Minimal" = "minimal"
                 ),
                 selected = "default"
+              ),
+              shiny$selectInput(
+                ns("plot_style"),
+                "Plot Style (beezdemand)",
+                choices = c("Modern" = "modern", "APA" = "apa"),
+                selected = "modern"
               ),
               shiny$numericInput(
                 ns("plot_font_size"),
@@ -243,15 +254,32 @@ navpanel_ui <- function(id) {
                 "Facet by:",
                 choices = NULL
               ),
-              shiny$checkboxInput(
-                ns("plot_x_trans_log"),
-                "Log X-Axis",
-                value = TRUE
+              shiny$selectInput(
+                ns("plot_shape_by"),
+                "Shape by:",
+                choices = NULL
               ),
-              shiny$checkboxInput(
-                ns("plot_y_trans_log"),
-                "Pseudo-Log Y-Axis (Natural Scale)",
-                value = TRUE
+              shiny$selectInput(
+                ns("plot_x_trans"),
+                "X-Axis Scale",
+                choices = c(
+                  "Log 10" = "log10",
+                  "Log (natural)" = "log",
+                  "Linear" = "linear",
+                  "Pseudo-Log" = "pseudo_log"
+                ),
+                selected = "log10"
+              ),
+              shiny$selectInput(
+                ns("plot_y_trans"),
+                "Y-Axis Scale",
+                choices = c(
+                  "Log 10" = "log10",
+                  "Log (natural)" = "log",
+                  "Linear" = "linear",
+                  "Pseudo-Log" = "pseudo_log"
+                ),
+                selected = "log10"
               ),
               shiny$checkboxInput(
                 ns("show_population_lines"),
@@ -564,7 +592,6 @@ navpanel_server <- function(id, sidebar_reactives) {
         bounce = input$bounce,
         reversals = input$reversals,
         ncons0 = input$ncons0,
-        beezdemand_ref = beezdemand,
         prepare_fn = mixed_effects_demand_utils$prepare_systematic_input
       )
 
@@ -1226,6 +1253,11 @@ navpanel_server <- function(id, sidebar_reactives) {
         choices = choices_with_none,
         selected = defaults$facet
       )
+      shiny$updateSelectInput(
+        session,
+        "plot_shape_by",
+        choices = choices_with_none
+      )
     }) |>
       shiny$bindEvent(fitted_model_reactive())
 
@@ -1241,7 +1273,8 @@ navpanel_server <- function(id, sidebar_reactives) {
         color_input = input$plot_color_by,
         linetype_input = input$plot_linetype_by,
         facet_input = input$plot_facet_by,
-        valid_factors = valid_factors
+        valid_factors = valid_factors,
+        shape_input = input$plot_shape_by
       )
 
       # Check if there's content to plot
@@ -1275,15 +1308,18 @@ navpanel_server <- function(id, sidebar_reactives) {
       p <- plot(
         model_fit,
         inv_fun = inv_transform_fun,
-        y_trans = plotting$get_axis_transform(input$plot_y_trans_log),
-        x_trans = plotting$get_axis_transform(input$plot_x_trans_log),
+        x_trans = input$plot_x_trans,
+        y_trans = input$plot_y_trans,
+        style = input$plot_style,
         at = cov_info$at_list,
         facet = aesthetics$facet_formula,
         color_by = aesthetics$color,
         linetype_by = aesthetics$linetype,
+        shape_by = aesthetics$shape,
         show_observed = input$show_observed_points_plot,
         show_pred = show_lines_arg,
         title = input$plot_title,
+        subtitle = if (nzchar(input$plot_subtitle)) input$plot_subtitle else NULL,
         x_lab = input$plot_xlab,
         y_lab = input$plot_ylab
       )
@@ -1314,17 +1350,20 @@ navpanel_server <- function(id, sidebar_reactives) {
         input$plot_color_by,
         input$plot_linetype_by,
         input$plot_facet_by,
+        input$plot_shape_by,
         input$plot_theme,
+        input$plot_style,
         input$plot_font_size,
         input$plot_legend_position,
         input$plot_palette,
-        input$plot_x_trans_log,
-        input$plot_y_trans_log,
+        input$plot_x_trans,
+        input$plot_y_trans,
         input$show_population_lines,
         input$show_individual_lines,
         input$show_observed_points_plot,
         input$show_watermark,
         input$plot_title,
+        input$plot_subtitle,
         input$plot_xlab,
         input$plot_ylab,
         sidebar_reactives$covariate(),
@@ -1456,8 +1495,7 @@ navpanel_server <- function(id, sidebar_reactives) {
           deltaq = input$deltaq %||% 0.025,
           bounce = input$bounce %||% 0.10,
           reversals = input$reversals %||% 0,
-          ncons0 = input$ncons0 %||% 2,
-          beezdemand_ref = beezdemand
+          ncons0 = input$ncons0 %||% 2
         )
         export_utils$write_data_sheet(
           wb,
