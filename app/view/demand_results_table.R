@@ -247,7 +247,7 @@ server <- function(
             ggplot2$ggplot(ggplot2$aes(x = x, y = y)) +
             ggplot2$geom_line(
               ggplot2$aes(x = x, y = y),
-              data = res$output[[3]][[1]]
+              data = res$output$predictions[[1]]
             ) +
             ggplot2$geom_point(
               shape = pt_shape,
@@ -261,7 +261,7 @@ server <- function(
             ggplot2$ggplot(ggplot2$aes(x = x, y = y, group = group)) +
             ggplot2$geom_line(
               ggplot2$aes(x = x, y = y, color = group),
-              data = res$output[[3]]
+              data = res$output$predictions
             ) +
             ggplot2$geom_point(
               ggplot2$aes(color = group),
@@ -276,7 +276,7 @@ server <- function(
           ggplot2$ggplot(ggplot2$aes(x = x, y = y, group = id)) +
           ggplot2$geom_line(
             ggplot2$aes(x = x, y = y, group = id),
-            data = dplyr$bind_rows(res$output[[3]]),
+            data = dplyr$bind_rows(res$output$predictions),
             alpha = 0.33
           ) +
           theme_apa()
@@ -285,7 +285,7 @@ server <- function(
             ggplot2$ggplot(ggplot2$aes(x = x, y = y)) +
             ggplot2$geom_line(
               ggplot2$aes(x = x, y = y),
-              data = dplyr$bind_rows(res$output[[3]])
+              data = dplyr$bind_rows(res$output$predictions)
             ) +
             ggplot2$geom_point(
               shape = pt_shape,
@@ -301,7 +301,7 @@ server <- function(
             ggplot2$ggplot(ggplot2$aes(x = x, y = y)) +
             ggplot2$geom_line(
               ggplot2$aes(x = x, y = y),
-              data = res$output[[3]][[1]]
+              data = res$output$predictions[[1]]
             ) +
             ggplot2$geom_point(
               shape = pt_shape,
@@ -314,7 +314,7 @@ server <- function(
             ggplot2$ggplot(ggplot2$aes(x = x, y = y, group = group)) +
             ggplot2$geom_line(
               ggplot2$aes(x = x, y = y, color = group),
-              data = res$output[[3]]
+              data = res$output$predictions
             ) +
             ggplot2$geom_point(
               ggplot2$aes(color = group),

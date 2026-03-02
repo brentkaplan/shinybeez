@@ -71,7 +71,7 @@ results_cols_4dp <- c("Alpha", "Alphase", "AlphaLow", "AlphaHigh")
 #' @return Formatted data frame with rounded columns
 #' @export
 format_demand_results <- function(output) {
-  output[[1]] |>
+  output$results |>
     dplyr$select(!(Intensity:Pmaxe)) |>
     dplyr$mutate(
       dplyr$across(dplyr$all_of(results_cols_2dp), \(x) round(x, 2)),
@@ -135,8 +135,8 @@ fit_demand_grouped <- function(data, eq, agg, k, constrainq0 = NULL) {
         if (!is.null(fit_result)) {
           list(
             group = dplyr$first(.x$group),
-            fit_result_1 = fit_result[[1]],
-            fit_result_3 = fit_result[[3]]
+            fit_result_1 = fit_result$results,
+            fit_result_3 = fit_result$predictions
           )
         }
       },
@@ -150,13 +150,15 @@ fit_demand_grouped <- function(data, eq, agg, k, constrainq0 = NULL) {
     return(NULL)
   }
 
-  output <- vector("list", length = 3)
-  output[[1]] <- dplyr$bind_rows(lapply(group_fits, function(x) {
-    cbind(group = x$group, x$fit_result_1)
-  }))
-  output[[3]] <- dplyr$bind_rows(lapply(group_fits, function(x) {
-    cbind(group = x$group, x$fit_result_3[[1]])
-  }))
+  output <- list(
+    results = dplyr$bind_rows(lapply(group_fits, function(x) {
+      cbind(group = x$group, x$fit_result_1)
+    })),
+    fits = NULL,
+    predictions = dplyr$bind_rows(lapply(group_fits, function(x) {
+      cbind(group = x$group, x$fit_result_3[[1]])
+    }))
+  )
 
   list(
     output = output,

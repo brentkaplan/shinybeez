@@ -70,7 +70,7 @@ make_mock_fitcurves_output <- function() {
     Notes = c("converged", "converged"),
     stringsAsFactors = FALSE
   )
-  list(df, NULL, NULL, NULL)
+  list(results = df, fits = NULL, predictions = NULL)
 }
 
 # ------------------------------------------------------------------------------

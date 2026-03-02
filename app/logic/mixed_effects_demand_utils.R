@@ -6,10 +6,10 @@ box::use(
   rlang
 )
 
-#' Prepare input data for beezdemand::CheckUnsystematic
+#' Prepare input data for beezdemand::check_systematic_demand
 #'
 #' This helper selects and renames the provided id/x/y columns to the
-#' standardized names expected by CheckUnsystematic, and coerces x and y
+#' standardized names expected by check_systematic_demand, and coerces x and y
 #' to numeric. It also drops rows with NA in y.
 #'
 #' @param df data.frame containing the columns

@@ -3,7 +3,8 @@
 #' Helper functions for computing systematic criteria on demand data.
 
 box::use(
-  dplyr
+  beezdemand[check_systematic_demand],
+  dplyr,
 )
 
 #' Compute systematic criteria with optional grouping
@@ -13,11 +14,10 @@ box::use(
 #' @param x_col Name of the x (price) column
 #' @param y_col Name of the y (consumption) column
 #' @param group_vars Character vector of grouping variable names (optional)
-#' @param deltaq DeltaQ criterion value
-#' @param bounce Bounce criterion value
-#' @param reversals Reversals criterion value
-#' @param ncons0 Consecutive zeros criterion value
-#' @param beezdemand_ref Reference to beezdemand module
+#' @param deltaq Passed as trend_threshold to check_systematic_demand
+#' @param bounce Passed as bounce_threshold to check_systematic_demand
+#' @param reversals Passed as max_reversals to check_systematic_demand
+#' @param ncons0 Passed as consecutive_zeros to check_systematic_demand
 #' @param prepare_fn Function to prepare systematic input (from mixed_effects_demand_utils)
 #' @return Data frame with systematic criteria results, or NULL on error
 #' @export
@@ -31,7 +31,6 @@ compute_systematic_criteria <- function(
   bounce = 0.10,
   reversals = 0,
   ncons0 = 2,
-  beezdemand_ref,
   prepare_fn = NULL
 ) {
   if (is.null(df_raw) || nrow(df_raw) == 0) {
@@ -64,13 +63,13 @@ compute_systematic_criteria <- function(
     systematic <- df_sys |>
       dplyr$group_by(dplyr$across(dplyr$all_of(group_vars))) |>
       dplyr$group_modify(
-        ~ beezdemand_ref$CheckUnsystematic(
-          dat = .x[, c("id", "x", "y")],
-          deltaq = deltaq,
-          bounce = bounce,
-          reversals = reversals,
-          ncons0 = ncons0
-        )
+        ~ check_systematic_demand(
+          data = .x[, c("id", "x", "y")],
+          trend_threshold = deltaq,
+          bounce_threshold = bounce,
+          max_reversals = reversals,
+          consecutive_zeros = ncons0
+        )$results
       )
   } else {
     # No grouping - use prepare function if provided
@@ -91,13 +90,13 @@ compute_systematic_criteria <- function(
       df_sys <- df_sys[!is.na(df_sys$y), , drop = FALSE]
     }
 
-    systematic <- beezdemand_ref$CheckUnsystematic(
-      dat = df_sys,
-      deltaq = deltaq,
-      bounce = bounce,
-      reversals = reversals,
-      ncons0 = ncons0
-    )
+    systematic <- check_systematic_demand(
+      data = df_sys,
+      trend_threshold = deltaq,
+      bounce_threshold = bounce,
+      max_reversals = reversals,
+      consecutive_zeros = ncons0
+    )$results
   }
 
   systematic
