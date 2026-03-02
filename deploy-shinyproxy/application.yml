@@ -1,0 +1,136 @@
+# ShinyProxy Application Configuration
+# =====================================
+# This is the main configuration file for ShinyProxy.
+# Copy this to /etc/shinyproxy/application.yml on your server.
+#
+# IMPORTANT: Replace all placeholder values before deploying!
+# Search for "CHANGE_ME" to find values that must be updated.
+
+proxy:
+  title: Shinybeez
+  logo-url: https://raw.githubusercontent.com/brentkaplan/shinybeez/refs/heads/main/shinybeez-logo.png
+  favicon-path: /opt/shinyproxy/favicon.ico
+  hide-navbar: false
+  landing-page: /
+  heartbeat-rate: 10000
+  heartbeat-timeout: 60000
+  port: 8080
+
+  # Welcome message shown on the app selection page
+  notification-message: >
+    Welcome! Click the link below to start using <em>shinybeez</em>.
+    <br><br>Please be patient while the app starts. This may take several seconds.
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # AUTHENTICATION
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Options: none, simple, ldap, openid, saml, webservice, keycloak
+  # For public access, use 'none'. For basic auth, use 'simple'.
+
+  authentication: simple
+
+  # Simple authentication users (CHANGE PASSWORDS IN PRODUCTION!)
+  users:
+    - name: admin
+      password: CHANGE_ME_ADMIN_PASSWORD
+      groups: admins
+    - name: user
+      password: CHANGE_ME_USER_PASSWORD
+      groups: users
+    - name: guest
+      password: guest
+      groups: public
+
+  # Admin users can access ShinyProxy admin panel at /admin
+  admin-groups: admins
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # DOCKER CONFIGURATION
+  # ─────────────────────────────────────────────────────────────────────────────
+  docker:
+    # For local Docker daemon via TCP (recommended for ShinyProxy)
+    url: http://localhost:2375
+
+    # Port range for spawned containers (each user session gets a unique port)
+    port-range-start: 20000
+
+    # Certificate path (set to /home/none to disable)
+    cert-path: /home/none
+
+    # Internal networking (containers can communicate)
+    internal-networking: true
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # APPLICATION SPECIFICATIONS
+  # ─────────────────────────────────────────────────────────────────────────────
+  specs:
+    # Production version
+    - id: shinybeez
+      display-name: shinybeez
+      description: Shiny app for Behavioral Economic Easy Demand and Discounting
+      container-image: brentkaplan/shinybeez:latest
+      container-volumes:
+        - /var/log/shiny:/var/log/shiny
+      container-env:
+        R_CONFIG_ACTIVE: shinyproxy
+      logo-url: https://raw.githubusercontent.com/brentkaplan/shinybeez/refs/heads/main/shinybeez-logo.png
+      access-groups: []
+
+      # Resource limits (adjust based on server capacity)
+      container-memory-limit: 2g
+      container-cpu-limit: 1.0
+
+    # Develop/staging version
+    - id: shinybeez-develop
+      display-name: shinybeez develop
+      description: Shiny app for Behavioral Economic Easy Demand and Discounting (Develop)
+      container-image: brentkaplan/shinybeez:develop
+      container-volumes:
+        - /var/log/shiny:/var/log/shiny
+      container-env:
+        R_CONFIG_ACTIVE: shinyproxy
+      logo-url: https://raw.githubusercontent.com/brentkaplan/shinybeez/refs/heads/main/shinybeez-logo.png
+      access-groups: []
+
+      # Resource limits
+      container-memory-limit: 2g
+      container-cpu-limit: 1.0
+
+# ─────────────────────────────────────────────────────────────────────────────
+# LOGGING CONFIGURATION
+# ─────────────────────────────────────────────────────────────────────────────
+logging:
+  file:
+    name: /etc/shinyproxy/logs/shinyproxy.log
+  level:
+    root: INFO
+    eu.openanalytics: INFO
+    org.springframework: WARN
+    org.apache: WARN
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SERVER CONFIGURATION
+# ─────────────────────────────────────────────────────────────────────────────
+server:
+  # ShinyProxy listens on this port (Nginx proxies to this)
+  port: 8080
+
+  # Enable forward headers for proper client IP detection behind proxy
+  forward-headers-strategy: native
+
+  # Session timeout (30 minutes)
+  servlet:
+    session:
+      timeout: 30m
+
+# ─────────────────────────────────────────────────────────────────────────────
+# MANAGEMENT ENDPOINTS (for health checks)
+# ─────────────────────────────────────────────────────────────────────────────
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: when-authorized

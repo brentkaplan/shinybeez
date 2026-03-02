@@ -18,9 +18,7 @@ on:
 
 env:
   REGISTRY: docker.io
-  IMAGE_NAME: shinybeez
-  DOCKER_USERNAME: brentkaplan
-  DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+  IMAGE_NAME: brentkaplan/shinybeez
   SHINYBEEZ_FULL_TESTS: ${{ (github.ref == 'refs/heads/main' || github.event.inputs.full_tests == 'true') && 'true' || 'false' }}
 
 jobs:
@@ -83,7 +81,7 @@ jobs:
     runs-on: ubuntu-latest
     name: Build Docker Image
     outputs:
-      image-tag: ${{ steps.meta.outputs.tags }}
+      image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.build.outputs.digest }}
       image-digest: ${{ steps.build.outputs.digest }}
 
     steps:
@@ -98,24 +96,25 @@ jobs:
       uses: docker/login-action@v3
       with:
         registry: ${{ env.REGISTRY }}
-        username: brentkaplan
-        password: ${{ env.DOCKER_PASSWORD }}
+        username: ${{ secrets.DOCKERHUB_USERNAME }}
+        password: ${{ secrets.DOCKERHUB_TOKEN }}
 
     - name: Extract metadata
       id: meta
       uses: docker/metadata-action@v5
       with:
-        images: ${{ env.REGISTRY }}/brentkaplan/${{ env.IMAGE_NAME }}
+        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
         tags: |
+          type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
           type=ref,event=branch
           type=ref,event=pr
           type=semver,pattern={{version}}
           type=semver,pattern={{major}}.{{minor}}
-          type=sha,prefix={{branch}}-
+          type=sha
 
     - name: Build and push Docker image
       id: build
-      uses: docker/build-push-action@v5
+      uses: docker/build-push-action@v6
       with:
         context: .
         platforms: linux/amd64
@@ -149,7 +148,7 @@ jobs:
       if: github.event_name != 'pull_request'
       uses: anchore/sbom-action@v0
       with:
-        image: ${{ env.REGISTRY }}/brentkaplan/${{ env.IMAGE_NAME }}:${{ github.ref_name }}
+        image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.build.outputs.digest }}
         format: spdx-json
         output-file: sbom.spdx.json
 
@@ -160,9 +159,9 @@ jobs:
         name: sbom
         path: sbom.spdx.json
 
-  # Deploy to staging (for PRs and develop branch)
+  # Deploy to staging (develop branch only)
   deploy-staging:
-    if: github.ref == 'refs/heads/develop' || github.event_name == 'pull_request'
+    if: github.ref == 'refs/heads/develop'
     needs: build
     runs-on: ubuntu-latest
     name: Deploy to Staging
@@ -170,39 +169,17 @@ jobs:
 
     steps:
     - name: Deploy to staging ShinyProxy
-      uses: appleboy/ssh-action@v1.0.0
+      uses: appleboy/ssh-action@v1.2.0
       with:
-        host: ${{ secrets.STAGING_HOST }}
-        username: ${{ secrets.STAGING_USERNAME }}
-        key: ${{ secrets.STAGING_SSH_KEY }}
+        host: ${{ secrets.PRODUCTION_HOST }}
+        username: ${{ secrets.PRODUCTION_USERNAME }}
+        key: ${{ secrets.PRODUCTION_SSH_KEY }}
         port: 22
         script: |
-          cd /opt/shinyproxy
+          docker pull brentkaplan/shinybeez:develop
+          docker images brentkaplan/shinybeez:develop --format "{{.ID}} {{.CreatedAt}}"
 
-          # Pull latest image
-          docker pull ${{ needs.build.outputs.image-tag }}
-
-          # Update staging configuration
-          docker-compose -f docker-compose.staging.yml down shinybeez-staging
-          docker-compose -f docker-compose.staging.yml up -d shinybeez-staging
-
-          # Health check
-          sleep 30
-          curl -f http://localhost:8081/actuator/health || exit 1
-
-    - name: Comment PR with staging URL
-      if: github.event_name == 'pull_request'
-      uses: actions/github-script@v7
-      with:
-        script: |
-          github.rest.issues.createComment({
-            issue_number: context.issue.number,
-            owner: context.repo.owner,
-            repo: context.repo.repo,
-            body: '🚀 Staging deployment ready!\n\n**Preview URL:** http://${{ secrets.STAGING_HOST }}:8081/app/shinybeez\n\n**Image:** `${{ needs.build.outputs.image-tag }}`'
-          })
-
-  # Deploy to production (for main branch and tags)
+  # Deploy to production (main branch and tags)
   deploy-production:
     if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
     needs: build
@@ -212,47 +189,16 @@ jobs:
 
     steps:
     - name: Deploy to production ShinyProxy
-      uses: appleboy/ssh-action@v1.0.0
+      uses: appleboy/ssh-action@v1.2.0
       with:
         host: ${{ secrets.PRODUCTION_HOST }}
         username: ${{ secrets.PRODUCTION_USERNAME }}
         key: ${{ secrets.PRODUCTION_SSH_KEY }}
         port: 22
         script: |
-          cd /opt/shinyproxy
-
-          # Backup current deployment
-          docker tag shinybeez:current shinybeez:backup-$(date +%Y%m%d-%H%M%S) || true
-
-          # Pull latest image
-          docker pull ${{ needs.build.outputs.image-tag }}
-          docker tag ${{ needs.build.outputs.image-tag }} shinybeez:current
-
-          # Update production
-          docker-compose down shinybeez
-          docker-compose up -d shinybeez
-
-          # Health check with retry
-          for i in {1..10}; do
-            if curl -f http://localhost:8080/actuator/health; then
-              echo "Health check passed"
-              break
-            fi
-            echo "Health check failed, attempt $i/10"
-            sleep 30
-          done
-
-          # If health check fails, rollback
-          if ! curl -f http://localhost:8080/actuator/health; then
-            echo "Deployment failed, rolling back"
-            docker-compose down shinybeez
-            docker tag shinybeez:backup-$(date +%Y%m%d) shinybeez:current
-            docker-compose up -d shinybeez
-            exit 1
-          fi
-
-          # Clean up old images (keep last 5)
-          docker images shinybeez --format "table {{.Repository}}:{{.Tag}}\t{{.CreatedAt}}" | grep backup | tail -n +6 | awk '{print $1}' | xargs -r docker rmi || true
+          docker pull brentkaplan/shinybeez:latest
+          docker images brentkaplan/shinybeez:latest --format "{{.ID}} {{.CreatedAt}}"
+          docker image prune -f
 
   # Deploy to shinyapps.io (parallel to ShinyProxy)
   deploy-shinyapps:
@@ -311,14 +257,23 @@ jobs:
     if: github.event_name != 'pull_request'
 
     steps:
-    - name: Run Trivy vulnerability scanner
-      uses: aquasecurity/trivy-action@master
+    - name: Log in to Docker Hub
+      uses: docker/login-action@v3
       with:
-        image-ref: ${{ needs.build.outputs.image-tag }}
+        registry: ${{ env.REGISTRY }}
+        username: ${{ secrets.DOCKERHUB_USERNAME }}
+        password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+    - name: Run Trivy vulnerability scanner
+      uses: aquasecurity/trivy-action@0.28.0
+      with:
+        image-ref: ${{ needs.build.outputs.image-ref }}
         format: 'sarif'
         output: 'trivy-results.sarif'
+        severity: 'CRITICAL,HIGH'
 
     - name: Upload Trivy scan results
+      if: always()
       uses: github/codeql-action/upload-sarif@v3
       with:
         sarif_file: 'trivy-results.sarif'
@@ -331,15 +286,15 @@ jobs:
     if: always() && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
 
     steps:
-    - name: Notify success
-      if: needs.deploy-production.result == 'success' && needs.deploy-shinyapps.result == 'success'
+    - name: Deployment summary
       run: |
-        echo "🎉 Deployment successful!"
-        echo "ShinyProxy: http://${{ secrets.PRODUCTION_HOST }}:8080"
-        echo "shinyapps.io: https://${{ secrets.SHINYAPPS_NAME }}.shinyapps.io/shinybeez"
+        echo "## Deployment Results" >> "$GITHUB_STEP_SUMMARY"
+        echo "" >> "$GITHUB_STEP_SUMMARY"
+        echo "| Target | Status |" >> "$GITHUB_STEP_SUMMARY"
+        echo "|--------|--------|" >> "$GITHUB_STEP_SUMMARY"
+        echo "| ShinyProxy | ${{ needs.deploy-production.result }} |" >> "$GITHUB_STEP_SUMMARY"
+        echo "| shinyapps.io | ${{ needs.deploy-shinyapps.result }} |" >> "$GITHUB_STEP_SUMMARY"
 
-    - name: Notify failure
+    - name: Fail if any deployment failed
       if: needs.deploy-production.result == 'failure' || needs.deploy-shinyapps.result == 'failure'
-      run: |
-        echo "❌ Deployment failed!"
-        exit 1
+      run: exit 1
