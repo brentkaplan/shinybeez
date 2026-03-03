@@ -929,7 +929,7 @@
       "RemoteUsername": "brentkaplan",
       "RemoteRepo": "beezdemand",
       "RemoteRef": "develop",
-      "RemoteSha": "d37519d5e6c93f6df1b19aa9c40dc31d44bb2a7c"
+      "RemoteSha": "d37519d50d5f25fe7bbd5aeced13c0ca1efa36d1"
     },
     "beezdiscounting": {
       "Package": "beezdiscounting",
