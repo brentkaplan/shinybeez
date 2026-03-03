@@ -49,6 +49,13 @@
     border-color: rgb(121 82 179 / 20%);
   }
 
+  &:focus-visible {
+    outline: 3px solid #7952b3;
+    outline-offset: 2px;
+    box-shadow: 0 10px 25px rgb(0 0 0 / 7%);
+    border-color: rgb(121 82 179 / 20%);
+  }
+
   .info-icon {
     width: 3.5rem;
     height: 3.5rem;
@@ -204,6 +211,10 @@ code {
     &:hover {
       box-shadow: 0 10px 25px rgb(0 0 0 / 30%);
       border-color: rgb(169 143 214 / 30%);
+    }
+
+    &:focus-visible {
+      outline-color: #a78bda;
     }
 
     .info-icon {

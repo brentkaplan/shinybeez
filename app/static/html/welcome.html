@@ -286,7 +286,7 @@
                 <section id="templates" class="mb-4 p-4 shadow-sm rounded">
                     <h3>Downloadable Templates</h3>
                     <div class="info-grid">
-                        <div class="info-card" onclick="toggleDetails('demand-templates')">
+                        <div class="info-card" onclick="toggleDetails('demand-templates')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleDetails('demand-templates')}" role="button" tabindex="0" aria-expanded="false" aria-controls="demand-templates">
                             <div class="info-icon">
                                 <i class="fa fa-table"></i>
                             </div>
@@ -294,7 +294,7 @@
                             <p>Download and learn about formats for demand analysis data.</p>
                             <a class="learn-more">Learn more</a>
                         </div>
-                        <div class="info-card" onclick="toggleDetails('discounting-templates')">
+                        <div class="info-card" onclick="toggleDetails('discounting-templates')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleDetails('discounting-templates')}" role="button" tabindex="0" aria-expanded="false" aria-controls="discounting-templates">
                             <div class="info-icon">
                                 <i class="fa fa-file-excel"></i>
                             </div>
@@ -440,7 +440,7 @@
                 <section id="documentation" class="mb-4 p-4 shadow-sm rounded">
                     <h3>Documentation</h3>
                     <div class="info-grid">
-                        <div class="info-card" onclick="toggleDetails('demand-details')">
+                        <div class="info-card" onclick="toggleDetails('demand-details')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleDetails('demand-details')}" role="button" tabindex="0" aria-expanded="false" aria-controls="demand-details">
                             <div class="info-icon">
                                 <i class="fa fa-chart-line"></i>
                             </div>
@@ -448,7 +448,7 @@
                             <p>Learn about behavioral economic demand analysis methods and tools.</p>
                             <a class="learn-more">Learn more</a>
                         </div>
-                        <div class="info-card" onclick="toggleDetails('discounting-details')">
+                        <div class="info-card" onclick="toggleDetails('discounting-details')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleDetails('discounting-details')}" role="button" tabindex="0" aria-expanded="false" aria-controls="discounting-details">
                             <div class="info-icon">
                                 <i class="fa fa-percentage"></i>
                             </div>
@@ -917,7 +917,7 @@
                 <section id="misc" class="mb-4 p-4 shadow-sm rounded">
                     <h3>Miscellaneous</h3>
                     <div class="info-grid">
-                        <div class="info-card" onclick="toggleDetails('general-questions')">
+                        <div class="info-card" onclick="toggleDetails('general-questions')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleDetails('general-questions')}" role="button" tabindex="0" aria-expanded="false" aria-controls="general-questions">
                             <div class="info-icon">
                                 <i class="fa fa-question-circle"></i>
                             </div>
@@ -925,7 +925,7 @@
                             <p>Find answers to common questions about using shinybeez.</p>
                             <a class="learn-more">Learn more</a>
                         </div>
-                        <div class="info-card" onclick="toggleDetails('resources')">
+                        <div class="info-card" onclick="toggleDetails('resources')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleDetails('resources')}" role="button" tabindex="0" aria-expanded="false" aria-controls="resources">
                             <div class="info-icon">
                                 <i class="fa fa-wrench"></i>
                             </div>
@@ -933,7 +933,7 @@
                             <p>Find helpful resources and additional readings for using <em>shinybeez</em>.</p>
                             <a class="learn-more">Learn more</a>
                         </div>
-                        <div class="info-card" onclick="toggleDetails('license')">
+                        <div class="info-card" onclick="toggleDetails('license')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleDetails('license')}" role="button" tabindex="0" aria-expanded="false" aria-controls="license">
                             <div class="info-icon">
                                 <i class="fa fa-wrench"></i>
                             </div>
@@ -1739,15 +1739,23 @@
 
         function toggleDetails(id) {
             var element = document.getElementById(id);
-            if (element.style.display === "block") {
-                element.style.display = "none";
-            } else {
-                // Hide all content details first
-                document.querySelectorAll('.content-details').forEach(function (detail) {
-                    detail.style.display = "none";
-                });
-                // Show the selected one
+            var isOpen = element.style.display === "block";
+
+            // Reset all aria-expanded states and hide all content
+            document.querySelectorAll('.info-card[aria-controls]').forEach(function (card) {
+                card.setAttribute('aria-expanded', 'false');
+            });
+            document.querySelectorAll('.content-details').forEach(function (detail) {
+                detail.style.display = "none";
+            });
+
+            if (!isOpen) {
+                // Show the selected one and update its trigger
                 element.style.display = "block";
+                var trigger = document.querySelector('[aria-controls="' + id + '"]');
+                if (trigger) {
+                    trigger.setAttribute('aria-expanded', 'true');
+                }
             }
         }
 

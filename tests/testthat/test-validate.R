@@ -146,6 +146,36 @@ describe("reshape_data", {
     expect_true("y" %in% names(result))
   })
 
+  it("reshapes grouped wide demand data to long format", {
+    df <- data.frame(
+      id = c("p1", "p2"),
+      group = c("A", "B"),
+      `0.01` = c(100, 90),
+      `0.1` = c(80, 70),
+      `1` = c(50, 40),
+      check.names = FALSE
+    )
+    df <- validate$rename_cols(df)
+    result <- validate$reshape_data(df, type = "demand")
+    expect_equal(nrow(result), 6)
+    expect_true(all(c("id", "group", "x", "y") %in% names(result)))
+    expect_equal(sort(unique(result$group)), c("A", "B"))
+    expect_equal(sort(unique(as.character(result$id))), c("p1", "p2"))
+  })
+
+  it("preserves NA values during wide-to-long reshape", {
+    df <- data.frame(
+      id = c("p1", "p2"),
+      `0.01` = c(100, NA),
+      `0.1` = c(80, 70),
+      check.names = FALSE
+    )
+    df <- validate$rename_cols(df)
+    result <- suppressWarnings(validate$reshape_data(df, type = "demand"))
+    expect_equal(nrow(result), 4)
+    expect_true(any(is.na(result$y)))
+  })
+
   it("returns long data unchanged", {
     df <- data.frame(
       id = c("p1", "p1", "p2", "p2"),

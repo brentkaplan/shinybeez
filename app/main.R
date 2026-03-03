@@ -89,7 +89,7 @@ ui <- function(id) {
         width = "95px",
         height = "auto",
         class = "me-3",
-        alt = "Shiny Beez"
+        alt = "Shinybeez - Behavioral Economic Easy Demand and Discounting"
       ),
       "Shinybeez"
     ),

@@ -1,5 +1,6 @@
 box::use(
   assertthat,
+  beezdemand[pivot_demand_data],
   beezdiscounting,
   dplyr,
   readr,
@@ -153,21 +154,7 @@ reshape_data <- function(dat, type = "demand") {
   if (type == "demand") {
     # check if dat is wider than it is long
     if (length(unique(dat$id)) == length(dat$id)) {
-      if ("group" %in% colnames(dat)) {
-        dat |>
-          tidyr$pivot_longer(
-            cols = 3:ncol(dat),
-            names_to = "x",
-            values_to = "y"
-          )
-      } else {
-        dat |>
-          tidyr$pivot_longer(
-            cols = 2:ncol(dat),
-            names_to = "x",
-            values_to = "y"
-          )
-      }
+      pivot_demand_data(dat, format = "long", drop_na = FALSE)
     } else {
       dat
     }

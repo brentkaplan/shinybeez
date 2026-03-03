@@ -7,7 +7,12 @@ box::use(
 ui <- function(id) {
   ns <- shiny$NS(id)
   bslib$nav_item(
-    shiny$actionLink(ns("info"), "", icon = shiny$icon("info-circle"))
+    shiny$actionLink(
+      ns("info"),
+      shiny$tags$span(class = "visually-hidden", "App information"),
+      icon = shiny$icon("info-circle"),
+      `aria-label` = "App information"
+    )
   )
 }
 
@@ -21,7 +26,8 @@ server <- function(id) {
         shiny$tags$img(
           src = "static/img/hex-shinybeez.png",
           height = 115,
-          width = 100
+          width = 100,
+          alt = "Shinybeez hex logo"
         ),
         shiny$HTML(
           paste0(
