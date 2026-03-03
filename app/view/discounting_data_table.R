@@ -212,10 +212,15 @@ server <- function(id, data_r, type = NULL) {
           sys_result <- NULL
         } else if (type() %in% "Indifference Point Regression") {
           sys_result <- tryCatch(
-            systematic$compute_systematic_discounting(
-              data_r$data_d,
-              c1 = input$c1,
-              c2 = input$c2
+            session_logger$with_performance(
+              "discounting_systematic_check",
+              function() {
+                systematic$compute_systematic_discounting(
+                  data_r$data_d,
+                  c1 = input$c1,
+                  c2 = input$c2
+                )
+              }
             ),
             error = function(e) {
               shiny$showNotification(e$message, type = "error", duration = 10)

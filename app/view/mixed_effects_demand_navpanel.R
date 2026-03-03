@@ -711,16 +711,13 @@ navpanel_server <- function(id, sidebar_reactives) {
         cov_info <- build_covariate_modeling_info(df)
         cont_covars_to_pass <- cov_info$model_covariate_name
 
-        # Track model fitting start time for performance logging
-        model_start_time <- Sys.time()
-
         model_fit <- tryCatch(
-          {
+          session_logger$with_performance("mixed_effects_model_fit", function() {
             beezdemand$fit_demand_mixed(
               data = df,
               y_var = "y_for_model",
-              x_var = sidebar_reactives$x_var(), # Assuming 'x' is the price/ratio column from ko
-              id_var = sidebar_reactives$id_var(), # Assuming 'monkey' is the ID from ko
+              x_var = sidebar_reactives$x_var(),
+              id_var = sidebar_reactives$id_var(),
               factors = sel_factors,
               factor_interaction = sidebar_reactives$factor_interaction(),
               equation_form = sidebar_reactives$equation_form(),
@@ -728,10 +725,10 @@ navpanel_server <- function(id, sidebar_reactives) {
               random_effects = random_effects_formula_to_pass,
               covariance_structure = sidebar_reactives$covariance_structure(),
               nlme_control = user_nlme_control,
-              start_value_method = "pooled_nls", # Often more robust for complex models
+              start_value_method = "pooled_nls",
               continuous_covariates = cont_covars_to_pass
             )
-          },
+          }),
           error = function(e) {
             shiny$removeNotification(notif_id)
             shiny$showNotification(
@@ -739,7 +736,6 @@ navpanel_server <- function(id, sidebar_reactives) {
               type = "error",
               duration = NULL
             )
-            # Log model fitting failure
             session_logger$model_fitting(
               model_type = "mixed_effects_demand",
               parameters = list(
@@ -759,7 +755,6 @@ navpanel_server <- function(id, sidebar_reactives) {
             "Model fitting failed or did not converge.",
             type = "error"
           )
-          # Log convergence failure
           session_logger$model_fitting(
             model_type = "mixed_effects_demand",
             parameters = list(
@@ -774,34 +769,6 @@ navpanel_server <- function(id, sidebar_reactives) {
 
         # Persist the scale info for plotting
         model_fit$param_info$y_is_ll4 <- y_is_ll4
-
-        # Calculate fitting duration and log success
-        model_duration_ms <- as.numeric(difftime(
-          Sys.time(),
-          model_start_time,
-          units = "secs"
-        )) *
-          1000
-        session_logger$model_fitting(
-          model_type = "mixed_effects_demand",
-          parameters = list(
-            equation = sidebar_reactives$equation_form(),
-            factors = sel_factors,
-            n_observations = nrow(df)
-          ),
-          status = "completed",
-          metrics = list(fitting_time_ms = round(model_duration_ms))
-        )
-
-        # Log performance if it took a while
-        session_logger$performance(
-          operation_name = "mixed_effects_model_fit",
-          duration_ms = round(model_duration_ms),
-          additional_metrics = list(
-            n_observations = nrow(df),
-            n_factors = length(sel_factors)
-          )
-        )
 
         shiny$removeNotification(notif_id)
         shiny$showNotification("Model fitting complete.", type = "message")
@@ -904,13 +871,15 @@ navpanel_server <- function(id, sidebar_reactives) {
       df_now <- data_to_analyze()
       cov_info <- build_covariate_modeling_info(df_now)
       emms_data <- tryCatch(
-        beezdemand$get_observed_demand_param_emms(
-          fit_obj = model_fit,
-          factors_in_emm = model_factors,
-          at = cov_info$at_list,
-          include_ev = TRUE,
-          ci_level = 0.95
-        ),
+        session_logger$with_performance("mixed_effects_emms", function() {
+          beezdemand$get_observed_demand_param_emms(
+            fit_obj = model_fit,
+            factors_in_emm = model_factors,
+            at = cov_info$at_list,
+            include_ev = TRUE,
+            ci_level = 0.95
+          )
+        }),
         error = function(e) {
           shiny$showNotification(
             paste("Error getting EMMs:", e$message),
@@ -1072,15 +1041,17 @@ navpanel_server <- function(id, sidebar_reactives) {
       cov_info <- build_covariate_modeling_info(df_now)
 
       comps <- tryCatch(
-        beezdemand$get_demand_comparisons(
-          fit_obj = model_fit,
-          params_to_compare = c("Q0", "alpha"),
-          compare_specs = comparisons$build_specs_formula(specs_str),
-          contrast_by = contrast_by_arg,
-          at = cov_info$at_list,
-          adjust = input$comparison_adjust_method,
-          report_ratios = TRUE
-        ),
+        session_logger$with_performance("mixed_effects_comparisons", function() {
+          beezdemand$get_demand_comparisons(
+            fit_obj = model_fit,
+            params_to_compare = c("Q0", "alpha"),
+            compare_specs = comparisons$build_specs_formula(specs_str),
+            contrast_by = contrast_by_arg,
+            at = cov_info$at_list,
+            adjust = input$comparison_adjust_method,
+            report_ratios = TRUE
+          )
+        }),
         error = function(e) {
           shiny$showNotification(
             paste("Error in comparisons:", e$message),
@@ -1305,23 +1276,27 @@ navpanel_server <- function(id, sidebar_reactives) {
       df_now <- data_to_analyze()
       cov_info <- build_covariate_modeling_info(df_now)
 
-      p <- plot(
-        model_fit,
-        inv_fun = inv_transform_fun,
-        x_trans = input$plot_x_trans,
-        y_trans = input$plot_y_trans,
-        style = input$plot_style,
-        at = cov_info$at_list,
-        facet = aesthetics$facet_formula,
-        color_by = aesthetics$color,
-        linetype_by = aesthetics$linetype,
-        shape_by = aesthetics$shape,
-        show_observed = input$show_observed_points_plot,
-        show_pred = show_lines_arg,
-        title = input$plot_title,
-        subtitle = if (nzchar(input$plot_subtitle)) input$plot_subtitle else NULL,
-        x_lab = input$plot_xlab,
-        y_lab = input$plot_ylab
+      p <- session_logger$with_performance(
+        "mixed_effects_plot", function() {
+          plot(
+            model_fit,
+            inv_fun = inv_transform_fun,
+            x_trans = input$plot_x_trans,
+            y_trans = input$plot_y_trans,
+            style = input$plot_style,
+            at = cov_info$at_list,
+            facet = aesthetics$facet_formula,
+            color_by = aesthetics$color,
+            linetype_by = aesthetics$linetype,
+            shape_by = aesthetics$shape,
+            show_observed = input$show_observed_points_plot,
+            show_pred = show_lines_arg,
+            title = input$plot_title,
+            subtitle = if (nzchar(input$plot_subtitle)) input$plot_subtitle else NULL,
+            x_lab = input$plot_xlab,
+            y_lab = input$plot_ylab
+          )
+        }
       )
 
       # Apply theme and styling using plotting module

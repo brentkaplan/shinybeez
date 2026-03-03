@@ -136,29 +136,31 @@ server <- function(
         "model_fitting"
       )
 
-      fit_result <- tryCatch(
-        {
-          if (is_grouped) {
-            fitting$fit_demand_grouped(
-              data_r$data_d, eq = eq_code, agg = agg_val,
-              k = k, constrainq0 = constrainq0
+      shiny$withProgress(message = "Fitting demand curves...", {
+        fit_result <- tryCatch(
+          session_logger$with_performance("demand_curve_fitting", function() {
+            if (is_grouped) {
+              fitting$fit_demand_grouped(
+                data_r$data_d, eq = eq_code, agg = agg_val,
+                k = k, constrainq0 = constrainq0
+              )
+            } else {
+              fitting$fit_demand_ungrouped(
+                data_r$data_d, eq = eq_code, agg = agg_val,
+                k = k, constrainq0 = constrainq0
+              )
+            }
+          }),
+          error = function(e) {
+            rhino$log$error(paste("Error in FitCurves:", e$message))
+            shiny$showNotification(
+              paste("Error fitting demand curves:", e$message),
+              type = "error", duration = 10
             )
-          } else {
-            fitting$fit_demand_ungrouped(
-              data_r$data_d, eq = eq_code, agg = agg_val,
-              k = k, constrainq0 = constrainq0
-            )
+            NULL
           }
-        },
-        error = function(e) {
-          rhino$log$error(paste("Error in FitCurves:", e$message))
-          shiny$showNotification(
-            paste("Error fitting demand curves:", e$message),
-            type = "error", duration = 10
-          )
-          NULL
-        }
-      )
+        )
+      })
 
       if (!is.null(fit_result)) {
         res$output <- fit_result$output

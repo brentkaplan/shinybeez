@@ -143,7 +143,9 @@ server <- function(id, isgroup = NULL, data_r) {
       session_logger$info("Computing demand descriptives", "data_processing")
 
       descriptives <- tryCatch(
-        empirical$compute_descriptives(data_r$data_d, is_grouped = isgroup()),
+        session_logger$with_performance("demand_descriptives", function() {
+          empirical$compute_descriptives(data_r$data_d, is_grouped = isgroup())
+        }),
         error = function(e) {
           shiny$showNotification(e$message, type = "error", duration = 10)
           NULL
@@ -197,10 +199,12 @@ server <- function(id, isgroup = NULL, data_r) {
       )
 
       emp_result <- tryCatch(
-        empirical$compute_empirical_measures(
-          data_r$data_d,
-          is_grouped = isgroup()
-        ),
+        session_logger$with_performance("demand_empirical_measures", function() {
+          empirical$compute_empirical_measures(
+            data_r$data_d,
+            is_grouped = isgroup()
+          )
+        }),
         error = function(e) {
           shiny$showNotification(e$message, type = "error", duration = 10)
           NULL
@@ -251,14 +255,16 @@ server <- function(id, isgroup = NULL, data_r) {
       session_logger$info("Computing systematic criteria", "data_processing")
 
       sys_result <- tryCatch(
-        systematic$compute_systematic(
-          data_r$data_d,
-          deltaq = input$deltaq,
-          bounce = input$bounce,
-          reversals = input$reversals,
-          ncons0 = input$ncons0,
-          is_grouped = isgroup()
-        ),
+        session_logger$with_performance("demand_systematic_check", function() {
+          systematic$compute_systematic(
+            data_r$data_d,
+            deltaq = input$deltaq,
+            bounce = input$bounce,
+            reversals = input$reversals,
+            ncons0 = input$ncons0,
+            is_grouped = isgroup()
+          )
+        }),
         error = function(e) {
           shiny$showNotification(e$message, type = "error", duration = 10)
           NULL

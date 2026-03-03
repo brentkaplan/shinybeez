@@ -18,6 +18,7 @@ box::use(
   app / logic / discounting / five_trial,
   app / logic / discounting / regression,
   app / logic / discounting / scoring,
+  app / logic / logging_utils,
   app / logic / utils,
 )
 
@@ -39,6 +40,7 @@ server <- function(
     calculate_btn) {
   shiny$moduleServer(id, function(input, output, session) {
     ns <- session$ns
+    session_logger <- logging_utils$create_session_logger(session)
 
     # Dynamic UI for results
     output$results_box <- shiny$renderUI({
@@ -87,11 +89,13 @@ server <- function(
       res <- list()
       if (type() == "27-Item MCQ" && !("I16" %in% names(data_r$data_d))) {
         rhino$log$debug(paste("Imputation method:", imputation(), "; Transformation:", trans()))
-        mcq_out <- scoring$score_and_format_mcq(
-          data_r$data_d,
-          imputation = imputation(),
-          trans = trans()
-        )
+        mcq_out <- session_logger$with_performance("mcq_scoring", function() {
+          scoring$score_and_format_mcq(
+            data_r$data_d,
+            imputation = imputation(),
+            trans = trans()
+          )
+        })
         res$results <- mcq_out$results
         res$data <- mcq_out$data
         res$summary <- mcq_out$summary
@@ -116,17 +120,29 @@ server <- function(
 
       } else if (type() == "5.5 Trial Delay Discounting") {
         rhino$log$info("Calculating 5.5 Trial DD")
-        res$results <- five_trial$compute_five_trial_dd(data_r$data_d)
+        res$results <- session_logger$with_performance(
+          "five_trial_dd", function() {
+            five_trial$compute_five_trial_dd(data_r$data_d)
+          }
+        )
       } else if (type() == "5.5 Trial Probability Discounting") {
         rhino$log$info("Calculating 5.5 Trial PD")
-        res$results <- five_trial$compute_five_trial_pd(data_r$data_d)
+        res$results <- session_logger$with_performance(
+          "five_trial_pd", function() {
+            five_trial$compute_five_trial_pd(data_r$data_d)
+          }
+        )
       } else if (type() == "Indifference Point Regression") {
         rhino$log$debug(paste("Equation:", eq(), "; Aggregation:", agg()))
         rhino$log$info("Calculating Regression")
-        reg_out <- regression$fit_and_format_regression(
-          data_r$data_d,
-          equation = eq(),
-          method = agg()
+        reg_out <- session_logger$with_performance(
+          "discounting_regression_fit", function() {
+            regression$fit_and_format_regression(
+              data_r$data_d,
+              equation = eq(),
+              method = agg()
+            )
+          }
         )
         res$dd_fit <- reg_out$dd_fit
         res$results <- reg_out$results
