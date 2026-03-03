@@ -114,22 +114,29 @@ server <- function(id, type = "demand") {
           )
           return()
         } else {
-          # Remove rows with NAs and notify if any dropped
-          na_result <- validate$remove_na_rows(tmp)
-          tmp <- na_result$data
-          if (na_result$n_dropped > 0) {
-            shiny$showNotification(
-              paste(
-                na_result$n_dropped,
-                "row(s) with missing values were dropped from your data."
-              ),
-              type = "warning",
-              duration = 8
+          is_mcq_wide <- "subjectid" %in% colnames(tmp) && ncol(tmp) == 28
+          if (is_mcq_wide) {
+            # MCQ wide format: NAs are expected (missing/unanswered items).
+            # score_mcq27() handles missing data via imputation — preserve as-is.
+            session$userData$data$discounting <- tmp
+          } else {
+            # Non-MCQ formats: drop fully-NA rows and empty columns
+            na_result <- validate$remove_na_rows(tmp)
+            tmp <- na_result$data
+            if (na_result$n_dropped > 0) {
+              shiny$showNotification(
+                paste(
+                  na_result$n_dropped,
+                  "row(s) with missing values were dropped from your data."
+                ),
+                type = "warning",
+                duration = 8
+              )
+            }
+            session$userData$data$discounting <- validate$obliterate_empty_cols(
+              tmp
             )
           }
-          session$userData$data$discounting <- validate$obliterate_empty_cols(
-            tmp
-          )
         }
       } else if (type == "mixed_effects_demand") {
         session_logger$info(
