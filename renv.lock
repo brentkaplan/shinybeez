@@ -862,9 +862,9 @@
     },
     "beezdemand": {
       "Package": "beezdemand",
-      "Version": "0.2.0",
+      "Version": "0.2.0.9000",
       "Source": "GitHub",
-      "Date": "2026-02-27",
+      "Date": "2026-03-03",
       "Title": "Behavioral Economic Easy Demand",
       "Authors@R": "c(person(\"Brent\", \"Kaplan\", email = \"bkaplan.ku@gmail.com\", role = c(\"aut\", \"cre\", \"cph\"), comment = c(ORCID = \"0000-0002-3758-6776\")), person(\"Shawn\", \"Gilroy\", email = \"shawn.gilroy@temple.edu\", role = \"ctb\"))",
       "Author": "Brent Kaplan [aut, cre, cph] (<https://orcid.org/0000-0002-3758-6776>), Shawn Gilroy [ctb]",
@@ -929,7 +929,7 @@
       "RemoteUsername": "brentkaplan",
       "RemoteRepo": "beezdemand",
       "RemoteRef": "develop",
-      "RemoteSha": "6a61b37f4b13e315f5833904231a6297887179ae"
+      "RemoteSha": "d37519d5e6c93f6df1b19aa9c40dc31d44bb2a7c"
     },
     "beezdiscounting": {
       "Package": "beezdiscounting",
