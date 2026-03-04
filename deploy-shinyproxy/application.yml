@@ -2,47 +2,28 @@
 # =====================================
 # This is the main configuration file for ShinyProxy.
 # Copy this to /etc/shinyproxy/application.yml on your server.
-#
-# IMPORTANT: Replace all placeholder values before deploying!
-# Search for "CHANGE_ME" to find values that must be updated.
 
 proxy:
-  title: Shinybeez
-  logo-url: https://raw.githubusercontent.com/brentkaplan/shinybeez/refs/heads/main/shinybeez-logo.png
-  favicon-path: /opt/shinyproxy/favicon.ico
-  hide-navbar: false
+  title: codedbx Shiny Portal
+  logo-url: file:///etc/shinyproxy/logo.png
   landing-page: /
+  favicon-path: favicon.ico
   heartbeat-rate: 10000
   heartbeat-timeout: 60000
+  container-wait-time: 120000
+  start-delay: 60000
+  interval: 60000
   port: 8080
+
+  # Authentication: 'none' for public access, 'simple' for basic auth
+  authentication: none
+
+  admin-groups: admins
 
   # Welcome message shown on the app selection page
   notification-message: >
     Welcome! Click the link below to start using <em>shinybeez</em>.
     <br><br>Please be patient while the app starts. This may take several seconds.
-
-  # ─────────────────────────────────────────────────────────────────────────────
-  # AUTHENTICATION
-  # ─────────────────────────────────────────────────────────────────────────────
-  # Options: none, simple, ldap, openid, saml, webservice, keycloak
-  # For public access, use 'none'. For basic auth, use 'simple'.
-
-  authentication: simple
-
-  # Simple authentication users (CHANGE PASSWORDS IN PRODUCTION!)
-  users:
-    - name: admin
-      password: CHANGE_ME_ADMIN_PASSWORD
-      groups: admins
-    - name: user
-      password: CHANGE_ME_USER_PASSWORD
-      groups: users
-    - name: guest
-      password: guest
-      groups: public
-
-  # Admin users can access ShinyProxy admin panel at /admin
-  admin-groups: admins
 
   # ─────────────────────────────────────────────────────────────────────────────
   # DOCKER CONFIGURATION
@@ -57,9 +38,6 @@ proxy:
     # Certificate path (set to /home/none to disable)
     cert-path: /home/none
 
-    # Internal networking (containers can communicate)
-    internal-networking: true
-
   # ─────────────────────────────────────────────────────────────────────────────
   # APPLICATION SPECIFICATIONS
   # ─────────────────────────────────────────────────────────────────────────────
@@ -71,14 +49,12 @@ proxy:
       container-image: brentkaplan/shinybeez:latest
       container-volumes:
         - /var/log/shiny:/var/log/shiny
+        - /opt/shinybeez/telemetry:/root/shinybeez/data
       container-env:
         R_CONFIG_ACTIVE: shinyproxy
+      container-memory-limit: 1024m
       logo-url: https://raw.githubusercontent.com/brentkaplan/shinybeez/refs/heads/main/shinybeez-logo.png
       access-groups: []
-
-      # Resource limits (adjust based on server capacity)
-      container-memory-limit: 2g
-      container-cpu-limit: 1.0
 
     # Develop/staging version
     - id: shinybeez-develop
@@ -87,14 +63,12 @@ proxy:
       container-image: brentkaplan/shinybeez:develop
       container-volumes:
         - /var/log/shiny:/var/log/shiny
+        - /opt/shinybeez/telemetry:/root/shinybeez/data
       container-env:
         R_CONFIG_ACTIVE: shinyproxy
+      container-memory-limit: 1024m
       logo-url: https://raw.githubusercontent.com/brentkaplan/shinybeez/refs/heads/main/shinybeez-logo.png
       access-groups: []
-
-      # Resource limits
-      container-memory-limit: 2g
-      container-cpu-limit: 1.0
 
 # ─────────────────────────────────────────────────────────────────────────────
 # LOGGING CONFIGURATION
@@ -112,8 +86,8 @@ logging:
 # SERVER CONFIGURATION
 # ─────────────────────────────────────────────────────────────────────────────
 server:
-  # ShinyProxy listens on this port (Nginx proxies to this)
-  port: 8080
+  # Bind to localhost only — Nginx handles external traffic
+  address: 127.0.0.1
 
   # Enable forward headers for proper client IP detection behind proxy
   forward-headers-strategy: native
@@ -124,13 +98,9 @@ server:
       timeout: 30m
 
 # ─────────────────────────────────────────────────────────────────────────────
-# MANAGEMENT ENDPOINTS (for health checks)
+# MANAGEMENT ENDPOINTS
 # ─────────────────────────────────────────────────────────────────────────────
 management:
-  endpoints:
-    web:
-      exposure:
-        include: health,info,metrics
-  endpoint:
-    health:
-      show-details: when-authorized
+  server:
+    # Bind admin/management port to localhost only
+    address: 127.0.0.1

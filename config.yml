@@ -93,9 +93,9 @@ production:
 
   telemetry:
     enabled: TRUE
-    storage_type: !expr Sys.getenv("TELEMETRY_STORAGE", "postgresql")  # Default to PostgreSQL in production
+    storage_type: !expr Sys.getenv("TELEMETRY_STORAGE", "sqlite")  # SQLite — no PostgreSQL driver in Docker image
     sqlite:
-      db_path: "/data/prod-telemetry.sqlite"  # Use mounted volume path
+      db_path: "data/telemetry.sqlite"  # Relative to workdir (/root/shinybeez/data/)
     postgresql:
       host: !expr Sys.getenv("TELEMETRY_DB_HOST", "postgres")
       port: !expr as.numeric(Sys.getenv("TELEMETRY_DB_PORT", "5432"))
@@ -157,9 +157,9 @@ shinyproxy:
 
   telemetry:
     enabled: !expr as.logical(Sys.getenv("TELEMETRY_ENABLED", "TRUE"))
-    storage_type: !expr Sys.getenv("TELEMETRY_STORAGE", "postgresql")
+    storage_type: !expr Sys.getenv("TELEMETRY_STORAGE", "sqlite")  # SQLite — no PostgreSQL driver in Docker image
     sqlite:
-      db_path: "/data/telemetry.sqlite"  # Mounted volume
+      db_path: "data/telemetry.sqlite"  # Relative to workdir (/root/shinybeez/data/)
     postgresql:
       host: !expr Sys.getenv("TELEMETRY_DB_HOST", "localhost")
       port: !expr as.numeric(Sys.getenv("TELEMETRY_DB_PORT", "5432"))

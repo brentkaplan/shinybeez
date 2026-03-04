@@ -70,6 +70,15 @@ create_data_storage <- function(config) {
         shiny.telemetry::DataStorageSQLite$new(db_path = db_path)
       },
       "postgresql" = {
+        has_driver <- requireNamespace("RPostgres", quietly = TRUE) ||
+          requireNamespace("RPostgreSQL", quietly = TRUE)
+        if (!has_driver) {
+          log$warn(
+            "PostgreSQL storage requested but no driver package installed ",
+            "(RPostgres or RPostgreSQL). Falling back to NULL."
+          )
+          return(NULL)
+        }
         shiny.telemetry::DataStoragePostgreSQL$new(
           host = config$postgresql$host,
           port = config$postgresql$port,

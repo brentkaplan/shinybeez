@@ -712,23 +712,27 @@ navpanel_server <- function(id, sidebar_reactives) {
         cont_covars_to_pass <- cov_info$model_covariate_name
 
         model_fit <- tryCatch(
-          session_logger$with_performance("mixed_effects_model_fit", function() {
-            beezdemand$fit_demand_mixed(
-              data = df,
-              y_var = "y_for_model",
-              x_var = sidebar_reactives$x_var(),
-              id_var = sidebar_reactives$id_var(),
-              factors = sel_factors,
-              factor_interaction = sidebar_reactives$factor_interaction(),
-              equation_form = sidebar_reactives$equation_form(),
-              collapse_levels = current_collapse_levels,
-              random_effects = random_effects_formula_to_pass,
-              covariance_structure = sidebar_reactives$covariance_structure(),
-              nlme_control = user_nlme_control,
-              start_value_method = "pooled_nls",
-              continuous_covariates = cont_covars_to_pass
-            )
-          }),
+          session_logger$with_performance(
+            "mixed_effects_model_fit",
+            function() {
+              beezdemand$fit_demand_mixed(
+                data = df,
+                y_var = "y_for_model",
+                x_var = sidebar_reactives$x_var(),
+                id_var = sidebar_reactives$id_var(),
+                factors = sel_factors,
+                factor_interaction = sidebar_reactives$factor_interaction(),
+                equation_form = sidebar_reactives$equation_form(),
+                collapse_levels = current_collapse_levels,
+                random_effects = random_effects_formula_to_pass,
+                covariance_structure = sidebar_reactives$covariance_structure(),
+                nlme_control = user_nlme_control,
+                start_value_method = "pooled_nls",
+                continuous_covariates = cont_covars_to_pass
+              )
+            },
+            always_log = TRUE
+          ),
           error = function(e) {
             shiny$removeNotification(notif_id)
             shiny$showNotification(
@@ -772,6 +776,19 @@ navpanel_server <- function(id, sidebar_reactives) {
 
         shiny$removeNotification(notif_id)
         shiny$showNotification("Model fitting complete.", type = "message")
+
+        # Log dataset metadata for usage analysis
+        session_logger$performance(
+          "mixed_effects_model_fit_metadata",
+          duration_ms = 0,
+          additional_metrics = list(
+            n_rows = nrow(df),
+            n_groups = length(unique(df$id)),
+            equation = sidebar_reactives$equation_form()
+          ),
+          always_log = TRUE
+        )
+
         return(model_fit)
       }
     )
@@ -871,15 +888,19 @@ navpanel_server <- function(id, sidebar_reactives) {
       df_now <- data_to_analyze()
       cov_info <- build_covariate_modeling_info(df_now)
       emms_data <- tryCatch(
-        session_logger$with_performance("mixed_effects_emms", function() {
-          beezdemand$get_observed_demand_param_emms(
-            fit_obj = model_fit,
-            factors_in_emm = model_factors,
-            at = cov_info$at_list,
-            include_ev = TRUE,
-            ci_level = 0.95
-          )
-        }),
+        session_logger$with_performance(
+          "mixed_effects_emms",
+          function() {
+            beezdemand$get_observed_demand_param_emms(
+              fit_obj = model_fit,
+              factors_in_emm = model_factors,
+              at = cov_info$at_list,
+              include_ev = TRUE,
+              ci_level = 0.95
+            )
+          },
+          always_log = TRUE
+        ),
         error = function(e) {
           shiny$showNotification(
             paste("Error getting EMMs:", e$message),
@@ -1041,17 +1062,21 @@ navpanel_server <- function(id, sidebar_reactives) {
       cov_info <- build_covariate_modeling_info(df_now)
 
       comps <- tryCatch(
-        session_logger$with_performance("mixed_effects_comparisons", function() {
-          beezdemand$get_demand_comparisons(
-            fit_obj = model_fit,
-            params_to_compare = c("Q0", "alpha"),
-            compare_specs = comparisons$build_specs_formula(specs_str),
-            contrast_by = contrast_by_arg,
-            at = cov_info$at_list,
-            adjust = input$comparison_adjust_method,
-            report_ratios = TRUE
-          )
-        }),
+        session_logger$with_performance(
+          "mixed_effects_comparisons",
+          function() {
+            beezdemand$get_demand_comparisons(
+              fit_obj = model_fit,
+              params_to_compare = c("Q0", "alpha"),
+              compare_specs = comparisons$build_specs_formula(specs_str),
+              contrast_by = contrast_by_arg,
+              at = cov_info$at_list,
+              adjust = input$comparison_adjust_method,
+              report_ratios = TRUE
+            )
+          },
+          always_log = TRUE
+        ),
         error = function(e) {
           shiny$showNotification(
             paste("Error in comparisons:", e$message),
@@ -1277,7 +1302,8 @@ navpanel_server <- function(id, sidebar_reactives) {
       cov_info <- build_covariate_modeling_info(df_now)
 
       p <- session_logger$with_performance(
-        "mixed_effects_plot", function() {
+        "mixed_effects_plot",
+        function() {
           plot(
             model_fit,
             inv_fun = inv_transform_fun,
@@ -1296,7 +1322,8 @@ navpanel_server <- function(id, sidebar_reactives) {
             x_lab = input$plot_xlab,
             y_lab = input$plot_ylab
           )
-        }
+        },
+        always_log = TRUE
       )
 
       # Apply theme and styling using plotting module

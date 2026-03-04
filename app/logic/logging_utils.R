@@ -236,13 +236,14 @@ log_performance <- function(
   operation_name,
   duration_ms,
   session_id = NULL,
-  additional_metrics = list()
+  additional_metrics = list(),
+  always_log = FALSE
 ) {
   config <- get_logging_config()
 
-  # Only log if performance logging is enabled and duration exceeds threshold
+  # Log if always_log is TRUE, or if performance logging is enabled and duration exceeds threshold
   if (
-    config$log_performance && duration_ms >= config$performance_threshold_ms
+    always_log || (config$log_performance && duration_ms >= config$performance_threshold_ms)
   ) {
     additional_data <- c(
       list(
@@ -324,7 +325,8 @@ with_performance_logging <- function(
   operation_name,
   func,
   session_id = NULL,
-  ...
+  ...,
+  always_log = FALSE
 ) {
   start_time <- Sys.time()
 
@@ -351,7 +353,8 @@ with_performance_logging <- function(
         operation_name = paste0(operation_name, "_FAILED"),
         duration_ms = duration_ms,
         session_id = session_id,
-        additional_metrics = list(status = "error")
+        additional_metrics = list(status = "error"),
+        always_log = always_log
       )
 
       stop(e)
@@ -366,7 +369,8 @@ with_performance_logging <- function(
     operation_name = operation_name,
     duration_ms = duration_ms,
     session_id = session_id,
-    additional_metrics = list(status = "success")
+    additional_metrics = list(status = "success"),
+    always_log = always_log
   )
 
   result
@@ -490,13 +494,15 @@ create_session_logger <- function(session) {
     performance = function(
       operation_name,
       duration_ms,
-      additional_metrics = list()
+      additional_metrics = list(),
+      always_log = FALSE
     ) {
       log_performance(
         operation_name,
         duration_ms,
         session_id,
-        additional_metrics
+        additional_metrics,
+        always_log = always_log
       )
     },
     error_enhanced = function(
@@ -528,8 +534,10 @@ create_session_logger <- function(session) {
     ) {
       log_model_fitting(model_type, parameters, session_id, status, metrics)
     },
-    with_performance = function(operation_name, func, ...) {
-      with_performance_logging(operation_name, func, session_id, ...)
+    with_performance = function(operation_name, func, ..., always_log = FALSE) {
+      with_performance_logging(
+        operation_name, func, session_id, ..., always_log = always_log
+      )
     }
   )
 }
