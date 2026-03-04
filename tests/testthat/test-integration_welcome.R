@@ -55,7 +55,7 @@ describe("Welcome tab and navigation", {
     )
     app$wait_for_idle(duration = 500)
     modal_html <- app$get_html(".modal-dialog")
-    expect_true(grepl("Helpful information", modal_html))
+    expect_true(grepl("About shinybeez", modal_html))
   })
 
   it("closes the info modal", {
@@ -68,7 +68,7 @@ describe("Welcome tab and navigation", {
     app$wait_for_idle(duration = 500)
     modal_html <- app$get_html(".modal-dialog")
     # After closing, modal-dialog should not be present or be empty
-    expect_true(is.null(modal_html) || !grepl("Helpful information", modal_html))
+    expect_true(is.null(modal_html) || !grepl("About shinybeez", modal_html))
   })
 
   withr::defer(try(app$stop(), silent = TRUE), envir = teardown_env())
