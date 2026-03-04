@@ -5,31 +5,19 @@
             <main class="col-md-9">
                 <section id="about" class="section">
                     <h3>About Shinybeez</h3>
-                    <p>While quantitative modeling of behavioral economic phenomena has increased in popularity and led
-                        to translational
-                        successes in clinical practice and policy, complex analyses has remained a barrier for many
-                        researchers and
-                        practitioners. <em>shinybeez</em> addresses this gap by providing an intuitive interface for
-                        conducting descriptive and
-                        inferential analyses without requiring programming expertise. The app integrates features
-                        previously scattered across
-                        multiple tools, allowing users to upload data, calculate empirical measures, identify systematic
-                        datasets, fit nonlinear
-                        models, and visualize results - all within a single platform. <em>shinybeez</em> supports
-                        various analysis types for
-                        demand and discounting data, including indifference point data and the 27-Item Monetary Choice
-                        Questionnaire. Built on R
-                        Shiny and leveraging existing R packages, the app ensures reproducibility and consistency with
-                        underlying analytical
-                        methods while remaining flexible for future enhancements. Key advantages of <em>shinybeez</em>
-                        include its accessibility
-                        through web browsers or local installation, ability to handle large datasets, and customizable
-                        data visualization
-                        options. By consolidating behavioral economic tools into a user-friendly interface,
-                        <em>shinybeez</em> aims to broaden
-                        the reach of these analytical techniques and facilitate their application in addressing societal
-                        issues.
-                    </p>
+                    <p><em>shinybeez</em> provides an intuitive, no-code interface for behavioral economic demand and
+                        discounting analyses. It consolidates tools previously scattered across multiple packages into a
+                        single platform.</p>
+                    <ul>
+                        <li>Upload data, calculate empirical measures, and identify systematic datasets</li>
+                        <li>Fit nonlinear demand models (fixed effects and mixed effects)</li>
+                        <li>Score discounting data (indifference points, 27-Item MCQ, 5.5-Trial tasks)</li>
+                        <li>Visualize and export results with customizable plots</li>
+                        <li>Accessible via web browser or local Docker installation</li>
+                    </ul>
+                    <p>Built on R Shiny and leveraging existing R packages, <em>shinybeez</em> ensures reproducibility
+                        and consistency with underlying analytical methods while remaining flexible for future
+                        enhancements.</p>
                 </section>
 
                 <section id="citation" class="section">
@@ -72,26 +60,26 @@
                             Docker Hub on the left side and search for
                             <em>shinybeez</em>.
                             <br>
-                            <img src="static/img/docker-hub.png" alt="Docker Hub" width="80%" height="80%">
+                            <img src="static/img/docker-hub.png" alt="Docker Hub" width="60%" height="60%">
                         </li>
                         <br>
                         <li>Click on the tile and then click "Pull" to download the
                             image.
                             <br>
-                            <img src="static/img/docker-pull.png" alt="Docker Pull" width="80%" height="80%">
+                            <img src="static/img/docker-pull.png" alt="Docker Pull" width="60%" height="60%">
                         </li>
                         <br>
                         <li>Go to "Images" on the left hand side and click the newly downloaded image.
                             Click the ▶ icon under "Actions" to start the app and
                             bring up the options menu.
                             <br>
-                            <img src="static/img/docker-run.png" alt="Docker Run" width="80%" height="80%">
+                            <img src="static/img/docker-run.png" alt="Docker Run" width="60%" height="60%">
                         </li>
                         <br>
                         <li>Expand the optional settings clicking the ▼. Enter
                             in '3838' in the "Host port" box. Then click "Run".
                             <br>
-                            <img src="static/img/docker-options.png" alt="Docker Run" width="80%" height="80%">
+                            <img src="static/img/docker-options.png" alt="Docker Run" width="60%" height="60%">
                         </li>
                         <br>
                         <li>
@@ -1006,6 +994,46 @@
                             <p>This is currently not supported in <em>shinybeez</em>. However,
                                 we are working on it and plan to have that feature in a future
                                 release</p>
+                            <br>
+                            <h5>Why do pairwise comparisons show identical estimates across groups
+                                in Mixed Effects?</h5>
+                            <p>This happens when the model is fit <strong>additively</strong>
+                                (without an interaction term). In an additive model, each factor's
+                                effect is estimated independently &mdash; so the contrast between
+                                two levels of one factor (e.g., Dose 1 vs. Dose 2) is
+                                mathematically the same regardless of the other factor's level
+                                (e.g., Drug A vs. Drug B).</p>
+                            <p>To get group-specific contrasts, check
+                                <strong>&ldquo;Include interaction between Factor 1 and
+                                Factor 2&rdquo;</strong> in the sidebar before fitting the model.
+                                An interaction model lets each factor combination have its own
+                                parameter estimates, producing different contrasts across groups.</p>
+                            <p>Note: the &ldquo;within levels of&rdquo; option still correctly
+                                restricts comparisons to observed factor combinations, but in an
+                                additive model the contrast <em>estimates</em> themselves will be
+                                identical for the same factor-level pair.</p>
+                            <br>
+                            <h5>How does shinybeez handle balanced vs. unbalanced designs in
+                                pairwise comparisons?</h5>
+                            <p>In a <strong>balanced design</strong>, every level of Factor 1
+                                appears with every level of Factor 2 (a full factorial). All
+                                pairwise comparisons are available for every group. For example,
+                                all drugs tested at all doses.</p>
+                            <p>In an <strong>unbalanced design</strong>, some factor-level
+                                combinations are missing (e.g., Drug A was only tested at doses
+                                1&ndash;3 while Drug B was tested at doses 2&ndash;4).
+                                <em>shinybeez</em> automatically detects this and restricts
+                                comparisons to <strong>only the factor combinations actually
+                                observed</strong> in your data &mdash; it will not create
+                                &ldquo;phantom&rdquo; comparisons for combinations that don't
+                                exist.</p>
+                            <p>In the R console you may see a message like
+                                <em>&ldquo;Filtered EMMs to 9 observed combinations (from 15
+                                full factorial)&rdquo;</em> when this occurs. This means
+                                different groups may have different sets of comparisons (e.g.,
+                                Drug A shows dose 1 vs. 2, but Drug B shows dose 3 vs. 4)
+                                because each group only includes the dose levels it actually
+                                has.</p>
                             <br>
                         </div>
                         <div id="faq-discounting">

@@ -17,6 +17,15 @@ sidebar_ui <- function(id) {
   ns <- shiny$NS(id)
 
   shiny$tagList(
+    shiny$div(
+      class = "mb-3 small text-muted",
+      shiny$tags$ol(
+        class = "ps-3",
+        shiny$tags$li("Upload your data"),
+        shiny$tags$li("Configure settings"),
+        shiny$tags$li("Run model")
+      )
+    ),
     file_input$ui(ns("upload_demand")),
     shiny$checkboxInput(
       inputId = ns("group"),

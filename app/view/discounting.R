@@ -17,6 +17,15 @@ sidebar_ui <- function(id) {
   ns <- shiny$NS(id)
 
   shiny$tagList(
+    shiny$div(
+      class = "mb-3 small text-muted",
+      shiny$tags$ol(
+        class = "ps-3",
+        shiny$tags$li("Upload your data"),
+        shiny$tags$li("Select scoring method"),
+        shiny$tags$li("Run analysis")
+      )
+    ),
     file_input$ui(ns("discounting")),
     shiny$selectInput(
       inputId = ns("calc_discounting"),
