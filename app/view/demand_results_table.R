@@ -155,7 +155,7 @@ server <- function(
             rhino$log$error(paste("Error in FitCurves:", e$message))
             shiny$showNotification(
               paste("Error fitting demand curves:", e$message),
-              type = "error", duration = 10
+              type = "error", duration = NULL
             )
             NULL
           }
@@ -165,6 +165,11 @@ server <- function(
       if (!is.null(fit_result)) {
         res$output <- fit_result$output
         res$results <- fit_result$results
+        shiny$showNotification(
+          "Model fitting complete. See Model Results tab.",
+          type = "message",
+          duration = 5
+        )
       } else {
         res$output <- NULL
         res$results <- NULL

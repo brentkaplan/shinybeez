@@ -64,7 +64,7 @@ server <- function(id, type = "demand") {
               chk_data
             ),
             type = "error",
-            duration = 10
+            duration = NULL
           )
           return()
         } else {
@@ -82,6 +82,11 @@ server <- function(id, type = "demand") {
             )
           }
           session$userData$data$demand <- validate$obliterate_empty_cols(tmp)
+          shiny$showNotification(
+            paste0("Data loaded: ", nrow(tmp), " rows, ", ncol(tmp), " columns."),
+            type = "message",
+            duration = 5
+          )
         }
       } else if (type == "discounting") {
         session_logger$info(
@@ -110,7 +115,7 @@ server <- function(id, type = "demand") {
               chk_data
             ),
             type = "error",
-            duration = 10
+            duration = NULL
           )
           return()
         } else {
@@ -119,6 +124,11 @@ server <- function(id, type = "demand") {
             # MCQ wide format: NAs are expected (missing/unanswered items).
             # score_mcq27() handles missing data via imputation — preserve as-is.
             session$userData$data$discounting <- tmp
+            shiny$showNotification(
+              paste0("Data loaded: ", nrow(tmp), " rows, ", ncol(tmp), " columns."),
+              type = "message",
+              duration = 5
+            )
           } else {
             # Non-MCQ formats: drop fully-NA rows and empty columns
             na_result <- validate$remove_na_rows(tmp)
@@ -135,6 +145,11 @@ server <- function(id, type = "demand") {
             }
             session$userData$data$discounting <- validate$obliterate_empty_cols(
               tmp
+            )
+            shiny$showNotification(
+              paste0("Data loaded: ", nrow(tmp), " rows, ", ncol(tmp), " columns."),
+              type = "message",
+              duration = 5
             )
           }
         }
@@ -165,7 +180,7 @@ server <- function(id, type = "demand") {
               chk_data
             ),
             type = "error",
-            duration = 10
+            duration = NULL
           )
           return()
         } else {
@@ -184,6 +199,11 @@ server <- function(id, type = "demand") {
           }
           session$userData$data$mixed_effects_demand <- validate$obliterate_empty_cols(
             tmp
+          )
+          shiny$showNotification(
+            paste0("Data loaded: ", nrow(tmp), " rows, ", ncol(tmp), " columns."),
+            type = "message",
+            duration = 5
           )
         }
       }

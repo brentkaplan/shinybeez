@@ -147,7 +147,7 @@ server <- function(id, isgroup = NULL, data_r) {
           empirical$compute_descriptives(data_r$data_d, is_grouped = isgroup())
         }),
         error = function(e) {
-          shiny$showNotification(e$message, type = "error", duration = 10)
+          shiny$showNotification(e$message, type = "error", duration = NULL)
           NULL
         }
       )
@@ -206,7 +206,7 @@ server <- function(id, isgroup = NULL, data_r) {
           )
         }),
         error = function(e) {
-          shiny$showNotification(e$message, type = "error", duration = 10)
+          shiny$showNotification(e$message, type = "error", duration = NULL)
           NULL
         }
       )
@@ -266,7 +266,7 @@ server <- function(id, isgroup = NULL, data_r) {
           )
         }),
         error = function(e) {
-          shiny$showNotification(e$message, type = "error", duration = 10)
+          shiny$showNotification(e$message, type = "error", duration = NULL)
           NULL
         }
       )

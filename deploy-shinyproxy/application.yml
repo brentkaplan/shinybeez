@@ -11,7 +11,7 @@ proxy:
   heartbeat-rate: 10000
   heartbeat-timeout: 60000
   container-wait-time: 120000
-  start-delay: 60000
+  start-delay: 10000
   interval: 60000
   port: 8080
 
@@ -52,7 +52,7 @@ proxy:
         - /opt/shinybeez/telemetry:/root/shinybeez/data
       container-env:
         R_CONFIG_ACTIVE: shinyproxy
-      container-memory-limit: 1024m
+      container-memory-limit: 2048m
       logo-url: https://raw.githubusercontent.com/brentkaplan/shinybeez/refs/heads/main/shinybeez-logo.png
       access-groups: []
 
@@ -66,7 +66,7 @@ proxy:
         - /opt/shinybeez/telemetry:/root/shinybeez/data
       container-env:
         R_CONFIG_ACTIVE: shinyproxy
-      container-memory-limit: 1024m
+      container-memory-limit: 2048m
       logo-url: https://raw.githubusercontent.com/brentkaplan/shinybeez/refs/heads/main/shinybeez-logo.png
       access-groups: []
 

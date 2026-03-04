@@ -106,7 +106,7 @@ server <- function(id, data_r, type = NULL) {
           cautious when interpreting the results and choosing an appropriate
           imputation method.",
             type = "error",
-            duration = 10
+            duration = NULL
           )
         }
       } else if (type() %in% "Indifference Point Regression") {
@@ -115,7 +115,7 @@ server <- function(id, data_r, type = NULL) {
             "There appears to be missing data. Please be
           cautious when interpreting the results.",
             type = "error",
-            duration = 10
+            duration = NULL
           )
         }
       }
