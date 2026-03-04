@@ -864,7 +864,7 @@
       "Package": "beezdemand",
       "Version": "0.2.0.9000",
       "Source": "GitHub",
-      "Date": "2026-03-03",
+      "Date": "2026-02-27",
       "Title": "Behavioral Economic Easy Demand",
       "Authors@R": "c(person(\"Brent\", \"Kaplan\", email = \"bkaplan.ku@gmail.com\", role = c(\"aut\", \"cre\", \"cph\"), comment = c(ORCID = \"0000-0002-3758-6776\")), person(\"Shawn\", \"Gilroy\", email = \"shawn.gilroy@temple.edu\", role = \"ctb\"))",
       "Author": "Brent Kaplan [aut, cre, cph] (<https://orcid.org/0000-0002-3758-6776>), Shawn Gilroy [ctb]",
@@ -929,7 +929,7 @@
       "RemoteUsername": "brentkaplan",
       "RemoteRepo": "beezdemand",
       "RemoteRef": "develop",
-      "RemoteSha": "d37519d50d5f25fe7bbd5aeced13c0ca1efa36d1"
+      "RemoteSha": "c3e6e4adc2a902d291b5b3ead2873a3e4da586d6"
     },
     "beezdiscounting": {
       "Package": "beezdiscounting",
@@ -4080,7 +4080,7 @@
     },
     "lhs": {
       "Package": "lhs",
-      "Version": "1.2.0",
+      "Version": "1.2.1",
       "Source": "Repository",
       "Title": "Latin Hypercube Samples",
       "Authors@R": "person(given = \"Rob\", family = \"Carnell\", role = c(\"aut\", \"cre\"), email = \"bertcarnell@gmail.com\")",
@@ -4104,12 +4104,12 @@
       ],
       "URL": "https://github.com/bertcarnell/lhs",
       "BugReports": "https://github.com/bertcarnell/lhs/issues",
-      "RoxygenNote": "7.3.2",
+      "RoxygenNote": "7.3.3",
       "VignetteBuilder": "knitr",
       "NeedsCompilation": "yes",
       "Author": "Rob Carnell [aut, cre]",
       "Maintainer": "Rob Carnell <bertcarnell@gmail.com>",
-      "Repository": "RSPM"
+      "Repository": "CRAN"
     },
     "lifecycle": {
       "Package": "lifecycle",
