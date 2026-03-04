@@ -84,6 +84,13 @@ COPY rhino.yml   ./rhino.yml
 COPY app/        app/
 COPY Rprofile.site /usr/lib/R/etc/
 
+# Pre-compile bytecode for heavy packages at build time (saves 5-15s on cold start)
+RUN R -q -e " \
+  library(shiny); library(bslib); library(DT); \
+  library(beezdemand); library(nlme); library(emmeans); \
+  library(ggplot2); library(dplyr); library(rhino); \
+  cat('Warmup complete\n')"
+
 EXPOSE 3838
 
 CMD ["R", "-e", "shiny::runApp('/root/shinybeez', host='0.0.0.0', port=3838)"]
