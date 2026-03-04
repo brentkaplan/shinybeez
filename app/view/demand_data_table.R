@@ -142,15 +142,17 @@ server <- function(id, isgroup = NULL, data_r) {
       shiny$req(session$userData$data$demand)
       session_logger$info("Computing demand descriptives", "data_processing")
 
-      descriptives <- tryCatch(
-        session_logger$with_performance("demand_descriptives", function() {
-          empirical$compute_descriptives(data_r$data_d, is_grouped = isgroup())
-        }),
-        error = function(e) {
-          shiny$showNotification(e$message, type = "error", duration = NULL)
-          NULL
-        }
-      )
+      descriptives <- shiny$withProgress(message = "Computing descriptives...", {
+        tryCatch(
+          session_logger$with_performance("demand_descriptives", function() {
+            empirical$compute_descriptives(data_r$data_d, is_grouped = isgroup())
+          }),
+          error = function(e) {
+            shiny$showNotification(e$message, type = "error", duration = NULL)
+            NULL
+          }
+        )
+      })
       shiny$req(descriptives)
 
       output$descriptives_table <- DT$renderDT(server = FALSE, {
@@ -198,18 +200,20 @@ server <- function(id, isgroup = NULL, data_r) {
         "data_processing"
       )
 
-      emp_result <- tryCatch(
-        session_logger$with_performance("demand_empirical_measures", function() {
-          empirical$compute_empirical_measures(
-            data_r$data_d,
-            is_grouped = isgroup()
-          )
-        }),
-        error = function(e) {
-          shiny$showNotification(e$message, type = "error", duration = NULL)
-          NULL
-        }
-      )
+      emp_result <- shiny$withProgress(message = "Computing empirical measures...", {
+        tryCatch(
+          session_logger$with_performance("demand_empirical_measures", function() {
+            empirical$compute_empirical_measures(
+              data_r$data_d,
+              is_grouped = isgroup()
+            )
+          }),
+          error = function(e) {
+            shiny$showNotification(e$message, type = "error", duration = NULL)
+            NULL
+          }
+        )
+      })
       shiny$req(emp_result)
 
       output$empirical_table <- DT$renderDT(server = FALSE, {
@@ -254,22 +258,24 @@ server <- function(id, isgroup = NULL, data_r) {
       shiny$req(session$userData$data$demand)
       session_logger$info("Computing systematic criteria", "data_processing")
 
-      sys_result <- tryCatch(
-        session_logger$with_performance("demand_systematic_check", function() {
-          systematic$compute_systematic(
-            data_r$data_d,
-            deltaq = input$deltaq,
-            bounce = input$bounce,
-            reversals = input$reversals,
-            ncons0 = input$ncons0,
-            is_grouped = isgroup()
-          )
-        }),
-        error = function(e) {
-          shiny$showNotification(e$message, type = "error", duration = NULL)
-          NULL
-        }
-      )
+      sys_result <- shiny$withProgress(message = "Computing systematic criteria...", {
+        tryCatch(
+          session_logger$with_performance("demand_systematic_check", function() {
+            systematic$compute_systematic(
+              data_r$data_d,
+              deltaq = input$deltaq,
+              bounce = input$bounce,
+              reversals = input$reversals,
+              ncons0 = input$ncons0,
+              is_grouped = isgroup()
+            )
+          }),
+          error = function(e) {
+            shiny$showNotification(e$message, type = "error", duration = NULL)
+            NULL
+          }
+        )
+      })
       shiny$req(sys_result)
 
       output$systematic_table <- DT$renderDT(server = FALSE, {

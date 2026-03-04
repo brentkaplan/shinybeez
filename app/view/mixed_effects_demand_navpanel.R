@@ -576,24 +576,26 @@ navpanel_server <- function(id, sidebar_reactives) {
             paste(missing_groups, collapse = ", ")
           ),
           type = "error",
-          duration = 10
+          duration = NULL
         )
         return()
       }
 
       # Compute systematic criteria using helper
-      systematic <- systematic_utils$compute_systematic_criteria(
-        df_raw = df_raw,
-        id_col = id_col,
-        x_col = x_col,
-        y_col = y_col,
-        group_vars = group_vars,
-        deltaq = input$deltaq,
-        bounce = input$bounce,
-        reversals = input$reversals,
-        ncons0 = input$ncons0,
-        prepare_fn = mixed_effects_demand_utils$prepare_systematic_input
-      )
+      systematic <- shiny$withProgress(message = "Computing systematic criteria...", {
+        systematic_utils$compute_systematic_criteria(
+          df_raw = df_raw,
+          id_col = id_col,
+          x_col = x_col,
+          y_col = y_col,
+          group_vars = group_vars,
+          deltaq = input$deltaq,
+          bounce = input$bounce,
+          reversals = input$reversals,
+          ncons0 = input$ncons0,
+          prepare_fn = mixed_effects_demand_utils$prepare_systematic_input
+        )
+      })
 
       output$systematic_table <- DT$renderDT(server = FALSE, {
         DT$datatable(
