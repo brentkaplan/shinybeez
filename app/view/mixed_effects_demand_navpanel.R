@@ -340,6 +340,13 @@ navpanel_server <- function(id, sidebar_reactives) {
     # Create session-specific logger for navpanel
     session_logger <- logging_utils$create_session_logger(session)
 
+    # Guard flag to suppress notifications during initial reactive cascade
+    initialized <- shiny$reactiveVal(FALSE)
+    shiny$observe({
+      shiny$req(sidebar_reactives$y_var(), sidebar_reactives$equation_form())
+      shiny$isolate(initialized(TRUE))
+    }) |> shiny$bindEvent(sidebar_reactives$data_to_analyze_trigger(), once = TRUE)
+
     # Helper: build transformed covariate column using extracted module
     # Uses covariate controls from sidebar_reactives
     build_covariate_modeling_info <- function(df_in) {
@@ -438,6 +445,7 @@ navpanel_server <- function(id, sidebar_reactives) {
         sidebar_reactives$y_var()
       ),
       {
+        shiny$req(initialized())
         eq <- sidebar_reactives$equation_form()
         yname <- sidebar_reactives$y_var()
         df_now <- sidebar_reactives$data_to_analyze_trigger()
