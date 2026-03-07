@@ -11,6 +11,19 @@ box::use(
   app / logic / validate,
 )
 
+#' Read an uploaded CSV or TSV file
+#'
+#' @param path File path to read
+#' @param ext File extension ("csv" or "tsv")
+#' @return Data frame
+read_upload <- function(path, ext) {
+  switch(
+    ext,
+    csv = vroom$vroom(path, delim = ",", show_col_types = FALSE),
+    tsv = vroom$vroom(path, delim = "\t", show_col_types = FALSE)
+  )
+}
+
 #' @export
 ui <- function(id) {
   ns <- shiny$NS(id)
@@ -43,19 +56,7 @@ server <- function(id, type = "demand") {
           paste0("Reading demand file: ", input$upload$name),
           category = "data_processing"
         )
-        tmp <- switch(
-          ext,
-          csv = vroom$vroom(
-            input$upload$datapath,
-            delim = ",",
-            show_col_types = FALSE
-          ),
-          tsv = vroom$vroom(
-            input$upload$datapath,
-            delim = "\t",
-            show_col_types = FALSE
-          )
-        )
+        tmp <- read_upload(input$upload$datapath, ext)
         chk_data <- validate$check_data(tmp, type = "demand")
         if (is.character(chk_data)) {
           shiny$showNotification(
@@ -93,19 +94,7 @@ server <- function(id, type = "demand") {
           paste0("Reading discounting file: ", input$upload$name),
           category = "data_processing"
         )
-        tmp <- switch(
-          ext,
-          csv = vroom$vroom(
-            input$upload$datapath,
-            delim = ",",
-            show_col_types = FALSE
-          ),
-          tsv = vroom$vroom(
-            input$upload$datapath,
-            delim = "\t",
-            show_col_types = FALSE
-          )
-        )
+        tmp <- read_upload(input$upload$datapath, ext)
 
         chk_data <- validate$check_data(tmp, type = "discounting")
         if (is.character(chk_data)) {
@@ -158,19 +147,7 @@ server <- function(id, type = "demand") {
           paste0("Reading mixed effects demand file: ", input$upload$name),
           category = "data_processing"
         )
-        tmp <- switch(
-          ext,
-          csv = vroom$vroom(
-            input$upload$datapath,
-            delim = ",",
-            show_col_types = FALSE
-          ),
-          tsv = vroom$vroom(
-            input$upload$datapath,
-            delim = "\t",
-            show_col_types = FALSE
-          )
-        )
+        tmp <- read_upload(input$upload$datapath, ext)
 
         chk_data <- validate$check_data(tmp, type = "mixed_effects_demand")
         if (is.character(chk_data)) {

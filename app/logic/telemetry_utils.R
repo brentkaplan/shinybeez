@@ -87,15 +87,6 @@ create_data_storage <- function(config) {
           password = config$postgresql$password
         )
       },
-      "mariadb" = {
-        shiny.telemetry::DataStorageMariaDB$new(
-          host = config$postgresql$host,
-          port = config$postgresql$port,
-          dbname = config$postgresql$dbname,
-          user = config$postgresql$user,
-          password = config$postgresql$password
-        )
-      },
       {
         log$error("Unknown storage type: {storage_type}")
         NULL

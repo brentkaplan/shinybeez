@@ -151,24 +151,152 @@ server <- function(
     })
 
     # Render outputs
-    output$results_table <- DT$renderDT({
+    output$results_table <- DT$renderDT(server = FALSE, {
       shiny$req(main_calc_reactive()$results)
-      # ... (DT datatable options as before)
+      DT$datatable(
+        main_calc_reactive()$results,
+        rownames = FALSE,
+        extensions = c("Buttons", "Scroller"),
+        fillContainer = FALSE,
+        options = list(
+          pageLength = 20,
+          autoWidth = TRUE,
+          ordering = TRUE,
+          dom = "Btipl",
+          buttons = list(
+            list(extend = "copy"),
+            list(extend = "print"),
+            list(
+              extend = "csv",
+              filename = "shinybeez_Discounting_Results",
+              title = NULL
+            ),
+            list(
+              extend = "excel",
+              filename = "shinybeez_Discounting_Results",
+              title = NULL
+            ),
+            list(
+              extend = "pdf",
+              filename = "shinybeez_Discounting_Results",
+              title = NULL
+            )
+          ),
+          deferRender = TRUE,
+          scrollY = 400,
+          scroller = TRUE
+        )
+      )
     })
 
-    output$summary_table <- DT$renderDT({
+    output$summary_table <- DT$renderDT(server = FALSE, {
       shiny$req(main_calc_reactive()$summary)
-      # ... (DT datatable options as before)
+      DT$datatable(
+        main_calc_reactive()$summary,
+        rownames = FALSE,
+        extensions = c("Buttons", "Scroller"),
+        fillContainer = FALSE,
+        options = list(
+          autoWidth = TRUE,
+          ordering = TRUE,
+          dom = "Bti",
+          buttons = list(
+            list(extend = "copy"),
+            list(extend = "print"),
+            list(
+              extend = "csv",
+              filename = "shinybeez_Discounting_Summary",
+              title = NULL
+            ),
+            list(
+              extend = "excel",
+              filename = "shinybeez_Discounting_Summary",
+              title = NULL
+            ),
+            list(
+              extend = "pdf",
+              filename = "shinybeez_Discounting_Summary",
+              title = NULL
+            )
+          ),
+          deferRender = TRUE,
+          scrollY = 300,
+          scroller = TRUE
+        )
+      )
     })
 
-    output$correlation_table <- DT$renderDT({
+    output$correlation_table <- DT$renderDT(server = FALSE, {
       shiny$req(main_calc_reactive()$results)
-      # ... (correlation logic and DT datatable options as before)
+      k_cols <- grep("_k$", names(main_calc_reactive()$results), value = TRUE)
+      shiny$req(length(k_cols) > 0)
+      cor_data <- main_calc_reactive()$results[, k_cols, drop = FALSE]
+      cor_matrix <- round(stats$cor(cor_data, use = "pairwise.complete.obs"), 3)
+      cor_df <- as.data.frame(cor_matrix)
+      cor_df <- cbind(Variable = rownames(cor_df), cor_df)
+      DT$datatable(
+        cor_df,
+        rownames = FALSE,
+        extensions = c("Buttons"),
+        fillContainer = FALSE,
+        options = list(
+          autoWidth = TRUE,
+          ordering = FALSE,
+          dom = "Bt",
+          buttons = list(
+            list(extend = "copy"),
+            list(extend = "print"),
+            list(
+              extend = "csv",
+              filename = "shinybeez_Discounting_Correlations",
+              title = NULL
+            ),
+            list(
+              extend = "excel",
+              filename = "shinybeez_Discounting_Correlations",
+              title = NULL
+            )
+          )
+        )
+      )
     })
 
-    output$imputed_data_table <- DT$renderDT({
+    output$imputed_data_table <- DT$renderDT(server = FALSE, {
       shiny$req(main_calc_reactive()$data)
-      # ... (DT datatable options as before)
+      DT$datatable(
+        main_calc_reactive()$data,
+        rownames = FALSE,
+        extensions = c("Buttons", "Scroller"),
+        fillContainer = FALSE,
+        options = list(
+          pageLength = 20,
+          autoWidth = TRUE,
+          ordering = TRUE,
+          dom = "Btipl",
+          buttons = list(
+            list(extend = "copy"),
+            list(extend = "print"),
+            list(
+              extend = "csv",
+              filename = "shinybeez_Discounting_ImputedData",
+              title = NULL
+            ),
+            list(
+              extend = "excel",
+              filename = "shinybeez_Discounting_ImputedData",
+              title = NULL
+            ),
+            list(
+              extend = "pdf",
+              filename = "shinybeez_Discounting_ImputedData",
+              title = NULL
+            )
+          ),
+          deferRender = TRUE,
+          scrollY = 400,
+          scroller = TRUE
+        )
+      )
     })
 
     esquisse$render_ggplot(id = "prop_plot", expr = main_calc_reactive()$propplot)

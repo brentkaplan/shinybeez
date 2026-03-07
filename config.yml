@@ -32,7 +32,7 @@ default:
   # Telemetry configuration
   telemetry:
     enabled: !expr as.logical(Sys.getenv("TELEMETRY_ENABLED", "TRUE"))
-    storage_type: !expr Sys.getenv("TELEMETRY_STORAGE", "sqlite")  # sqlite, postgresql, mariadb
+    storage_type: !expr Sys.getenv("TELEMETRY_STORAGE", "sqlite")  # sqlite, postgresql
 
     # SQLite configuration (for development/single instance)
     sqlite:

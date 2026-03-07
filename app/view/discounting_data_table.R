@@ -164,7 +164,7 @@ server <- function(id, data_r, type = NULL) {
           missings <- data_r$data_d |>
             dplyr$group_by(subjectid) |>
             dplyr$summarise(
-              prop_missing = round(sum(is.na("response")) / dplyr$n(), 2)
+              prop_missing = round(sum(is.na(response)) / dplyr$n(), 2)
             ) |>
             dplyr$ungroup()
         } else if (type() %in% "Indifference Point Regression") {
