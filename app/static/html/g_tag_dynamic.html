@@ -1,0 +1,18 @@
+<script id="google-analytics">
+    // This will be populated by server-side code
+    window.dataLayer = window.dataLayer || [];
+    function gtag() { dataLayer.push(arguments); }
+    gtag('js', new Date());
+
+    gtag('config', '{{GOOGLE_ANALYTICS_ID}}');
+
+    function trackPage(pageName) {
+        // console.log("Tracking page: " + pageName);
+        gtag('event', 'page_view', {
+            page_title: pageName,
+            page_location: window.location.href,
+            event_category: 'Navigation'
+        });
+    }
+</script>
+<script async src="https://www.googletagmanager.com/gtag/js?id={{GOOGLE_ANALYTICS_ID}}"></script>
