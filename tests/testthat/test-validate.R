@@ -167,6 +167,76 @@ describe("obliterate_empty_cols", {
     result <- validate$obliterate_empty_cols(df)
     expect_equal(result, df)
   })
+
+  it("removes phantom columns from CSV with trailing commas (demand)", {
+    df <- vroom::vroom(
+      test_path("fixtures", "demand-phantom-cols.csv"),
+      delim = ",", show_col_types = FALSE
+    )
+    # CSV with trailing commas creates an all-NA column
+    expect_true(any(colSums(is.na(df)) == nrow(df)))
+    result <- validate$obliterate_empty_cols(df)
+    expect_equal(names(result), c("id", "x", "y"))
+  })
+
+  it("removes phantom columns from CSV with trailing commas (discounting)", {
+    df <- vroom::vroom(
+      test_path("fixtures", "discounting-ip-phantom-cols.csv"),
+      delim = ",", show_col_types = FALSE
+    )
+    expect_true(any(colSums(is.na(df)) == nrow(df)))
+    result <- validate$obliterate_empty_cols(df)
+    expect_equal(names(result), c("id", "x", "y"))
+  })
+
+  it("removes phantom columns from CSV with trailing commas (mixed effects)", {
+    df <- vroom::vroom(
+      test_path("fixtures", "mixed-effects-phantom-cols.csv"),
+      delim = ",", show_col_types = FALSE
+    )
+    expect_true(any(colSums(is.na(df)) == nrow(df)))
+    result <- validate$obliterate_empty_cols(df)
+    expect_equal(names(result), c("id", "x", "y"))
+  })
+})
+
+# ------------------------------------------------------------------------------
+# Phantom column integration: obliterate then validate (Issue #4)
+# ------------------------------------------------------------------------------
+
+describe("phantom column integration", {
+  it("demand data with trailing commas passes validation after obliteration", {
+    df <- vroom::vroom(
+      test_path("fixtures", "demand-phantom-cols.csv"),
+      delim = ",", show_col_types = FALSE
+    )
+    colnames(df) <- trimws(tolower(colnames(df)))
+    df <- validate$obliterate_empty_cols(df)
+    result <- validate$check_data(df, type = "demand")
+    expect_true(result)
+  })
+
+  it("discounting IP data with trailing commas passes validation after obliteration", {
+    df <- vroom::vroom(
+      test_path("fixtures", "discounting-ip-phantom-cols.csv"),
+      delim = ",", show_col_types = FALSE
+    )
+    colnames(df) <- trimws(tolower(colnames(df)))
+    df <- validate$obliterate_empty_cols(df)
+    result <- validate$check_data(df, type = "discounting")
+    expect_true(result)
+  })
+
+  it("mixed effects data with trailing commas passes validation after obliteration", {
+    df <- vroom::vroom(
+      test_path("fixtures", "mixed-effects-phantom-cols.csv"),
+      delim = ",", show_col_types = FALSE
+    )
+    colnames(df) <- trimws(tolower(colnames(df)))
+    df <- validate$obliterate_empty_cols(df)
+    result <- validate$check_data(df, type = "mixed_effects_demand")
+    expect_true(result)
+  })
 })
 
 # ------------------------------------------------------------------------------

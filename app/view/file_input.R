@@ -70,6 +70,8 @@ server <- function(id, type = "demand") {
         }
         # Normalize column names (lowercase, trim whitespace)
         colnames(tmp) <- tryCatch(trimws(tolower(colnames(tmp))), error = function(e) colnames(tmp))
+        # Remove phantom columns (all-NA) before validation
+        tmp <- validate$obliterate_empty_cols(tmp)
         chk_data <- validate$check_data(tmp, type = "demand")
         if (is.character(chk_data)) {
           shiny$showNotification(
@@ -95,7 +97,7 @@ server <- function(id, type = "demand") {
               duration = 8
             )
           }
-          session$userData$data$demand <- validate$obliterate_empty_cols(tmp)
+          session$userData$data$demand <- tmp
           shiny$showNotification(
             paste0("Data loaded: ", nrow(tmp), " rows, ", ncol(tmp), " columns."),
             type = "message",
@@ -118,6 +120,8 @@ server <- function(id, type = "demand") {
         }
         # Normalize column names (lowercase, trim whitespace)
         colnames(tmp) <- tryCatch(trimws(tolower(colnames(tmp))), error = function(e) colnames(tmp))
+        # Remove phantom columns (all-NA) before validation
+        tmp <- validate$obliterate_empty_cols(tmp)
 
         chk_data <- validate$check_data(tmp, type = "discounting")
         if (is.character(chk_data)) {
@@ -174,9 +178,7 @@ server <- function(id, type = "demand") {
                 duration = 8
               )
             }
-            session$userData$data$discounting <- validate$obliterate_empty_cols(
-              tmp
-            )
+            session$userData$data$discounting <- tmp
             shiny$showNotification(
               paste0("Data loaded: ", nrow(tmp), " rows, ", ncol(tmp), " columns."),
               type = "message",
@@ -200,6 +202,8 @@ server <- function(id, type = "demand") {
         }
         # Normalize column names (lowercase, trim whitespace)
         colnames(tmp) <- tryCatch(trimws(tolower(colnames(tmp))), error = function(e) colnames(tmp))
+        # Remove phantom columns (all-NA) before validation
+        tmp <- validate$obliterate_empty_cols(tmp)
 
         chk_data <- validate$check_data(tmp, type = "mixed_effects_demand")
         if (is.character(chk_data)) {
@@ -226,9 +230,7 @@ server <- function(id, type = "demand") {
               duration = 8
             )
           }
-          session$userData$data$mixed_effects_demand <- validate$obliterate_empty_cols(
-            tmp
-          )
+          session$userData$data$mixed_effects_demand <- tmp
           shiny$showNotification(
             paste0("Data loaded: ", nrow(tmp), " rows, ", ncol(tmp), " columns."),
             type = "message",
