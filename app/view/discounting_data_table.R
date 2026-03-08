@@ -9,6 +9,7 @@ box::use(
 box::use(
   app / logic / discounting / systematic,
   app / logic / logging_utils,
+  app / view / shared / data_table[build_datatable],
 )
 
 #' @export
@@ -122,40 +123,11 @@ server <- function(id, data_r, type = NULL) {
 
       session_logger$info("Printing Discounting Datatable", "module_init")
       output$data_table <- DT$renderDT(server = FALSE, {
-        DT$datatable(
+        build_datatable(
           data_r$data_d,
-          rownames = FALSE,
-          extensions = c("Buttons", "Scroller"),
-          fillContainer = FALSE,
-          autoHideNavigation = TRUE,
-          options = list(
-            pageLength = 10,
-            autoWidth = TRUE,
-            ordering = TRUE,
-            dom = "Bti",
-            buttons = list(
-              list(extend = "copy"),
-              list(extend = "print"),
-              list(
-                extend = "csv",
-                filename = "shinybeez_Discounting_Data",
-                title = NULL
-              ),
-              list(
-                extend = "excel",
-                filename = "shinybeez_Discounting_Data",
-                title = NULL
-              ),
-              list(
-                extend = "pdf",
-                filename = "shinybeez_Discounting_Data",
-                title = NULL
-              )
-            ),
-            deferRender = TRUE,
-            scrollY = 500,
-            scroller = TRUE
-          )
+          filename_prefix = "shinybeez_Discounting_Data",
+          scroll_y = 500,
+          page_length = 10
         )
       })
 
@@ -170,40 +142,11 @@ server <- function(id, data_r, type = NULL) {
         } else if (type() %in% "Indifference Point Regression") {
           missings <- data_r$data_d[!stats$complete.cases(data_r$data_d), ]
         }
-        DT$datatable(
+        build_datatable(
           missings,
-          rownames = FALSE,
-          extensions = c("Buttons", "Scroller"),
-          fillContainer = FALSE,
-          autoHideNavigation = TRUE,
-          options = list(
-            pageLength = 10,
-            autoWidth = TRUE,
-            ordering = TRUE,
-            dom = "Bti",
-            buttons = list(
-              list(extend = "copy"),
-              list(extend = "print"),
-              list(
-                extend = "csv",
-                filename = "shinybeez_Discounting_Missings",
-                title = NULL
-              ),
-              list(
-                extend = "excel",
-                filename = "shinybeez_Discounting_Missings",
-                title = NULL
-              ),
-              list(
-                extend = "pdf",
-                filename = "shinybeez_Discounting_Missings",
-                title = NULL
-              )
-            ),
-            deferRender = TRUE,
-            scrollY = 300,
-            scroller = TRUE
-          )
+          filename_prefix = "shinybeez_Discounting_Missings",
+          scroll_y = 300,
+          page_length = 10
         )
       })
 
@@ -229,40 +172,11 @@ server <- function(id, data_r, type = NULL) {
           )
         }
         shiny$req(sys_result)
-        DT$datatable(
+        build_datatable(
           sys_result,
-          rownames = FALSE,
-          extensions = c("Buttons", "Scroller"),
-          fillContainer = FALSE,
-          autoHideNavigation = TRUE,
-          options = list(
-            pageLength = 10,
-            autoWidth = TRUE,
-            ordering = TRUE,
-            dom = "Bti",
-            buttons = list(
-              list(extend = "copy"),
-              list(extend = "print"),
-              list(
-                extend = "csv",
-                filename = "shinybeez_Discounting_SystematicCriteria",
-                title = NULL
-              ),
-              list(
-                extend = "excel",
-                filename = "shinybeez_Discounting_SystematicCriteria",
-                title = NULL
-              ),
-              list(
-                extend = "pdf",
-                filename = "shinybeez_Discounting_SystematicCriteria",
-                title = NULL
-              )
-            ),
-            deferRender = TRUE,
-            scrollY = 300,
-            scroller = TRUE
-          )
+          filename_prefix = "shinybeez_Discounting_SystematicCriteria",
+          scroll_y = 300,
+          page_length = 10
         )
       })
     })

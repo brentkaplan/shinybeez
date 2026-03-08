@@ -15,12 +15,15 @@ box::use(
 #'
 #' @param path File path to read
 #' @param ext File extension ("csv" or "tsv")
-#' @return Data frame
+#' @return Data frame, or NULL if reading fails
 read_upload <- function(path, ext) {
-  switch(
-    ext,
-    csv = vroom$vroom(path, delim = ",", show_col_types = FALSE),
-    tsv = vroom$vroom(path, delim = "\t", show_col_types = FALSE)
+  tryCatch(
+    switch(
+      ext,
+      csv = vroom$vroom(path, delim = ",", show_col_types = FALSE),
+      tsv = vroom$vroom(path, delim = "\t", show_col_types = FALSE)
+    ),
+    error = function(e) NULL
   )
 }
 
@@ -57,6 +60,16 @@ server <- function(id, type = "demand") {
           category = "data_processing"
         )
         tmp <- read_upload(input$upload$datapath, ext)
+        if (is.null(tmp)) {
+          shiny$showNotification(
+            "Unable to read the uploaded file. Please ensure it is a valid CSV or TSV file.",
+            type = "error",
+            duration = NULL
+          )
+          return()
+        }
+        # Normalize column names (lowercase, trim whitespace)
+        colnames(tmp) <- tryCatch(trimws(tolower(colnames(tmp))), error = function(e) colnames(tmp))
         chk_data <- validate$check_data(tmp, type = "demand")
         if (is.character(chk_data)) {
           shiny$showNotification(
@@ -95,6 +108,16 @@ server <- function(id, type = "demand") {
           category = "data_processing"
         )
         tmp <- read_upload(input$upload$datapath, ext)
+        if (is.null(tmp)) {
+          shiny$showNotification(
+            "Unable to read the uploaded file. Please ensure it is a valid CSV or TSV file.",
+            type = "error",
+            duration = NULL
+          )
+          return()
+        }
+        # Normalize column names (lowercase, trim whitespace)
+        colnames(tmp) <- tryCatch(trimws(tolower(colnames(tmp))), error = function(e) colnames(tmp))
 
         chk_data <- validate$check_data(tmp, type = "discounting")
         if (is.character(chk_data)) {
@@ -167,6 +190,16 @@ server <- function(id, type = "demand") {
           category = "data_processing"
         )
         tmp <- read_upload(input$upload$datapath, ext)
+        if (is.null(tmp)) {
+          shiny$showNotification(
+            "Unable to read the uploaded file. Please ensure it is a valid CSV or TSV file.",
+            type = "error",
+            duration = NULL
+          )
+          return()
+        }
+        # Normalize column names (lowercase, trim whitespace)
+        colnames(tmp) <- tryCatch(trimws(tolower(colnames(tmp))), error = function(e) colnames(tmp))
 
         chk_data <- validate$check_data(tmp, type = "mixed_effects_demand")
         if (is.character(chk_data)) {

@@ -2,7 +2,7 @@ box::use(
   beezdemand[theme_apa],
   bslib,
   dplyr,
-  DT[datatable, DTOutput, renderDT],
+  DT[DTOutput, renderDT],
   esquisse,
   ggplot2,
   htmltools[tagList],
@@ -15,7 +15,8 @@ box::use(
   app / logic / demand / fitting,
   app / logic / utils,
   app / logic / validate,
-  app / logic / logging_utils
+  app / logic / logging_utils,
+  app / view / shared / data_table[build_datatable],
 )
 
 #' @export
@@ -165,6 +166,16 @@ server <- function(
       if (!is.null(fit_result)) {
         res$output <- fit_result$output
         res$results <- fit_result$results
+        if (length(fit_result$failed_groups) > 0) {
+          shiny$showNotification(
+            paste(
+              "Fitting failed for groups:",
+              paste(fit_result$failed_groups, collapse = ", ")
+            ),
+            type = "warning",
+            duration = NULL
+          )
+        }
         shiny$showNotification(
           "Model fitting complete. See Model Results tab.",
           type = "message",
@@ -179,37 +190,12 @@ server <- function(
 
     output$model_results_table <- renderDT(server = FALSE, {
       shiny$req(res$results)
-      datatable(
+      build_datatable(
         res$results,
-        rownames = FALSE,
-        extensions = c("Buttons", "FixedColumns"),
-        fillContainer = TRUE,
-        options = list(
-          pageLength = 20,
-          autoWidth = TRUE,
-          ordering = TRUE,
-          dom = "Btipl",
-          buttons = list(
-            list(extend = "copy"),
-            list(extend = "print"),
-            list(
-              extend = "csv",
-              filename = "shinybeez_Demand_ModelResults",
-              title = NULL
-            ),
-            list(
-              extend = "excel",
-              filename = "shinybeez_Demand_ModelResults",
-              title = NULL
-            ),
-            list(
-              extend = "pdf",
-              filename = "shinybeez_Demand_ModelResults",
-              title = NULL
-            )
-          ),
-          fixedColumns = list(leftColumns = 1)
-        )
+        filename_prefix = "shinybeez_Demand_ModelResults",
+        fixed_columns = 1L,
+        page_length = 20,
+        fill_container = TRUE
       )
     })
 

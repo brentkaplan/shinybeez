@@ -6,6 +6,7 @@
 box::use(
   beezdemand[fit_demand_fixed],
   dplyr,
+  rhino,
 )
 
 #' Map equation UI label to beezdemand equation code
@@ -86,8 +87,8 @@ format_demand_results <- function(output) {
 #' @param agg Aggregation type (NULL, "Pooled", "Mean")
 #' @param k Numeric or character k value
 #' @param constrainq0 NULL or numeric Q0 constraint
-#' @return List with output (raw fit_demand_fixed result) and results (formatted df),
-#'   or NULL on error
+#' @return List with output (raw fit_demand_fixed result), results (formatted df),
+#'   and failed_groups (always empty character vector for ungrouped)
 #' @export
 fit_demand_ungrouped <- function(data, eq, agg, k, constrainq0 = NULL) {
   output <- fit_demand_fixed(
@@ -99,29 +100,36 @@ fit_demand_ungrouped <- function(data, eq, agg, k, constrainq0 = NULL) {
   )
   list(
     output = output,
-    results = format_demand_results(output)
+    results = format_demand_results(output),
+    failed_groups = character(0)
   )
 }
 
 #' Fit demand curves for grouped data
+#'
+#' Fits each group independently and collects failed groups for reporting.
 #'
 #' @param data Data frame with id, x, y, group columns
 #' @param eq Equation code ("koff" or "hs")
 #' @param agg Aggregation type (NULL, "Pooled", "Mean")
 #' @param k Numeric or character k value
 #' @param constrainq0 NULL or numeric Q0 constraint
-#' @return List with output (raw fit_demand_fixed result) and results (formatted df),
-#'   or NULL if all groups fail
+#' @return List with output (raw fit_demand_fixed result), results (formatted df),
+#'   and failed_groups (character vector of group names that failed), or NULL if
+#'   all groups fail
 #' @export
 fit_demand_grouped <- function(data, eq, agg, k, constrainq0 = NULL) {
   if (!"group" %in% colnames(data)) {
     stop("Grouping requested but no 'group' column found in data.")
   }
 
+  all_groups <- sort(unique(as.character(data$group)))
+
   group_fits <- data |>
     dplyr$group_by(group) |>
     dplyr$group_map(
       ~ {
+        grp <- as.character(dplyr$first(.y$group))
         fit_result <- tryCatch(
           fit_demand_fixed(
             data = .x,
@@ -130,7 +138,10 @@ fit_demand_grouped <- function(data, eq, agg, k, constrainq0 = NULL) {
             k = k,
             constrainq0 = constrainq0
           ),
-          error = function(e) NULL
+          error = function(e) {
+            rhino$log$warn(paste0("Group '", grp, "' failed to fit: ", e$message))
+            NULL
+          }
         )
         if (!is.null(fit_result)) {
           list(
@@ -145,6 +156,19 @@ fit_demand_grouped <- function(data, eq, agg, k, constrainq0 = NULL) {
 
   # Filter out NULL results from failed fits
   group_fits <- group_fits[!sapply(group_fits, is.null)]
+
+  # Determine which groups failed
+  succeeded_groups <- sapply(group_fits, function(x) as.character(x$group))
+  failed_groups <- setdiff(all_groups, succeeded_groups)
+
+  if (length(failed_groups) > 0) {
+    rhino$log$warn(
+      paste0(
+        length(failed_groups), " of ", length(all_groups),
+        " groups failed to fit: ", paste(failed_groups, collapse = ", ")
+      )
+    )
+  }
 
   if (length(group_fits) == 0) {
     return(NULL)
@@ -162,6 +186,7 @@ fit_demand_grouped <- function(data, eq, agg, k, constrainq0 = NULL) {
 
   list(
     output = output,
-    results = format_demand_results(output)
+    results = format_demand_results(output),
+    failed_groups = failed_groups
   )
 }

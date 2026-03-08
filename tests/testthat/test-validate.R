@@ -88,6 +88,49 @@ describe("check_data", {
     expect_type(result, "character")
     expect_match(result, "x", ignore.case = TRUE)
   })
+
+  # Column name normalization tests
+  it("accepts uppercase column names by normalizing them", {
+    df <- data.frame(
+      ID = c("p1", "p1", "p2", "p2"),
+      X = c(0.01, 0.1, 0.01, 0.1),
+      Y = c(100, 80, 90, 70)
+    )
+    result <- validate$check_data(df, type = "demand")
+    expect_true(result)
+  })
+
+  it("accepts column names with leading/trailing whitespace", {
+    df <- data.frame(
+      id = c("p1", "p1", "p2", "p2"),
+      x = c(0.01, 0.1, 0.01, 0.1),
+      y = c(100, 80, 90, 70)
+    )
+    # Simulate whitespace in column names
+    colnames(df) <- c(" id", "x ", " y ")
+    result <- validate$check_data(df, type = "demand")
+    expect_true(result)
+  })
+
+  it("accepts mixed case column names for discounting", {
+    df <- data.frame(
+      ID = c("p1", "p1"),
+      X = c(0.01, 0.1),
+      Y = c(100, 80)
+    )
+    result <- validate$check_data(df, type = "discounting")
+    expect_true(result)
+  })
+
+  it("accepts mixed case column names for mixed_effects_demand", {
+    df <- data.frame(
+      ID = c("m1", "m1"),
+      X = c(0.01, 0.1),
+      Y = c(100, 80)
+    )
+    result <- validate$check_data(df, type = "mixed_effects_demand")
+    expect_true(result)
+  })
 })
 
 # ------------------------------------------------------------------------------

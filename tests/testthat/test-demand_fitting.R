@@ -294,7 +294,7 @@ describe("format_demand_results", {
 # ------------------------------------------------------------------------------
 
 describe("fit_demand_ungrouped", {
-  it("returns a list with 'output' and 'results' components", {
+  it("returns a list with 'output', 'results', and 'failed_groups' components", {
     dat <- make_demand_data(n_ids = 2)
     result <- fitting$fit_demand_ungrouped(
       data = dat, eq = "koff", agg = NULL, k = 2
@@ -302,6 +302,8 @@ describe("fit_demand_ungrouped", {
     expect_type(result, "list")
     expect_true("output" %in% names(result))
     expect_true("results" %in% names(result))
+    expect_true("failed_groups" %in% names(result))
+    expect_equal(result$failed_groups, character(0))
   })
 
   it("returns a data.frame in the 'results' component", {
@@ -392,7 +394,7 @@ describe("fit_demand_ungrouped", {
 # ------------------------------------------------------------------------------
 
 describe("fit_demand_grouped", {
-  it("returns a list with 'output' and 'results' components", {
+  it("returns a list with 'output', 'results', and 'failed_groups' components", {
     dat <- make_grouped_demand_data()
     result <- fitting$fit_demand_grouped(
       data = dat, eq = "koff", agg = NULL, k = 2
@@ -400,6 +402,7 @@ describe("fit_demand_grouped", {
     expect_type(result, "list")
     expect_true("output" %in% names(result))
     expect_true("results" %in% names(result))
+    expect_true("failed_groups" %in% names(result))
   })
 
   it("returns a data.frame in the 'results' component", {
@@ -459,6 +462,14 @@ describe("fit_demand_grouped", {
     # Result should be NULL if all groups fail
     # (beezdemand may still return something, so we accept either NULL or a list)
     expect_true(is.null(result) || is.list(result))
+  })
+
+  it("reports failed_groups as empty when all groups succeed", {
+    dat <- make_grouped_demand_data()
+    result <- fitting$fit_demand_grouped(
+      data = dat, eq = "koff", agg = NULL, k = 2
+    )
+    expect_equal(result$failed_groups, character(0))
   })
 
   it("works with the 'hs' equation", {

@@ -20,6 +20,7 @@ box::use(
   app / logic / discounting / scoring,
   app / logic / logging_utils,
   app / logic / utils,
+  app / view / shared / data_table[build_datatable],
 )
 
 #' @export
@@ -153,76 +154,20 @@ server <- function(
     # Render outputs
     output$results_table <- DT$renderDT(server = FALSE, {
       shiny$req(main_calc_reactive()$results)
-      DT$datatable(
+      build_datatable(
         main_calc_reactive()$results,
-        rownames = FALSE,
-        extensions = c("Buttons", "Scroller"),
-        fillContainer = FALSE,
-        options = list(
-          pageLength = 20,
-          autoWidth = TRUE,
-          ordering = TRUE,
-          dom = "Btipl",
-          buttons = list(
-            list(extend = "copy"),
-            list(extend = "print"),
-            list(
-              extend = "csv",
-              filename = "shinybeez_Discounting_Results",
-              title = NULL
-            ),
-            list(
-              extend = "excel",
-              filename = "shinybeez_Discounting_Results",
-              title = NULL
-            ),
-            list(
-              extend = "pdf",
-              filename = "shinybeez_Discounting_Results",
-              title = NULL
-            )
-          ),
-          deferRender = TRUE,
-          scrollY = 400,
-          scroller = TRUE
-        )
+        filename_prefix = "shinybeez_Discounting_Results",
+        scroll_y = 400,
+        page_length = 20
       )
     })
 
     output$summary_table <- DT$renderDT(server = FALSE, {
       shiny$req(main_calc_reactive()$summary)
-      DT$datatable(
+      build_datatable(
         main_calc_reactive()$summary,
-        rownames = FALSE,
-        extensions = c("Buttons", "Scroller"),
-        fillContainer = FALSE,
-        options = list(
-          autoWidth = TRUE,
-          ordering = TRUE,
-          dom = "Bti",
-          buttons = list(
-            list(extend = "copy"),
-            list(extend = "print"),
-            list(
-              extend = "csv",
-              filename = "shinybeez_Discounting_Summary",
-              title = NULL
-            ),
-            list(
-              extend = "excel",
-              filename = "shinybeez_Discounting_Summary",
-              title = NULL
-            ),
-            list(
-              extend = "pdf",
-              filename = "shinybeez_Discounting_Summary",
-              title = NULL
-            )
-          ),
-          deferRender = TRUE,
-          scrollY = 300,
-          scroller = TRUE
-        )
+        filename_prefix = "shinybeez_Discounting_Summary",
+        scroll_y = 300
       )
     })
 
@@ -234,6 +179,7 @@ server <- function(
       cor_matrix <- round(stats$cor(cor_data, use = "pairwise.complete.obs"), 3)
       cor_df <- as.data.frame(cor_matrix)
       cor_df <- cbind(Variable = rownames(cor_df), cor_df)
+      # Correlation table is a special case: no scroller, no PDF, no ordering
       DT$datatable(
         cor_df,
         rownames = FALSE,
@@ -263,39 +209,11 @@ server <- function(
 
     output$imputed_data_table <- DT$renderDT(server = FALSE, {
       shiny$req(main_calc_reactive()$data)
-      DT$datatable(
+      build_datatable(
         main_calc_reactive()$data,
-        rownames = FALSE,
-        extensions = c("Buttons", "Scroller"),
-        fillContainer = FALSE,
-        options = list(
-          pageLength = 20,
-          autoWidth = TRUE,
-          ordering = TRUE,
-          dom = "Btipl",
-          buttons = list(
-            list(extend = "copy"),
-            list(extend = "print"),
-            list(
-              extend = "csv",
-              filename = "shinybeez_Discounting_ImputedData",
-              title = NULL
-            ),
-            list(
-              extend = "excel",
-              filename = "shinybeez_Discounting_ImputedData",
-              title = NULL
-            ),
-            list(
-              extend = "pdf",
-              filename = "shinybeez_Discounting_ImputedData",
-              title = NULL
-            )
-          ),
-          deferRender = TRUE,
-          scrollY = 400,
-          scroller = TRUE
-        )
+        filename_prefix = "shinybeez_Discounting_ImputedData",
+        scroll_y = 400,
+        page_length = 20
       )
     })
 

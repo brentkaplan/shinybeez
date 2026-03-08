@@ -9,6 +9,7 @@ box::use(
   app / logic / demand / systematic,
   app / logic / logging_utils,
   app / logic / validate,
+  app / view / shared / data_table[build_datatable],
 )
 
 #' @export
@@ -91,58 +92,11 @@ server <- function(id, isgroup = NULL, data_r) {
     # Create session-specific logger
     session_logger <- logging_utils$create_session_logger(session)
 
-    # show data table
-    shiny$observe({
-      shiny$req(session$userData$data$demand)
-      session_logger$info(
-        "Rendering Demand data table",
-        category = "module_init"
-      )
-      output$data_table <- DT$renderDT(server = FALSE, {
-        DT$datatable(
-          data_r$data_d,
-          rownames = FALSE,
-          extensions = c("Buttons", "Scroller", "FixedColumns"),
-          fillContainer = FALSE,
-          options = list(
-            autoWidth = TRUE,
-            ordering = TRUE,
-            dom = "Bti",
-            buttons = list(
-              list(extend = "copy"),
-              list(extend = "print"),
-              list(
-                extend = "csv",
-                filename = "shinybeez_Demand_Data",
-                title = NULL
-              ),
-              list(
-                extend = "excel",
-                filename = "shinybeez_Demand_Data",
-                title = NULL
-              ),
-              list(
-                extend = "pdf",
-                filename = "shinybeez_Demand_Data",
-                title = NULL
-              )
-            ),
-            fixedColumns = list(leftColumns = 1),
-            deferRender = TRUE,
-            scrollY = 250,
-            scrollX = TRUE,
-            scroller = TRUE
-          )
-        )
-      })
-    })
-
-    # show descriptives table
-    shiny$observe({
+    # Lazy reactive: only computes when the Descriptives tab is viewed
+    descriptives_r <- shiny$reactive({
       shiny$req(session$userData$data$demand)
       session_logger$info("Computing demand descriptives", "data_processing")
-
-      descriptives <- shiny$withProgress(message = "Computing descriptives...", {
+      shiny$withProgress(message = "Computing descriptives...", {
         tryCatch(
           session_logger$with_performance("demand_descriptives", function() {
             empirical$compute_descriptives(data_r$data_d, is_grouped = isgroup())
@@ -153,54 +107,16 @@ server <- function(id, isgroup = NULL, data_r) {
           }
         )
       })
-      shiny$req(descriptives)
-
-      output$descriptives_table <- DT$renderDT(server = FALSE, {
-        DT$datatable(
-          descriptives,
-          rownames = FALSE,
-          extensions = c("Buttons", "Scroller"),
-          fillContainer = FALSE,
-          options = list(
-            autoWidth = TRUE,
-            ordering = TRUE,
-            dom = "Bti",
-            buttons = list(
-              list(extend = "copy"),
-              list(extend = "print"),
-              list(
-                extend = "csv",
-                filename = "shinybeez_Demand_Descriptives",
-                title = NULL
-              ),
-              list(
-                extend = "excel",
-                filename = "shinybeez_Demand_Descriptives",
-                title = NULL
-              ),
-              list(
-                extend = "pdf",
-                filename = "shinybeez_Demand_Descriptives",
-                title = NULL
-              )
-            ),
-            deferRender = TRUE,
-            scrollY = 250,
-            scroller = TRUE
-          )
-        )
-      })
     })
 
-    # show empirical table
-    shiny$observe({
+    # Lazy reactive: only computes when the Empirical Measures tab is viewed
+    empirical_r <- shiny$reactive({
       shiny$req(session$userData$data$demand)
       session_logger$info(
         paste0("Computing empirical measures, grouped = ", isgroup()),
         "data_processing"
       )
-
-      emp_result <- shiny$withProgress(message = "Computing empirical measures...", {
+      shiny$withProgress(message = "Computing empirical measures...", {
         tryCatch(
           session_logger$with_performance("demand_empirical_measures", function() {
             empirical$compute_empirical_measures(
@@ -214,51 +130,13 @@ server <- function(id, isgroup = NULL, data_r) {
           }
         )
       })
-      shiny$req(emp_result)
-
-      output$empirical_table <- DT$renderDT(server = FALSE, {
-        DT$datatable(
-          emp_result,
-          rownames = FALSE,
-          extensions = c("Buttons", "Scroller"),
-          fillContainer = FALSE,
-          options = list(
-            autoWidth = TRUE,
-            ordering = TRUE,
-            dom = "Bti",
-            buttons = list(
-              list(extend = "copy"),
-              list(extend = "print"),
-              list(
-                extend = "csv",
-                filename = "shinybeez_Demand_Empirical_Measures",
-                title = NULL
-              ),
-              list(
-                extend = "excel",
-                filename = "shinybeez_Demand_Empirical_Measures",
-                title = NULL
-              ),
-              list(
-                extend = "pdf",
-                filename = "shinybeez_Demand_Empirical_Measures",
-                title = NULL
-              )
-            ),
-            deferRender = TRUE,
-            scrollY = 250,
-            scroller = TRUE
-          )
-        )
-      })
     })
 
-    # show systematic table
-    shiny$observe({
+    # Lazy reactive: re-computes when data or systematic settings change
+    systematic_r <- shiny$reactive({
       shiny$req(session$userData$data$demand)
       session_logger$info("Computing systematic criteria", "data_processing")
-
-      sys_result <- shiny$withProgress(message = "Computing systematic criteria...", {
+      shiny$withProgress(message = "Computing systematic criteria...", {
         tryCatch(
           session_logger$with_performance("demand_systematic_check", function() {
             systematic$compute_systematic(
@@ -276,45 +154,50 @@ server <- function(id, isgroup = NULL, data_r) {
           }
         )
       })
-      shiny$req(sys_result)
+    })
 
-      output$systematic_table <- DT$renderDT(server = FALSE, {
-        DT$datatable(
-          sys_result,
-          rownames = FALSE,
-          extensions = c("Buttons", "Scroller", "FixedColumns"),
-          fillContainer = FALSE,
-          options = list(
-            autoWidth = FALSE,
-            ordering = TRUE,
-            dom = "Bti",
-            buttons = list(
-              list(extend = "copy"),
-              list(extend = "print"),
-              list(
-                extend = "csv",
-                filename = "shinybeez_Demand_Systematic_Criteria",
-                title = NULL
-              ),
-              list(
-                extend = "excel",
-                filename = "shinybeez_Demand_Systematic_Criteria",
-                title = NULL
-              ),
-              list(
-                extend = "pdf",
-                filename = "shinybeez_Demand_Systematic_Criteria",
-                title = NULL
-              )
-            ),
-            deferRender = TRUE,
-            scrollY = 250,
-            scroller = TRUE,
-            scrollX = TRUE,
-            fixedColumns = list(leftColumns = 1)
-          )
-        )
-      })
+    # Render data table
+    output$data_table <- DT$renderDT(server = FALSE, {
+      shiny$req(session$userData$data$demand)
+      session_logger$info("Rendering Demand data table", category = "module_init")
+      build_datatable(
+        data_r$data_d,
+        filename_prefix = "shinybeez_Demand_Data",
+        scroll_y = 250,
+        fixed_columns = 1L
+      )
+    })
+
+    # Render descriptives table
+    output$descriptives_table <- DT$renderDT(server = FALSE, {
+      shiny$req(descriptives_r())
+      build_datatable(
+        descriptives_r(),
+        filename_prefix = "shinybeez_Demand_Descriptives",
+        scroll_y = 250
+      )
+    })
+
+    # Render empirical table
+    output$empirical_table <- DT$renderDT(server = FALSE, {
+      shiny$req(empirical_r())
+      build_datatable(
+        empirical_r(),
+        filename_prefix = "shinybeez_Demand_Empirical_Measures",
+        scroll_y = 250
+      )
+    })
+
+    # Render systematic table
+    output$systematic_table <- DT$renderDT(server = FALSE, {
+      shiny$req(systematic_r())
+      build_datatable(
+        systematic_r(),
+        filename_prefix = "shinybeez_Demand_Systematic_Criteria",
+        scroll_y = 250,
+        fixed_columns = 1L,
+        auto_width = FALSE
+      )
     })
   })
 }
