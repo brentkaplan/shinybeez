@@ -157,7 +157,7 @@ server <- function(id) {
         {
           telemetry <- telemetry_utils$get_telemetry()
           if (!is.null(telemetry)) {
-            telemetry$start_session()
+            telemetry$start_session(session = session, track_values = FALSE)
           }
         },
         error = function(e) {
@@ -174,9 +174,8 @@ server <- function(id) {
     session_telemetry$track_event(
       "session_start",
       list(
-        user_agent = session$clientData$user_agent,
-        url = session$clientData$url_hostname,
-        screen_width = session$clientData$pixelratio
+        url_search = session$clientData$url_search,
+        url = session$clientData$url_hostname
       )
     )
 

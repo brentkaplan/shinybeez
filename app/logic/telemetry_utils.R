@@ -4,6 +4,7 @@
 #' with flexible storage backends (SQLite, PostgreSQL) for containerized deployments.
 
 box::use(
+  jsonlite[toJSON],
   rhino[log],
   glue
 )
@@ -133,15 +134,18 @@ track_event <- function(event_name, event_data = list(), session = NULL) {
   }
 
   tryCatch({
-    # Add session info if available
-    if (!is.null(session)) {
-      event_data$session_token <- session$token
+    # Serialize event data to JSON string for the details param
+    details <- if (length(event_data) > 0) {
+      toJSON(event_data, auto_unbox = TRUE, null = "null")
+    } else {
+      NULL
     }
 
-    # Track the event
-    telemetry$track_event(
-      event_name = event_name,
-      event_data = event_data
+    # Call the correct shiny.telemetry API method
+    telemetry$log_custom_event(
+      event_type = event_name,
+      details = details,
+      session = session
     )
 
     log$debug("Tracked telemetry event: {event_name}")
