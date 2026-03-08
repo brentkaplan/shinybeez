@@ -96,7 +96,7 @@ server <- function(
             imputation = imputation(),
             trans = trans()
           )
-        })
+        }, always_log = TRUE)
         res$results <- mcq_out$results
         res$data <- mcq_out$data
         res$summary <- mcq_out$summary
@@ -124,14 +124,16 @@ server <- function(
         res$results <- session_logger$with_performance(
           "five_trial_dd", function() {
             five_trial$compute_five_trial_dd(data_r$data_d)
-          }
+          },
+          always_log = TRUE
         )
       } else if (type() == "5.5 Trial Probability Discounting") {
         rhino$log$info("Calculating 5.5 Trial PD")
         res$results <- session_logger$with_performance(
           "five_trial_pd", function() {
             five_trial$compute_five_trial_pd(data_r$data_d)
-          }
+          },
+          always_log = TRUE
         )
       } else if (type() == "Indifference Point Regression") {
         rhino$log$debug(paste("Equation:", eq(), "; Aggregation:", agg()))
@@ -143,7 +145,8 @@ server <- function(
               equation = eq(),
               method = agg()
             )
-          }
+          },
+          always_log = TRUE
         )
         res$dd_fit <- reg_out$dd_fit
         res$results <- reg_out$results

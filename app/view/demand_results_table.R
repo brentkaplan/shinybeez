@@ -151,9 +151,13 @@ server <- function(
                 k = k, constrainq0 = constrainq0
               )
             }
-          }),
+          }, always_log = TRUE),
           error = function(e) {
-            rhino$log$error(paste("Error in FitCurves:", e$message))
+            session_logger$error_enhanced(
+              paste("Error in FitCurves:", e$message), e,
+              context = "demand_curve_fitting",
+              user_action = "demand model calculation"
+            )
             shiny$showNotification(
               paste("Error fitting demand curves:", e$message),
               type = "error", duration = NULL

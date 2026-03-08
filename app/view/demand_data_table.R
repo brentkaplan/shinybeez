@@ -100,8 +100,9 @@ server <- function(id, isgroup = NULL, data_r) {
         tryCatch(
           session_logger$with_performance("demand_descriptives", function() {
             empirical$compute_descriptives(data_r$data_d, is_grouped = isgroup())
-          }),
+          }, always_log = TRUE),
           error = function(e) {
+            session_logger$error_enhanced(e$message, e, context = "demand_descriptives")
             shiny$showNotification(e$message, type = "error", duration = NULL)
             NULL
           }
@@ -123,8 +124,9 @@ server <- function(id, isgroup = NULL, data_r) {
               data_r$data_d,
               is_grouped = isgroup()
             )
-          }),
+          }, always_log = TRUE),
           error = function(e) {
+            session_logger$error_enhanced(e$message, e, context = "demand_empirical_measures")
             shiny$showNotification(e$message, type = "error", duration = NULL)
             NULL
           }
@@ -147,8 +149,9 @@ server <- function(id, isgroup = NULL, data_r) {
               ncons0 = input$ncons0,
               is_grouped = isgroup()
             )
-          }),
+          }, always_log = TRUE),
           error = function(e) {
+            session_logger$error_enhanced(e$message, e, context = "demand_systematic_check")
             shiny$showNotification(e$message, type = "error", duration = NULL)
             NULL
           }

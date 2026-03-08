@@ -750,6 +750,10 @@ navpanel_server <- function(id, sidebar_reactives) {
               type = "error",
               duration = NULL
             )
+            session_logger$error_enhanced(
+              paste("Model fitting error:", e$message), e,
+              context = "mixed_effects_model_fit"
+            )
             session_logger$model_fitting(
               model_type = "mixed_effects_demand",
               parameters = list(
@@ -912,6 +916,10 @@ navpanel_server <- function(id, sidebar_reactives) {
           always_log = TRUE
         ),
         error = function(e) {
+          session_logger$error_enhanced(
+            paste("Error getting EMMs:", e$message), e,
+            context = "mixed_effects_emms"
+          )
           shiny$showNotification(
             paste("Error getting EMMs:", e$message),
             type = "error"
@@ -1088,6 +1096,10 @@ navpanel_server <- function(id, sidebar_reactives) {
           always_log = TRUE
         ),
         error = function(e) {
+          session_logger$error_enhanced(
+            paste("Error in comparisons:", e$message), e,
+            context = "mixed_effects_comparisons"
+          )
           shiny$showNotification(
             paste("Error in comparisons:", e$message),
             type = "error"

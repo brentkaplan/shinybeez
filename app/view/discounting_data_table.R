@@ -163,9 +163,11 @@ server <- function(id, data_r, type = NULL) {
                   c1 = input$c1,
                   c2 = input$c2
                 )
-              }
+              },
+              always_log = TRUE
             ),
             error = function(e) {
+              session_logger$error_enhanced(e$message, e, context = "discounting_systematic_check")
               shiny$showNotification(e$message, type = "error", duration = 10)
               NULL
             }
