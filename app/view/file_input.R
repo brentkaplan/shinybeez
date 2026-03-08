@@ -109,9 +109,20 @@ server <- function(id, type = "demand") {
           return()
         } else {
           is_mcq_wide <- "subjectid" %in% colnames(tmp) && ncol(tmp) == 28
-          if (is_mcq_wide) {
-            # MCQ wide format: NAs are expected (missing/unanswered items).
+          is_mcq_long <- identical(colnames(tmp), c("subjectid", "questionid", "response"))
+          if (is_mcq_wide || is_mcq_long) {
+            # MCQ format: NAs are expected (missing/unanswered items).
             # score_mcq27() handles missing data via imputation — preserve as-is.
+            n_missing <- sum(is.na(tmp))
+            format_label <- if (is_mcq_wide) "MCQ wide" else "MCQ long"
+            session_logger$info(
+              paste0(
+                "Discounting format: ", format_label,
+                " (", nrow(tmp), " rows, ", ncol(tmp), " cols, ",
+                n_missing, " NAs preserved for imputation)"
+              ),
+              category = "data_processing"
+            )
             session$userData$data$discounting <- tmp
             shiny$showNotification(
               paste0("Data loaded: ", nrow(tmp), " rows, ", ncol(tmp), " columns."),
@@ -122,6 +133,14 @@ server <- function(id, type = "demand") {
             # Non-MCQ formats: drop fully-NA rows and empty columns
             na_result <- validate$remove_na_rows(tmp)
             tmp <- na_result$data
+            session_logger$info(
+              paste0(
+                "Discounting format: standard (",
+                nrow(tmp), " rows, ", ncol(tmp), " cols, ",
+                na_result$n_dropped, " NA rows dropped)"
+              ),
+              category = "data_processing"
+            )
             if (na_result$n_dropped > 0) {
               shiny$showNotification(
                 paste(
