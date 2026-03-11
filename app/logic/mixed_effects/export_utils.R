@@ -170,27 +170,15 @@ style_data_sheet <- function(wb, sheet_name, data, openxlsx) {
   # Freeze header row
   openxlsx$freezePane(wb, sheet_name, firstActiveRow = 2)
 
-  # Zebra stripes + body borders
+  # Body borders (no zebra stripes — they render poorly in dark mode)
   if (n_row >= 1) {
     body_rows <- seq(2, n_row + 1)
-    odd_rows <- body_rows[body_rows %% 2 == 0]
-    even_rows <- body_rows[body_rows %% 2 == 1]
-
     body_style <- create_body_border_style(openxlsx)
     openxlsx$addStyle(
       wb, sheet_name, body_style,
       rows = body_rows, cols = seq_len(n_col),
       gridExpand = TRUE, stack = TRUE
     )
-
-    if (length(even_rows) > 0) {
-      stripe_style <- create_stripe_style(openxlsx)
-      openxlsx$addStyle(
-        wb, sheet_name, stripe_style,
-        rows = even_rows, cols = seq_len(n_col),
-        gridExpand = TRUE, stack = TRUE
-      )
-    }
   }
 
   # Smart number formatting per column
