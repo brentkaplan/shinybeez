@@ -53,7 +53,7 @@ proxy:
       container-env:
         R_CONFIG_ACTIVE: shinyproxy
       container-memory-limit: 2048m
-      min-instances: 1
+      minimum-seats-available: 1
       logo-url: https://raw.githubusercontent.com/brentkaplan/shinybeez/refs/heads/main/shinybeez-logo.png
       access-groups: []
 
