@@ -7,6 +7,209 @@ box::use(
   stats
 )
 
+# --- Excel Styling Constants & Factories ---
+
+#' Color palette for Excel export styling
+#' @export
+excel_palette <- list(
+  HEADER_BG = "#2C3E50",
+  HEADER_FONT = "#FFFFFF",
+  SECTION_BG = "#4A6FA5",
+  SECTION_FONT = "#FFFFFF",
+  TITLE_FONT = "#2C3E50",
+  STRIPE_BG = "#F2F4F7",
+  BORDER_COLOR = "#BDC3C7",
+  TAB_SUMMARY = "#2C3E50",
+  TAB_DATA = "#27AE60",
+  TAB_MODEL = "#8E44AD",
+  TAB_COMPARISON = "#E67E22",
+  TAB_PLOT = "#16A085"
+)
+
+#' Create header style (navy bg, white bold, centered)
+#' @param openxlsx The openxlsx module reference
+#' @return An openxlsx style object
+#' @export
+create_header_style <- function(openxlsx) {
+  openxlsx$createStyle(
+    fontName = "Calibri",
+    fontSize = 11,
+    fontColour = excel_palette$HEADER_FONT,
+    bgFill = excel_palette$HEADER_BG,
+    textDecoration = "bold",
+    halign = "center",
+    wrapText = TRUE,
+    border = "TopBottomLeftRight",
+    borderColour = excel_palette$BORDER_COLOR,
+    borderStyle = "thin"
+  )
+}
+
+#' Create zebra stripe style (light gray bg, thin borders)
+#' @param openxlsx The openxlsx module reference
+#' @return An openxlsx style object
+#' @export
+create_stripe_style <- function(openxlsx) {
+  openxlsx$createStyle(
+    fontName = "Calibri",
+    fontSize = 11,
+    bgFill = excel_palette$STRIPE_BG,
+    border = "TopBottomLeftRight",
+    borderColour = excel_palette$BORDER_COLOR,
+    borderStyle = "thin"
+  )
+}
+
+#' Create body border style (white bg, thin borders)
+#' @param openxlsx The openxlsx module reference
+#' @return An openxlsx style object
+#' @export
+create_body_border_style <- function(openxlsx) {
+  openxlsx$createStyle(
+    fontName = "Calibri",
+    fontSize = 11,
+    border = "TopBottomLeftRight",
+    borderColour = excel_palette$BORDER_COLOR,
+    borderStyle = "thin"
+  )
+}
+
+#' Create number format style with borders
+#' @param openxlsx The openxlsx module reference
+#' @param fmt Number format string (e.g., "0.0000")
+#' @return An openxlsx style object
+#' @export
+create_numfmt_style <- function(openxlsx, fmt) {
+  openxlsx$createStyle(numFmt = fmt)
+}
+
+#' Create summary title style (18pt bold navy)
+#' @param openxlsx The openxlsx module reference
+#' @return An openxlsx style object
+#' @export
+create_summary_title_style <- function(openxlsx) {
+  openxlsx$createStyle(
+    fontName = "Calibri",
+    fontSize = 18,
+    fontColour = excel_palette$TITLE_FONT,
+    textDecoration = "bold"
+  )
+}
+
+#' Create summary section header style (blue bg, white bold)
+#' @param openxlsx The openxlsx module reference
+#' @return An openxlsx style object
+#' @export
+create_summary_section_style <- function(openxlsx) {
+  openxlsx$createStyle(
+    fontName = "Calibri",
+    fontSize = 11,
+    fontColour = excel_palette$SECTION_FONT,
+    bgFill = excel_palette$SECTION_BG,
+    textDecoration = "bold"
+  )
+}
+
+#' Create summary label style (bold 11pt)
+#' @param openxlsx The openxlsx module reference
+#' @return An openxlsx style object
+#' @export
+create_summary_label_style <- function(openxlsx) {
+  openxlsx$createStyle(
+    fontName = "Calibri",
+    fontSize = 11,
+    textDecoration = "bold"
+  )
+}
+
+#' Create model text style (Consolas 10pt monospace)
+#' @param openxlsx The openxlsx module reference
+#' @return An openxlsx style object
+#' @export
+create_model_text_style <- function(openxlsx) {
+  openxlsx$createStyle(fontName = "Consolas", fontSize = 10)
+}
+
+#' Detect number format for a column based on its name
+#'
+#' @param col_name Column name string
+#' @return Number format string
+#' @export
+detect_number_format <- function(col_name) {
+  lc <- tolower(col_name)
+  if (grepl("p[._]?value|^pr$|^pvalue$", lc)) return("0.0000")
+  if (grepl("^se$|^std|std[._]error", lc)) return("0.0000")
+  if (grepl("estimate|ratio|coefficient", lc)) return("0.0000")
+  if (grepl("t[._]value|z[._]value|^df$", lc)) return("0.00")
+  if (grepl("^n$|count|n_positive", lc)) return("0")
+  "0.000"
+}
+
+#' Apply professional styling to a data sheet
+#'
+#' Adds header styling, frozen panes, zebra stripes, borders,
+#' and smart number formatting to a sheet after data is written.
+#'
+#' @param wb openxlsx workbook object
+#' @param sheet_name Name of the worksheet
+#' @param data Data frame that was written to the sheet
+#' @param openxlsx The openxlsx module reference
+#' @export
+style_data_sheet <- function(wb, sheet_name, data, openxlsx) {
+  n_col <- ncol(data)
+  n_row <- nrow(data)
+  if (n_col == 0 || n_row == 0) return(invisible(NULL))
+
+  # Header style on row 1
+  header_style <- create_header_style(openxlsx)
+  openxlsx$addStyle(
+    wb, sheet_name, header_style,
+    rows = 1, cols = seq_len(n_col), gridExpand = TRUE
+  )
+
+  # Freeze header row
+  openxlsx$freezePane(wb, sheet_name, firstActiveRow = 2)
+
+  # Zebra stripes + body borders
+  if (n_row >= 1) {
+    body_rows <- seq(2, n_row + 1)
+    odd_rows <- body_rows[body_rows %% 2 == 0]
+    even_rows <- body_rows[body_rows %% 2 == 1]
+
+    body_style <- create_body_border_style(openxlsx)
+    openxlsx$addStyle(
+      wb, sheet_name, body_style,
+      rows = body_rows, cols = seq_len(n_col),
+      gridExpand = TRUE, stack = TRUE
+    )
+
+    if (length(even_rows) > 0) {
+      stripe_style <- create_stripe_style(openxlsx)
+      openxlsx$addStyle(
+        wb, sheet_name, stripe_style,
+        rows = even_rows, cols = seq_len(n_col),
+        gridExpand = TRUE, stack = TRUE
+      )
+    }
+  }
+
+  # Smart number formatting per column
+  col_names <- names(data)
+  for (i in seq_len(n_col)) {
+    if (is.numeric(data[[i]])) {
+      fmt <- detect_number_format(col_names[i])
+      fmt_style <- create_numfmt_style(openxlsx, fmt)
+      openxlsx$addStyle(
+        wb, sheet_name, fmt_style,
+        rows = seq(2, n_row + 1), cols = i,
+        gridExpand = TRUE, stack = TRUE
+      )
+    }
+  }
+
+  invisible(NULL)
+}
+
 #' Build summary sheet data for Excel export
 #'
 #' @param settings List with analysis settings (equation, factors, id_var, x_var, y_var, etc.)
@@ -278,21 +481,26 @@ build_dt_buttons <- function(filename) {
 
 #' Write a data sheet to an Excel workbook
 #'
-#' Generic helper to write a data frame to an Excel sheet with auto-width columns.
+#' Generic helper to write a data frame to an Excel sheet with auto-width columns
+#' and optional professional styling.
 #'
 #' @param wb openxlsx workbook object
 #' @param sheet_name Name for the worksheet
 #' @param data Data frame to write
 #' @param openxlsx The openxlsx module reference
 #' @param col_names Whether to write column names (default TRUE)
+#' @param tab_colour Tab colour hex string (default NULL)
 #' @return Invisibly returns TRUE if written, FALSE otherwise
 #' @export
-write_data_sheet <- function(wb, sheet_name, data, openxlsx, col_names = TRUE) {
+write_data_sheet <- function(
+  wb, sheet_name, data, openxlsx,
+  col_names = TRUE, tab_colour = NULL
+) {
   if (is.null(data) || !is.data.frame(data) || nrow(data) == 0) {
     return(invisible(FALSE))
   }
 
-  openxlsx$addWorksheet(wb, sheet_name)
+  openxlsx$addWorksheet(wb, sheet_name, tabColour = tab_colour)
   openxlsx$writeData(wb, sheet_name, data, colNames = col_names)
   openxlsx$setColWidths(
     wb,
@@ -300,6 +508,10 @@ write_data_sheet <- function(wb, sheet_name, data, openxlsx, col_names = TRUE) {
     cols = seq_len(ncol(data)),
     widths = "auto"
   )
+
+  if (col_names) {
+    style_data_sheet(wb, sheet_name, data, openxlsx)
+  }
 
   invisible(TRUE)
 }
@@ -314,6 +526,7 @@ write_data_sheet <- function(wb, sheet_name, data, openxlsx, col_names = TRUE) {
 #' @param digits Number of decimal places for rounding
 #' @param openxlsx The openxlsx module reference
 #' @param dplyr The dplyr module reference
+#' @param tab_colour Tab colour hex string (default NULL)
 #' @return Invisibly returns TRUE if written, FALSE otherwise
 #' @export
 write_comparison_sheet <- function(
@@ -322,7 +535,8 @@ write_comparison_sheet <- function(
   data,
   digits = 4,
   openxlsx,
-  dplyr
+  dplyr,
+  tab_colour = NULL
 ) {
   if (is.null(data) || !is.data.frame(data) || nrow(data) == 0) {
     return(invisible(FALSE))
@@ -333,7 +547,7 @@ write_comparison_sheet <- function(
     dplyr$across(where(is.numeric), ~ round(., digits))
   )
 
-  openxlsx$addWorksheet(wb, sheet_name)
+  openxlsx$addWorksheet(wb, sheet_name, tabColour = tab_colour)
   openxlsx$writeData(wb, sheet_name, rounded_data)
   openxlsx$setColWidths(
     wb,
@@ -341,6 +555,118 @@ write_comparison_sheet <- function(
     cols = seq_len(ncol(rounded_data)),
     widths = "auto"
   )
+
+  style_data_sheet(wb, sheet_name, rounded_data, openxlsx)
+
+  invisible(TRUE)
+}
+
+#' Write a styled summary sheet to an Excel workbook
+#'
+#' Creates a professional summary sheet with merged title, colored section
+#' headers, and bold key-value labels. Replaces inline styling in the view.
+#'
+#' @param wb openxlsx workbook object
+#' @param summary_data Data frame with Item and Value columns
+#' @param openxlsx The openxlsx module reference
+#' @export
+write_summary_sheet <- function(wb, summary_data, openxlsx) {
+  openxlsx$addWorksheet(
+    wb, "Summary",
+    tabColour = excel_palette$TAB_SUMMARY
+  )
+
+  # Find title row (row 1), section rows (start with "---"), and data rows
+
+  title_row <- 1
+  section_rows <- which(grepl("^---", summary_data$Item))
+
+  # Strip "--- " markers from section headers for display
+  clean_data <- summary_data
+  clean_data$Item <- gsub("^---\\s*", "", clean_data$Item)
+  clean_data$Item <- gsub("\\s*---$", "", clean_data$Item)
+
+  # Write data without column headers
+  openxlsx$writeData(wb, "Summary", clean_data, colNames = FALSE)
+
+  # Style title row — merge across cols 1:2
+  openxlsx$mergeCells(wb, "Summary", cols = 1:2, rows = title_row)
+  title_style <- create_summary_title_style(openxlsx)
+  openxlsx$addStyle(
+    wb, "Summary", title_style,
+    rows = title_row, cols = 1
+  )
+
+  # Style section headers — merge + colored bg
+  section_style <- create_summary_section_style(openxlsx)
+  for (row in section_rows) {
+    openxlsx$mergeCells(wb, "Summary", cols = 1:2, rows = row)
+    openxlsx$addStyle(
+      wb, "Summary", section_style,
+      rows = row, cols = 1:2, gridExpand = TRUE
+    )
+  }
+
+  # Style key-value labels (bold in col 1 for non-title, non-section,
+  # non-empty rows)
+  label_style <- create_summary_label_style(openxlsx)
+  data_rows <- setdiff(
+    which(nzchar(clean_data$Item)),
+    c(title_row, section_rows)
+  )
+  if (length(data_rows) > 0) {
+    openxlsx$addStyle(
+      wb, "Summary", label_style,
+      rows = data_rows, cols = 1, stack = TRUE
+    )
+  }
+
+  # Set column widths
+  openxlsx$setColWidths(wb, "Summary", cols = 1:2, widths = c(30, 45))
+
+  invisible(TRUE)
+}
+
+#' Write a styled model summary sheet to an Excel workbook
+#'
+#' Creates a sheet with monospace-formatted model console output.
+#'
+#' @param wb openxlsx workbook object
+#' @param model_text Character vector of model summary lines
+#' @param openxlsx The openxlsx module reference
+#' @export
+write_model_summary_sheet <- function(wb, model_text, openxlsx) {
+  openxlsx$addWorksheet(
+    wb, "Model_Summary",
+    tabColour = excel_palette$TAB_MODEL
+  )
+
+  # Header in row 1
+  header_df <- data.frame(Output = "Model Summary", stringsAsFactors = FALSE)
+  openxlsx$writeData(wb, "Model_Summary", header_df, colNames = FALSE)
+  header_style <- openxlsx$createStyle(
+    fontName = "Calibri",
+    fontSize = 14,
+    textDecoration = "bold"
+  )
+  openxlsx$addStyle(wb, "Model_Summary", header_style, rows = 1, cols = 1)
+
+  # Write console output starting at row 3
+  text_df <- data.frame(Output = model_text, stringsAsFactors = FALSE)
+  openxlsx$writeData(
+    wb, "Model_Summary", text_df,
+    startRow = 3, colNames = FALSE
+  )
+
+  # Apply monospace font to all text rows
+  mono_style <- create_model_text_style(openxlsx)
+  text_rows <- seq(3, 3 + length(model_text) - 1)
+  openxlsx$addStyle(
+    wb, "Model_Summary", mono_style,
+    rows = text_rows, cols = 1, gridExpand = TRUE
+  )
+
+  openxlsx$setColWidths(wb, "Model_Summary", cols = 1, widths = 120)
 
   invisible(TRUE)
 }

@@ -1435,9 +1435,6 @@ navpanel_server <- function(id, sidebar_reactives) {
         wb <- openxlsx$createWorkbook()
 
         # --- Sheet 1: Summary (using export_utils module) ---
-        openxlsx$addWorksheet(wb, "Summary")
-
-        # Build summary using extracted module
         settings <- list(
           equation = sidebar_reactives$equation_form(),
           factors = sidebar_reactives$selected_factors(),
@@ -1453,7 +1450,6 @@ navpanel_server <- function(id, sidebar_reactives) {
           version = "1.0.0"
         )
 
-        # Add collapse levels info using module
         collapse_info <- tryCatch(
           sidebar_reactives$collapse_levels_reactive(),
           error = function(e) NULL
@@ -1463,7 +1459,6 @@ navpanel_server <- function(id, sidebar_reactives) {
           collapse_info
         )
 
-        # Add fitting settings using module
         nlme_ctrl <- tryCatch(
           sidebar_reactives$nlme_controls(),
           error = function(e) NULL
@@ -1473,27 +1468,14 @@ navpanel_server <- function(id, sidebar_reactives) {
           nlme_ctrl
         )
 
-        openxlsx$writeData(wb, "Summary", summary_data, colNames = FALSE)
-
-        # Style the title
-        title_style <- openxlsx$createStyle(
-          fontSize = 16,
-          textDecoration = "bold"
-        )
-        openxlsx$addStyle(wb, "Summary", title_style, rows = 1, cols = 1)
-
-        # Style section headers
-        header_style <- openxlsx$createStyle(textDecoration = "bold")
-        header_rows <- which(grepl("^---", summary_data$Item))
-        for (row in header_rows) {
-          openxlsx$addStyle(wb, "Summary", header_style, rows = row, cols = 1)
-        }
-
-        openxlsx$setColWidths(wb, "Summary", cols = 1:2, widths = c(35, 50))
+        export_utils$write_summary_sheet(wb, summary_data, openxlsx)
 
         # --- Sheet 2: Data ---
+        tab_data <- export_utils$excel_palette$TAB_DATA
         raw_data <- tryCatch(data_to_analyze(), error = function(e) NULL)
-        export_utils$write_data_sheet(wb, "Data", raw_data, openxlsx)
+        export_utils$write_data_sheet(
+          wb, "Data", raw_data, openxlsx, tab_colour = tab_data
+        )
 
         # --- Sheet 3: Descriptives ---
         if (!is.null(raw_data) && "y_for_model" %in% names(raw_data)) {
@@ -1502,7 +1484,9 @@ navpanel_server <- function(id, sidebar_reactives) {
           grouping_vars <- c(factors, x_var_sel)
           grouping_vars <- grouping_vars[!grouping_vars %in% c("None", "")]
           desc_data <- export_utils$build_descriptives(raw_data, grouping_vars)
-          export_utils$write_data_sheet(wb, "Descriptives", desc_data, openxlsx)
+          export_utils$write_data_sheet(
+            wb, "Descriptives", desc_data, openxlsx, tab_colour = tab_data
+          )
         }
 
         # --- Sheet 4: Systematic Criteria (with groupings if selected) ---
@@ -1522,45 +1506,41 @@ navpanel_server <- function(id, sidebar_reactives) {
           ncons0 = input$ncons0 %||% 2
         )
         export_utils$write_data_sheet(
-          wb,
-          "Systematic_Criteria",
-          systematic,
-          openxlsx
+          wb, "Systematic_Criteria", systematic, openxlsx,
+          tab_colour = tab_data
         )
 
         # === MODEL-DEPENDENT SHEETS (only if model is fitted) ===
+        tab_model <- export_utils$excel_palette$TAB_MODEL
         if (has_model) {
           # --- Sheet 5: Model Summary ---
-          openxlsx$addWorksheet(wb, "Model_Summary")
           model_summary_text <- tryCatch(
             utils::capture.output(print(model_fit)),
             error = function(e) "Model summary not available"
           )
-          model_summary_df <- data.frame(
-            Output = model_summary_text,
-            stringsAsFactors = FALSE
+          export_utils$write_model_summary_sheet(
+            wb, model_summary_text, openxlsx
           )
-          openxlsx$writeData(
-            wb,
-            "Model_Summary",
-            model_summary_df,
-            colNames = FALSE
-          )
-          openxlsx$setColWidths(wb, "Model_Summary", cols = 1, widths = 120)
 
           # --- Sheet 6: Fixed Effects ---
           fe_df <- model_output_utils$get_fixed_effects_df(
             model_fit,
             digits = 6
           )
-          export_utils$write_data_sheet(wb, "Fixed_Effects", fe_df, openxlsx)
+          export_utils$write_data_sheet(
+            wb, "Fixed_Effects", fe_df, openxlsx,
+            tab_colour = tab_model
+          )
 
           # --- Sheet 7: Random Effects ---
           re_df <- model_output_utils$get_random_effects_df(
             model_fit,
             digits = 6
           )
-          export_utils$write_data_sheet(wb, "Random_Effects", re_df, openxlsx)
+          export_utils$write_data_sheet(
+            wb, "Random_Effects", re_df, openxlsx,
+            tab_colour = tab_model
+          )
 
           # --- Individual Coefficients (if factors present) ---
           individual_coefs <- model_output_utils$get_individual_coefficients_df(
@@ -1569,10 +1549,8 @@ navpanel_server <- function(id, sidebar_reactives) {
             digits = 6
           )
           export_utils$write_data_sheet(
-            wb,
-            "Individual_Coefficients",
-            individual_coefs,
-            openxlsx
+            wb, "Individual_Coefficients", individual_coefs, openxlsx,
+            tab_colour = tab_model
           )
         } # end has_model
 
@@ -1584,7 +1562,10 @@ navpanel_server <- function(id, sidebar_reactives) {
         }
         if (emms_utils$has_emm_content(emms_data)) {
           q0_data <- emms_utils$prepare_q0_display_data(emms_data, digits = 6)
-          export_utils$write_data_sheet(wb, "Q0_Estimates", q0_data, openxlsx)
+          export_utils$write_data_sheet(
+            wb, "Q0_Estimates", q0_data, openxlsx,
+            tab_colour = tab_model
+          )
 
           alpha_data <- emms_utils$prepare_alpha_display_data(
             emms_data,
@@ -1592,14 +1573,15 @@ navpanel_server <- function(id, sidebar_reactives) {
             digits_natural = 8
           )
           export_utils$write_data_sheet(
-            wb,
-            "Alpha_Estimates",
-            alpha_data,
-            openxlsx
+            wb, "Alpha_Estimates", alpha_data, openxlsx,
+            tab_colour = tab_model
           )
 
           ev_data <- emms_utils$prepare_ev_display_data(emms_data, digits = 4)
-          export_utils$write_data_sheet(wb, "EV_Estimates", ev_data, openxlsx)
+          export_utils$write_data_sheet(
+            wb, "EV_Estimates", ev_data, openxlsx,
+            tab_colour = tab_model
+          )
         }
 
         # --- Comparisons (requires model) ---
@@ -1610,42 +1592,31 @@ navpanel_server <- function(id, sidebar_reactives) {
         }
 
         # Q0 Comparisons (both formats)
+        tab_comp <- export_utils$excel_palette$TAB_COMPARISON
         if (!is.null(comps$Q0)) {
           export_utils$write_comparison_sheet(
-            wb,
-            "Q0_Comparisons_Ratio",
-            comps$Q0$contrasts_ratio,
-            4,
-            openxlsx,
-            dplyr
+            wb, "Q0_Comparisons_Ratio",
+            comps$Q0$contrasts_ratio, 4,
+            openxlsx, dplyr, tab_colour = tab_comp
           )
           export_utils$write_comparison_sheet(
-            wb,
-            "Q0_Comparisons_Log10",
-            comps$Q0$contrasts_log10,
-            4,
-            openxlsx,
-            dplyr
+            wb, "Q0_Comparisons_Log10",
+            comps$Q0$contrasts_log10, 4,
+            openxlsx, dplyr, tab_colour = tab_comp
           )
         }
 
         # Alpha Comparisons (both formats)
         if (!is.null(comps$alpha)) {
           export_utils$write_comparison_sheet(
-            wb,
-            "Alpha_Comparisons_Ratio",
-            comps$alpha$contrasts_ratio,
-            4,
-            openxlsx,
-            dplyr
+            wb, "Alpha_Comparisons_Ratio",
+            comps$alpha$contrasts_ratio, 4,
+            openxlsx, dplyr, tab_colour = tab_comp
           )
           export_utils$write_comparison_sheet(
-            wb,
-            "Alpha_Comparisons_Log10",
-            comps$alpha$contrasts_log10,
-            4,
-            openxlsx,
-            dplyr
+            wb, "Alpha_Comparisons_Log10",
+            comps$alpha$contrasts_log10, 4,
+            openxlsx, dplyr, tab_colour = tab_comp
           )
         }
 
@@ -1653,7 +1624,10 @@ navpanel_server <- function(id, sidebar_reactives) {
         if (has_model) {
           plot_obj <- tryCatch(plot_object_reactive(), error = function(e) NULL)
           if (!is.null(plot_obj)) {
-            openxlsx$addWorksheet(wb, "Plot")
+            openxlsx$addWorksheet(
+              wb, "Plot",
+              tabColour = export_utils$excel_palette$TAB_PLOT
+            )
             temp_plot <- tempfile(fileext = ".png")
             ggplot2$ggsave(
               temp_plot,
