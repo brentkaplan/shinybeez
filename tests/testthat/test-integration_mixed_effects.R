@@ -6,7 +6,7 @@
 # ==========================================================================
 describe("Mixed Effects - default ko data", {
   app <- NULL
-  summary_id <- ns_id("mixed_effects_demand", "model_summary_output")
+  summary_id <- ns_id("mixed_effects_demand", "model_summary_structured")
 
   it("starts the app and navigates to Mixed Effects Demand", {
     app <<- create_app_driver()
@@ -72,7 +72,7 @@ describe("Mixed Effects - default ko data", {
 # ==========================================================================
 describe("Mixed Effects - upload minimal fixture", {
   app <- NULL
-  summary_id <- ns_id("mixed_effects_demand", "model_summary_output")
+  summary_id <- ns_id("mixed_effects_demand", "model_summary_structured")
 
   it("starts the app and navigates to Mixed Effects Demand", {
     app <<- create_app_driver()
@@ -114,7 +114,7 @@ describe("Mixed Effects - upload minimal fixture", {
 # ==========================================================================
 describe("Mixed Effects - full ko dataset with 2 factors", {
   app <- NULL
-  summary_id <- ns_id("mixed_effects_demand", "model_summary_output")
+  summary_id <- ns_id("mixed_effects_demand", "model_summary_structured")
 
   it("uploads full ko, configures 2 factors, and runs model", {
     skip_if_not_full_tests()

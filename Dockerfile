@@ -89,6 +89,7 @@ RUN R -q -e " \
   library(shiny); library(bslib); library(DT); \
   library(beezdemand); library(nlme); library(emmeans); \
   library(ggplot2); library(dplyr); library(rhino); \
+  library(esquisse); library(ggprism); library(openxlsx); \
   cat('Warmup complete\n')"
 
 EXPOSE 3838

@@ -10,6 +10,7 @@ box::use(
   . / emms_utils,
   . / export_utils,
   . / model_output_utils,
+  . / model_summary,
   . / plotting,
   . / systematic_utils,
   . / validation_utils
@@ -24,6 +25,7 @@ box::export(
   emms_utils,
   export_utils,
   model_output_utils,
+  model_summary,
   plotting,
   systematic_utils,
   validation_utils

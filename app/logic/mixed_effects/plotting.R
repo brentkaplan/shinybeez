@@ -145,6 +145,41 @@ apply_plot_theme <- function(p, theme_name, font_size = 14) {
   )
 }
 
+#' Apply dark mode styling to a ggplot object
+#'
+#' Makes plot backgrounds transparent and adjusts text/grid colors for dark
+#' mode contexts. Applies no-op when dark_mode is "light".
+#'
+#' @param p A ggplot object
+#' @param dark_mode Character, "dark" or "light"
+#' @return Modified ggplot object
+#' @export
+apply_dark_mode_theme <- function(p, dark_mode = "light") {
+  if (!identical(dark_mode, "dark")) {
+    return(p)
+  }
+
+  text_color <- "#dee2e6"
+  grid_color <- "#495057"
+
+  p + ggplot2$theme(
+    plot.background = ggplot2$element_rect(fill = "transparent", color = NA),
+    panel.background = ggplot2$element_rect(fill = "transparent", color = NA),
+    legend.background = ggplot2$element_rect(fill = "transparent", color = NA),
+    legend.key = ggplot2$element_rect(fill = "transparent", color = NA),
+    text = ggplot2$element_text(color = text_color),
+    axis.text = ggplot2$element_text(color = text_color),
+    axis.title = ggplot2$element_text(color = text_color),
+    plot.title = ggplot2$element_text(color = text_color),
+    plot.subtitle = ggplot2$element_text(color = text_color),
+    legend.text = ggplot2$element_text(color = text_color),
+    legend.title = ggplot2$element_text(color = text_color),
+    panel.grid.major = ggplot2$element_line(color = grid_color),
+    panel.grid.minor = ggplot2$element_line(color = grid_color),
+    axis.ticks = ggplot2$element_line(color = grid_color)
+  )
+}
+
 #' Apply legend position to a ggplot object
 #'
 #' @param p A ggplot object

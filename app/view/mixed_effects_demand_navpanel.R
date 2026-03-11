@@ -27,6 +27,7 @@ box::use(
   app / logic / mixed_effects / export_utils,
   app / logic / mixed_effects / model_fitting,
   app / logic / mixed_effects / model_output_utils,
+  app / logic / mixed_effects / model_summary,
   app / logic / mixed_effects / plotting,
   app / logic / mixed_effects / systematic_utils,
   app / logic / mixed_effects / validation_utils
@@ -100,7 +101,7 @@ navpanel_ui <- function(id) {
       title = "Mixed Model Results",
       bslib$nav_panel(
         title = "Model Summary",
-        shiny$verbatimTextOutput(ns("model_summary_output"))
+        shiny$uiOutput(ns("model_summary_structured"))
       ),
       bslib$nav_panel(
         title = "Fixed Effects",
@@ -478,8 +479,10 @@ navpanel_server <- function(id, sidebar_reactives) {
 
     output$input_data_table <- DT$renderDT({
       shiny$req(data_to_analyze())
+      df_display <- data_to_analyze()
+      numeric_cols <- which(sapply(df_display, is.numeric))
       DT$datatable(
-        data_to_analyze(),
+        df_display,
         rownames = FALSE,
         extensions = c("Buttons", "Scroller"),
         options = list(
@@ -495,7 +498,8 @@ navpanel_server <- function(id, sidebar_reactives) {
         ),
         filter = "top",
         class = "compact hover"
-      )
+      ) |>
+        DT$formatRound(columns = numeric_cols, digits = 4)
     })
 
     # Descriptive stats for y_ll4
@@ -807,7 +811,94 @@ navpanel_server <- function(id, sidebar_reactives) {
       }
     )
 
-    output$model_summary_output <- shiny$renderPrint({
+    output$model_summary_structured <- shiny$renderUI({
+      model_fit <- fitted_model_reactive()
+      shiny$req(model_fit, model_fit$model)
+
+      spec <- model_summary$get_model_spec(model_fit)
+      fit_stats <- model_summary$get_fit_statistics(model_fit)
+      vc <- model_summary$get_variance_components(model_fit)
+
+      shiny$tagList(
+        bslib$layout_columns(
+          col_widths = c(6, 6),
+          # Model Specification card
+          bslib$card(
+            bslib$card_header("Model Specification"),
+            bslib$card_body(
+              if (!is.null(spec)) {
+                shiny$tags$dl(
+                  class = "row mb-0",
+                  shiny$tags$dt(class = "col-sm-5", "Equation"),
+                  shiny$tags$dd(class = "col-sm-7", spec$equation),
+                  shiny$tags$dt(class = "col-sm-5", "Y Variable"),
+                  shiny$tags$dd(class = "col-sm-7", shiny$tags$code(spec$y_var)),
+                  shiny$tags$dt(class = "col-sm-5", "X Variable"),
+                  shiny$tags$dd(class = "col-sm-7", shiny$tags$code(spec$x_var)),
+                  shiny$tags$dt(class = "col-sm-5", "ID Variable"),
+                  shiny$tags$dd(class = "col-sm-7", shiny$tags$code(spec$id_var)),
+                  shiny$tags$dt(class = "col-sm-5", "Factors"),
+                  shiny$tags$dd(class = "col-sm-7", spec$factors),
+                  shiny$tags$dt(class = "col-sm-5", "Observations"),
+                  shiny$tags$dd(class = "col-sm-7", format(spec$n_observations, big.mark = ",")),
+                  shiny$tags$dt(class = "col-sm-5", "Groups"),
+                  shiny$tags$dd(class = "col-sm-7", spec$n_groups)
+                )
+              } else {
+                shiny$p(class = "text-muted", "Could not extract model specification.")
+              }
+            )
+          ),
+          # Fit Statistics card
+          bslib$card(
+            bslib$card_header("Fit Statistics"),
+            bslib$card_body(
+              if (!is.null(fit_stats)) {
+                shiny$tags$dl(
+                  class = "row mb-0",
+                  shiny$tags$dt(class = "col-sm-5", "AIC"),
+                  shiny$tags$dd(class = "col-sm-7", fit_stats$AIC),
+                  shiny$tags$dt(class = "col-sm-5", "BIC"),
+                  shiny$tags$dd(class = "col-sm-7", fit_stats$BIC),
+                  shiny$tags$dt(class = "col-sm-5", "Log-Likelihood"),
+                  shiny$tags$dd(class = "col-sm-7", fit_stats$logLik),
+                  shiny$tags$dt(class = "col-sm-5", "Residual SE"),
+                  shiny$tags$dd(class = "col-sm-7", fit_stats$sigma),
+                  shiny$tags$dt(class = "col-sm-5", "Residual df"),
+                  shiny$tags$dd(class = "col-sm-7", fit_stats$df_residual)
+                )
+              } else {
+                shiny$p(class = "text-muted", "Could not extract fit statistics.")
+              }
+            )
+          )
+        ),
+        # Random Effects Variance Components
+        if (!is.null(vc)) {
+          bslib$card(
+            bslib$card_header("Random Effects Variance Components"),
+            bslib$card_body(
+              DT$datatable(
+                vc,
+                rownames = FALSE,
+                options = list(dom = "t", ordering = FALSE, paging = FALSE)
+              )
+            )
+          )
+        },
+        # Collapsible raw output for power users
+        bslib$accordion(
+          open = FALSE,
+          bslib$accordion_panel(
+            title = "Raw Model Output",
+            icon = shiny$icon("code"),
+            shiny$verbatimTextOutput(ns("model_summary_raw"))
+          )
+        )
+      )
+    })
+
+    output$model_summary_raw <- shiny$renderPrint({
       model_fit <- fitted_model_reactive()
       shiny$req(model_fit, model_fit$model)
       print(model_fit)

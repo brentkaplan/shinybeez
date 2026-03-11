@@ -68,6 +68,13 @@ ui <- function(id) {
   bslib$page_navbar(
     header = shiny$tags$head(
       ga_script_tag,
+      # Invert plot images in dark mode so they blend with the dark background
+      shiny$tags$style(shiny$HTML("
+        [data-bs-theme='dark'] .esquisse-container img,
+        [data-bs-theme='dark'] .shiny-plot-output img {
+          filter: invert(0.88) hue-rotate(180deg);
+        }
+      ")),
       # Add telemetry JavaScript if enabled
       if (telemetry_utils$is_telemetry_enabled()) {
         tryCatch(

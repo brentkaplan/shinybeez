@@ -310,3 +310,31 @@ describe("apply_color_palette", {
     expect_s3_class(result, "gg")
   })
 })
+
+# Test apply_dark_mode_theme
+describe("apply_dark_mode_theme", {
+  it("returns unchanged plot when mode is light", {
+    box::use(ggplot2)
+    p <- ggplot2$ggplot()
+    result <- plotting$apply_dark_mode_theme(p, "light")
+    expect_s3_class(result, "gg")
+  })
+
+  it("applies transparent background in dark mode", {
+    box::use(ggplot2)
+    p <- ggplot2$ggplot() + ggplot2$geom_point(ggplot2$aes(1, 1))
+    result <- plotting$apply_dark_mode_theme(p, "dark")
+    expect_s3_class(result, "gg")
+    built <- ggplot2$ggplot_build(result)
+    theme <- built$plot$theme
+    expect_equal(theme$plot.background$fill, "transparent")
+    expect_equal(theme$panel.background$fill, "transparent")
+  })
+
+  it("defaults to light when called with no argument", {
+    box::use(ggplot2)
+    p <- ggplot2$ggplot()
+    result <- plotting$apply_dark_mode_theme(p)
+    expect_s3_class(result, "gg")
+  })
+})

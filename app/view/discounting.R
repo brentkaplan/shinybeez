@@ -185,18 +185,7 @@ navpanel_ui <- function(id) {
   ns <- shiny$NS(id)
 
   shiny$tagList(
-    shiny$div(
-      style = "min-height:500px; max-height:100vh; overflow:auto;",
-      discounting_data_table$ui(
-        ns("data_table_discounting")
-      ),
-    ),
-    shiny$div(
-      style = "min-height:600px; max-height:100vh; overflow:auto;",
-      discounting_results_table$ui(
-        ns("results_table_discounting")
-      )
-    )
+    shiny$uiOutput(ns("discounting_content"))
   )
 }
 
@@ -228,6 +217,40 @@ navpanel_server <- function(id) {
           validate$retype_data(dat = _)
       } else {
         data_r$data_d <- session$userData$data$discounting
+      }
+    })
+
+    # Show empty state or data content
+    output$discounting_content <- shiny$renderUI({
+      if (is.null(session$userData$data$discounting)) {
+        bslib$card(
+          class = "text-center border-dashed",
+          style = "border: 2px dashed var(--bs-border-color); padding: 3rem 2rem;",
+          shiny$div(
+            bsicons$bs_icon("cloud-arrow-up", size = "3rem", class = "text-muted mb-3"),
+            shiny$h4("No data uploaded", class = "text-muted"),
+            shiny$p(
+              class = "text-muted mb-3",
+              "Upload a CSV or TSV file using the sidebar to get started."
+            ),
+            shiny$p(
+              class = "text-muted small",
+              "Supported formats: Indifference Point (id, x, y),",
+              " 27-Item MCQ, or 5.5 Trial data."
+            )
+          )
+        )
+      } else {
+        shiny$tagList(
+          shiny$div(
+            style = "min-height:500px; max-height:100vh; overflow:auto;",
+            discounting_data_table$ui(ns("data_table_discounting"))
+          ),
+          shiny$div(
+            style = "min-height:600px; max-height:100vh; overflow:auto;",
+            discounting_results_table$ui(ns("results_table_discounting"))
+          )
+        )
       }
     })
 
