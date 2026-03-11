@@ -110,3 +110,6 @@ deploy-shinyproxy/logrotate-shinybeez-app.conf
 
 # Review folder
 _review-for-deletion/
+
+# Git worktrees
+.worktrees/
