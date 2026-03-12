@@ -18,6 +18,8 @@ height = 15 width = 15 align =
 
 Hear about this paper on a "Deep Dive" podcast on my website [codedbx.com](https://codedbx.com/)
 
+**Author website:** [codedbx.com](https://codedbx.com/)
+
 <!-- [<img
 src="https://raw.githubusercontent.com/FortAwesome/Font-Awesome/6.x/svgs/solid/download.svg"
 height = 15 align =
@@ -83,7 +85,7 @@ app locally. To run the app locally,
 ## Issues
 
 If you find issues, questions, or feedback, or would like to contribute, please
-submit an [issue](https://github.com/brentkaplan/beezdiscounting/issues) or
+submit an [issue](https://github.com/brentkaplan/shinybeez/issues) or
 a pull request, or [email
 me](mailto:bkaplan.ku@gmail.com).
 
@@ -122,6 +124,26 @@ and dark mode toggle, _shinybeez_ includes the following features:
 - Select various k values (1-4, individual k, fitted k, empirical range of data)
 
 - Choose between Fit to Group (pooled), Fit to Group (mean), and Two Stage
+
+#### Mixed Effects Demand
+
+- nlme-based mixed-effects model fitting for demand curves
+
+- Factor collapse controls (separate Q₀ and α parameters)
+
+- Continuous covariate support
+
+- Systematic criteria evaluation (DeltaQ, bounce, reversals)
+
+- Model summary, fixed effects, and random effects tables
+
+- Estimated Marginal Means (EMMs) for Q₀, α, and Essential Value
+
+- Pairwise comparisons with multiple p-value adjustment methods (Tukey, Bonferroni, FDR, etc.)
+
+- Customizable demand curve plots (themes, palettes, faceting, population vs. individual lines)
+
+- Professional Excel export of all results
 
 #### Discounting
 
@@ -196,6 +218,10 @@ some of the example files included in this Github repository:
 - [5.5 Trial Probability Discounting from the Qualtrics
   template](https://github.com/brentkaplan/shinybeez/blob/main/app/static/data/examples/shinybeez-ex-five.fivetrial_pd.csv)
 
+- [Mixed effects demand data with drug/dose factors (monkey subjects)](https://github.com/brentkaplan/shinybeez/blob/main/app/static/data/examples/shinybeez-ex-ko.csv)
+
+- [Mixed effects demand data with drug/dose factors](https://github.com/brentkaplan/shinybeez/blob/main/app/static/data/examples/shinybeez-ex-winger.csv)
+
 ## Template Files
 
 Several template files are included in this Github repository:
@@ -266,6 +292,25 @@ Hursh, S. R., & Silberberg, A. (2008). Economic demand and
 essential value. _Psychological Review, 115_(1),
 186-198. <a href='https://doi.org/10.1037/0033-295X.115.1.186'>
 https://doi.org/10.1037/0033-295X.115.1.186</a>
+
+**Cross-commodity systematic criteria:**
+
+Rzeszutek, M. J., Regnier, S. D., Kaplan, B. A., Traxler, H. K.,
+Stein, J. S., Tomlinson, D. C., & Koffarnus, M. N. (2026).
+Identification and management of nonsystematic cross-commodity
+data: Toward best practice. _Experimental and Clinical
+Psychopharmacology, 33_(2).
+<a href='https://doi.org/10.1037/pha0000836'>
+https://doi.org/10.1037/pha0000836</a>
+
+**Mixed-effects demand modeling:**
+
+Kaplan, B. A., Franck, C. T., McKee, K., Gilroy, S. P., &
+Koffarnus, M. N. (2021). Applying mixed-effects modeling to
+behavioral economic demand: An introduction. _Perspectives on
+Behavior Science, 44_(2-3), 333-358.
+<a href='https://doi.org/10.1007/s40614-021-00299-7'>
+https://doi.org/10.1007/s40614-021-00299-7</a>
 
 <br>
 
