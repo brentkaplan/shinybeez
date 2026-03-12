@@ -1,4 +1,5 @@
-# Encrypt deploy configuration files (readable locally, encrypted on GitHub)
+# Encrypt files containing credentials (readable locally, encrypted on GitHub)
+.Renviron filter=git-crypt diff=git-crypt
 deploy-shinyproxy/application.yml filter=git-crypt diff=git-crypt
 deploy-shinyproxy/nginx-shinyproxy.conf filter=git-crypt diff=git-crypt
 deploy-shinyproxy/setup.sh filter=git-crypt diff=git-crypt
