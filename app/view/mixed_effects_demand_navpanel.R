@@ -394,7 +394,7 @@ navpanel_server <- function(id, sidebar_reactives) {
         }
         attr(df, "y_is_ll4") <- TRUE
       } else {
-        # simplified: use the user's column as-is
+        # simplified / exponentiated: use the user's column as-is
         shiny$req(y_var_col_name %in% names(df))
         df[["y_for_model"]] <- df[[y_var_col_name]]
         attr(df, "y_is_ll4") <- FALSE
@@ -466,6 +466,12 @@ navpanel_server <- function(id, sidebar_reactives) {
               duration = 3
             )
           }
+        } else if (identical(eq, "exponentiated")) {
+          shiny$showNotification(
+            paste("Exponentiated: using selected Y column '", yname, "'."),
+            type = "message",
+            duration = 3
+          )
         } else {
           shiny$showNotification(
             paste("Simplified: using selected Y column '", yname, "'."),
@@ -737,6 +743,9 @@ navpanel_server <- function(id, sidebar_reactives) {
                 factors = sel_factors,
                 factor_interaction = sidebar_reactives$factor_interaction(),
                 equation_form = sidebar_reactives$equation_form(),
+                k = if (identical(sidebar_reactives$equation_form(), "exponentiated")) {
+                  as.numeric(sidebar_reactives$k_mixed())
+                },
                 collapse_levels = current_collapse_levels,
                 random_effects = random_effects_formula_to_pass,
                 covariance_structure = sidebar_reactives$covariance_structure(),

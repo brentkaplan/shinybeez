@@ -46,10 +46,12 @@ sidebar_ui <- function(id) {
       label = "Select Model:",
       choices = list(
         "ZBEn (y automatically LL4-transformed)" = "zben",
-        "Simplified Exponential (uses untransformed Y)" = "simplified"
+        "Simplified Exponential (uses untransformed Y)" = "simplified",
+        "Exponentiated (Koffarnus)" = "exponentiated"
       ),
       selected = "zben"
     ),
+    shiny$uiOutput(ns("k_value_mixed")),
     # id variable selection
     shiny$selectInput(
       ns("id_variable_choice"),
@@ -319,6 +321,19 @@ sidebar_server <- function(id, data_reactive) {
       "upload_mixed_effects_demand",
       type = "mixed_effects_demand"
     )
+
+    # Render k value input only for exponentiated equation
+    output$k_value_mixed <- shiny$renderUI({
+      if (identical(input$model_choice, "exponentiated")) {
+        shiny$selectInput(
+          ns("k_mixed"),
+          label = "Select k value:",
+          choices = c("2", "3", "4"),
+          selected = "2"
+        )
+      }
+    })
+
     # Reactive to get the current data (uploaded or default 'ko')
     current_data <- shiny$reactive({
       data_uploaded <- session$userData$data$mixed_effects_demand
@@ -1380,6 +1395,7 @@ sidebar_server <- function(id, data_reactive) {
         random_effects_spec = shiny$reactive(input$random_effects_spec),
         covariance_structure = shiny$reactive(input$covariance_structure),
         equation_form = shiny$reactive(input$model_choice),
+        k_mixed = shiny$reactive(input$k_mixed),
         collapse_levels_reactive = parsed_collapse_levels_reactive,
         nlme_controls = nlme_controls_reactive,
         # Covariate controls (Phase 1 only; not used in fitting yet)
