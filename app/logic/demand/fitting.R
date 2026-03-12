@@ -19,6 +19,7 @@ resolve_equation <- function(eq_label) {
     eq_label,
     "Exponentiated (with k)" = "koff",
     "Exponential (with k)" = "hs",
+    "Simplified (no k)" = "simplified",
     stop("Unknown equation label: ", eq_label)
   )
 }
@@ -33,6 +34,7 @@ resolve_equation <- function(eq_label) {
 #' @return Numeric or character k value for fit_demand_fixed
 #' @export
 resolve_k_value <- function(kval, k_values) {
+  if (is.null(kval)) return(NULL)
   if (kval %in% as.character(k_values)) {
     as.numeric(kval)
   } else {
@@ -64,7 +66,10 @@ results_cols_2dp <- c(
   "Q0d", "K", "R2", "Q0se", "AbsSS", "SdRes",
   "Q0Low", "Q0High", "EV", "Omaxd", "Pmaxd", "Omaxa", "Pmaxa"
 )
-results_cols_4dp <- c("Alpha", "Alphase", "AlphaLow", "AlphaHigh")
+results_cols_4dp <- c(
+  "Alpha", "Alphase", "AlphaLow", "AlphaHigh",
+  "alpha_star", "alpha_star_se"
+)
 
 #' Format fit_demand_fixed output into a clean results data frame
 #'
@@ -75,8 +80,8 @@ format_demand_results <- function(output) {
   output$results |>
     dplyr$select(!(Intensity:Pmaxe)) |>
     dplyr$mutate(
-      dplyr$across(dplyr$all_of(results_cols_2dp), \(x) round(x, 2)),
-      dplyr$across(dplyr$all_of(results_cols_4dp), \(x) round(x, 4))
+      dplyr$across(dplyr$any_of(results_cols_2dp), \(x) round(x, 2)),
+      dplyr$across(dplyr$any_of(results_cols_4dp), \(x) round(x, 4))
     )
 }
 

@@ -66,7 +66,8 @@ sidebar_ui <- function(id) {
       label = "Select equation:",
       choices = c(
         "Exponentiated (with k)",
-        "Exponential (with k)"
+        "Exponential (with k)",
+        "Simplified (no k)"
       )
     ),
     shiny$uiOutput(

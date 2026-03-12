@@ -86,6 +86,10 @@ describe("resolve_equation", {
     expect_equal(fitting$resolve_equation("Exponential (with k)"), "hs")
   })
 
+  it("maps 'Simplified (no k)' to 'simplified'", {
+    expect_equal(fitting$resolve_equation("Simplified (no k)"), "simplified")
+  })
+
   it("throws an error for an unknown equation label", {
     expect_error(
       fitting$resolve_equation("Linear"),
@@ -158,6 +162,11 @@ describe("resolve_k_value", {
     result <- fitting$resolve_k_value("2", numeric(0))
     expect_equal(result, "2")
     expect_type(result, "character")
+  })
+
+  it("returns NULL when kval is NULL", {
+    result <- fitting$resolve_k_value(NULL, k_values)
+    expect_null(result)
   })
 })
 
@@ -386,6 +395,17 @@ describe("fit_demand_ungrouped", {
     )
     expect_type(result, "list")
     expect_s3_class(result$results, "data.frame")
+  })
+
+  it("works with the 'simplified' equation and k = NULL", {
+    dat <- make_demand_data(n_ids = 2)
+    result <- fitting$fit_demand_ungrouped(
+      data = dat, eq = "simplified", agg = NULL, k = NULL
+    )
+    expect_type(result, "list")
+    expect_s3_class(result$results, "data.frame")
+    expect_equal(nrow(result$results), 2)
+    expect_true("alpha_star" %in% names(result$results))
   })
 })
 
