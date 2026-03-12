@@ -6,6 +6,7 @@ box::use(
 
 box::use(
   app / logic / validate,
+  app / logic / logging_utils,
   app / view / demand_data_table,
   app / view / demand_results_table,
   app / view / file_input,
@@ -16,6 +17,15 @@ sidebar_ui <- function(id) {
   ns <- shiny$NS(id)
 
   shiny$tagList(
+    shiny$div(
+      class = "mb-3 small text-muted",
+      shiny$tags$ol(
+        class = "ps-3",
+        shiny$tags$li("Upload your data"),
+        shiny$tags$li("Configure settings"),
+        shiny$tags$li("Run model")
+      )
+    ),
     file_input$ui(ns("upload_demand")),
     shiny$checkboxInput(
       inputId = ns("group"),
@@ -49,10 +59,6 @@ sidebar_ui <- function(id) {
         shiny$uiOutput(
           ns("num_free")
         ),
-        # v2 feature
-        # shiny$uiOutput(
-        #   outputId = ns("groupname")
-        # )
       )
     ),
     shiny$selectInput(
@@ -60,28 +66,9 @@ sidebar_ui <- function(id) {
       label = "Select equation:",
       choices = c(
         "Exponentiated (with k)",
-        # v2 feature
-        # "Exponentiated (no k)",
         "Exponential (with k)"
       )
     ),
-    # v2 feature
-    # shiny$selectInput(
-    #   inputId = ns("free"),
-    #   label = bslib$tooltip(
-    #     trigger = list(
-    #     "Did you assess $0 (free)?",
-    #     bsicons$bs_icon("info-circle")
-    #     ),
-    #     "Currently an experimental feature. Selecting Yes will only work
-    #     with a fixed k value."
-    #   ),
-    #   choices = c(
-    #     "Yes (constrain Q0 to observed)" = TRUE,
-    #     "No (do not constrain Q0 to observed)" = FALSE
-    #     ),
-    #   selected = FALSE
-    # ),
     shiny$uiOutput(
       ns("k_value")
     ),
@@ -92,8 +79,6 @@ sidebar_ui <- function(id) {
         "Fit to Group (pooled)" = "Pooled",
         "Fit to Group (mean)" = "Mean",
         "Two Stage" = "Ind"
-        # v2 feature
-        # "Mixed Effects" = "MEM"
       ),
       selected = "Pooled"
     ),
@@ -108,18 +93,11 @@ sidebar_server <- function(id) {
   shiny$moduleServer(id, function(input, output, session) {
     ns <- session$ns
 
-    file_input$server("upload_demand", type = "demand")
+    # Create session-specific logger
+    session_logger <- logging_utils$create_session_logger(session)
+    session_logger$info("Demand sidebar module initialized", "module_init")
 
-    # v2 feature
-    # output$groupname <- shiny$renderUI({
-    #   if (input$group) {
-    #     shiny$textInput(
-    #       inputId = ns("groupcol"),
-    #       label = "What is your grouping column name?"
-    #     )
-    #   }
-    # })
-    # shiny$observe({
+    file_input$server("upload_demand", type = "demand")
 
     output$num_free <- shiny$renderUI({
       if (input$check_free) {
@@ -154,10 +132,13 @@ sidebar_server <- function(id) {
         ks
       }
 
-      if (input$equation %in% c(
-        "Exponentiated (with k)",
-        "Exponential (with k)"
-      )) {
+      if (
+        input$equation %in%
+          c(
+            "Exponentiated (with k)",
+            "Exponential (with k)"
+          )
+      ) {
         if (input$analysis_type %in% c("Pooled", "Mean", "Ind")) {
           shiny$selectInput(
             inputId = ns("k"),
@@ -180,7 +161,19 @@ sidebar_server <- function(id) {
       shiny$req(session$userData$data$demand)
       shiny$actionButton(
         inputId = ns("calculate_demand"),
-        label = "Calculate"
+        icon = shiny$icon("cogs"),
+        label = "Run Fixed Effects Model",
+        class = "btn-primary w-100"
+      )
+    })
+
+    # Log when user initiates calculation
+    shiny$observeEvent(input$calculate_demand, {
+      session_logger$user_activity(
+        action = "Demand model calculation initiated",
+        input_id = "calculate_demand",
+        input_value = input$analysis_type,
+        module = "demand"
       )
     })
   })
@@ -191,12 +184,7 @@ navpanel_ui <- function(id) {
   ns <- shiny$NS(id)
 
   shiny$tagList(
-    demand_data_table$ui(
-      ns("data_table_demand")
-    ),
-    demand_results_table$ui(
-      ns("results_table_demand")
-    )
+    shiny$uiOutput(ns("demand_content"))
   )
 }
 
@@ -205,6 +193,9 @@ navpanel_server <- function(id) {
   shiny$moduleServer(id, function(input, output, session) {
     ns <- session$ns
 
+    # Create session-specific logger
+    session_logger <- logging_utils$create_session_logger(session)
+
     data_r <- shiny$reactiveValues(data_d = NULL)
 
     shiny$observe({
@@ -212,6 +203,36 @@ navpanel_server <- function(id) {
       data_r$data_d <- validate$rename_cols(session$userData$data$demand) |>
         validate$reshape_data(dat = _) |>
         validate$retype_data(dat = _)
+    })
+
+    # Show empty state or data content
+    output$demand_content <- shiny$renderUI({
+      if (is.null(session$userData$data$demand)) {
+        bslib$card(
+          class = "text-center border-dashed",
+          style = "border: 2px dashed var(--bs-border-color); padding: 3rem 2rem;",
+          shiny$div(
+            bsicons$bs_icon("cloud-arrow-up", size = "3rem", class = "text-muted mb-3"),
+            shiny$h4("No data uploaded", class = "text-muted"),
+            shiny$p(
+              class = "text-muted mb-3",
+              "Upload a CSV or TSV file using the sidebar to get started."
+            ),
+            shiny$p(
+              class = "text-muted small",
+              "Expected format: columns for ",
+              shiny$tags$code("id"), ", ",
+              shiny$tags$code("x"), " (price), and ",
+              shiny$tags$code("y"), " (consumption)."
+            )
+          )
+        )
+      } else {
+        shiny$tagList(
+          demand_data_table$ui(ns("data_table_demand")),
+          demand_results_table$ui(ns("results_table_demand"))
+        )
+      }
     })
 
     demand_data_table$server(

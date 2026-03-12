@@ -1,99 +1,155 @@
 box::use(
   assertthat,
+  beezdemand[pivot_demand_data],
   beezdiscounting,
   dplyr,
   readr,
   tidyr,
+  stats
 )
+
+#' Validate a single assertion, returning error message or TRUE
+#' @param condition Logical condition
+#' @param msg Error message if condition fails
+#' @return TRUE if valid, or character error message
+validate_condition <- function(condition, msg) {
+  result <- assertthat$validate_that(condition, msg = msg)
+  if (is.character(result)) return(result)
+  TRUE
+}
+
+#' Validate demand data (wide or long format)
+#' @param dat Data frame
+#' @return TRUE or character error message
+check_demand_data <- function(dat) {
+  if (length(unique(dat$id)) == length(dat$id)) {
+    # Wide format
+    if ("group" %in% colnames(dat)) {
+      chk <- validate_condition(
+        all(colnames(dat)[1:2] == c("id", "group")),
+        "The first two columns do not match `id`, `group`"
+      )
+      if (is.character(chk)) return(chk)
+      dat <- dplyr$relocate(dat, group, .after = id)
+      chk <- validate_condition(
+        all(sapply(
+          readr$parse_number(colnames(dat)[3:length(colnames(dat))]),
+          is.numeric
+        )),
+        "The column names are not numeric"
+      )
+      if (is.character(chk)) return(chk)
+    } else {
+      chk <- validate_condition(
+        colnames(dat)[1] == "id",
+        "The first column is not `id`"
+      )
+      if (is.character(chk)) return(chk)
+      chk <- validate_condition(
+        all(sapply(
+          readr$parse_number(colnames(dat)[2:length(colnames(dat))]),
+          is.numeric
+        )),
+        "The column names are not numeric"
+      )
+      if (is.character(chk)) return(chk)
+    }
+  } else {
+    # Long format
+    if ("group" %in% colnames(dat)) {
+      chk <- validate_condition(
+        all(colnames(dat) == c("id", "group", "x", "y")),
+        "Check colnames `id`, `group`, `x`, and `y` in data"
+      )
+      if (is.character(chk)) return(chk)
+    } else {
+      chk <- validate_condition(
+        all(colnames(dat) == c("id", "x", "y")),
+        "Check colnames `id`, `x`, and `y` are ordered in  data"
+      )
+      if (is.character(chk)) return(chk)
+    }
+  }
+  TRUE
+}
+
+#' Validate mixed effects demand data
+#' @param dat Data frame
+#' @return TRUE or character error message
+check_mixed_effects_data <- function(dat) {
+  chk <- validate_condition(
+    any(c("monkey", "id") %in% colnames(dat)),
+    "ID column ('monkey' or 'id') not found."
+  )
+  if (is.character(chk)) return(chk)
+
+  chk <- validate_condition(
+    "x" %in% colnames(dat),
+    "Price/X column ('x') not found."
+  )
+  if (is.character(chk)) return(chk)
+
+  chk <- validate_condition(
+    any(c("y", "y_ll4") %in% colnames(dat)),
+    "Consumption column ('y' or 'y_ll4') not found."
+  )
+  if (is.character(chk)) return(chk)
+
+  TRUE
+}
+
+#' Validate discounting data
+#' @param dat Data frame
+#' @return TRUE or character error message
+check_discounting_data <- function(dat) {
+  chk <- validate_condition(
+    any(colnames(dat) %in% c("subjectid", "ResponseId", "id", "x", "y")),
+    "Check colnames for 'subjectid', 'ResponseId', 'id', 'x', or 'y' are in data"
+  )
+  if (is.character(chk)) return(chk)
+
+  if ("subjectid" %in% colnames(dat)) {
+    chk <- validate_condition(
+      ncol(dat) == 28 | ncol(dat) == 3,
+      "Number of columns does not appear to match the template"
+    )
+    if (is.character(chk)) return(chk)
+  } else if ("ResponseId" %in% colnames(dat)) {
+    chk <- validate_condition(
+      all(paste0("I", c(1:31)) %in% colnames(dat)),
+      "Check to make sure you are using the correct Qualtrics template."
+    )
+    if (is.character(chk)) return(chk)
+  } else if ("id" %in% colnames(dat)) {
+    chk <- validate_condition(
+      identical(colnames(dat), c("id", "x", "y")),
+      "Indifference point data must have exactly three columns: id, x, y"
+    )
+    if (is.character(chk)) return(chk)
+  }
+
+  TRUE
+}
 
 #' @export
 check_data <- function(dat, type = "demand") {
-  if (type == "demand") {
-    if (length(unique(dat$id)) == length(dat$id)) {
-      if ("group" %in% colnames(dat)) {
-        return_msg <- assertthat$validate_that(
-          all(colnames(dat)[1:2] == c("id", "group")),
-          msg = "The first two columns do not match `id`, `group`"
-        )
-        if (is.character(return_msg)) {
-          return(return_msg)
-        }
-        dat <- dplyr$relocate(dat, group, .after = id)
-        return_msg <- assertthat$validate_that(
-          all(sapply(readr$parse_number(colnames(dat)[3:length(colnames(dat))]), is.numeric)),
-          msg = "The column names are not numeric"
-        )
-        if (is.character(return_msg)) {
-          return(return_msg)
-        }
-      } else {
-        return_msg <- assertthat$validate_that(
-          colnames(dat)[1] == c("id"),
-          msg = "The first column is not `id`"
-        )
-        if (is.character(return_msg)) {
-          return(return_msg)
-        }
-        return_msg <- assertthat$validate_that(
-          all(sapply(readr$parse_number(colnames(dat)[2:length(colnames(dat))]), is.numeric)),
-          msg = "The column names are not numeric"
-        )
-        if (is.character(return_msg)) {
-          return(return_msg)
-        }
-      }
-    } else {
-      if ("group" %in% colnames(dat)) {
-        return_msg <- assertthat$validate_that(
-          all(colnames(dat) == c("id", "group", "x", "y")),
-          msg = "Check colnames `id`, `group`, `x`, and `y` in data"
-        )
-      } else {
-        return_msg <- assertthat$validate_that(
-          all(colnames(dat) == c("id", "x", "y")),
-          msg = "Check colnames `id`, `x`, and `y` are ordered in  data"
-        )
-      }
-    }
-  } else {
-    # check if file has correct id columns
-    return_msg <- assertthat$validate_that(
-      any(colnames(dat) %in% c("subjectid", "ResponseId", "id", "x", "y")),
-      msg = "Check colnames for 'subjectid', 'ResponseId', 'id', 'x', or 'y' are in data"
-    )
-    if ("subjectid" %in% colnames(dat)) {
-      # check if 28 or 3 columns wide
-      return_msg <- assertthat$validate_that(
-        ncol(dat) == 28 | ncol(dat) == 3,
-        msg = "Number of columns does not appear to match the template"
-      )
-    } else if ("ResponseId" %in% colnames(dat)) {
-      # check if columns match the qualtrics template output
-      return_msg <- assertthat$validate_that(
-        all(paste0("I", c(1:31)) %in% colnames(dat)),
-        msg = "Check to make sure you are using the correct Qualtrics template."
-      )
-    } else if ("id" %in% colnames(dat)) {
-      return_msg <- assertthat$validate_that(
-        colnames(dat)[1] == c("id"),
-        msg = "The first column is not `id`"
-      )
-      if (is.character(return_msg)) {
-        return(return_msg)
-      }
-      return_msg <- assertthat$validate_that(
-        all(sapply(readr$parse_number(colnames(dat)[2:length(colnames(dat))]), is.numeric)),
-        msg = "The column names are not numeric"
-      )
-      if (is.character(return_msg)) {
-        return(return_msg)
-      }
-    }
+  # Normalize column names: trim whitespace and lowercase
+  # tryCatch protects against non-UTF8 column names from corrupted files
+  normalized <- tryCatch(
+    trimws(tolower(colnames(dat))),
+    error = function(e) NULL
+  )
+  if (is.null(normalized)) {
+    return("Column names contain invalid characters. Is this a valid data file?")
   }
-  if (is.character(return_msg)) {
-    return(return_msg)
+  colnames(dat) <- normalized
+
+  if (type == "demand") {
+    check_demand_data(dat)
+  } else if (type == "mixed_effects_demand") {
+    check_mixed_effects_data(dat)
   } else {
-    return(TRUE)
+    check_discounting_data(dat)
   }
 }
 
@@ -126,21 +182,7 @@ reshape_data <- function(dat, type = "demand") {
   if (type == "demand") {
     # check if dat is wider than it is long
     if (length(unique(dat$id)) == length(dat$id)) {
-      if ("group" %in% colnames(dat)) {
-        dat |>
-          tidyr$pivot_longer(
-            cols = 3:ncol(dat),
-            names_to = "x",
-            values_to = "y"
-          )
-      } else {
-        dat |>
-          tidyr$pivot_longer(
-            cols = 2:ncol(dat),
-            names_to = "x",
-            values_to = "y"
-          )
-      }
+      pivot_demand_data(dat, format = "long", drop_na = FALSE)
     } else {
       dat
     }
@@ -148,7 +190,7 @@ reshape_data <- function(dat, type = "demand") {
     if (ncol(dat) == 28) {
       dat |>
         beezdiscounting$wide_to_long_mcq(dat = _)
-    } else if (ncol(dat) < 28 & length(unique(dat$id)) == length(dat$id)) {
+    } else if (ncol(dat) < 28 && length(unique(dat$id)) == length(dat$id)) {
       dat |>
         tidyr$pivot_longer(
           cols = 2:ncol(dat),
@@ -163,7 +205,9 @@ reshape_data <- function(dat, type = "demand") {
 
 #' @export
 retype_data <- function(dat) {
-  if (class(dat$x) != "numeric") dat$x <- readr$parse_number(dat$x)
+  if (class(dat$x) != "numeric") {
+    dat$x <- readr$parse_number(dat$x)
+  }
   if ("group" %in% colnames(dat)) {
     dat |>
       dplyr$mutate(
@@ -180,6 +224,15 @@ retype_data <- function(dat) {
         y = as.numeric(y)
       )
   }
+}
+
+#' @export
+remove_na_rows <- function(dat) {
+  n_before <- nrow(dat)
+  dat_clean <- dat[stats::complete.cases(dat), ]
+  n_after <- nrow(dat_clean)
+  n_dropped <- n_before - n_after
+  list(data = dat_clean, n_dropped = n_dropped)
 }
 
 #' @export

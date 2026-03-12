@@ -1,3 +1,171 @@
 default:
   rhino_log_level: !expr Sys.getenv("RHINO_LOG_LEVEL", "INFO")
   rhino_log_file: !expr Sys.getenv("RHINO_LOG_FILE", "logs/log.txt")
+
+  # Google Analytics configuration
+  google_analytics:
+    enabled: !expr as.logical(Sys.getenv("GA_ENABLED", "FALSE"))
+    measurement_id: !expr Sys.getenv("GA_MEASUREMENT_ID", "")
+
+  # Enhanced logging configuration
+  logging:
+    # Main application log
+    app_log_file: !expr Sys.getenv("APP_LOG_FILE", "logs/app.log")
+    # Error-specific log
+    error_log_file: !expr Sys.getenv("ERROR_LOG_FILE", "logs/errors.log")
+    # Performance monitoring log
+    performance_log_file: !expr Sys.getenv("PERFORMANCE_LOG_FILE", "logs/performance.log")
+    # User activity log
+    activity_log_file: !expr Sys.getenv("ACTIVITY_LOG_FILE", "logs/activity.log")
+
+    # Console logging (always enabled for Docker/shinyapps.io log capture)
+    log_to_console: !expr as.logical(Sys.getenv("LOG_TO_CONSOLE", "TRUE"))
+
+    # Log levels for different environments
+    development_log_level: "DEBUG"
+    production_log_level: "INFO"
+
+    # Performance monitoring settings
+    log_performance: !expr as.logical(Sys.getenv("LOG_PERFORMANCE", "TRUE"))
+    performance_threshold_ms: !expr as.numeric(Sys.getenv("PERFORMANCE_THRESHOLD_MS", "1000"))
+
+  # Telemetry configuration
+  telemetry:
+    enabled: !expr as.logical(Sys.getenv("TELEMETRY_ENABLED", "TRUE"))
+    storage_type: !expr Sys.getenv("TELEMETRY_STORAGE", "sqlite")  # sqlite, postgresql
+
+    # SQLite configuration (for development/single instance)
+    sqlite:
+      db_path: !expr Sys.getenv("TELEMETRY_DB_PATH", "data/telemetry.sqlite")
+
+    # PostgreSQL configuration (for production/scaling)
+    postgresql:
+      host: !expr Sys.getenv("TELEMETRY_DB_HOST", "localhost")
+      port: !expr as.numeric(Sys.getenv("TELEMETRY_DB_PORT", "5432"))
+      dbname: !expr Sys.getenv("TELEMETRY_DB_NAME", "shinybeez_telemetry")
+      user: !expr Sys.getenv("TELEMETRY_DB_USER", "postgres")
+      password: !expr Sys.getenv("TELEMETRY_DB_PASSWORD", "")
+
+    # Data retention settings
+    retention_days: !expr as.numeric(Sys.getenv("TELEMETRY_RETENTION_DAYS", "90"))
+
+    # Privacy settings
+    track_inputs: !expr as.logical(Sys.getenv("TELEMETRY_TRACK_INPUTS", "FALSE"))  # Don't track input values by default
+    anonymize_sessions: !expr as.logical(Sys.getenv("TELEMETRY_ANONYMIZE", "TRUE"))
+
+development:
+  rhino_log_level: !expr Sys.getenv("RHINO_LOG_LEVEL", "DEBUG")
+  rhino_log_file: !expr Sys.getenv("RHINO_LOG_FILE", "logs/dev-log.txt")
+
+  logging:
+    app_log_file: "logs/dev-app.log"
+    error_log_file: "logs/dev-errors.log"
+    performance_log_file: "logs/dev-performance.log"
+    activity_log_file: "logs/dev-activity.log"
+    log_to_console: TRUE
+    development_log_level: "DEBUG"
+    production_log_level: "DEBUG"
+    log_performance: TRUE
+    performance_threshold_ms: 500
+
+  telemetry:
+    enabled: TRUE
+    storage_type: "sqlite"
+    sqlite:
+      db_path: "data/dev-telemetry.sqlite"
+    retention_days: 30
+    track_inputs: TRUE  # More permissive in development
+    anonymize_sessions: FALSE
+
+production:
+  rhino_log_level: !expr Sys.getenv("RHINO_LOG_LEVEL", "WARN")
+  rhino_log_file: !expr Sys.getenv("RHINO_LOG_FILE", "logs/prod-log.txt")
+
+  logging:
+    app_log_file: "logs/prod-app.log"
+    error_log_file: "logs/prod-errors.log"
+    performance_log_file: "logs/prod-performance.log"
+    activity_log_file: "logs/prod-activity.log"
+    development_log_level: "INFO"
+    production_log_level: "WARN"
+    log_performance: TRUE
+    performance_threshold_ms: 2000
+
+  telemetry:
+    enabled: TRUE
+    storage_type: !expr Sys.getenv("TELEMETRY_STORAGE", "sqlite")  # SQLite — no PostgreSQL driver in Docker image
+    sqlite:
+      db_path: "data/telemetry.sqlite"  # Relative to workdir (/root/shinybeez/data/)
+    postgresql:
+      host: !expr Sys.getenv("TELEMETRY_DB_HOST", "postgres")
+      port: !expr as.numeric(Sys.getenv("TELEMETRY_DB_PORT", "5432"))
+      dbname: !expr Sys.getenv("TELEMETRY_DB_NAME", "shinybeez_telemetry")
+      user: !expr Sys.getenv("TELEMETRY_DB_USER", "postgres")
+      password: !expr Sys.getenv("TELEMETRY_DB_PASSWORD", "")
+    retention_days: 365
+    track_inputs: FALSE  # Privacy-focused in production
+    anonymize_sessions: TRUE
+
+# Configuration for shinyapps.io deployment
+shinyapps:
+  rhino_log_level: "INFO"
+  rhino_log_file: NA  # shinyapps.io handles logging
+
+  google_analytics:
+    enabled: TRUE
+    measurement_id: "G-Q5TL32WDK3"  # shinyapps.io/brentkaplan
+
+  logging:
+    app_log_file: NA  # Use shinyapps.io logging - no persistent files
+    error_log_file: NA
+    performance_log_file: NA
+    activity_log_file: NA
+    log_to_console: TRUE  # All logs go to console for shinyapps.io capture
+    development_log_level: "INFO"
+    production_log_level: "INFO"
+    log_performance: TRUE
+    performance_threshold_ms: 3000  # Higher threshold for shared hosting
+
+  telemetry:
+    enabled: !expr as.logical(Sys.getenv("TELEMETRY_ENABLED", "TRUE"))
+    storage_type: "sqlite"  # SQLite for shinyapps.io simplicity
+    sqlite:
+      db_path: "telemetry.sqlite"  # Local to app directory
+    retention_days: 90  # Shorter retention for space constraints
+    track_inputs: FALSE
+    anonymize_sessions: TRUE
+
+# Configuration for ShinyProxy deployment
+shinyproxy:
+  rhino_log_level: !expr Sys.getenv("RHINO_LOG_LEVEL", "INFO")
+  rhino_log_file: !expr Sys.getenv("RHINO_LOG_FILE", "/var/log/shiny/app.log")
+
+  google_analytics:
+    enabled: TRUE
+    measurement_id: "G-VWQYRVL2DB"  # shinybeez.app
+
+  logging:
+    app_log_file: "/var/log/shiny/app.log"
+    error_log_file: "/var/log/shiny/errors.log"
+    performance_log_file: "/var/log/shiny/performance.log"
+    activity_log_file: "/var/log/shiny/activity.log"
+    log_to_console: TRUE  # Also log to console for docker logs
+    development_log_level: "INFO"
+    production_log_level: "INFO"
+    log_performance: TRUE
+    performance_threshold_ms: 2000
+
+  telemetry:
+    enabled: !expr as.logical(Sys.getenv("TELEMETRY_ENABLED", "TRUE"))
+    storage_type: !expr Sys.getenv("TELEMETRY_STORAGE", "sqlite")  # SQLite — no PostgreSQL driver in Docker image
+    sqlite:
+      db_path: "data/telemetry.sqlite"  # Relative to workdir (/root/shinybeez/data/)
+    postgresql:
+      host: !expr Sys.getenv("TELEMETRY_DB_HOST", "localhost")
+      port: !expr as.numeric(Sys.getenv("TELEMETRY_DB_PORT", "5432"))
+      dbname: !expr Sys.getenv("TELEMETRY_DB_NAME", "shinybeez_telemetry")
+      user: !expr Sys.getenv("TELEMETRY_DB_USER", "shiny")
+      password: !expr Sys.getenv("TELEMETRY_DB_PASSWORD", "")
+    retention_days: 365
+    track_inputs: FALSE
+    anonymize_sessions: TRUE

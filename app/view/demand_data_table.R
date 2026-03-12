@@ -1,16 +1,15 @@
 box::use(
-  beezdemand[CheckUnsystematic, GetDescriptives, GetEmpirical],
   bslib,
-  dplyr,
   DT,
-  rhino,
   shiny,
-  stats,
 )
 
 box::use(
-  app/logic/utils,
-  app/logic/validate,
+  app / logic / demand / empirical,
+  app / logic / demand / systematic,
+  app / logic / logging_utils,
+  app / logic / validate,
+  app / view / shared / data_table[build_datatable],
 )
 
 #' @export
@@ -90,233 +89,118 @@ server <- function(id, isgroup = NULL, data_r) {
   shiny$moduleServer(id, function(input, output, session) {
     ns <- session$ns
 
-    # show data table
-    shiny$observe({
+    # Create session-specific logger
+    session_logger <- logging_utils$create_session_logger(session)
+
+    # Lazy reactive: only computes when the Descriptives tab is viewed
+    descriptives_r <- shiny$reactive({
       shiny$req(session$userData$data$demand)
-      rhino$log$info("Printing Demand Datatable")
-      output$data_table <- DT$renderDT(server = FALSE, {
-        DT$datatable(
-          data_r$data_d,
-          rownames = FALSE,
-          extensions = c("Buttons", "Scroller", "FixedColumns"),
-          fillContainer = FALSE,
-          options = list(
-            autoWidth = TRUE,
-            ordering = TRUE,
-            dom = "Bti",
-            buttons = list(
-              list(extend = "copy"),
-              list(extend = "print"),
-              list(extend = "csv", filename = "ShinyBeez_Demand_Data", title = NULL),
-              list(extend = "excel", filename = "ShinyBeez_Demand_Data", title = NULL),
-              list(extend = "pdf", filename = "ShinyBeez_Demand_Data", title = NULL)
-              ),
-            fixedColumns = list(leftColumns = 1),
-            deferRender = TRUE,
-            scrollY = 250,
-            scrollX = TRUE,
-            scroller = TRUE
-          )
+      session_logger$info("Computing demand descriptives", "data_processing")
+      shiny$withProgress(message = "Computing descriptives...", {
+        tryCatch(
+          session_logger$with_performance("demand_descriptives", function() {
+            empirical$compute_descriptives(data_r$data_d, is_grouped = isgroup())
+          }, always_log = TRUE),
+          error = function(e) {
+            session_logger$error_enhanced(e$message, e, context = "demand_descriptives")
+            shiny$showNotification(e$message, type = "error", duration = NULL)
+            NULL
+          }
         )
       })
     })
 
-    # show descriptives table
-    shiny$observe({
+    # Lazy reactive: only computes when the Empirical Measures tab is viewed
+    empirical_r <- shiny$reactive({
       shiny$req(session$userData$data$demand)
-      rhino$log$info("Printing Demand Descriptives Table")
-      descriptives <- NULL
-      if (isgroup()) {
-        if (!"group" %in% colnames(data_r$data_d)) {
-          shiny$showNotification(
-            "You have selected to group the data but there is no
-            'group' column in the data.",
-            type = "error",
-            duration = 10
-          )
-          return()
-        }
-        data_g <- data_r$data_d |>
-          dplyr$mutate(group = "aggregate")
-        data_g_e <- data_g |>
-          GetDescriptives(dat = _, bwplot = FALSE) |>
-          dplyr$mutate(group = "aggregate")
-        data_d_e <- data_r$data_d |>
-          dplyr$group_by(group) |>
-          dplyr$group_modify(~ GetDescriptives(dat = .x, bwplot = FALSE))
-        descriptives <- dplyr$bind_rows(data_g_e, data_d_e) |>
-          dplyr$relocate(group, .before = Price)
-      } else {
-        descriptives <- data_r$data_d |>
-          GetDescriptives(dat = _, bwplot = FALSE)
-      }
-
-      descriptives <- descriptives |>
-        dplyr$mutate(dplyr$across(dplyr$where(is.numeric), round, 2))
-
-      output$descriptives_table <- DT$renderDT(server = FALSE, {
-        DT$datatable(
-          descriptives,
-          rownames = FALSE,
-          extensions = c("Buttons", "Scroller"),
-          fillContainer = FALSE,
-          options = list(
-            autoWidth = TRUE,
-            ordering = TRUE,
-            dom = "Bti",
-            buttons = list(
-              list(extend = "copy"),
-              list(extend = "print"),
-              list(extend = "csv", filename = "ShinyBeez_Demand_Descriptives", title = NULL),
-              list(extend = "excel", filename = "ShinyBeez_Demand_Descriptives", title = NULL),
-              list(extend = "pdf", filename = "ShinyBeez_Demand_Descriptives", title = NULL)
-            ),
-            deferRender = TRUE,
-            scrollY = 250,
-            scroller = TRUE
-          )
-        )
-      })
-    })
-
-    # show empirical table
-    shiny$observe({
-      shiny$req(session$userData$data$demand)
-      empirical <- NULL
-      rhino$log$info(
-        paste0(
-          "Calculating empirical demand data with grouping = ", isgroup()
-        )
+      session_logger$info(
+        paste0("Computing empirical measures, grouped = ", isgroup()),
+        "data_processing"
       )
-      data_g <- stats$aggregate(y ~ x, data_r$data_d, mean, na.rm = TRUE)
-      data_g$id <- "aggregate"
-      if (isgroup()) {
-        if (!"group" %in% colnames(data_r$data_d)) {
-          shiny$showNotification(
-            "You have selected to group the data but there is no
-            'group' column in the data.",
-            type = "error",
-            duration = 10
-          )
-          return()
-        }
-        data_gg <- stats$aggregate(y ~ x + group, data_r$data_d, mean, na.rm = TRUE)
-        data_gg$id <- "group aggregate"
-        data_g_emp <- GetEmpirical(data_g) |>
-          dplyr$mutate(
-                 # `GM(O)` = utils$geomean(data_g$x * data_g$y),
-                 dplyr$across(dplyr$where(is.numeric), round, 1),
-                 group = "aggregate") |>
-          dplyr$relocate(group, .before = id)
-        data_gg_emp <- dplyr$group_by(data_gg, group) |>
-          dplyr$group_modify(~ GetEmpirical(.x))
-        data_d_emp <- dplyr$group_by(data_r$data_d, group) |>
-          dplyr$group_modify(~ GetEmpirical(.x))
-        empirical <- dplyr$bind_rows(data_g_emp, data_gg_emp, data_d_emp)
-      } else {
-        data_g_emp <- GetEmpirical(data_g)
-        data_d_emp <- try(GetEmpirical(data_r$data_d), silent = TRUE)
-        if (inherits(data_d_emp, "try-error")) {
-          shiny$showNotification(
-            "Do you have a grouping variable you didn't specify in the 'Specs' dropdown?",
-            type = "error",
-            duration = 10
-          )
-          return()
-        } else {
-          empirical <- dplyr$bind_rows(data_g_emp, data_d_emp)
-        }
-      }
-
-      empirical <- empirical |>
-        dplyr$mutate(dplyr$across(dplyr$where(is.numeric), round, 2))
-
-      output$empirical_table <- DT$renderDT(server = FALSE, {
-        DT$datatable(
-          empirical,
-          rownames = FALSE,
-          extensions = c("Buttons", "Scroller"),
-          fillContainer = FALSE,
-          options = list(
-            autoWidth = TRUE,
-            ordering = TRUE,
-            dom = "Bti",
-            buttons = list(
-              list(extend = "copy"),
-              list(extend = "print"),
-              list(extend = "csv", filename = "ShinyBeez_Demand_Empirical_Measures", title = NULL),
-              list(extend = "excel", filename = "ShinyBeez_Demand_Empirical_Measures", title = NULL),
-              list(extend = "pdf", filename = "ShinyBeez_Demand_Empirical_Measures", title = NULL)
-            ),
-            deferRender = TRUE,
-            scrollY = 250,
-            scroller = TRUE
-          )
+      shiny$withProgress(message = "Computing empirical measures...", {
+        tryCatch(
+          session_logger$with_performance("demand_empirical_measures", function() {
+            empirical$compute_empirical_measures(
+              data_r$data_d,
+              is_grouped = isgroup()
+            )
+          }, always_log = TRUE),
+          error = function(e) {
+            session_logger$error_enhanced(e$message, e, context = "demand_empirical_measures")
+            shiny$showNotification(e$message, type = "error", duration = NULL)
+            NULL
+          }
         )
       })
     })
 
-    # show systematic table
-    shiny$observe({
+    # Lazy reactive: re-computes when data or systematic settings change
+    systematic_r <- shiny$reactive({
       shiny$req(session$userData$data$demand)
-      systematic <- NULL
-      rhino$log$info("Calculating systematic criteria")
-      if (isgroup()) {
-        if (!"group" %in% colnames(data_r$data_d)) {
-          shiny$showNotification(
-            "You have selected to group the data but there is no
-            'group' column in the data.",
-            type = "error",
-            duration = 10
-          )
-          return()
-        }
-        # for each unique group, calculate the systematic criteria
-        systematic <- data_r$data_d |>
-          dplyr$group_by(group) |>
-          dplyr$group_modify(~ CheckUnsystematic(
-            dat = .x,
-            deltaq = input$deltaq,
-            bounce = input$bounce,
-            reversals = input$reversals,
-            ncons0 = input$ncons0
-          ))
-      } else {
-        systematic <- data_r$data_d |>
-          CheckUnsystematic(
-            dat = _,
-            deltaq = input$deltaq,
-            bounce = input$bounce,
-            reversals = input$reversals,
-            ncons0 = input$ncons0
-          )
-      }
-
-      output$systematic_table <- DT$renderDT(server = FALSE, {
-        DT$datatable(
-          systematic,
-          rownames = FALSE,
-          extensions = c("Buttons", "Scroller", "FixedColumns"),
-          fillContainer = FALSE,
-          options = list(
-            autoWidth = FALSE,
-            ordering = TRUE,
-            dom = "Bti",
-            buttons = list(
-              list(extend = "copy"),
-              list(extend = "print"),
-              list(extend = "csv", filename = "ShinyBeez_Demand_Systematic_Criteria", title = NULL),
-              list(extend = "excel", filename = "ShinyBeez_Demand_Systematic_Criteria", title = NULL),
-              list(extend = "pdf", filename = "ShinyBeez_Demand_Systematic_Criteria", title = NULL)
-            ),
-            deferRender = TRUE,
-            scrollY = 250,
-            scroller = TRUE,
-            scrollX = TRUE,
-            fixedColumns = list(leftColumns = 1)
-          )
+      session_logger$info("Computing systematic criteria", "data_processing")
+      shiny$withProgress(message = "Computing systematic criteria...", {
+        tryCatch(
+          session_logger$with_performance("demand_systematic_check", function() {
+            systematic$compute_systematic(
+              data_r$data_d,
+              deltaq = input$deltaq,
+              bounce = input$bounce,
+              reversals = input$reversals,
+              ncons0 = input$ncons0,
+              is_grouped = isgroup()
+            )
+          }, always_log = TRUE),
+          error = function(e) {
+            session_logger$error_enhanced(e$message, e, context = "demand_systematic_check")
+            shiny$showNotification(e$message, type = "error", duration = NULL)
+            NULL
+          }
         )
       })
+    })
+
+    # Render data table
+    output$data_table <- DT$renderDT(server = FALSE, {
+      shiny$req(session$userData$data$demand)
+      session_logger$info("Rendering Demand data table", category = "module_init")
+      build_datatable(
+        data_r$data_d,
+        filename_prefix = "shinybeez_Demand_Data",
+        scroll_y = 250,
+        fixed_columns = 1L
+      )
+    })
+
+    # Render descriptives table
+    output$descriptives_table <- DT$renderDT(server = FALSE, {
+      shiny$req(descriptives_r())
+      build_datatable(
+        descriptives_r(),
+        filename_prefix = "shinybeez_Demand_Descriptives",
+        scroll_y = 250
+      )
+    })
+
+    # Render empirical table
+    output$empirical_table <- DT$renderDT(server = FALSE, {
+      shiny$req(empirical_r())
+      build_datatable(
+        empirical_r(),
+        filename_prefix = "shinybeez_Demand_Empirical_Measures",
+        scroll_y = 250
+      )
+    })
+
+    # Render systematic table
+    output$systematic_table <- DT$renderDT(server = FALSE, {
+      shiny$req(systematic_r())
+      build_datatable(
+        systematic_r(),
+        filename_prefix = "shinybeez_Demand_Systematic_Criteria",
+        scroll_y = 250,
+        fixed_columns = 1L,
+        auto_width = FALSE
+      )
     })
   })
 }

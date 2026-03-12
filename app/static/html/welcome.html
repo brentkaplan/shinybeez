@@ -5,31 +5,19 @@
             <main class="col-md-9">
                 <section id="about" class="section">
                     <h3>About Shinybeez</h3>
-                    <p>While quantitative modeling of behavioral economic phenomena has increased in popularity and led
-                        to translational
-                        successes in clinical practice and policy, complex analyses has remained a barrier for many
-                        researchers and
-                        practitioners. <em>shinybeez</em> addresses this gap by providing an intuitive interface for
-                        conducting descriptive and
-                        inferential analyses without requiring programming expertise. The app integrates features
-                        previously scattered across
-                        multiple tools, allowing users to upload data, calculate empirical measures, identify systematic
-                        datasets, fit nonlinear
-                        models, and visualize results - all within a single platform. <em>shinybeez</em> supports
-                        various analysis types for
-                        demand and discounting data, including indifference point data and the 27-Item Monetary Choice
-                        Questionnaire. Built on R
-                        Shiny and leveraging existing R packages, the app ensures reproducibility and consistency with
-                        underlying analytical
-                        methods while remaining flexible for future enhancements. Key advantages of <em>shinybeez</em>
-                        include its accessibility
-                        through web browsers or local installation, ability to handle large datasets, and customizable
-                        data visualization
-                        options. By consolidating behavioral economic tools into a user-friendly interface,
-                        <em>shinybeez</em> aims to broaden
-                        the reach of these analytical techniques and facilitate their application in addressing societal
-                        issues.
-                    </p>
+                    <p><em>shinybeez</em> provides an intuitive, no-code interface for behavioral economic demand and
+                        discounting analyses. It consolidates tools previously scattered across multiple packages into a
+                        single platform.</p>
+                    <ul>
+                        <li>Upload data, calculate empirical measures, and identify systematic datasets</li>
+                        <li>Fit nonlinear demand models (fixed effects and mixed effects)</li>
+                        <li>Score discounting data (indifference points, 27-Item MCQ, 5.5-Trial tasks)</li>
+                        <li>Visualize and export results with customizable plots</li>
+                        <li>Accessible via web browser or local Docker installation</li>
+                    </ul>
+                    <p>Built on R Shiny and leveraging existing R packages, <em>shinybeez</em> ensures reproducibility
+                        and consistency with underlying analytical methods while remaining flexible for future
+                        enhancements.</p>
                 </section>
 
                 <section id="citation" class="section">
@@ -72,26 +60,26 @@
                             Docker Hub on the left side and search for
                             <em>shinybeez</em>.
                             <br>
-                            <img src="static/img/docker-hub.png" alt="Docker Hub" width="80%" height="80%">
+                            <img src="static/img/docker-hub.png" alt="Docker Hub" width="60%" height="60%">
                         </li>
                         <br>
                         <li>Click on the tile and then click "Pull" to download the
                             image.
                             <br>
-                            <img src="static/img/docker-pull.png" alt="Docker Pull" width="80%" height="80%">
+                            <img src="static/img/docker-pull.png" alt="Docker Pull" width="60%" height="60%">
                         </li>
                         <br>
                         <li>Go to "Images" on the left hand side and click the newly downloaded image.
                             Click the ▶ icon under "Actions" to start the app and
                             bring up the options menu.
                             <br>
-                            <img src="static/img/docker-run.png" alt="Docker Run" width="80%" height="80%">
+                            <img src="static/img/docker-run.png" alt="Docker Run" width="60%" height="60%">
                         </li>
                         <br>
                         <li>Expand the optional settings clicking the ▼. Enter
                             in '3838' in the "Host port" box. Then click "Run".
                             <br>
-                            <img src="static/img/docker-options.png" alt="Docker Run" width="80%" height="80%">
+                            <img src="static/img/docker-options.png" alt="Docker Run" width="60%" height="60%">
                         </li>
                         <br>
                         <li>
@@ -286,7 +274,7 @@
                 <section id="templates" class="mb-4 p-4 shadow-sm rounded">
                     <h3>Downloadable Templates</h3>
                     <div class="info-grid">
-                        <div class="info-card" onclick="toggleDetails('demand-templates')">
+                        <div class="info-card" onclick="toggleDetails('demand-templates')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleDetails('demand-templates')}" role="button" tabindex="0" aria-expanded="false" aria-controls="demand-templates">
                             <div class="info-icon">
                                 <i class="fa fa-table"></i>
                             </div>
@@ -294,7 +282,7 @@
                             <p>Download and learn about formats for demand analysis data.</p>
                             <a class="learn-more">Learn more</a>
                         </div>
-                        <div class="info-card" onclick="toggleDetails('discounting-templates')">
+                        <div class="info-card" onclick="toggleDetails('discounting-templates')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleDetails('discounting-templates')}" role="button" tabindex="0" aria-expanded="false" aria-controls="discounting-templates">
                             <div class="info-icon">
                                 <i class="fa fa-file-excel"></i>
                             </div>
@@ -440,7 +428,7 @@
                 <section id="documentation" class="mb-4 p-4 shadow-sm rounded">
                     <h3>Documentation</h3>
                     <div class="info-grid">
-                        <div class="info-card" onclick="toggleDetails('demand-details')">
+                        <div class="info-card" onclick="toggleDetails('demand-details')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleDetails('demand-details')}" role="button" tabindex="0" aria-expanded="false" aria-controls="demand-details">
                             <div class="info-icon">
                                 <i class="fa fa-chart-line"></i>
                             </div>
@@ -448,7 +436,7 @@
                             <p>Learn about behavioral economic demand analysis methods and tools.</p>
                             <a class="learn-more">Learn more</a>
                         </div>
-                        <div class="info-card" onclick="toggleDetails('discounting-details')">
+                        <div class="info-card" onclick="toggleDetails('discounting-details')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleDetails('discounting-details')}" role="button" tabindex="0" aria-expanded="false" aria-controls="discounting-details">
                             <div class="info-icon">
                                 <i class="fa fa-percentage"></i>
                             </div>
@@ -574,6 +562,282 @@
                             curves and points will be shown on a single plot.
                             <br>
                             <br>
+                        </div>
+                        <div id="mixed-effects-demand">
+                            <h3>Mixed Effects Modeling</h3>
+                            <p>
+                                The Mixed Effects Modeling tab fits demand curves using a nonlinear
+                                mixed-effects model (via the <code>nlme</code> package). Unlike two-stage
+                                approaches that fit each participant separately and then summarize, mixed
+                                effects modeling estimates population-level (fixed) effects and
+                                individual-level (random) effects simultaneously. This yields more stable
+                                estimates &mdash; especially with sparse or noisy data &mdash; and lets you
+                                test group differences directly.
+                            </p>
+
+                            <h4 id="me-workflow">Workflow Overview</h4>
+                            <p>
+                                A typical analysis proceeds through these steps:
+                            </p>
+                            <ul>
+                                <li>Upload a long-format CSV (or load the built-in KO example dataset).</li>
+                                <li>Select your ID, X (price), and Y (consumption) columns.</li>
+                                <li>Choose an equation: ZBEn or Simplified Exponential.</li>
+                                <li>Optionally add factors, a continuous covariate, and configure
+                                    random effects.</li>
+                                <li>Click <strong>Run Mixed Effects Model</strong> to fit.</li>
+                                <li>Explore results across the seven output tabs.</li>
+                                <li>Export everything to a single Excel file.</li>
+                            </ul>
+
+                            <h4 id="me-data-setup">Data and Variable Setup</h4>
+                            <p>
+                                Data must be in <strong>long format</strong>: one row per
+                                participant&times;price combination. Upload a CSV file via the sidebar,
+                                or click the example-data button to load the bundled KO dataset. Once
+                                loaded, use the dropdown menus to map your ID, X, and Y columns. The
+                                Y column will be transformed automatically if you select the ZBEn
+                                equation (see below).
+                            </p>
+
+                            <h4 id="me-equation">Equation Selection</h4>
+                            <p>
+                                Two equation forms are available. <strong>ZBEn</strong> automatically
+                                applies a Log-Log 4 (LL4) transformation to Y before fitting, which
+                                handles zero consumption values and normalizes the response surface.
+                                The <strong>Simplified Exponential</strong> uses Y on its natural
+                                (untransformed) scale. In both cases the model estimates two key
+                                parameters: Q<sub>0</sub> (maximum consumption at zero price) and
+                                <em>alpha</em> (rate of decline in consumption as price increases,
+                                i.e., sensitivity to price).
+                            </p>
+
+                            <h4 id="me-fixed-effects">Fixed Effects and Factors</h4>
+                            <p>
+                                You may optionally select up to two categorical factors (e.g., Drug,
+                                Dose) from your data columns. When a single factor is selected, the
+                                model estimates how Q<sub>0</sub> and <em>alpha</em> differ across
+                                its levels. When two factors are selected, you can check
+                                <strong>&ldquo;Include interaction between Factor 1 and
+                                Factor 2&rdquo;</strong> to fit a full interaction model. An
+                                additive model (no interaction) assumes each factor&rsquo;s effect is
+                                independent; an interaction model allows every factor-level combination
+                                to have its own parameter estimates.
+                            </p>
+
+                            <h5 id="me-collapse">Asymmetric Factor Level Collapsing</h5>
+                            <p>
+                                When a factor has three or more levels, the sidebar reveals an optional
+                                <strong>asymmetric factor collapse</strong> tool. This lets you merge
+                                existing levels into two named groups &mdash; and crucially, you can
+                                define <em>different</em> groupings for Q<sub>0</sub> versus
+                                <em>alpha</em>. For example, if a Drug factor has levels A, B, C, and D,
+                                you might collapse A+B vs. C+D for Q<sub>0</sub> but A+B+C vs. D for
+                                <em>alpha</em>, reflecting a hypothesis that maximum consumption and
+                                price sensitivity respond to different dose thresholds.
+                            </p>
+                            <p>
+                                To use it: enable the &ldquo;Collapse levels for Q0&rdquo; or
+                                &ldquo;Collapse levels for Alpha&rdquo; checkbox, name your two groups,
+                                and assign factor levels to each. The app validates that no level
+                                appears in both groups (overlap is flagged immediately). Collapsed
+                                groupings are reflected in EMMs, pairwise comparisons, and plots.
+                            </p>
+
+                            <h4 id="me-covariate">Continuous Covariate</h4>
+                            <p>
+                                You may optionally include a single numeric column as a continuous
+                                covariate (e.g., age, weight). Two preprocessing checkboxes let you
+                                <strong>center</strong> the covariate (subtract the global mean so
+                                that zero represents the average) and/or <strong>scale</strong> it
+                                (divide by the global SD so that one unit equals one standard deviation).
+                                The <strong>&ldquo;at&rdquo; value</strong> sets the covariate level at
+                                which EMMs, pairwise comparisons, and prediction lines are conditioned.
+                                Enter this value on the natural (raw) scale of your data; if centering
+                                and/or scaling are enabled the app transforms it internally.
+                                See the <a href="#faq-covariate-at">FAQ entry</a> for more detail.
+                            </p>
+
+                            <h4 id="me-random-effects">Random Effects</h4>
+                            <p>
+                                Random effects capture how individual participants deviate from the
+                                population-level Q<sub>0</sub> and <em>alpha</em>. You can include
+                                random intercepts for one or both parameters via checkboxes (both are
+                                selected by default). Two covariance structures are available:
+                                <strong>Diagonal</strong> (assumes no correlation between the
+                                Q<sub>0</sub> and <em>alpha</em> random effects) and
+                                <strong>General Positive-Definite</strong> (estimates the
+                                Q<sub>0</sub>&ndash;<em>alpha</em> correlation). Diagonal is simpler
+                                and converges more easily; General PD is more flexible but requires
+                                enough data to estimate the additional correlation parameter.
+                                See the <a href="#faq-covariance">FAQ entry</a> for guidance.
+                            </p>
+
+                            <h4 id="me-fitting">Running the Model and Advanced Fitting Controls</h4>
+                            <p>
+                                Click <strong>Run Mixed Effects Model</strong> to fit. A progress
+                                indicator tracks the computation. If the model fails to converge, try
+                                adjusting the fitting controls in the collapsible
+                                <strong>Fitting Controls (Advanced)</strong> accordion in the sidebar.
+                            </p>
+                            <p>
+                                A <strong>Quick presets</strong> menu offers three starting points:
+                                <strong>Balanced</strong> (general purpose),
+                                <strong>Faster</strong> (looser tolerances, fewer iterations), and
+                                <strong>Stricter</strong> (tighter tolerances, more iterations).
+                                Below the presets, individual controls expose the three layers of the
+                                nlme algorithm: the outer loop
+                                (<code>maxIter</code>, <code>tolerance</code>), the PNLS step
+                                (<code>pnlsMaxIter</code>, <code>pnlsTol</code>,
+                                <code>minScale</code>), and the LME optimizer
+                                (<code>msMaxIter</code>, <code>niterEM</code>).
+                            </p>
+                            <p>
+                                As a rule of thumb: start with Balanced; if PNLS stalls, raise
+                                <code>pnlsMaxIter</code> to 20&ndash;30 and tighten
+                                <code>pnlsTol</code> to 1e-4; if the outer loop stops early, try
+                                <code>maxIter</code> of 150&ndash;200; if the optimizer halts while
+                                still improving, increase <code>msMaxIter</code>.
+                                See the <a href="#faq-convergence">FAQ entry</a> for more
+                                troubleshooting strategies.
+                            </p>
+
+                            <h4 id="me-results">Interpreting Results</h4>
+                            <p>
+                                After fitting, results populate across two tab sets. The
+                                <strong>Data Overview</strong> tabs (Data, Descriptives, Systematic
+                                Criteria) are available as soon as data is uploaded. The
+                                <strong>Mixed Model Results</strong> tabs (Model Summary, Fixed
+                                Effects, Random Effects, EMMs &amp; EV, Pairwise Comparisons, Plot)
+                                populate after fitting. An <strong>Export All</strong> button appears
+                                alongside the result tabs.
+                            </p>
+
+                            <h5 id="me-tab-data-overview">Data Overview</h5>
+                            <p>
+                                The <strong>Data</strong> sub-tab displays the uploaded data in a
+                                searchable, sortable table. <strong>Descriptives</strong> shows
+                                summary statistics (N, mean, SD, median) for the model Y variable,
+                                grouped by any selected factors and the X variable.
+                                <strong>Systematic Criteria</strong> evaluates each participant&rsquo;s
+                                data against configurable thresholds (DeltaQ, Bounce, Reversals, and
+                                consecutive zeros) and flags non-systematic series. An optional
+                                grouping variable lets you run the check within factor levels.
+                            </p>
+
+                            <h5 id="me-tab-model-summary">Model Summary</h5>
+                            <p>
+                                Displays the verbatim <code>nlme</code> model output, including the
+                                model formula, information criteria (AIC, BIC, logLik), random effects
+                                standard deviations and correlations, the fixed effects coefficient
+                                table, and residual standard error. This is the same output you would
+                                see from <code>summary(model)</code> in R.
+                            </p>
+
+                            <h5 id="me-tab-fixed-effects">Fixed Effects</h5>
+                            <p>
+                                A dedicated table of fixed effect parameter estimates with columns for
+                                Value, Standard Error, degrees of freedom, t-value, and p-value,
+                                rounded to 6 decimal places. Each row can be exported individually
+                                via copy, print, CSV, Excel, or PDF buttons.
+                            </p>
+
+                            <h5 id="me-tab-random-effects">Random Effects</h5>
+                            <p>
+                                This tab shows two tables. The first lists individual-level
+                                coefficients (per-ID Q<sub>0</sub> and <em>alpha</em> values,
+                                combining fixed and random effects). The second shows the random
+                                effect deviations (BLUPs) &mdash; how much each participant&rsquo;s
+                                Q<sub>0</sub> and/or <em>alpha</em> deviates from the fixed effect
+                                estimates.
+                            </p>
+
+                            <h5 id="me-tab-emms">EMMs and Essential Value</h5>
+                            <p>
+                                Estimated Marginal Means (EMMs) are computed for each factor-level
+                                combination (or overall, if no factors are selected).
+                                <strong>Q<sub>0</sub> Estimates</strong> shows the estimated maximum
+                                consumption with confidence intervals.
+                                <strong>Alpha Estimates</strong> shows <em>alpha</em> on both the
+                                log<sub>10</sub> scale (as estimated by the model) and the
+                                natural scale (back-transformed). <strong>Essential Value (EV)</strong>
+                                is derived from the Q<sub>0</sub> and <em>alpha</em> EMMs using the
+                                standard formula. When asymmetric factor collapse is used, the EMMs
+                                reflect the collapsed groupings. When a covariate is included, EMMs
+                                are conditioned at the specified &ldquo;at&rdquo; value.
+                            </p>
+
+                            <h5 id="me-tab-pairwise">Pairwise Comparisons</h5>
+                            <p>
+                                The Pairwise Comparisons tab lets you select which factor to compare
+                                and an optional &ldquo;contrast by&rdquo; (within levels of) factor.
+                                Eleven p-value adjustment methods are available: tukey, scheffe, sidak,
+                                bonferroni, dunnettx, mvt, holm, hochberg, hommel, fdr, and none
+                                (default: fdr). Results can be displayed as
+                                <strong>log<sub>10</sub> differences</strong> or
+                                <strong>natural-scale ratios</strong>. Separate tables are shown for
+                                Q<sub>0</sub> and <em>alpha</em> comparisons.
+                            </p>
+                            <p>
+                                Note: in an additive model (no interaction), contrasts for one factor
+                                will be identical regardless of the other factor&rsquo;s level. To get
+                                group-specific contrasts, enable the interaction term. See the
+                                <a href="#faq-demand">FAQ section</a> for details on balanced vs.
+                                unbalanced designs.
+                            </p>
+
+                            <h5 id="me-tab-plot">Plot</h5>
+                            <p>
+                                The Plot tab produces publication-ready demand curves with extensive
+                                customization. The sidebar controls include: plot title and axis labels;
+                                four themes (Default ggplot2, GraphPad Prism, Classic, Minimal); two
+                                styles (Modern, APA); adjustable base font size (10&ndash;20); legend
+                                position (Right, Bottom, None); and three color palettes (Okabe-Ito,
+                                HCL Light, HCL Dark).
+                            </p>
+                            <p>
+                                Aesthetic mappings let you assign factors to color, linetype, facet,
+                                and point shape &mdash; only factors included in the fitted model are
+                                available. Four axis scale options apply to both X and Y:
+                                Log 10, Log (natural), Linear, and Pseudo-Log. Checkboxes toggle
+                                population prediction lines, individual prediction lines, observed data
+                                points, and a <em>shinybeez</em> watermark.
+                            </p>
+                            <p>
+                                Plots can be downloaded directly in PNG, SVG, or JPEG format. An
+                                additional &ldquo;More options&rdquo; viewer (powered by esquisse)
+                                provides export to PDF, BMP, EPS, and TIFF with custom dimensions.
+                            </p>
+
+                            <h4 id="me-export">Export</h4>
+                            <p>
+                                The <strong>Export All</strong> button generates a single Excel
+                                workbook containing up to 16 sheets:
+                            </p>
+                            <ul>
+                                <li>Summary (analysis settings, collapse info, fitting parameters)</li>
+                                <li>Data (the uploaded dataset)</li>
+                                <li>Descriptives (summary statistics)</li>
+                                <li>Systematic_Criteria</li>
+                                <li>Model_Summary (verbatim nlme output)</li>
+                                <li>Fixed_Effects</li>
+                                <li>Random_Effects</li>
+                                <li>Individual_Coefficients (per-ID Q<sub>0</sub> and <em>alpha</em>)</li>
+                                <li>Q0_Estimates (EMMs)</li>
+                                <li>Alpha_Estimates (EMMs, log and natural scale)</li>
+                                <li>EV_Estimates (derived Essential Value)</li>
+                                <li>Q0_Comparisons_Ratio</li>
+                                <li>Q0_Comparisons_Log10</li>
+                                <li>Alpha_Comparisons_Ratio</li>
+                                <li>Alpha_Comparisons_Log10</li>
+                                <li>Plot (embedded PNG image)</li>
+                            </ul>
+                            <p>
+                                The first four sheets are always included (available before fitting).
+                                The remaining sheets appear only after a model has been successfully
+                                fit. The filename follows the pattern
+                                <code>shinybeez_mixedeffects_export_YYYYMMDD_HHMMSS.xlsx</code>.
+                            </p>
                         </div>
                         <div id="cites-demand">
                             <h3>Suggested Citations</h3>
@@ -863,7 +1127,7 @@
                 <section id="misc" class="mb-4 p-4 shadow-sm rounded">
                     <h3>Miscellaneous</h3>
                     <div class="info-grid">
-                        <div class="info-card" onclick="toggleDetails('general-questions')">
+                        <div class="info-card" onclick="toggleDetails('general-questions')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleDetails('general-questions')}" role="button" tabindex="0" aria-expanded="false" aria-controls="general-questions">
                             <div class="info-icon">
                                 <i class="fa fa-question-circle"></i>
                             </div>
@@ -871,7 +1135,7 @@
                             <p>Find answers to common questions about using shinybeez.</p>
                             <a class="learn-more">Learn more</a>
                         </div>
-                        <div class="info-card" onclick="toggleDetails('resources')">
+                        <div class="info-card" onclick="toggleDetails('resources')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleDetails('resources')}" role="button" tabindex="0" aria-expanded="false" aria-controls="resources">
                             <div class="info-icon">
                                 <i class="fa fa-wrench"></i>
                             </div>
@@ -879,7 +1143,7 @@
                             <p>Find helpful resources and additional readings for using <em>shinybeez</em>.</p>
                             <a class="learn-more">Learn more</a>
                         </div>
-                        <div class="info-card" onclick="toggleDetails('license')">
+                        <div class="info-card" onclick="toggleDetails('license')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleDetails('license')}" role="button" tabindex="0" aria-expanded="false" aria-controls="license">
                             <div class="info-icon">
                                 <i class="fa fa-wrench"></i>
                             </div>
@@ -952,6 +1216,107 @@
                             <p>This is currently not supported in <em>shinybeez</em>. However,
                                 we are working on it and plan to have that feature in a future
                                 release</p>
+                            <br>
+                            <h5>Why do pairwise comparisons show identical estimates across groups
+                                in Mixed Effects?</h5>
+                            <p>This happens when the model is fit <strong>additively</strong>
+                                (without an interaction term). In an additive model, each factor's
+                                effect is estimated independently &mdash; so the contrast between
+                                two levels of one factor (e.g., Dose 1 vs. Dose 2) is
+                                mathematically the same regardless of the other factor's level
+                                (e.g., Drug A vs. Drug B).</p>
+                            <p>To get group-specific contrasts, check
+                                <strong>&ldquo;Include interaction between Factor 1 and
+                                Factor 2&rdquo;</strong> in the sidebar before fitting the model.
+                                An interaction model lets each factor combination have its own
+                                parameter estimates, producing different contrasts across groups.</p>
+                            <p>Note: the &ldquo;within levels of&rdquo; option still correctly
+                                restricts comparisons to observed factor combinations, but in an
+                                additive model the contrast <em>estimates</em> themselves will be
+                                identical for the same factor-level pair.</p>
+                            <br>
+                            <h5>How does shinybeez handle balanced vs. unbalanced designs in
+                                pairwise comparisons?</h5>
+                            <p>In a <strong>balanced design</strong>, every level of Factor 1
+                                appears with every level of Factor 2 (a full factorial). All
+                                pairwise comparisons are available for every group. For example,
+                                all drugs tested at all doses.</p>
+                            <p>In an <strong>unbalanced design</strong>, some factor-level
+                                combinations are missing (e.g., Drug A was only tested at doses
+                                1&ndash;3 while Drug B was tested at doses 2&ndash;4).
+                                <em>shinybeez</em> automatically detects this and restricts
+                                comparisons to <strong>only the factor combinations actually
+                                observed</strong> in your data &mdash; it will not create
+                                &ldquo;phantom&rdquo; comparisons for combinations that don't
+                                exist.</p>
+                            <p>In the R console you may see a message like
+                                <em>&ldquo;Filtered EMMs to 9 observed combinations (from 15
+                                full factorial)&rdquo;</em> when this occurs. This means
+                                different groups may have different sets of comparisons (e.g.,
+                                Drug A shows dose 1 vs. 2, but Drug B shows dose 3 vs. 4)
+                                because each group only includes the dose levels it actually
+                                has.</p>
+                            <h5 id="faq-covariance">When should I use diagonal vs. general positive-definite covariance?</h5>
+                            <p><strong>Diagonal</strong> covariance assumes that the random effects
+                                for Q<sub>0</sub> and <em>alpha</em> are uncorrelated across
+                                participants. It is simpler, has fewer parameters to estimate, and
+                                converges more easily &mdash; making it a good default when sample
+                                sizes are modest or the model is already complex (e.g., two factors
+                                with interaction).</p>
+                            <p><strong>General Positive-Definite</strong> covariance adds a
+                                correlation parameter between Q<sub>0</sub> and <em>alpha</em>
+                                random effects. Use it when you have a reasonably large sample and
+                                expect participants who deviate on one parameter to systematically
+                                deviate on the other (e.g., high-demand participants also tend to be
+                                less price sensitive). If the model fails to converge with general PD,
+                                switching to diagonal is a good first troubleshooting step.</p>
+                            <br>
+                            <h5 id="faq-convergence">What should I do if the model fails to converge?</h5>
+                            <p>Convergence failures are common in nonlinear mixed models. Try
+                                these strategies in order:</p>
+                            <p>1. Switch to the <strong>Stricter</strong> preset, which increases
+                                iteration limits and tightens tolerances.
+                                2. Adjust specific controls: raise <code>pnlsMaxIter</code> to
+                                20&ndash;30, tighten <code>pnlsTol</code> to 1e-4, or increase
+                                <code>maxIter</code> to 150&ndash;200.
+                                3. Simplify the model: remove the interaction term, switch from
+                                general PD to diagonal covariance, remove one random effect, or
+                                collapse factor levels to reduce the number of estimated parameters.
+                                4. Check your data: extreme outliers, very sparse participants, or
+                                near-zero consumption at all prices can destabilize the optimizer.</p>
+                            <br>
+                            <h5>What is asymmetric factor collapse and when should I use it?</h5>
+                            <p><strong>Asymmetric factor collapse</strong> lets you merge factor
+                                levels into two groups with <em>different</em> groupings for
+                                Q<sub>0</sub> versus <em>alpha</em>. This is useful when you
+                                hypothesize that maximum consumption and price sensitivity respond to
+                                different thresholds of a treatment variable. For example, with drug
+                                doses 0, 1, 5, and 10&nbsp;mg, you might group 0+1 vs. 5+10 for
+                                Q<sub>0</sub> (consumption changes above 5&nbsp;mg) but
+                                0+1+5 vs. 10 for <em>alpha</em> (price sensitivity only shifts at
+                                the highest dose). The collapsed groupings propagate to EMMs, pairwise
+                                comparisons, and prediction plots automatically.</p>
+                            <br>
+                            <h5>How is Essential Value calculated from mixed effects results?</h5>
+                            <p>Essential Value (EV) is derived from the Q<sub>0</sub> and
+                                <em>alpha</em> EMMs using the standard formula: EV = 1 /
+                                (<em>alpha</em> &times; Q<sub>0</sub><sup>1.5</sup> &times; k). The
+                                app computes EV for each factor-level combination using the
+                                back-transformed (natural-scale) <em>alpha</em> and Q<sub>0</sub>
+                                estimates. When asymmetric collapse is used, EV reflects the
+                                respective collapsed groupings for each parameter.</p>
+                            <br>
+                            <h5 id="faq-covariate-at">What does the continuous covariate &ldquo;at&rdquo; value do?</h5>
+                            <p>When a continuous covariate is included in the model, EMMs,
+                                pairwise comparisons, and prediction plots are all
+                                <strong>conditioned</strong> at a specific covariate value. The
+                                &ldquo;at&rdquo; field lets you set this conditioning point. Enter
+                                the value on the <strong>natural (raw) scale</strong> of your data
+                                &mdash; if centering and/or scaling are enabled, the app converts
+                                it internally. By default the covariate mean is used. Changing the
+                                &ldquo;at&rdquo; value lets you examine how demand parameters shift
+                                at different covariate levels (e.g., predicted demand at age 25
+                                vs. age 65).</p>
                             <br>
                         </div>
                         <div id="faq-discounting">
@@ -1685,47 +2050,80 @@
 
         function toggleDetails(id) {
             var element = document.getElementById(id);
-            if (element.style.display === "block") {
-                element.style.display = "none";
-            } else {
-                // Hide all content details first
-                document.querySelectorAll('.content-details').forEach(function (detail) {
-                    detail.style.display = "none";
-                });
-                // Show the selected one
+            var isOpen = element.style.display === "block";
+
+            // Reset all aria-expanded states and hide all content
+            document.querySelectorAll('.info-card[aria-controls]').forEach(function (card) {
+                card.setAttribute('aria-expanded', 'false');
+            });
+            document.querySelectorAll('.content-details').forEach(function (detail) {
+                detail.style.display = "none";
+            });
+
+            if (!isOpen) {
+                // Show the selected one and update its trigger
                 element.style.display = "block";
-            }
-        }
-
-        // New function to handle hash navigation
-        function handleHashNavigation() {
-            if (window.location.hash) {
-                const targetId = window.location.hash.substring(1);
-                const targetElement = document.getElementById(targetId);
-
-                if (targetElement) {
-                    // Find the parent content-details container
-                    let parent = targetElement;
-                    while (parent && !parent.classList.contains('content-details')) {
-                        parent = parent.parentElement;
-                    }
-
-                    // If we found a parent content-details, open it
-                    if (parent) {
-                        const parentId = parent.id;
-                        toggleDetails(parentId);
-
-                        // Scroll to the specific element after a short delay
-                        setTimeout(() => {
-                            targetElement.scrollIntoView({ behavior: 'smooth' });
-                        }, 100);
-                    }
+                var trigger = document.querySelector('[aria-controls="' + id + '"]');
+                if (trigger) {
+                    trigger.setAttribute('aria-expanded', 'true');
                 }
             }
         }
 
-        // Run on page load
-        document.addEventListener('DOMContentLoaded', handleHashNavigation);
+        // Ensure a content-details container is open without toggling
+        function ensureDetailsOpen(id) {
+            // Close all other content-details first
+            document.querySelectorAll('.content-details').forEach(function (detail) {
+                if (detail.id !== id) {
+                    detail.style.display = "none";
+                }
+            });
+            // Open the target
+            var element = document.getElementById(id);
+            if (element) {
+                element.style.display = "block";
+                var trigger = document.querySelector('[aria-controls="' + id + '"]');
+                if (trigger) {
+                    trigger.setAttribute('aria-expanded', 'true');
+                }
+            }
+        }
+
+        // Handle hash navigation — opens parent content-details and scrolls to target
+        function handleHashNavigation() {
+            if (!window.location.hash) return;
+            var targetId = window.location.hash.substring(1);
+            var targetElement = document.getElementById(targetId);
+            if (!targetElement) return;
+
+            // Find the parent content-details container
+            var parent = targetElement;
+            while (parent && !parent.classList.contains('content-details')) {
+                parent = parent.parentElement;
+            }
+
+            if (parent) {
+                ensureDetailsOpen(parent.id);
+                setTimeout(function () {
+                    targetElement.scrollIntoView({ behavior: 'smooth' });
+                }, 100);
+            }
+        }
+
+        // Shiny renders content after DOMContentLoaded, so retry briefly
+        document.addEventListener('DOMContentLoaded', function () {
+            if (window.location.hash) {
+                var attempts = 0;
+                var timer = setInterval(function () {
+                    var el = document.getElementById(window.location.hash.substring(1));
+                    if (el || attempts >= 10) {
+                        clearInterval(timer);
+                        if (el) handleHashNavigation();
+                    }
+                    attempts++;
+                }, 200);
+            }
+        });
 
         // Run when hash changes (when user clicks a link)
         window.addEventListener('hashchange', handleHashNavigation);

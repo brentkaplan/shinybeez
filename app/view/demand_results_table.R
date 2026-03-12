@@ -1,20 +1,22 @@
 box::use(
-  beezdemand[FitCurves, theme_apa],
+  beezdemand[theme_apa],
   bslib,
   dplyr,
-  DT[datatable, DTOutput, renderDT],
+  DT[DTOutput, renderDT],
   esquisse,
   ggplot2,
   htmltools[tagList],
   rhino,
   shiny,
-  stats[aggregate, coef],
-  tidyr[pivot_longer],
+  stats[aggregate],
 )
 
 box::use(
-  app/logic/utils,
-  app/logic/validate,
+  app / logic / demand / fitting,
+  app / logic / utils,
+  app / logic / validate,
+  app / logic / logging_utils,
+  app / view / shared / data_table[build_datatable],
 )
 
 #' @export
@@ -54,6 +56,12 @@ ui <- function(id) {
               label = "Y-Axis Text",
               value = "y"
             ),
+            shiny$selectInput(
+              inputId = ns("palette"),
+              label = "Color Palette",
+              choices = c("Okabe-Ito", "HCL Light", "HCL Dark"),
+              selected = "Okabe-Ito"
+            ),
             shiny$checkboxInput(
               inputId = ns("xlog"),
               label = "Log X-Axis"
@@ -87,12 +95,27 @@ ui <- function(id) {
 
 #' @export
 server <- function(
-    id, data_r, eq = NULL, agg = NULL,
-    fix_q0 = FALSE, q0_val = NULL, groupcol = NULL,
-    mem = FALSE, kval, calculate_btn
-    ) {
+  id,
+  data_r,
+  eq = NULL,
+  agg = NULL,
+  fix_q0 = FALSE,
+  q0_val = NULL,
+  groupcol = NULL,
+  mem = FALSE,
+  kval,
+  calculate_btn
+) {
   shiny$moduleServer(id, function(input, output, session) {
     ns <- session$ns
+
+    # Create session-specific logger
+    session_logger <- logging_utils$create_session_logger(session)
+    session_logger$info(
+      "Demand results table module initialized",
+      "module_init"
+    )
+
     res <- shiny$reactiveValues(
       data = NULL,
       output = NULL,
@@ -101,107 +124,82 @@ server <- function(
     )
 
     shiny$observe({
-      if (kval() %in% validate$k_values) {
-        k <- as.numeric(kval())
-      } else {
-        k <- kval()
-      }
+      eq_code <- fitting$resolve_equation(eq())
+      k <- fitting$resolve_k_value(kval(), validate$k_values)
+      agg_val <- fitting$resolve_aggregation(agg())
+      constrainq0 <- fitting$resolve_q0_constraint(q0_val(), fix_q0())
       analysis_type <- agg()
-      eq <- if (eq() %in% "Exponentiated (with k)") {
-        "koff"
-      } else if (eq() %in% "Exponential (with k)") {
-        "hs"
-      }
-      agg <- if (is.null(agg()) | agg() %in% "Ind") NULL else agg()
-      constrainq0 <- if (is.null(q0_val()) | !fix_q0()) NULL else q0_val()
+      is_grouped <- !is.null(groupcol()) && groupcol() && analysis_type != "Ind"
 
-      rhino$log$info(paste(
-        "Calculating demand with options: agg =", agg, "; k =", k,
-        "; eq =", eq, "; constrainq0 =", constrainq0
-        ))
-      if ((is.null(groupcol()) | !groupcol()) | analysis_type %in% "Ind") {
-        res$output <- data_r$data_d |>
-          FitCurves(
-            dat = _,
-            eq = eq,
-            agg = agg,
-            k = k,
-            constrainq0 = constrainq0,
-            detailed = TRUE
+      session_logger$info(
+        paste("Fitting demand: eq =", eq_code, "; k =", k,
+              "; agg =", agg_val, "; grouped =", is_grouped),
+        "model_fitting"
+      )
+
+      shiny$withProgress(message = "Fitting demand curves...", {
+        fit_result <- tryCatch(
+          session_logger$with_performance("demand_curve_fitting", function() {
+            if (is_grouped) {
+              fitting$fit_demand_grouped(
+                data_r$data_d, eq = eq_code, agg = agg_val,
+                k = k, constrainq0 = constrainq0
+              )
+            } else {
+              fitting$fit_demand_ungrouped(
+                data_r$data_d, eq = eq_code, agg = agg_val,
+                k = k, constrainq0 = constrainq0
+              )
+            }
+          }, always_log = TRUE),
+          error = function(e) {
+            session_logger$error_enhanced(
+              paste("Error in FitCurves:", e$message), e,
+              context = "demand_curve_fitting",
+              user_action = "demand model calculation"
             )
-        res$results <- res$output[[1]] |>
-          dplyr$select(!(Intensity:Pmaxe)) |>
-          dplyr$mutate(dplyr$across(dplyr$all_of(c("Q0d", "K", "R2", "Q0se", "AbsSS", "SdRes",
-                                 "Q0Low", "Q0High", "EV", "Omaxd", "Pmaxd",
-                                 "Omaxa", "Pmaxa")), \(x) round(x, 2)),
-                 dplyr$across(dplyr$all_of(c("Alpha", "Alphase",
-                                 "AlphaLow", "AlphaHigh")), \(x) round(x, 4)))
-      } else {
-        if (!"group" %in% colnames(data_r$data_d)) {
+            shiny$showNotification(
+              paste("Error fitting demand curves:", e$message),
+              type = "error", duration = NULL
+            )
+            NULL
+          }
+        )
+      })
+
+      if (!is.null(fit_result)) {
+        res$output <- fit_result$output
+        res$results <- fit_result$results
+        if (length(fit_result$failed_groups) > 0) {
           shiny$showNotification(
-            "You have selected to group the data but there is no
-            'group' column in the data.",
-            type = "error",
-            duration = 10
+            paste(
+              "Fitting failed for groups:",
+              paste(fit_result$failed_groups, collapse = ", ")
+            ),
+            type = "warning",
+            duration = NULL
           )
-          return()
         }
-
-        res$output <- vector("list", length = 3)
-        tmp <- data_r$data_d |>
-          dplyr$group_by(group) |>
-          dplyr$group_map(~{
-            fit_result <- FitCurves(
-              dat = .x,
-              eq = eq,
-              agg = agg,
-              k = k,
-              constrainq0 = constrainq0,
-              detailed = TRUE
-            )
-            list(
-              group = dplyr$first(.x$group),
-              fit_result_1 = fit_result[[1]],
-              fit_result_3 = fit_result[[3]]
-            )
-          }, .keep = TRUE)
-        res$output[[1]] <- dplyr$bind_rows(lapply(tmp, function(x) {
-          cbind(group = x$group, x$fit_result_1)}))
-        res$output[[3]] <- dplyr$bind_rows(lapply(tmp, function(x) {
-          cbind(group = x$group, x$fit_result_3[[1]])}))
-        res$results <- res$output[[1]] |>
-          dplyr$select(!(Intensity:Pmaxe)) |>
-          dplyr$mutate(dplyr$across(dplyr$all_of(c("Q0d", "K", "R2", "Q0se", "AbsSS", "SdRes",
-                                 "Q0Low", "Q0High", "EV", "Omaxd", "Pmaxd",
-                                 "Omaxa", "Pmaxa")), \(x) round(x, 2)),
-                 dplyr$across(dplyr$all_of(c("Alpha", "Alphase",
-                                 "AlphaLow", "AlphaHigh")), \(x) round(x, 4)))
-
+        shiny$showNotification(
+          "Model fitting complete. See Model Results tab.",
+          type = "message",
+          duration = 5
+        )
+      } else {
+        res$output <- NULL
+        res$results <- NULL
       }
     }) |>
       shiny$bindEvent(calculate_btn())
 
     output$model_results_table <- renderDT(server = FALSE, {
       shiny$req(res$results)
-      datatable(
+      build_datatable(
         res$results,
-        rownames = FALSE,
-        extensions = c('Buttons', "FixedColumns"),
-        fillContainer = TRUE,
-        options = list(
-          pageLength = 20,
-          autoWidth = TRUE,
-          ordering = TRUE,
-          dom = 'Btipl',
-          buttons = list(
-            list(extend = 'copy'),
-            list(extend = 'print'),
-            list(extend = 'csv', filename = "ShinyBeez_Demand_ModelResults", title = NULL),
-            list(extend = 'excel', filename = "ShinyBeez_Demand_ModelResults", title = NULL),
-            list(extend = 'pdf', filename = "ShinyBeez_Demand_ModelResults", title = NULL)
-          ),
-          fixedColumns = list(leftColumns = 1)
-        )
+        filename_prefix = "shinybeez_Demand_ModelResults",
+        fixed_columns = 1L,
+        page_length = 20,
+        fill_container = TRUE
       )
     })
 
@@ -233,6 +231,12 @@ server <- function(
       pt_shape <- 21
       pt_fill <- "white"
       pt_size <- 3
+
+      # Only create plots if we have valid output from FitCurves
+      if (is.null(res$output)) {
+        return()
+      }
+
       if (analysis_type %in% c("Mean")) {
         if (!groupcol()) {
           data_g <- aggregate(y ~ x, data_r$data_d, mean, na.rm = TRUE)
@@ -240,9 +244,13 @@ server <- function(
             ggplot2$ggplot(ggplot2$aes(x = x, y = y)) +
             ggplot2$geom_line(
               ggplot2$aes(x = x, y = y),
-              data = res$output[[3]][[1]]
+              data = res$output$predictions[[1]]
             ) +
-            ggplot2$geom_point(shape = pt_shape, fill = pt_fill, size = pt_size) +
+            ggplot2$geom_point(
+              shape = pt_shape,
+              fill = pt_fill,
+              size = pt_size
+            ) +
             theme_apa()
         } else {
           data_g <- aggregate(y ~ x + group, data_r$data_d, mean, na.rm = TRUE)
@@ -250,13 +258,14 @@ server <- function(
             ggplot2$ggplot(ggplot2$aes(x = x, y = y, group = group)) +
             ggplot2$geom_line(
               ggplot2$aes(x = x, y = y, color = group),
-              data = res$output[[3]]
+              data = res$output$predictions
             ) +
             ggplot2$geom_point(
               ggplot2$aes(color = group),
               shape = pt_shape,
               fill = pt_fill,
-              size = pt_size) +
+              size = pt_size
+            ) +
             theme_apa()
         }
       } else if (analysis_type %in% "Ind") {
@@ -264,7 +273,7 @@ server <- function(
           ggplot2$ggplot(ggplot2$aes(x = x, y = y, group = id)) +
           ggplot2$geom_line(
             ggplot2$aes(x = x, y = y, group = id),
-            data =  dplyr$bind_rows(res$output[[3]]),
+            data = dplyr$bind_rows(res$output$predictions),
             alpha = 0.33
           ) +
           theme_apa()
@@ -273,11 +282,15 @@ server <- function(
             ggplot2$ggplot(ggplot2$aes(x = x, y = y)) +
             ggplot2$geom_line(
               ggplot2$aes(x = x, y = y),
-              data =  dplyr$bind_rows(res$output[[3]])
+              data = dplyr$bind_rows(res$output$predictions)
             ) +
-            ggplot2$geom_point(shape = pt_shape, fill = pt_fill, size = pt_size) +
+            ggplot2$geom_point(
+              shape = pt_shape,
+              fill = pt_fill,
+              size = pt_size
+            ) +
             theme_apa() +
-            ggplot2$facet_wrap(~ id)
+            ggplot2$facet_wrap(~id)
         }
       } else {
         if (!groupcol()) {
@@ -285,22 +298,27 @@ server <- function(
             ggplot2$ggplot(ggplot2$aes(x = x, y = y)) +
             ggplot2$geom_line(
               ggplot2$aes(x = x, y = y),
-              data =  res$output[[3]][[1]]
+              data = res$output$predictions[[1]]
             ) +
-            ggplot2$geom_point(shape = pt_shape, fill = pt_fill, size = pt_size) +
+            ggplot2$geom_point(
+              shape = pt_shape,
+              fill = pt_fill,
+              size = pt_size
+            ) +
             theme_apa()
         } else {
           res$plot <- data_r$data_d |>
             ggplot2$ggplot(ggplot2$aes(x = x, y = y, group = group)) +
             ggplot2$geom_line(
               ggplot2$aes(x = x, y = y, color = group),
-              data =  res$output[[3]]
+              data = res$output$predictions
             ) +
             ggplot2$geom_point(
               ggplot2$aes(color = group),
               shape = pt_shape,
               fill = pt_fill,
-              size = pt_size) +
+              size = pt_size
+            ) +
             theme_apa()
         }
       }
@@ -308,7 +326,9 @@ server <- function(
       shiny$bindEvent(calculate_btn())
 
     shiny$observe({
-      if (is.null(res$plot)) return()
+      if (is.null(res$plot)) {
+        return()
+      }
       res$plot <- res$plot +
         ggplot2$xlab(input$xtext) +
         ggplot2$ylab(input$ytext) +
@@ -336,7 +356,15 @@ server <- function(
 
       if (groupcol()) {
         res$plot <- res$plot +
-          ggplot2$guides(color = ggplot2$guide_legend(title = input$legend_title))
+          ggplot2$guides(
+            color = ggplot2$guide_legend(title = input$legend_title)
+          )
+        # Apply discrete palette for groups
+        n_groups <- length(unique(data_r$data_d$group))
+        res$plot <- res$plot +
+          ggplot2$scale_color_manual(
+            values = utils$get_palette_colors(input$palette, n_groups)
+          )
       }
 
       if (agg() != "Ind" | length(unique(data_r$data_d$id)) > 51) {

@@ -1,0 +1,12 @@
+# Environment files with secrets
+.env
+
+# Local testing
+*.log
+*.sqlite
+
+# Editor files
+*.swp
+*.swo
+*~
+.DS_Store

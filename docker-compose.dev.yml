@@ -1,0 +1,21 @@
+services:
+  shinybeez:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3838:3838"
+    volumes:
+      - ./logs:/root/shinybeez/logs
+      - ./data:/root/shinybeez/data
+    environment:
+      - R_CONFIG_ACTIVE=default
+      - TELEMETRY_ENABLED=false
+      - GA_ENABLED=false
+      - RHINO_LOG_LEVEL=INFO
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3838"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s

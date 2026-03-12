@@ -1,16 +1,50 @@
+# Git
 .git
-renv/library
-renv/cache
+.github
+
+# R project / IDE
 *.Rproj
-.DS_Store
+.Rproj.user
 .Rhistory
 .RData
-.Rproj.user
+
+# renv build artifacts (restored fresh in builder)
+renv/library
+renv/cache
+
+# Secrets and local data
+.env
+*.sqlite
+
+# Tests (not needed in image)
+tests/
+
+# Documentation and non-app files
+manuscript/
+analytics/
+scripts/
 site/
 troubleshooting/
 other/
-logs/log-*
-shinyproxy/*
-notes*
+deploy-shinyproxy/
+*.md
+!README.md
+
+# Alternate Dockerfiles and compose files
+Dockerfile_*
+docker-compose.*.yml
+
+# Local logs (created fresh in image)
+logs/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Misc
 shinybeez.code-workspace
 digitalocean.txt
+notes*
+badplot.RData
+beezdemand_0.1.3.tar.gz
+shinyproxy/

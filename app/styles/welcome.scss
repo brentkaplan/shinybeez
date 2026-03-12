@@ -32,27 +32,34 @@
 }
 
 .info-card {
-  background-color: #ffffff;
+  background-color: #fff;
   border-radius: 0.75rem;
   padding: 1.75rem;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.04), 0 1px 3px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 4px 6px rgb(0 0 0 / 4%), 0 1px 3px rgb(0 0 0 / 8%);
   transition: all 0.25s ease;
   cursor: pointer;
-  border: 1px solid rgba(0, 0, 0, 0.05);
+  border: 1px solid rgb(0 0 0 / 5%);
   height: 100%;
   display: flex;
   flex-direction: column;
 
   &:hover {
     transform: translateY(-5px);
-    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.07);
-    border-color: rgba(121, 82, 179, 0.2);
+    box-shadow: 0 10px 25px rgb(0 0 0 / 7%);
+    border-color: rgb(121 82 179 / 20%);
+  }
+
+  &:focus-visible {
+    outline: 3px solid #7952b3;
+    outline-offset: 2px;
+    box-shadow: 0 10px 25px rgb(0 0 0 / 7%);
+    border-color: rgb(121 82 179 / 20%);
   }
 
   .info-icon {
     width: 3.5rem;
     height: 3.5rem;
-    background-color: rgba(121, 82, 179, 0.1);
+    background-color: rgb(121 82 179 / 10%);
     border-radius: 50%;
     display: flex;
     align-items: center;
@@ -68,7 +75,7 @@
   }
 
   &:hover .info-icon {
-    background-color: rgba(121, 82, 179, 0.2);
+    background-color: rgb(121 82 179 / 20%);
     transform: scale(1.05);
 
     i {
@@ -117,7 +124,7 @@
 
 .content-details {
   display: none;
-  background-color: rgb(255, 255, 255);
+  background-color: rgb(255 255 255);
   border-radius: 0.5rem;
   padding: 1.5rem;
   margin-top: 1.5rem;
@@ -167,7 +174,7 @@
 }
 
 code {
-  background-color: rgb(255, 255, 255);
+  background-color: rgb(255 255 255);
   padding: 0.2rem 0.4rem;
   border-radius: 0.25rem;
   color: #e83e8c;
@@ -198,16 +205,20 @@ code {
 
   .info-card {
     background-color: #2b3035;
-    border-color: rgba(255, 255, 255, 0.05);
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.16), 0 1px 3px rgba(0, 0, 0, 0.26);
+    border-color: rgb(255 255 255 / 5%);
+    box-shadow: 0 4px 6px rgb(0 0 0 / 16%), 0 1px 3px rgb(0 0 0 / 26%);
 
     &:hover {
-      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
-      border-color: rgba(169, 143, 214, 0.3);
+      box-shadow: 0 10px 25px rgb(0 0 0 / 30%);
+      border-color: rgb(169 143 214 / 30%);
+    }
+
+    &:focus-visible {
+      outline-color: #a78bda;
     }
 
     .info-icon {
-      background-color: rgba(169, 143, 214, 0.15);
+      background-color: rgb(169 143 214 / 15%);
 
       i {
         color: #a78bda;
@@ -215,7 +226,7 @@ code {
     }
 
     &:hover .info-icon {
-      background-color: rgba(169, 143, 214, 0.25);
+      background-color: rgb(169 143 214 / 25%);
 
       i {
         color: #be9ff0;
@@ -309,7 +320,7 @@ code {
   // Figure and image adjustments
   figure {
     img {
-      background-color: #ffffff;
+      background-color: #fff;
       padding: 0.5rem;
     }
   }

@@ -23,9 +23,42 @@ inst/doc
 # Other files #
 ###########
 other/
-tests/
-logs/log-*
 *-workspace
+site/
+troubleshooting/
+notes*
+/.luarc.json
+shinyproxy/
+/README_files/*
+.env
+beezdemand_0.1.3.tar.gz
+
+# Logs (runtime)
+logs/*.log
+logs/log.txt
+logs/log-*
+logs/production/
+
+# Data (runtime/user)
+data/
+
+# Debug artifacts
+*.RData
+*.png
+!app/static/**/*.png
+
+# Generated files
+README.html
+
+# Old backups
+renv.lock.pre-*.json
+
+# Tool artifacts
+.playwright-mcp/
+.vscode/
+
+# Manuscripts (large binaries + working files)
+manuscript/*.pdf
 manuscript/o*
 manuscript/i*
 manuscript/r*
@@ -33,8 +66,50 @@ manuscript/manuscript-*
 manuscript/manuscript.tex
 manuscript/manuscript.typ
 manuscript/manuscript.docx
-site/
-troubleshooting/
-notes*
-/.luarc.json
-shinyproxy/
+
+# Databases
+*.sqlite
+
+# Infrastructure docs (not part of app)
+CICD_SETUP.md
+CI_CD_SUMMARY.md
+DEPLOYMENT_GUIDE.md
+TELEMETRY_GUIDE.md
+SETUP_CHECKLIST.md
+WARP.md
+GEMINI.md
+PLAN.md
+
+# Analytics/scripts (local tooling)
+analytics/
+scripts/
+identify_packages.R
+setup_telemetry_analytics.R
+init-telemetry-db.sql
+shinyproxy-config.yml
+digitalocean.txt
+
+# Docker compose extras (local deployment)
+docker-compose.production.yml
+docker-compose.shinyproxy.yml
+docker-compose.telemetry.yml
+
+# Superseded configs
+nginx.conf
+
+# Local deployment helpers (not used by CI)
+deploy-shinyapps.R
+deploy-shinyproxy/.env.example
+deploy-shinyproxy/docker-compose.yml
+deploy-shinyproxy/init-telemetry-db.sql
+deploy-shinyproxy/setup.sh
+deploy-shinyproxy/check-status.sh
+deploy-shinyproxy/README.md
+deploy-shinyproxy/shinyproxy.service
+deploy-shinyproxy/logrotate-shinybeez-app.conf
+
+# Review folder
+_review-for-deletion/
+
+# Git worktrees
+.worktrees/
