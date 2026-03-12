@@ -19,7 +19,7 @@ on:
 env:
   REGISTRY: docker.io
   IMAGE_NAME: brentkaplan/shinybeez
-  SHINYBEEZ_FULL_TESTS: ${{ (github.ref == 'refs/heads/main' || github.event.inputs.full_tests == 'true') && 'true' || 'false' }}
+  SHINYBEEZ_FULL_TESTS: ${{ github.event.inputs.full_tests == 'true' && 'true' || 'false' }}
 
 jobs:
   # Test and validate the application
