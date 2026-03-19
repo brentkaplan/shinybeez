@@ -132,6 +132,7 @@ server <- function(id, data_r, type = NULL) {
       })
 
       output$missings_table <- DT$renderDT(server = FALSE, {
+        missings <- NULL
         if (type() %in% "27-Item MCQ") {
           missings <- data_r$data_d |>
             dplyr$group_by(subjectid) |>
@@ -142,6 +143,7 @@ server <- function(id, data_r, type = NULL) {
         } else if (type() %in% "Indifference Point Regression") {
           missings <- data_r$data_d[!stats$complete.cases(data_r$data_d), ]
         }
+        shiny$req(missings)
         build_datatable(
           missings,
           filename_prefix = "shinybeez_Discounting_Missings",
@@ -151,8 +153,9 @@ server <- function(id, data_r, type = NULL) {
       })
 
       output$systematic_table <- DT$renderDT(server = FALSE, {
+        sys_result <- NULL
         if (type() %in% "27-Item MCQ") {
-          sys_result <- NULL
+          # MCQ has no systematic criteria
         } else if (type() %in% "Indifference Point Regression") {
           sys_result <- tryCatch(
             session_logger$with_performance(

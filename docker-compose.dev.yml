@@ -6,8 +6,8 @@ services:
     ports:
       - "3838:3838"
     volumes:
-      - ./logs:/root/shinybeez/logs
-      - ./data:/root/shinybeez/data
+      - ./logs:/home/shiny/shinybeez/logs
+      - ./data:/home/shiny/shinybeez/data
     environment:
       - R_CONFIG_ACTIVE=default
       - TELEMETRY_ENABLED=false

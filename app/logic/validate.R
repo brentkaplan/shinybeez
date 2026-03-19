@@ -32,9 +32,8 @@ check_demand_data <- function(dat) {
       if (is.character(chk)) return(chk)
       dat <- dplyr$relocate(dat, group, .after = id)
       chk <- validate_condition(
-        all(sapply(
-          readr$parse_number(colnames(dat)[3:length(colnames(dat))]),
-          is.numeric
+        all(!is.na(
+          readr$parse_number(colnames(dat)[3:length(colnames(dat))])
         )),
         "The column names are not numeric"
       )
@@ -46,9 +45,8 @@ check_demand_data <- function(dat) {
       )
       if (is.character(chk)) return(chk)
       chk <- validate_condition(
-        all(sapply(
-          readr$parse_number(colnames(dat)[2:length(colnames(dat))]),
-          is.numeric
+        all(!is.na(
+          readr$parse_number(colnames(dat)[2:length(colnames(dat))])
         )),
         "The column names are not numeric"
       )
@@ -110,7 +108,7 @@ check_discounting_data <- function(dat) {
 
   if ("subjectid" %in% colnames(dat)) {
     chk <- validate_condition(
-      ncol(dat) == 28 | ncol(dat) == 3,
+      ncol(dat) == 28 || ncol(dat) == 3,
       "Number of columns does not appear to match the template"
     )
     if (is.character(chk)) return(chk)
@@ -205,7 +203,7 @@ reshape_data <- function(dat, type = "demand") {
 
 #' @export
 retype_data <- function(dat) {
-  if (class(dat$x) != "numeric") {
+  if (!is.numeric(dat$x)) {
     dat$x <- readr$parse_number(dat$x)
   }
   if ("group" %in% colnames(dat)) {

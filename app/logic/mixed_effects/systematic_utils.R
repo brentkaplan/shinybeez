@@ -54,10 +54,20 @@ compute_systematic_criteria <- function(
     df_sys <- df_raw[, c(id_col, x_col, y_col, group_vars), drop = FALSE]
     names(df_sys)[1:3] <- c("id", "x", "y")
 
-    suppressWarnings({
-      df_sys$x <- as.numeric(df_sys$x)
-      df_sys$y <- as.numeric(df_sys$y)
-    })
+    x_numeric <- suppressWarnings(as.numeric(df_sys$x))
+    y_numeric <- suppressWarnings(as.numeric(df_sys$y))
+    x_coerced_na <- !is.na(df_sys$x) & is.na(x_numeric)
+    y_coerced_na <- !is.na(df_sys$y) & is.na(y_numeric)
+    if (any(x_coerced_na) || any(y_coerced_na)) {
+      bad_rows <- which(x_coerced_na | y_coerced_na)
+      warning(sprintf(
+        "Non-numeric values found in %d row(s) (rows: %s) and coerced to NA.",
+        length(bad_rows),
+        paste(utils::head(bad_rows, 10), collapse = ", ")
+      ))
+    }
+    df_sys$x <- x_numeric
+    df_sys$y <- y_numeric
     df_sys <- df_sys[!is.na(df_sys$y), , drop = FALSE]
 
     systematic <- df_sys |>
@@ -83,10 +93,20 @@ compute_systematic_criteria <- function(
     } else {
       df_sys <- df_raw[, c(id_col, x_col, y_col), drop = FALSE]
       names(df_sys) <- c("id", "x", "y")
-      suppressWarnings({
-        df_sys$x <- as.numeric(df_sys$x)
-        df_sys$y <- as.numeric(df_sys$y)
-      })
+      x_numeric <- suppressWarnings(as.numeric(df_sys$x))
+      y_numeric <- suppressWarnings(as.numeric(df_sys$y))
+      x_coerced_na <- !is.na(df_sys$x) & is.na(x_numeric)
+      y_coerced_na <- !is.na(df_sys$y) & is.na(y_numeric)
+      if (any(x_coerced_na) || any(y_coerced_na)) {
+        bad_rows <- which(x_coerced_na | y_coerced_na)
+        warning(sprintf(
+          "Non-numeric values found in %d row(s) (rows: %s) and coerced to NA.",
+          length(bad_rows),
+          paste(utils::head(bad_rows, 10), collapse = ", ")
+        ))
+      }
+      df_sys$x <- x_numeric
+      df_sys$y <- y_numeric
       df_sys <- df_sys[!is.na(df_sys$y), , drop = FALSE]
     }
 

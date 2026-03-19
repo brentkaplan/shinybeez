@@ -102,7 +102,6 @@ server <- function(
   fix_q0 = FALSE,
   q0_val = NULL,
   groupcol = NULL,
-  mem = FALSE,
   kval,
   calculate_btn
 ) {
@@ -367,7 +366,7 @@ server <- function(
           )
       }
 
-      if (agg() != "Ind" | length(unique(data_r$data_d$id)) > 51) {
+      if (agg() != "Ind" || length(unique(data_r$data_d$id)) > 51) {
         res$plot <- res$plot +
           utils$add_shiny_logo(utils$watermark_tr)
       }

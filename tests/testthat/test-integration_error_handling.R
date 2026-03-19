@@ -33,7 +33,7 @@ describe("Error handling", {
     )
     wait_for_notification(app, "error")
     html <- app$get_html(".shiny-notification-error")
-    expect_true(!is.null(html) && any(nchar(html) > 0))
+    expect_true(!is.null(html) && any(grepl("shiny-notification", html)))
   })
 
   it("shows error when uploading demand data to discounting tab", {
@@ -44,7 +44,7 @@ describe("Error handling", {
     )
     wait_for_notification(app, "error")
     html <- app$get_html(".shiny-notification-error")
-    expect_true(!is.null(html) && any(nchar(html) > 0))
+    expect_true(!is.null(html) && any(grepl("shiny-notification", html)))
   })
 
   it("shows error when uploading MCQ data to mixed effects tab", {
@@ -55,7 +55,7 @@ describe("Error handling", {
     )
     wait_for_notification(app, "error")
     html <- app$get_html(".shiny-notification-error")
-    expect_true(!is.null(html) && any(nchar(html) > 0))
+    expect_true(!is.null(html) && any(grepl("shiny-notification", html)))
   })
 
   withr::defer(try(app$stop(), silent = TRUE), envir = teardown_env())

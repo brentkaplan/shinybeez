@@ -65,7 +65,11 @@ RUN apt-get update -qq && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 ENV LANG=en_US.UTF-8
-WORKDIR /root/shinybeez
+
+# Create non-root user for running the app
+RUN useradd -r -m -s /usr/sbin/nologin shiny
+
+WORKDIR /home/shiny/shinybeez
 
 # Copy R packages from builder
 COPY --from=builder /root/shinybeez/renv.lock ./renv.lock
@@ -92,6 +96,10 @@ RUN R -q -e " \
   library(esquisse); library(ggprism); library(openxlsx); \
   cat('Warmup complete\n')"
 
+# Set ownership and switch to non-root user
+RUN chown -R shiny:shiny /home/shiny/shinybeez
+USER shiny
+
 EXPOSE 3838
 
-CMD ["R", "-e", "shiny::runApp('/root/shinybeez', host='0.0.0.0', port=3838)"]
+CMD ["R", "-e", "shiny::runApp('/home/shiny/shinybeez', host='0.0.0.0', port=3838)"]

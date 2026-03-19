@@ -44,7 +44,7 @@ describe("Discounting - MCQ 27-Item scoring", {
     app$click(selector = paste0("#", ids$discounting$calculate))
     wait_for_output(app, result_id, timeout_ms = 15000)
     html <- app$get_html(".datatables")
-    expect_true(any(nchar(html) > 0))
+    expect_true(any(grepl("<td", html, fixed = TRUE)))
   })
 
   withr::defer(try(app$stop(), silent = TRUE), envir = teardown_env())
@@ -88,7 +88,7 @@ describe("Discounting - IP Regression Pooled and Two Stage", {
     app$click(selector = paste0("#", ids$discounting$calculate))
     wait_for_output(app, result_id, timeout_ms = 30000)
     html <- app$get_html(".datatables")
-    expect_true(any(nchar(html) > 0))
+    expect_true(any(grepl("<td", html, fixed = TRUE)))
   })
 
   it("switches to Two Stage and runs calculation", {
@@ -104,7 +104,7 @@ describe("Discounting - IP Regression Pooled and Two Stage", {
     app$click(selector = paste0("#", ids$discounting$calculate))
     wait_for_output(app, result_id, timeout_ms = 30000)
     html <- app$get_html(".datatables")
-    expect_true(any(nchar(html) > 0))
+    expect_true(any(grepl("<td", html, fixed = TRUE)))
   })
 
   withr::defer(try(app$stop(), silent = TRUE), envir = teardown_env())
@@ -133,7 +133,7 @@ describe("Discounting - 5.5-Trial Delay Discounting (full)", {
     app$click(selector = paste0("#", ids$discounting$calculate))
     wait_for_output(app, result_id, timeout_ms = 45000)
     html <- app$get_html(".datatables")
-    expect_true(any(nchar(html) > 0))
+    expect_true(any(grepl("<td", html, fixed = TRUE)))
   })
 
   withr::defer(
@@ -162,7 +162,7 @@ describe("Discounting - 5.5-Trial Probability Discounting (full)", {
     app$click(selector = paste0("#", ids$discounting$calculate))
     wait_for_output(app, result_id, timeout_ms = 45000)
     html <- app$get_html(".datatables")
-    expect_true(any(nchar(html) > 0))
+    expect_true(any(grepl("<td", html, fixed = TRUE)))
   })
 
   withr::defer(
@@ -192,7 +192,7 @@ describe("Discounting - MCQ with GGM imputation (full)", {
     app$click(selector = paste0("#", ids$discounting$calculate))
     wait_for_output(app, result_id, timeout_ms = 45000)
     html <- app$get_html(".datatables")
-    expect_true(any(nchar(html) > 0))
+    expect_true(any(grepl("<td", html, fixed = TRUE)))
   })
 
   withr::defer(

@@ -87,6 +87,14 @@ server <- function(id, type = "demand") {
           # Remove rows with NAs and notify if any dropped
           na_result <- validate$remove_na_rows(tmp)
           tmp <- na_result$data
+          if (nrow(tmp) == 0) {
+            shiny$showNotification(
+              "All rows contained missing values and were removed. Please check your data.",
+              type = "error",
+              duration = NULL
+            )
+            return()
+          }
           if (na_result$n_dropped > 0) {
             shiny$showNotification(
               paste(
@@ -168,6 +176,14 @@ server <- function(id, type = "demand") {
               ),
               category = "data_processing"
             )
+            if (nrow(tmp) == 0) {
+              shiny$showNotification(
+                "All rows contained missing values and were removed. Please check your data.",
+                type = "error",
+                duration = NULL
+              )
+              return()
+            }
             if (na_result$n_dropped > 0) {
               shiny$showNotification(
                 paste(
@@ -220,6 +236,14 @@ server <- function(id, type = "demand") {
           # Remove rows with NAs and notify if any dropped
           na_result <- validate$remove_na_rows(tmp)
           tmp <- na_result$data
+          if (nrow(tmp) == 0) {
+            shiny$showNotification(
+              "All rows contained missing values and were removed. Please check your data.",
+              type = "error",
+              duration = NULL
+            )
+            return()
+          }
           if (na_result$n_dropped > 0) {
             shiny$showNotification(
               paste(

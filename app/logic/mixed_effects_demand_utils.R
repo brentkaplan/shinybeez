@@ -35,10 +35,22 @@ prepare_systematic_input <- function(df, id_col, x_col, y_col) {
 
   # Coerce types
   out$id <- as.character(out$id)
-  suppressWarnings({
-    out$x <- as.numeric(out$x)
-    out$y <- as.numeric(out$y)
-  })
+  x_numeric <- suppressWarnings(as.numeric(out$x))
+  y_numeric <- suppressWarnings(as.numeric(out$y))
+
+  # Detect non-numeric values introduced as NA by coercion
+  x_coerced_na <- !is.na(out$x) & is.na(x_numeric)
+  y_coerced_na <- !is.na(out$y) & is.na(y_numeric)
+  if (any(x_coerced_na) || any(y_coerced_na)) {
+    bad_rows <- which(x_coerced_na | y_coerced_na)
+    warning(sprintf(
+      "Non-numeric values found in %d row(s) (rows: %s) and coerced to NA.",
+      length(bad_rows),
+      paste(utils::head(bad_rows, 10), collapse = ", ")
+    ))
+  }
+  out$x <- x_numeric
+  out$y <- y_numeric
 
   # Drop rows with NA in y
   out <- out[!is.na(out$y), , drop = FALSE]

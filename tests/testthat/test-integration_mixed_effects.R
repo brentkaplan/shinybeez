@@ -31,7 +31,7 @@ describe("Mixed Effects - default ko data", {
   it("renders the data table for default data", {
     require_app(app)
     html <- app$get_html(".datatables")
-    expect_true(any(nchar(html) > 0))
+    expect_true(any(grepl("<td", html, fixed = TRUE)))
   })
 
   it("selects drug as Factor 1", {

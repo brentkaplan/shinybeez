@@ -121,6 +121,41 @@ describe("prepare_systematic_input", {
     expect_type(result$id, "character")
     expect_equal(result$id, c("p1", "p2"))
   })
+
+  it("warns when non-numeric x or y values are coerced to NA", {
+    df <- data.frame(
+      id = c("p1", "p1", "p2"),
+      x = c("0.01", "missing", "0.1"),
+      y = c("100", "80", "N/A"),
+      stringsAsFactors = FALSE
+    )
+    expect_warning(
+      mixed_effects_demand_utils$prepare_systematic_input(
+        df,
+        id_col = "id",
+        x_col = "x",
+        y_col = "y"
+      ),
+      "Non-numeric values found"
+    )
+  })
+
+  it("does not warn when all x and y values are validly numeric", {
+    df <- data.frame(
+      id = c("p1", "p2"),
+      x = c("0.01", "0.1"),
+      y = c("100", "80"),
+      stringsAsFactors = FALSE
+    )
+    expect_no_warning(
+      mixed_effects_demand_utils$prepare_systematic_input(
+        df,
+        id_col = "id",
+        x_col = "x",
+        y_col = "y"
+      )
+    )
+  })
 })
 
 

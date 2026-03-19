@@ -19,13 +19,13 @@ describe("Demand - pooled, two-stage, and mean analysis", {
     require_app(app)
     upload_and_wait(app, ids$demand$upload, fixture_path("demand-minimal.csv"))
     html <- app$get_html(".datatables")
-    expect_true(any(nchar(html) > 0))
+    expect_true(any(grepl("<td", html, fixed = TRUE)))
   })
 
   it("renders the data table after upload", {
     require_app(app)
     html <- app$get_html(".datatables")
-    expect_true(any(nchar(html) > 0))
+    expect_true(any(grepl("<td", html, fixed = TRUE)))
   })
 
   it("configures k value", {
@@ -52,7 +52,7 @@ describe("Demand - pooled, two-stage, and mean analysis", {
     app$click(selector = paste0("#", ids$demand$calculate))
     wait_for_output(app, result_id, timeout_ms = 15000)
     html <- app$get_html(".datatables")
-    expect_true(any(nchar(html) > 0))
+    expect_true(any(grepl("<td", html, fixed = TRUE)))
   })
 
   it("switches to Two Stage and runs calculation", {
@@ -63,7 +63,7 @@ describe("Demand - pooled, two-stage, and mean analysis", {
     app$click(selector = paste0("#", ids$demand$calculate))
     wait_for_output(app, result_id, timeout_ms = 30000)
     html <- app$get_html(".datatables")
-    expect_true(any(nchar(html) > 0))
+    expect_true(any(grepl("<td", html, fixed = TRUE)))
   })
 
   it("switches to Mean and runs calculation", {
@@ -74,7 +74,7 @@ describe("Demand - pooled, two-stage, and mean analysis", {
     app$click(selector = paste0("#", ids$demand$calculate))
     wait_for_output(app, result_id, timeout_ms = 15000)
     html <- app$get_html(".datatables")
-    expect_true(any(nchar(html) > 0))
+    expect_true(any(grepl("<td", html, fixed = TRUE)))
   })
 
   withr::defer(try(app$stop(), silent = TRUE), envir = teardown_env())
@@ -111,7 +111,7 @@ describe("Demand - grouped analysis", {
     app$click(selector = paste0("#", ids$demand$calculate))
     wait_for_output(app, result_id, timeout_ms = 15000)
     html <- app$get_html(".datatables")
-    expect_true(any(nchar(html) > 0))
+    expect_true(any(grepl("<td", html, fixed = TRUE)))
   })
 
   withr::defer(try(app$stop(), silent = TRUE), envir = teardown_env())
@@ -139,7 +139,7 @@ describe("Demand - full 50-subject grouped example", {
     app$click(selector = paste0("#", ids$demand$calculate))
     wait_for_output(app, result_id, timeout_ms = 60000)
     html <- app$get_html(".datatables")
-    expect_true(any(nchar(html) > 0))
+    expect_true(any(grepl("<td", html, fixed = TRUE)))
   })
 
   withr::defer(

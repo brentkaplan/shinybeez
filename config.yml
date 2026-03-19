@@ -89,13 +89,13 @@ production:
     development_log_level: "INFO"
     production_log_level: "WARN"
     log_performance: TRUE
-    performance_threshold_ms: 2000
+    performance_threshold_ms: 500
 
   telemetry:
     enabled: TRUE
     storage_type: !expr Sys.getenv("TELEMETRY_STORAGE", "sqlite")  # SQLite — no PostgreSQL driver in Docker image
     sqlite:
-      db_path: "data/telemetry.sqlite"  # Relative to workdir (/root/shinybeez/data/)
+      db_path: "data/telemetry.sqlite"  # Relative to workdir
     postgresql:
       host: !expr Sys.getenv("TELEMETRY_DB_HOST", "postgres")
       port: !expr as.numeric(Sys.getenv("TELEMETRY_DB_PORT", "5432"))
@@ -153,13 +153,13 @@ shinyproxy:
     development_log_level: "INFO"
     production_log_level: "INFO"
     log_performance: TRUE
-    performance_threshold_ms: 2000
+    performance_threshold_ms: 500
 
   telemetry:
     enabled: !expr as.logical(Sys.getenv("TELEMETRY_ENABLED", "TRUE"))
     storage_type: !expr Sys.getenv("TELEMETRY_STORAGE", "sqlite")  # SQLite — no PostgreSQL driver in Docker image
     sqlite:
-      db_path: "data/telemetry.sqlite"  # Relative to workdir (/root/shinybeez/data/)
+      db_path: "data/telemetry.sqlite"  # Relative to workdir
     postgresql:
       host: !expr Sys.getenv("TELEMETRY_DB_HOST", "localhost")
       port: !expr as.numeric(Sys.getenv("TELEMETRY_DB_PORT", "5432"))

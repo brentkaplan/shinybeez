@@ -131,6 +131,31 @@ describe("check_data", {
     result <- validate$check_data(df, type = "mixed_effects_demand")
     expect_true(result)
   })
+
+  it("rejects wide format demand data with non-numeric column names", {
+    df <- data.frame(
+      id = c("p1", "p2"),
+      price_low = c(100, 90),
+      price_high = c(80, 70),
+      check.names = FALSE
+    )
+    result <- validate$check_data(df, type = "demand")
+    expect_type(result, "character")
+    expect_match(result, "not numeric", ignore.case = TRUE)
+  })
+
+  it("rejects wide grouped demand data with non-numeric column names", {
+    df <- data.frame(
+      id = c("p1", "p2"),
+      group = c("A", "B"),
+      abc = c(100, 90),
+      def = c(80, 70),
+      check.names = FALSE
+    )
+    result <- validate$check_data(df, type = "demand")
+    expect_type(result, "character")
+    expect_match(result, "not numeric", ignore.case = TRUE)
+  })
 })
 
 # ------------------------------------------------------------------------------
@@ -301,6 +326,35 @@ describe("reshape_data", {
 })
 
 # ------------------------------------------------------------------------------
+# retype_data() tests
+# ------------------------------------------------------------------------------
+
+describe("retype_data", {
+  it("does not re-parse integer x columns", {
+    df <- data.frame(
+      id = c("p1", "p1", "p2", "p2"),
+      x = c(1L, 2L, 1L, 2L),
+      y = c(100, 80, 90, 70)
+    )
+    result <- validate$retype_data(df)
+    expect_true(is.numeric(result$x))
+    expect_equal(as.numeric(result$x), c(1, 2, 1, 2))
+  })
+
+  it("re-parses character x columns", {
+    df <- data.frame(
+      id = c("p1", "p2"),
+      x = c("0.01", "0.1"),
+      y = c(100, 80),
+      stringsAsFactors = FALSE
+    )
+    result <- validate$retype_data(df)
+    expect_true(is.numeric(result$x))
+    expect_equal(as.numeric(result$x), c(0.01, 0.1))
+  })
+})
+
+# ------------------------------------------------------------------------------
 # remove_na_rows() tests
 # ------------------------------------------------------------------------------
 
@@ -336,6 +390,18 @@ describe("remove_na_rows", {
     result <- validate$remove_na_rows(df)
     expect_equal(result$n_dropped, 2)
     expect_equal(nrow(result$data), 0)
+  })
+
+  it("returns 0-row data frame when every row has at least one NA", {
+    df <- data.frame(
+      id = c("p1", "p2", "p3"),
+      x = c(NA, 1, NA),
+      y = c(10, NA, NA)
+    )
+    result <- validate$remove_na_rows(df)
+    expect_equal(result$n_dropped, 3)
+    expect_equal(nrow(result$data), 0)
+    expect_true(is.data.frame(result$data))
   })
 })
 
