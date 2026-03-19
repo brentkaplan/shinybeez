@@ -97,6 +97,62 @@ describe("resolve_imputation", {
     expect_equal(length(result), 2)
     expect_true(all(c("impute_method", "random") %in% names(result)))
   })
+
+  it("strips _random suffix and returns TRUE random for 'INN_random'", {
+    result <- scoring$resolve_imputation("INN_random")
+    expect_equal(result$impute_method, "INN")
+    expect_true(result$random)
+  })
+
+  it("strips _random suffix and returns TRUE random for 'GGM_random'", {
+    result <- scoring$resolve_imputation("GGM_random")
+    expect_equal(result$impute_method, "GGM")
+    expect_true(result$random)
+  })
+
+  it("strips _random suffix case-insensitively for 'inn_Random'", {
+    result <- scoring$resolve_imputation("inn_Random")
+    expect_equal(result$impute_method, "inn")
+    expect_true(result$random)
+  })
+})
+
+# ------------------------------------------------------------------------------
+# friendly_discounting_error() tests
+# ------------------------------------------------------------------------------
+
+describe("friendly_discounting_error", {
+
+  it("translates 'In index: 1' pattern to data format error", {
+    msg <- scoring$friendly_discounting_error("Error in mutate: In index: 1. something")
+    expect_match(msg, "Data format error")
+  })
+
+  it("translates impute method error", {
+    msg <- scoring$friendly_discounting_error("Impute method must be one of none, ggm")
+    expect_match(msg, "Invalid imputation method")
+  })
+
+  it("translates argument length zero error", {
+    msg <- scoring$friendly_discounting_error("argument is of length zero")
+    expect_match(msg, "required column appears to be missing")
+  })
+
+  it("translates undefined columns error", {
+    msg <- scoring$friendly_discounting_error("undefined columns selected")
+    expect_match(msg, "missing expected columns")
+  })
+
+  it("translates response length error", {
+    msg <- scoring$friendly_discounting_error("Response length not equal to 27")
+    expect_match(msg, "exactly 27 items")
+  })
+
+  it("returns generic message for unrecognized errors", {
+    msg <- scoring$friendly_discounting_error("something completely unknown")
+    expect_match(msg, "An error occurred during scoring")
+    expect_match(msg, "something completely unknown")
+  })
 })
 
 # ------------------------------------------------------------------------------

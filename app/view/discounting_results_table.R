@@ -90,13 +90,30 @@ server <- function(
       res <- list()
       if (type() == "27-Item MCQ" && !("I16" %in% names(data_r$data_d))) {
         rhino$log$debug(paste("Imputation method:", imputation(), "; Transformation:", trans()))
-        mcq_out <- session_logger$with_performance("mcq_scoring", function() {
-          scoring$score_and_format_mcq(
-            data_r$data_d,
-            imputation = imputation(),
-            trans = trans()
-          )
-        }, always_log = TRUE)
+        mcq_out <- tryCatch(
+          session_logger$with_performance("mcq_scoring", function() {
+            scoring$score_and_format_mcq(
+              data_r$data_d,
+              imputation = imputation(),
+              trans = trans()
+            )
+          }, always_log = TRUE),
+          error = function(e) {
+            friendly_msg <- scoring$friendly_discounting_error(e$message)
+            shiny$showNotification(
+              friendly_msg,
+              type = "error",
+              duration = 10
+            )
+            session_logger$error_enhanced(
+              paste("MCQ scoring failed:", e$message),
+              error_object = e,
+              context = "mcq_scoring"
+            )
+            return(NULL)
+          }
+        )
+        if (is.null(mcq_out)) return(list())
         res$results <- mcq_out$results
         res$data <- mcq_out$data
         res$summary <- mcq_out$summary

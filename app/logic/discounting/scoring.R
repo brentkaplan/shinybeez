@@ -14,10 +14,48 @@ box::use(
 #' @export
 resolve_imputation <- function(imputation) {
   if (is.null(imputation)) imputation <- "none"
+  random <- grepl("random", imputation, ignore.case = TRUE)
+  impute_method <- sub("_random$", "", imputation, ignore.case = TRUE)
   list(
-    impute_method = imputation,
-    random = grepl("random", imputation, ignore.case = TRUE)
+    impute_method = impute_method,
+    random = random
   )
+}
+
+#' Translate raw R error messages to user-friendly messages
+#'
+#' @param msg Character error message from R
+#' @return Character user-friendly error message
+#' @export
+friendly_discounting_error <- function(msg) {
+  patterns <- list(
+    list(
+      pattern = "In index: 1",
+      friendly = "Data format error: please check that your data matches the expected format for this scoring method."
+    ),
+    list(
+      pattern = "Impute method must be one of",
+      friendly = "Invalid imputation method selected. Please choose a different option."
+    ),
+    list(
+      pattern = "argument is of length zero",
+      friendly = "A required column appears to be missing. Please verify your column names."
+    ),
+    list(
+      pattern = "undefined columns selected",
+      friendly = "Your data is missing expected columns. Please check the documentation for required columns."
+    ),
+    list(
+      pattern = "Response length not equal to 27",
+      friendly = "MCQ data must contain exactly 27 items per participant. Please check your data."
+    )
+  )
+
+  for (p in patterns) {
+    if (grepl(p$pattern, msg, fixed = TRUE)) return(p$friendly)
+  }
+
+  paste0("An error occurred during scoring: ", msg)
 }
 
 #' Format MCQ results by rounding standard columns

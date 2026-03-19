@@ -189,6 +189,9 @@ server <- function(id) {
     # Initialize reactive data storage
     session$userData$data <- shiny$reactiveValues()
 
+    # Track last active tab for session_end telemetry (plain variable, not reactive)
+    .last_tab <- "Welcome"
+
     # Track navigation changes (log initial tab and all subsequent changes)
     # Note: nav input is non-namespaced at root level, access via rootScope
     shiny$observe({
@@ -208,6 +211,8 @@ server <- function(id) {
 
           # Track navigation in telemetry
           session_telemetry$track_navigation(nav_value)
+
+          .last_tab <<- nav_value
         })
       }
     })
@@ -324,7 +329,8 @@ server <- function(id) {
             Sys.time(),
             session$startTime,
             units = "secs"
-          )
+          ),
+          last_tab = .last_tab
         )
       )
 

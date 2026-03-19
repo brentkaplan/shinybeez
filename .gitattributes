@@ -1,9 +1,3 @@
 # Encrypt files containing credentials (readable locally, encrypted on GitHub)
 .Renviron filter=git-crypt diff=git-crypt
-deploy-shinyproxy/application.yml filter=git-crypt diff=git-crypt
-deploy-shinyproxy/nginx-shinyproxy.conf filter=git-crypt diff=git-crypt
-deploy-shinyproxy/setup.sh filter=git-crypt diff=git-crypt
-deploy-shinyproxy/shinyproxy.service filter=git-crypt diff=git-crypt
-deploy-shinyproxy/logrotate-shinybeez-app.conf filter=git-crypt diff=git-crypt
-deploy-shinyproxy/init-telemetry-db.sql filter=git-crypt diff=git-crypt
-deploy-shinyproxy/docker-compose.yml filter=git-crypt diff=git-crypt
+deploy-shinyproxy/** filter=git-crypt diff=git-crypt
