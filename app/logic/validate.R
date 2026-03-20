@@ -113,8 +113,9 @@ check_discounting_data <- function(dat) {
     )
     if (is.character(chk)) return(chk)
   } else if ("responseid" %in% colnames(dat)) {
+    i_cols <- grep("^i[0-9]+$", colnames(dat), value = TRUE)
     chk <- validate_condition(
-      all(paste0("i", c(1:31)) %in% colnames(dat)),
+      length(i_cols) >= 1,
       "Check to make sure you are using the correct Qualtrics template."
     )
     if (is.character(chk)) return(chk)
