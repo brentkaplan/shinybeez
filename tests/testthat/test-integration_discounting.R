@@ -126,10 +126,16 @@ describe("Discounting - 5.5-Trial Delay Discounting (full)", {
       !!ids$discounting$calc_type := "5.5 Trial Delay Discounting"
     )
     app$wait_for_idle(duration = 500)
-    app$upload_file(
-      !!ids$discounting$upload := example_path("shinybeez-ex-five.fivetrial_dd.csv")
+    do.call(app$upload_file, stats::setNames(
+      list(example_path("shinybeez-ex-five.fivetrial_dd.csv")),
+      ids$discounting$upload
+    ))
+    # Wait for Calculate button to appear (requires cascading renderUI flush)
+    app$wait_for_js(
+      sprintf("document.querySelector('#%s') !== null", ids$discounting$calculate),
+      timeout = 30000
     )
-    app$wait_for_idle(duration = 2000, timeout = 30000)
+    app$wait_for_idle(duration = 500, timeout = 30000)
     app$click(selector = paste0("#", ids$discounting$calculate))
     wait_for_output(app, result_id, timeout_ms = 45000)
     html <- app$get_html(".datatables")
@@ -155,10 +161,16 @@ describe("Discounting - 5.5-Trial Probability Discounting (full)", {
       !!ids$discounting$calc_type := "5.5 Trial Probability Discounting"
     )
     app$wait_for_idle(duration = 500)
-    app$upload_file(
-      !!ids$discounting$upload := example_path("shinybeez-ex-five.fivetrial_pd.csv")
+    do.call(app$upload_file, stats::setNames(
+      list(example_path("shinybeez-ex-five.fivetrial_pd.csv")),
+      ids$discounting$upload
+    ))
+    # Wait for Calculate button to appear (requires cascading renderUI flush)
+    app$wait_for_js(
+      sprintf("document.querySelector('#%s') !== null", ids$discounting$calculate),
+      timeout = 30000
     )
-    app$wait_for_idle(duration = 2000, timeout = 30000)
+    app$wait_for_idle(duration = 500, timeout = 30000)
     app$click(selector = paste0("#", ids$discounting$calculate))
     wait_for_output(app, result_id, timeout_ms = 45000)
     html <- app$get_html(".datatables")
