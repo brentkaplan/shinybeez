@@ -53,6 +53,21 @@ server <- function(id, type = "demand") {
     session_logger <- logging_utils$create_session_logger(session)
 
     shiny$observe({
+      # Reject files larger than 20 MB
+      max_size_mb <- 20
+      file_size_mb <- input$upload$size / (1024 * 1024)
+      if (file_size_mb > max_size_mb) {
+        shiny$showNotification(
+          paste0(
+            "File is too large (", round(file_size_mb, 1), " MB). ",
+            "Maximum allowed size is ", max_size_mb, " MB."
+          ),
+          type = "error",
+          duration = NULL
+        )
+        return()
+      }
+
       ext <- tools$file_ext(input$upload$name)
       if (type == "demand") {
         session_logger$info(

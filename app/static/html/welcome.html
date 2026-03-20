@@ -25,9 +25,9 @@
                     <p>If you use any part of <em>shinybeez</em> in your work, please cite it:
                         <br>
                         <br>
-                        <a href='https://codedbx.com/assets/pubs/Kaplan-Reed-shinybeez.pdf' target="_blank">
+                        <a href='https://codedbx.com/assets/pubs/Kaplan-Reed-shinybeez.pdf' target="_blank" rel="noopener noreferrer">
                             <i class='fa-regular fa-file-pdf'></i></a>
-                        Kaplan, B. A. & Reed. D. D. (2025). <em>shinybeez: A Shiny app
+                        Kaplan, B. A. & Reed, D. D. (2025). <em>shinybeez: A Shiny app
                             for Behavioral Economic Easy Demand and Discounting.</em> Journal
                         of the Experimental Analysis of Behavior. doi: <a
                             href='https://doi.org/10.1002/JEAB.70000'>https://doi.org/10.1002/JEAB.70000</a>
@@ -39,11 +39,11 @@
                     <p><em>shinybeez</em> is accessible in a number of ways.</p>
                     <p>
                     <h4>Online</h4>
-                    <a href='https://brentkaplan.shinyapps.io/shinybeez/' target="_blank">Shinyapps.io</a> (fairly fast
+                    <a href='https://brentkaplan.shinyapps.io/shinybeez/' target="_blank" rel="noopener noreferrer">Shinyapps.io</a> (fairly fast
                     performance)
                     <br>
                     <br>
-                    <a href='https://shinybeez.app' target="_blank">shinybeez.app</a> (faster performance)
+                    <a href='https://shinybeez.app' target="_blank" rel="noopener noreferrer">shinybeez.app</a> (faster performance)
                     <br>
                     </p>
                     <br>
@@ -52,7 +52,7 @@
                     <br>
                     <h5>Docker</h5>
                     To install <em>shinybeez</em> locally and run it on your own machine,
-                    you must first install <a href="https://www.docker.com/" target="_blank">Docker</a>.
+                    you must first install <a href="https://www.docker.com/" target="_blank" rel="noopener noreferrer">Docker</a>.
                     <br>
                     <br>
                     <ol>
@@ -105,7 +105,7 @@
                     <br>
                     <br>
                     For more information, please see the instructions on the
-                    <a href='https://github.com/brentkaplan/shinybeez/blob/main/README.md' target="_blank">Github
+                    <a href='https://github.com/brentkaplan/shinybeez/blob/main/README.md' target="_blank" rel="noopener noreferrer">Github
                         repository</a>.
                     </p>
                 </section>
@@ -115,7 +115,7 @@
                     <p>If you have any questions, comments, or suggestions, please contact
                         Brent Kaplan at <a href='mailto:bkaplan.ku@gmail.com'>
                             bkaplan.ku@gmail.com</a>. If you encounter any bugs or
-                        issues, please report them on the Github respository's
+                        issues, please report them on the Github repository's
                         <a href='https://github.com/brentkaplan/shinybeez/issues'> issues</a>
                         page.
                     </p>
@@ -128,7 +128,7 @@
                         session, with no persistent storage on the server's disk or external databases.
                         Any given instance of a <em>shinybeez</em> session,
                         including this one, will end if you stop
-                        interacting with the app for some specified period of time (approximately ten
+                        interacting with the app for some specified period of time (approximately thirty
                         minutes of no activity). Once this session ends or is refreshed, any data in
                         this session's memory is discarded. This approach aligns with
                         privacy-oriented design principles by
@@ -139,137 +139,13 @@
                         discourage or prohibit prolonged storage of sensitive data.
                     </p>
                     <p>In addition, <em>shinybeez</em> only accepts data in a
-                        predifined format including a subject id, prices/delays, responses,
+                        predefined format including a subject id, prices/delays, responses,
                         and a grouping variable. Ensure none of these variables
                         contain personally identifiable information. If you want to
                         use <em>shinybeez</em> locally, please see the local
                         installation instructions.
                     </p>
                 </section>
-
-                <!-- <section id="templates" class="section">
-                    <h3>Download Templates</h3>
-                    <h4>Demand templates</h4>
-                    <h5>Wide format</h5>
-                    <p>Data collected from, say, Qualtrics, tend to come in what is
-                        called 'wide' format
-                        (see <a href='https://vita.had.co.nz/papers/tidy-data.pdf'>Hadley Wickham's paper</a> on tidy
-                        data
-                        for more on the 'wide' and 'long' data). 'Wide' format data typically
-                        consists of one row per participant and each price (or whatever the independent
-                        variable is) is a column.
-                        By default, <em>shinybeez</em> takes in this style of
-                        data.</p>
-                    <figure style='margin-top: 10px;'>
-                        <img loading="lazy" style='width: 100%; max-width: 800px;' src='static/img/demand-template-wide-example.png'
-                            alt='Example demand data'>
-                        <figcaption><em>Example demand data formatted in the wide template.</em></figcaption>
-                    </figure>
-                    <button class="btn btn-primary" onclick="downloadFile('template_demand_wide.csv')">
-                        <i class="fa fa-download"></i> Demand template (wide format)
-                    </button>
-                    <br>
-                    <br>
-                    <h5>Long format</h5>
-                    <p>You may also provide data in 'long' format. In order to specify
-                        this non-default format, open in the 'Specs' panel on the sidebar
-                        of the 'Demand' tab and select 'Long' under 'Data in long or
-                        wide format?' You can download a template for long format
-                        here:</p>
-                    <figure style='margin-top: 10px;'>
-                        <img loading="lazy" style='width: 100%; max-width: 400px; height: 500px;'
-                            src='static/img/demand-template-long-example.png' alt='Example demand data'>
-                        <figcaption><em>Example demand data formatted in the long template.</em></figcaption>
-                    </figure>
-                    <button class="btn btn-primary" onclick="downloadFile('template_demand_long.csv')">
-                        <i class="fa fa-download"></i> Demand template (long format)
-                    </button>
-                    <br>
-                    <br>
-                    <h5>Wide Format (one grouping variable)</h5>
-                    <p><em>shinybeez</em> also has the ability (<em>currently</em>) to accept
-                        one grouping argument. In order to specify this behavior, open
-                        the 'Specs' panel on the sidebar of the 'Demand' tab and select
-                        the box next to 'Do you have a grouping variable?'
-                        <br>
-                        <br>
-                        When you upload your data, make sure to your grouping column is
-                        called 'group' in the data. Future releases of <em>shinybeez</em> will
-                        allow you to specify the name of your grouping column.
-                    </p>
-                    <figure style='margin-top: 10px;'>
-                        <img loading="lazy" style='width: 100%; max-width: 800px;'
-                            src='static/img/demand-template-wide-onegroup-example.png' alt='Example demand data'>
-                        <figcaption><em>Example demand data with one grouping variable formatted in the wide
-                                template.</em></figcaption>
-                    </figure>
-                    <button class="btn btn-primary" onclick="downloadFile('template_demand_wide_onegroup.csv')">
-                        <i class="fa fa-download"></i> Demand template (wide format, one grouping variable)
-                    </button>
-                    <br>
-                    <br>
-                    <h5>Long Format (one grouping variable)</h5>
-                    <p><em>shinybeez</em> also has the ability (<em>currently</em>) to accept
-                        one grouping argument. In order to specify this behavior, open
-                        the 'Specs' panel on the sidebar of the 'Demand' tab and select
-                        the box next to 'Do you have a grouping variable?'
-                        <br>
-                        <br>
-                        When you upload your data, make sure to your grouping column is
-                        called 'group' in the data. Future releases of <em>shinybeez</em> will
-                        allow you to specify the name of your grouping column.
-                    </p>
-                    <figure style='margin-top: 10px;'>
-                        <img loading="lazy" style='width: 100%; max-width: 420px; height: 500px;'
-                            src='static/img/demand-template-long-onegroup-example.png' alt='Example demand data'>
-                        <figcaption><em>Example demand data with one grouping variable formatted in the long
-                                template.</em></figcaption>
-                    </figure>
-                    <button class="btn btn-primary" onclick="downloadFile('template_demand_long_onegroup.csv')">
-                        <i class="fa fa-download"></i> Demand template (long format, one grouping variable)
-                    </button>
-                    <br>
-                    <br>
-                    <h4>Discounting templates</h4>
-                    <h5>Wide Format - 27-Item Monetary Choice Questionnaire</h5>
-                    <p><em>shinybeez</em> allows you to analyze data from the 27-Item
-                        Monetary Choice Questionnaire in wide format.
-                        The first column contains the subject
-                        id and each subsequent column contains a response (0 for SS or
-                        1 for LL).</p>
-                    <br>
-                    <button class="btn btn-primary" onclick="downloadFile('template_mcq27_wide.csv')">
-                        <i class="fa fa-download"></i> 27-Item Monetary Choice Questionnaire template (wide format)
-                    </button>
-                    <br>
-                    <br>
-                    <h5>Long Format - 27-Item Monetary Choice Questionnaire</h5>
-                    <p><em>shinybeez</em> allows you to analyze data from the 27-Item
-                        Monetary Choice Questionnaire in long format.
-                        The first column contains the subject
-                        id, the second column contains the trial number, and the third
-                        column contains the response (0 for SS or 1 for LL).</p>
-                    <br>
-                    <button class="btn btn-primary" onclick="downloadFile('template_mcq27_long.csv')">
-                        <i class="fa fa-download"></i> 27-Item Monetary Choice Questionnaire template (long format)
-                    </button>
-                    <br>
-                    <br>
-                    <h5>Long Format - Discounting Indifference Points</h5>
-                    <p><em>shinybeez</em> allows you to analyze indifference point data
-                        when provided in long format.
-                        The first column contains the subject
-                        id (id), the second column (x) contains the Delays, and the third
-                        column (y) contains the Indifference Points.</p>
-                    <figure style='margin-top: 10px;'>
-                        <img loading="lazy" style='width: 100%; max-width: 420px; height: 500px;'
-                            src='static/img/discounting-template-long-example.png' alt='Example discounting data'>
-                        <figcaption><em>Example discounting data formatted in the long template.</em></figcaption>
-                    </figure>
-                    <button class="btn btn-primary" onclick="downloadFile('template_discounting_long.csv')">
-                        <i class="fa fa-download"></i> Discounting template (long format)
-                    </button>
-                </section> -->
 
                 <section id="templates" class="mb-4 p-4 shadow-sm rounded">
                     <h3>Downloadable Templates</h3>
@@ -338,7 +214,7 @@
                             the box next to 'Do you have a grouping variable?'
                             <br>
                             <br>
-                            When you upload your data, make sure to your grouping column is
+                            When you upload your data, make sure that your grouping column is
                             called 'group' in the data. Future releases of <em>shinybeez</em> will
                             allow you to specify the name of your grouping column.
                         </p>
@@ -360,7 +236,7 @@
                             the box next to 'Do you have a grouping variable?'
                             <br>
                             <br>
-                            When you upload your data, make sure to your grouping column is
+                            When you upload your data, make sure that your grouping column is
                             called 'group' in the data. Future releases of <em>shinybeez</em> will
                             allow you to specify the name of your grouping column.
                         </p>

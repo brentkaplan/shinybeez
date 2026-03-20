@@ -138,33 +138,74 @@ server <- function(
 
       } else if (type() == "5.5 Trial Delay Discounting") {
         rhino$log$info("Calculating 5.5 Trial DD")
-        res$results <- session_logger$with_performance(
-          "five_trial_dd", function() {
-            five_trial$compute_five_trial_dd(data_r$data_d)
-          },
-          always_log = TRUE
+        dd_out <- tryCatch(
+          session_logger$with_performance(
+            "five_trial_dd", function() {
+              five_trial$compute_five_trial_dd(data_r$data_d)
+            },
+            always_log = TRUE
+          ),
+          error = function(e) {
+            friendly_msg <- scoring$friendly_discounting_error(e$message)
+            shiny$showNotification(friendly_msg, type = "error", duration = 10)
+            session_logger$error_enhanced(
+              paste("5.5 Trial DD failed:", e$message),
+              error_object = e,
+              context = "five_trial_dd"
+            )
+            return(NULL)
+          }
         )
+        if (is.null(dd_out)) return(list())
+        res$results <- dd_out
       } else if (type() == "5.5 Trial Probability Discounting") {
         rhino$log$info("Calculating 5.5 Trial PD")
-        res$results <- session_logger$with_performance(
-          "five_trial_pd", function() {
-            five_trial$compute_five_trial_pd(data_r$data_d)
-          },
-          always_log = TRUE
+        pd_out <- tryCatch(
+          session_logger$with_performance(
+            "five_trial_pd", function() {
+              five_trial$compute_five_trial_pd(data_r$data_d)
+            },
+            always_log = TRUE
+          ),
+          error = function(e) {
+            friendly_msg <- scoring$friendly_discounting_error(e$message)
+            shiny$showNotification(friendly_msg, type = "error", duration = 10)
+            session_logger$error_enhanced(
+              paste("5.5 Trial PD failed:", e$message),
+              error_object = e,
+              context = "five_trial_pd"
+            )
+            return(NULL)
+          }
         )
+        if (is.null(pd_out)) return(list())
+        res$results <- pd_out
       } else if (type() == "Indifference Point Regression") {
         rhino$log$debug(paste("Equation:", eq(), "; Aggregation:", agg()))
         rhino$log$info("Calculating Regression")
-        reg_out <- session_logger$with_performance(
-          "discounting_regression_fit", function() {
-            regression$fit_and_format_regression(
-              data_r$data_d,
-              equation = eq(),
-              method = agg()
+        reg_out <- tryCatch(
+          session_logger$with_performance(
+            "discounting_regression_fit", function() {
+              regression$fit_and_format_regression(
+                data_r$data_d,
+                equation = eq(),
+                method = agg()
+              )
+            },
+            always_log = TRUE
+          ),
+          error = function(e) {
+            friendly_msg <- scoring$friendly_discounting_error(e$message)
+            shiny$showNotification(friendly_msg, type = "error", duration = 10)
+            session_logger$error_enhanced(
+              paste("Regression fitting failed:", e$message),
+              error_object = e,
+              context = "discounting_regression"
             )
-          },
-          always_log = TRUE
+            return(NULL)
+          }
         )
+        if (is.null(reg_out)) return(list())
         res$dd_fit <- reg_out$dd_fit
         res$results <- reg_out$results
       }

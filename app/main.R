@@ -157,6 +157,7 @@ server <- function(id) {
     # Create session-specific logger and telemetry tracker
     session_logger <- logging_utils$create_session_logger(session)
     session_telemetry <- telemetry_utils$create_session_telemetry(session)
+    session$userData$.start_time <- Sys.time()
 
     # Initialize telemetry session tracking
     if (telemetry_utils$is_telemetry_enabled()) {
@@ -327,7 +328,7 @@ server <- function(id) {
         list(
           session_duration = difftime(
             Sys.time(),
-            session$startTime,
+            session$userData$.start_time,
             units = "secs"
           ),
           last_tab = .last_tab
