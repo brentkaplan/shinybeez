@@ -160,16 +160,17 @@ server <- function(id, type = "demand") {
         } else {
           is_mcq_wide <- "subjectid" %in% colnames(tmp) && ncol(tmp) == 28
           is_mcq_long <- identical(colnames(tmp), c("subjectid", "questionid", "response"))
-          if (is_mcq_wide || is_mcq_long) {
-            # MCQ format: NAs are expected (missing/unanswered items).
-            # score_mcq27() handles missing data via imputation — preserve as-is.
+          is_qualtrics <- "responseid" %in% colnames(tmp)
+          if (is_mcq_wide || is_mcq_long || is_qualtrics) {
+            # MCQ and Qualtrics 5.5-Trial formats: NAs are expected
+            # (unanswered items, non-administered trials). Preserve as-is.
             n_missing <- sum(is.na(tmp))
-            format_label <- if (is_mcq_wide) "MCQ wide" else "MCQ long"
+            format_label <- if (is_mcq_wide) "MCQ wide" else if (is_mcq_long) "MCQ long" else "Qualtrics 5.5-Trial"
             session_logger$info(
               paste0(
                 "Discounting format: ", format_label,
                 " (", nrow(tmp), " rows, ", ncol(tmp), " cols, ",
-                n_missing, " NAs preserved for imputation)"
+                n_missing, " NAs preserved)"
               ),
               category = "data_processing"
             )
