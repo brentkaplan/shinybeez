@@ -263,6 +263,30 @@ track_performance <- function(
   )
 }
 
+#' Track export/download event
+#'
+#' @param export_type Type of export (e.g., "csv", "excel", "xlsx", "png", "svg")
+#' @param module Module where export occurred (e.g., "demand", "discounting", "mixed_effects")
+#' @param file_format File format of the export
+#' @param row_count Number of rows exported (if applicable)
+#' @param session Shiny session object
+#' @export
+track_export <- function(
+    export_type, module = NULL, file_format = NULL,
+    row_count = NULL, session = NULL) {
+  track_event(
+    event_name = "result_export",
+    event_data = list(
+      export_type = export_type,
+      module = module,
+      file_format = file_format,
+      row_count = row_count,
+      timestamp = Sys.time()
+    ),
+    session = session
+  )
+}
+
 #' Track error events
 #'
 #' @param error_message Error message
@@ -336,6 +360,9 @@ create_session_telemetry <- function(session) {
     },
     track_error = function(error_message, error_context = NULL) {
       track_error(error_message, error_context, session)
+    },
+    track_export = function(export_type, module = NULL, file_format = NULL, row_count = NULL) {
+      track_export(export_type, module, file_format, row_count, session)
     }
   )
 }

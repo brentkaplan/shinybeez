@@ -94,6 +94,8 @@ RUN R -q -e " \
   library(beezdemand); library(nlme); library(emmeans); \
   library(ggplot2); library(dplyr); library(rhino); \
   library(esquisse); library(ggprism); library(openxlsx); \
+  library(logger); library(config); library(vroom); \
+  library(lme4); library(broom.mixed); library(glue); library(htmltools); \
   cat('Warmup complete\n')"
 
 # Set ownership and switch to non-root user

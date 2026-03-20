@@ -226,7 +226,7 @@ server <- function(
         })
       }
       analysis_type <- agg()
-      res$plot <- NULL
+      res$base_plot <- NULL
       pt_shape <- 21
       pt_fill <- "white"
       pt_size <- 3
@@ -239,7 +239,7 @@ server <- function(
       if (analysis_type %in% c("Mean")) {
         if (!groupcol()) {
           data_g <- aggregate(y ~ x, data_r$data_d, mean, na.rm = TRUE)
-          res$plot <- data_g |>
+          res$base_plot <- data_g |>
             ggplot2$ggplot(ggplot2$aes(x = x, y = y)) +
             ggplot2$geom_line(
               ggplot2$aes(x = x, y = y),
@@ -253,7 +253,7 @@ server <- function(
             theme_apa()
         } else {
           data_g <- aggregate(y ~ x + group, data_r$data_d, mean, na.rm = TRUE)
-          res$plot <- data_g |>
+          res$base_plot <- data_g |>
             ggplot2$ggplot(ggplot2$aes(x = x, y = y, group = group)) +
             ggplot2$geom_line(
               ggplot2$aes(x = x, y = y, color = group),
@@ -268,7 +268,7 @@ server <- function(
             theme_apa()
         }
       } else if (analysis_type %in% "Ind") {
-        res$plot <- data_r$data_d |>
+        res$base_plot <- data_r$data_d |>
           ggplot2$ggplot(ggplot2$aes(x = x, y = y, group = id)) +
           ggplot2$geom_line(
             ggplot2$aes(x = x, y = y, group = id),
@@ -277,7 +277,7 @@ server <- function(
           ) +
           theme_apa()
         if (length(unique(data_r$data_d$id)) < 51) {
-          res$plot <- data_r$data_d |>
+          res$base_plot <- data_r$data_d |>
             ggplot2$ggplot(ggplot2$aes(x = x, y = y)) +
             ggplot2$geom_line(
               ggplot2$aes(x = x, y = y),
@@ -293,7 +293,7 @@ server <- function(
         }
       } else {
         if (!groupcol()) {
-          res$plot <- data_r$data_d |>
+          res$base_plot <- data_r$data_d |>
             ggplot2$ggplot(ggplot2$aes(x = x, y = y)) +
             ggplot2$geom_line(
               ggplot2$aes(x = x, y = y),
@@ -306,7 +306,7 @@ server <- function(
             ) +
             theme_apa()
         } else {
-          res$plot <- data_r$data_d |>
+          res$base_plot <- data_r$data_d |>
             ggplot2$ggplot(ggplot2$aes(x = x, y = y, group = group)) +
             ggplot2$geom_line(
               ggplot2$aes(x = x, y = y, color = group),
@@ -325,10 +325,8 @@ server <- function(
       shiny$bindEvent(calculate_btn())
 
     shiny$observe({
-      if (is.null(res$plot)) {
-        return()
-      }
-      res$plot <- res$plot +
+      shiny$req(res$base_plot)
+      res$plot <- res$base_plot +
         ggplot2$xlab(input$xtext) +
         ggplot2$ylab(input$ytext) +
         ggplot2$ggtitle(input$title)

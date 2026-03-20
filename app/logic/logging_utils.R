@@ -12,6 +12,10 @@ box::use(
   utils[capture.output]
 )
 
+box::use(
+  app / logic / telemetry_utils
+)
+
 # Initialize logging configuration using environment instead of locked binding
 .logging_env <- new.env(parent = emptyenv())
 .logging_env$config <- NULL
@@ -269,6 +273,16 @@ log_performance <- function(
       session_id = session_id,
       additional_data = additional_data
     )
+
+    # Dual-write to telemetry SQLite for durable storage
+    tryCatch(
+      telemetry_utils$track_performance(
+        operation_name = operation_name,
+        duration_ms = duration_ms,
+        additional_metrics = additional_metrics
+      ),
+      error = function(e) NULL
+    )
   }
 }
 
@@ -309,6 +323,15 @@ log_error_enhanced <- function(
     category = "error",
     session_id = session_id,
     additional_data = additional_data
+  )
+
+  # Dual-write to telemetry SQLite for durable storage
+  tryCatch(
+    telemetry_utils$track_error(
+      error_message = error_message,
+      error_context = context
+    ),
+    error = function(e) NULL
   )
 }
 

@@ -135,7 +135,8 @@ server <- function(id, isgroup = NULL, data_r) {
     })
 
     # Lazy reactive: re-computes when data or systematic settings change
-    systematic_r <- shiny$reactive({
+    # Debounced to avoid redundant recomputations when adjusting multiple thresholds
+    systematic_r_raw <- shiny$reactive({
       shiny$req(session$userData$data$demand)
       session_logger$info("Computing systematic criteria", "data_processing")
       shiny$withProgress(message = "Computing systematic criteria...", {
@@ -158,6 +159,7 @@ server <- function(id, isgroup = NULL, data_r) {
         )
       })
     })
+    systematic_r <- systematic_r_raw |> shiny$debounce(750)
 
     # Render data table
     output$data_table <- DT$renderDT(server = FALSE, {

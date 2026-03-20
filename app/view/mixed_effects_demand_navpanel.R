@@ -21,6 +21,7 @@ box::use(
 box::use(
   app / logic / utils,
   app / logic / logging_utils,
+  app / logic / telemetry_utils,
   app / logic / mixed_effects_demand_utils,
   app / logic / mixed_effects / comparisons,
   app / logic / mixed_effects / emms_utils,
@@ -1748,6 +1749,16 @@ navpanel_server <- function(id, sidebar_reactives) {
             )
           }
         }
+
+        # Track the export event
+        row_count <- tryCatch(nrow(data_to_analyze()), error = function(e) NULL)
+        telemetry_utils$track_export(
+          export_type = "xlsx_all",
+          module = "mixed_effects",
+          file_format = "xlsx",
+          row_count = row_count,
+          session = session
+        )
 
         # Save workbook
         openxlsx$saveWorkbook(wb, file, overwrite = TRUE)
