@@ -101,8 +101,8 @@ check_mixed_effects_data <- function(dat) {
 #' @return TRUE or character error message
 check_discounting_data <- function(dat) {
   chk <- validate_condition(
-    any(colnames(dat) %in% c("subjectid", "ResponseId", "id", "x", "y")),
-    "Check colnames for 'subjectid', 'ResponseId', 'id', 'x', or 'y' are in data"
+    any(colnames(dat) %in% c("subjectid", "responseid", "id", "x", "y")),
+    "Check colnames for 'subjectid', 'responseid', 'id', 'x', or 'y' are in data"
   )
   if (is.character(chk)) return(chk)
 
@@ -112,9 +112,9 @@ check_discounting_data <- function(dat) {
       "Number of columns does not appear to match the template"
     )
     if (is.character(chk)) return(chk)
-  } else if ("ResponseId" %in% colnames(dat)) {
+  } else if ("responseid" %in% colnames(dat)) {
     chk <- validate_condition(
-      all(paste0("I", c(1:31)) %in% colnames(dat)),
+      all(paste0("i", c(1:31)) %in% colnames(dat)),
       "Check to make sure you are using the correct Qualtrics template."
     )
     if (is.character(chk)) return(chk)
