@@ -16,6 +16,7 @@ box::use(
   app / logic / utils,
   app / logic / validate,
   app / logic / logging_utils,
+  app / logic / telemetry_utils,
   app / view / shared / data_table[build_datatable],
 )
 
@@ -136,6 +137,21 @@ server <- function(
         "model_fitting"
       )
 
+      telemetry_utils$track_configuration(
+        "demand",
+        config = list(
+          equation = eq_code, k = k, aggregation = agg_val,
+          grouped = is_grouped, constrainq0 = constrainq0
+        ),
+        session = session
+      )
+      telemetry_utils$track_model_fitting(
+        "demand_fixed",
+        parameters = list(equation = eq_code, k = k, aggregation = agg_val),
+        status = "started",
+        session = session
+      )
+
       shiny$withProgress(message = "Fitting demand curves...", {
         fit_result <- tryCatch(
           session_logger$with_performance("demand_curve_fitting", function() {
@@ -156,6 +172,12 @@ server <- function(
               paste("Error in FitCurves:", e$message), e,
               context = "demand_curve_fitting",
               user_action = "demand model calculation"
+            )
+            telemetry_utils$track_model_fitting(
+              "demand_fixed",
+              parameters = list(equation = eq_code, k = k, aggregation = agg_val),
+              status = "failed",
+              session = session
             )
             shiny$showNotification(
               paste("Error fitting demand curves:", e$message),
@@ -178,7 +200,22 @@ server <- function(
             type = "warning",
             duration = NULL
           )
+          telemetry_utils$track_model_fitting(
+            "demand_fixed",
+            parameters = list(
+              equation = eq_code, k = k, aggregation = agg_val,
+              failed_groups = paste(fit_result$failed_groups, collapse = ",")
+            ),
+            status = "partial",
+            session = session
+          )
         }
+        telemetry_utils$track_model_fitting(
+          "demand_fixed",
+          parameters = list(equation = eq_code, k = k, aggregation = agg_val),
+          status = "completed",
+          session = session
+        )
         shiny$showNotification(
           "Model fitting complete. See Model Results tab.",
           type = "message",

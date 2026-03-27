@@ -218,6 +218,38 @@ server <- function(id) {
       }
     })
 
+    # Observers for client-side telemetry events relayed from JavaScript
+    # JS sets inputs at root scope; use rootScope()$input since main server is namespaced
+    root_input <- session$rootScope()$input
+
+    shiny$observeEvent(root_input[["_telemetry_dt_export"]], {
+      evt <- root_input[["_telemetry_dt_export"]]
+      module <- sub("-.*", "", evt$table_id)
+      session_telemetry$track_export(
+        export_type = evt$export_type,
+        module = module,
+        file_format = evt$export_type
+      )
+    })
+
+    shiny$observeEvent(root_input[["_telemetry_plot_download"]], {
+      evt <- root_input[["_telemetry_plot_download"]]
+      session_telemetry$track_export(
+        export_type = "plot",
+        module = "demand",
+        file_format = evt$format
+      )
+    })
+
+    shiny$observeEvent(root_input[["_telemetry_client_error"]], {
+      evt <- root_input[["_telemetry_client_error"]]
+      context <- paste0("client_js:", evt$source, ":", evt$line)
+      session_telemetry$track_error(
+        error_message = evt$message,
+        error_context = context
+      )
+    })
+
     # Initialize modules with error handling and logging
     tryCatch(
       {

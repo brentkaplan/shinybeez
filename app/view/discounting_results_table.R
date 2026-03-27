@@ -19,6 +19,7 @@ box::use(
   app / logic / discounting / regression,
   app / logic / discounting / scoring,
   app / logic / logging_utils,
+  app / logic / telemetry_utils,
   app / logic / utils,
   app / view / shared / data_table[build_datatable],
 )
@@ -90,6 +91,17 @@ server <- function(
       res <- list()
       if (type() == "27-Item MCQ" && !("I16" %in% names(data_r$data_d))) {
         rhino$log$debug(paste("Imputation method:", imputation(), "; Transformation:", trans()))
+        telemetry_utils$track_configuration(
+          "discounting",
+          config = list(type = "MCQ", imputation = imputation(), transformation = trans()),
+          session = session
+        )
+        telemetry_utils$track_model_fitting(
+          "discounting",
+          parameters = list(type = "MCQ", imputation = imputation(), transformation = trans()),
+          status = "started",
+          session = session
+        )
         mcq_out <- tryCatch(
           session_logger$with_performance("mcq_scoring", function() {
             scoring$score_and_format_mcq(
@@ -110,10 +122,22 @@ server <- function(
               error_object = e,
               context = "mcq_scoring"
             )
+            telemetry_utils$track_model_fitting(
+              "discounting",
+              parameters = list(type = "MCQ"),
+              status = "failed",
+              session = session
+            )
             return(NULL)
           }
         )
         if (is.null(mcq_out)) return(list())
+        telemetry_utils$track_model_fitting(
+          "discounting",
+          parameters = list(type = "MCQ"),
+          status = "completed",
+          session = session
+        )
         res$results <- mcq_out$results
         res$data <- mcq_out$data
         res$summary <- mcq_out$summary
@@ -138,6 +162,17 @@ server <- function(
 
       } else if (type() == "5.5 Trial Delay Discounting") {
         rhino$log$info("Calculating 5.5 Trial DD")
+        telemetry_utils$track_configuration(
+          "discounting",
+          config = list(type = "5.5_DD"),
+          session = session
+        )
+        telemetry_utils$track_model_fitting(
+          "discounting",
+          parameters = list(type = "5.5_DD"),
+          status = "started",
+          session = session
+        )
         dd_out <- tryCatch(
           session_logger$with_performance(
             "five_trial_dd", function() {
@@ -153,13 +188,36 @@ server <- function(
               error_object = e,
               context = "five_trial_dd"
             )
+            telemetry_utils$track_model_fitting(
+              "discounting",
+              parameters = list(type = "5.5_DD"),
+              status = "failed",
+              session = session
+            )
             return(NULL)
           }
         )
         if (is.null(dd_out)) return(list())
+        telemetry_utils$track_model_fitting(
+          "discounting",
+          parameters = list(type = "5.5_DD"),
+          status = "completed",
+          session = session
+        )
         res$results <- dd_out
       } else if (type() == "5.5 Trial Probability Discounting") {
         rhino$log$info("Calculating 5.5 Trial PD")
+        telemetry_utils$track_configuration(
+          "discounting",
+          config = list(type = "5.5_PD"),
+          session = session
+        )
+        telemetry_utils$track_model_fitting(
+          "discounting",
+          parameters = list(type = "5.5_PD"),
+          status = "started",
+          session = session
+        )
         pd_out <- tryCatch(
           session_logger$with_performance(
             "five_trial_pd", function() {
@@ -175,14 +233,37 @@ server <- function(
               error_object = e,
               context = "five_trial_pd"
             )
+            telemetry_utils$track_model_fitting(
+              "discounting",
+              parameters = list(type = "5.5_PD"),
+              status = "failed",
+              session = session
+            )
             return(NULL)
           }
         )
         if (is.null(pd_out)) return(list())
+        telemetry_utils$track_model_fitting(
+          "discounting",
+          parameters = list(type = "5.5_PD"),
+          status = "completed",
+          session = session
+        )
         res$results <- pd_out
       } else if (type() == "Indifference Point Regression") {
         rhino$log$debug(paste("Equation:", eq(), "; Aggregation:", agg()))
         rhino$log$info("Calculating Regression")
+        telemetry_utils$track_configuration(
+          "discounting",
+          config = list(type = "IDP", equation = eq(), method = agg()),
+          session = session
+        )
+        telemetry_utils$track_model_fitting(
+          "discounting",
+          parameters = list(type = "IDP", equation = eq(), method = agg()),
+          status = "started",
+          session = session
+        )
         reg_out <- tryCatch(
           session_logger$with_performance(
             "discounting_regression_fit", function() {
@@ -202,10 +283,22 @@ server <- function(
               error_object = e,
               context = "discounting_regression"
             )
+            telemetry_utils$track_model_fitting(
+              "discounting",
+              parameters = list(type = "IDP"),
+              status = "failed",
+              session = session
+            )
             return(NULL)
           }
         )
         if (is.null(reg_out)) return(list())
+        telemetry_utils$track_model_fitting(
+          "discounting",
+          parameters = list(type = "IDP"),
+          status = "completed",
+          session = session
+        )
         res$dd_fit <- reg_out$dd_fit
         res$results <- reg_out$results
       }

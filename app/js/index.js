@@ -48,3 +48,64 @@ document.addEventListener('shiny:inputchanged', (event) => {
     trackPage(event.value); // eslint-disable-line no-undef
   }
 });
+
+// --- Telemetry: Track client-side actions invisible to R server ---
+
+// Track DT table export button clicks (Copy, Print, CSV, Excel, PDF)
+// DT Buttons with Bootstrap styling use .dt-buttons container, not .dt-button per button
+document.addEventListener('click', (event) => {
+  const btn = event.target.closest('.dt-buttons button');
+  if (!btn || !window.Shiny) return;
+
+  const wrapper = btn.closest('.dataTables_wrapper');
+  const tableEl = wrapper ? wrapper.querySelector('table') : null;
+  const tableId = tableEl ? tableEl.id : 'unknown';
+  const exportType = btn.textContent.trim().toLowerCase();
+
+  // eslint-disable-next-line no-undef
+  Shiny.setInputValue('_telemetry_dt_export', {
+    export_type: exportType,
+    table_id: tableId,
+    ts: Date.now(),
+  }, { priority: 'event' });
+});
+
+// Track plot/file downloads (esquisse and other <a download> links)
+document.addEventListener('click', (event) => {
+  const link = event.target.closest('a[download]');
+  if (!link || !window.Shiny) return;
+
+  const filename = link.getAttribute('download') || '';
+  // eslint-disable-next-line no-undef
+  Shiny.setInputValue('_telemetry_plot_download', {
+    filename,
+    format: filename.split('.').pop() || 'unknown',
+    ts: Date.now(),
+  }, { priority: 'event' });
+});
+
+// Capture uncaught JS errors
+window.addEventListener('error', (event) => {
+  if (window.Shiny && window.Shiny.shinyapp && window.Shiny.shinyapp.isConnected()) {
+    // eslint-disable-next-line no-undef
+    Shiny.setInputValue('_telemetry_client_error', {
+      message: event.message || 'Unknown error',
+      source: event.filename || '',
+      line: event.lineno || 0,
+      col: event.colno || 0,
+      ts: Date.now(),
+    }, { priority: 'event' });
+  }
+});
+
+// Capture unhandled promise rejections
+window.addEventListener('unhandledrejection', (event) => {
+  if (window.Shiny && window.Shiny.shinyapp && window.Shiny.shinyapp.isConnected()) {
+    // eslint-disable-next-line no-undef
+    Shiny.setInputValue('_telemetry_client_error', {
+      message: event.reason ? String(event.reason) : 'Unhandled promise rejection',
+      source: 'promise',
+      ts: Date.now(),
+    }, { priority: 'event' });
+  }
+});

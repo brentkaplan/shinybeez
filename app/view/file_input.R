@@ -8,6 +8,7 @@ box::use(
 
 box::use(
   app / logic / logging_utils,
+  app / logic / telemetry_utils,
   app / logic / validate,
 )
 
@@ -57,14 +58,14 @@ server <- function(id, type = "demand") {
       max_size_mb <- 20
       file_size_mb <- input$upload$size / (1024 * 1024)
       if (file_size_mb > max_size_mb) {
-        shiny$showNotification(
-          paste0(
-            "File is too large (", round(file_size_mb, 1), " MB). ",
-            "Maximum allowed size is ", max_size_mb, " MB."
-          ),
-          type = "error",
-          duration = NULL
+        size_msg <- paste0(
+          "File is too large (", round(file_size_mb, 1), " MB). ",
+          "Maximum allowed size is ", max_size_mb, " MB."
         )
+        telemetry_utils$track_validation(
+          type, "failure", "file_size", size_msg, session
+        )
+        shiny$showNotification(size_msg, type = "error", duration = NULL)
         return()
       }
 
@@ -76,6 +77,10 @@ server <- function(id, type = "demand") {
         )
         tmp <- read_upload(input$upload$datapath, ext)
         if (is.null(tmp)) {
+          telemetry_utils$track_validation(
+            "demand", "failure", "file_read",
+            "Unable to read file as CSV or TSV", session
+          )
           shiny$showNotification(
             "Unable to read the uploaded file. Please ensure it is a valid CSV or TSV file.",
             type = "error",
@@ -89,6 +94,9 @@ server <- function(id, type = "demand") {
         tmp <- validate$obliterate_empty_cols(tmp)
         chk_data <- validate$check_data(tmp, type = "demand")
         if (is.character(chk_data)) {
+          telemetry_utils$track_validation(
+            "demand", "failure", "check_data", chk_data, session
+          )
           shiny$showNotification(
             paste(
               "Data are not in the correct format. Please refer to the documentation.",
@@ -103,6 +111,10 @@ server <- function(id, type = "demand") {
           na_result <- validate$remove_na_rows(tmp)
           tmp <- na_result$data
           if (nrow(tmp) == 0) {
+            telemetry_utils$track_validation(
+              "demand", "failure", "all_na_rows",
+              "All rows contained missing values", session
+            )
             shiny$showNotification(
               "All rows contained missing values and were removed. Please check your data.",
               type = "error",
@@ -121,6 +133,14 @@ server <- function(id, type = "demand") {
             )
           }
           session$userData$data$demand <- tmp
+          telemetry_utils$track_data_upload(
+            file_info = list(
+              size = input$upload$size, type = ext,
+              rows = nrow(tmp), cols = ncol(tmp)
+            ),
+            session = session
+          )
+          telemetry_utils$track_validation("demand", "success", session = session)
           shiny$showNotification(
             paste0("Data loaded: ", nrow(tmp), " rows, ", ncol(tmp), " columns."),
             type = "message",
@@ -134,6 +154,10 @@ server <- function(id, type = "demand") {
         )
         tmp <- read_upload(input$upload$datapath, ext)
         if (is.null(tmp)) {
+          telemetry_utils$track_validation(
+            "discounting", "failure", "file_read",
+            "Unable to read file as CSV or TSV", session
+          )
           shiny$showNotification(
             "Unable to read the uploaded file. Please ensure it is a valid CSV or TSV file.",
             type = "error",
@@ -148,6 +172,9 @@ server <- function(id, type = "demand") {
 
         chk_data <- validate$check_data(tmp, type = "discounting")
         if (is.character(chk_data)) {
+          telemetry_utils$track_validation(
+            "discounting", "failure", "check_data", chk_data, session
+          )
           shiny$showNotification(
             paste(
               "Data are not in the correct format. Please refer to the documentation.",
@@ -175,6 +202,14 @@ server <- function(id, type = "demand") {
               category = "data_processing"
             )
             session$userData$data$discounting <- tmp
+            telemetry_utils$track_data_upload(
+              file_info = list(
+                size = input$upload$size, type = ext,
+                rows = nrow(tmp), cols = ncol(tmp)
+              ),
+              session = session
+            )
+            telemetry_utils$track_validation("discounting", "success", session = session)
             shiny$showNotification(
               paste0("Data loaded: ", nrow(tmp), " rows, ", ncol(tmp), " columns."),
               type = "message",
@@ -193,6 +228,10 @@ server <- function(id, type = "demand") {
               category = "data_processing"
             )
             if (nrow(tmp) == 0) {
+              telemetry_utils$track_validation(
+                "discounting", "failure", "all_na_rows",
+                "All rows contained missing values", session
+              )
               shiny$showNotification(
                 "All rows contained missing values and were removed. Please check your data.",
                 type = "error",
@@ -211,6 +250,14 @@ server <- function(id, type = "demand") {
               )
             }
             session$userData$data$discounting <- tmp
+            telemetry_utils$track_data_upload(
+              file_info = list(
+                size = input$upload$size, type = ext,
+                rows = nrow(tmp), cols = ncol(tmp)
+              ),
+              session = session
+            )
+            telemetry_utils$track_validation("discounting", "success", session = session)
             shiny$showNotification(
               paste0("Data loaded: ", nrow(tmp), " rows, ", ncol(tmp), " columns."),
               type = "message",
@@ -225,6 +272,10 @@ server <- function(id, type = "demand") {
         )
         tmp <- read_upload(input$upload$datapath, ext)
         if (is.null(tmp)) {
+          telemetry_utils$track_validation(
+            "mixed_effects", "failure", "file_read",
+            "Unable to read file as CSV or TSV", session
+          )
           shiny$showNotification(
             "Unable to read the uploaded file. Please ensure it is a valid CSV or TSV file.",
             type = "error",
@@ -239,6 +290,9 @@ server <- function(id, type = "demand") {
 
         chk_data <- validate$check_data(tmp, type = "mixed_effects_demand")
         if (is.character(chk_data)) {
+          telemetry_utils$track_validation(
+            "mixed_effects", "failure", "check_data", chk_data, session
+          )
           shiny$showNotification(
             paste(
               "Data are not in the correct format. Please refer to the documentation.",
@@ -253,6 +307,10 @@ server <- function(id, type = "demand") {
           na_result <- validate$remove_na_rows(tmp)
           tmp <- na_result$data
           if (nrow(tmp) == 0) {
+            telemetry_utils$track_validation(
+              "mixed_effects", "failure", "all_na_rows",
+              "All rows contained missing values", session
+            )
             shiny$showNotification(
               "All rows contained missing values and were removed. Please check your data.",
               type = "error",
@@ -271,6 +329,14 @@ server <- function(id, type = "demand") {
             )
           }
           session$userData$data$mixed_effects_demand <- tmp
+          telemetry_utils$track_data_upload(
+            file_info = list(
+              size = input$upload$size, type = ext,
+              rows = nrow(tmp), cols = ncol(tmp)
+            ),
+            session = session
+          )
+          telemetry_utils$track_validation("mixed_effects", "success", session = session)
           shiny$showNotification(
             paste0("Data loaded: ", nrow(tmp), " rows, ", ncol(tmp), " columns."),
             type = "message",

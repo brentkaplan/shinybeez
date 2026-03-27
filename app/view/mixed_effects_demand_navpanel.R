@@ -732,6 +732,30 @@ navpanel_server <- function(id, sidebar_reactives) {
         cov_info <- build_covariate_modeling_info(df)
         cont_covars_to_pass <- cov_info$model_covariate_name
 
+        telemetry_utils$track_configuration(
+          "mixed_effects",
+          config = list(
+            equation_form = sidebar_reactives$equation_form(),
+            factors = paste(sel_factors, collapse = ","),
+            factor_interaction = sidebar_reactives$factor_interaction(),
+            random_effects = deparse(random_effects_formula_to_pass),
+            covariance_structure = sidebar_reactives$covariance_structure(),
+            covariates = paste(cont_covars_to_pass, collapse = ","),
+            n_rows = nrow(df),
+            n_groups = length(unique(df[[sidebar_reactives$id_var()]]))
+          ),
+          session = session
+        )
+        telemetry_utils$track_model_fitting(
+          "mixed_effects",
+          parameters = list(
+            equation = sidebar_reactives$equation_form(),
+            factors = paste(sel_factors, collapse = ",")
+          ),
+          status = "started",
+          session = session
+        )
+
         model_fit <- tryCatch(
           session_logger$with_performance(
             "mixed_effects_model_fit",
@@ -777,6 +801,16 @@ navpanel_server <- function(id, sidebar_reactives) {
               status = "failed",
               metrics = list(error = e$message)
             )
+            telemetry_utils$track_model_fitting(
+              "mixed_effects",
+              parameters = list(
+                equation = sidebar_reactives$equation_form(),
+                factors = paste(sel_factors, collapse = ","),
+                error = e$message
+              ),
+              status = "failed",
+              session = session
+            )
             NULL
           }
         )
@@ -796,6 +830,15 @@ navpanel_server <- function(id, sidebar_reactives) {
             status = "failed",
             metrics = list(error = "Model did not converge")
           )
+          telemetry_utils$track_model_fitting(
+            "mixed_effects",
+            parameters = list(
+              equation = sidebar_reactives$equation_form(),
+              factors = paste(sel_factors, collapse = ",")
+            ),
+            status = "failed",
+            session = session
+          )
           return(NULL)
         }
 
@@ -804,6 +847,18 @@ navpanel_server <- function(id, sidebar_reactives) {
 
         shiny$removeNotification(notif_id)
         shiny$showNotification("Model fitting complete.", type = "message")
+
+        telemetry_utils$track_model_fitting(
+          "mixed_effects",
+          parameters = list(
+            equation = sidebar_reactives$equation_form(),
+            factors = paste(sel_factors, collapse = ","),
+            n_rows = nrow(df),
+            n_groups = length(unique(df[[sidebar_reactives$id_var()]]))
+          ),
+          status = "completed",
+          session = session
+        )
 
         # Log dataset metadata for usage analysis
         session_logger$performance(

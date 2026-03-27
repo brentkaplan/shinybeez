@@ -263,6 +263,46 @@ track_performance <- function(
   )
 }
 
+#' Track validation outcome
+#'
+#' @param module Module where validation occurred (e.g., "demand", "discounting", "mixed_effects")
+#' @param outcome "success" or "failure"
+#' @param check_name Which check triggered the outcome (e.g., "check_data", "file_size", "file_read")
+#' @param reason Error message or reason for failure (NULL on success)
+#' @param session Shiny session object
+#' @export
+track_validation <- function(
+    module, outcome, check_name = NULL, reason = NULL, session = NULL) {
+  track_event(
+    event_name = "validation_outcome",
+    event_data = list(
+      module = module,
+      outcome = outcome,
+      check_name = check_name,
+      reason = reason,
+      timestamp = Sys.time()
+    ),
+    session = session
+  )
+}
+
+#' Track configuration snapshot at model fit time
+#'
+#' @param module Module name (e.g., "demand", "discounting", "mixed_effects")
+#' @param config Named list of current user settings
+#' @param session Shiny session object
+#' @export
+track_configuration <- function(module, config = list(), session = NULL) {
+  track_event(
+    event_name = "configuration_snapshot",
+    event_data = c(
+      list(module = module, timestamp = Sys.time()),
+      config
+    ),
+    session = session
+  )
+}
+
 #' Track export/download event
 #'
 #' @param export_type Type of export (e.g., "csv", "excel", "xlsx", "png", "svg")
@@ -363,6 +403,12 @@ create_session_telemetry <- function(session) {
     },
     track_export = function(export_type, module = NULL, file_format = NULL, row_count = NULL) {
       track_export(export_type, module, file_format, row_count, session)
+    },
+    track_validation = function(module, outcome, check_name = NULL, reason = NULL) {
+      track_validation(module, outcome, check_name, reason, session)
+    },
+    track_configuration = function(module, config = list()) {
+      track_configuration(module, config, session)
     }
   )
 }

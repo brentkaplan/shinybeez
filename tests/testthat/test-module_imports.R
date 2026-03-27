@@ -50,6 +50,19 @@ describe("module imports", {
     expect_true(is.function(validate$reshape_data))
   })
 
+  it("can import telemetry_utils module", {
+    box::use(app / logic / telemetry_utils)
+    expect_true(is.function(telemetry_utils$track_event))
+    expect_true(is.function(telemetry_utils$track_navigation))
+    expect_true(is.function(telemetry_utils$track_model_fitting))
+    expect_true(is.function(telemetry_utils$track_data_upload))
+    expect_true(is.function(telemetry_utils$track_export))
+    expect_true(is.function(telemetry_utils$track_error))
+    expect_true(is.function(telemetry_utils$track_validation))
+    expect_true(is.function(telemetry_utils$track_configuration))
+    expect_true(is.function(telemetry_utils$create_session_telemetry))
+  })
+
   it("can import mixed_effects_demand_utils module", {
     box::use(app / logic / mixed_effects_demand_utils)
     expect_true(is.function(
