@@ -24,6 +24,7 @@ box::use(
   app / logic / telemetry_utils,
   app / logic / mixed_effects_demand_utils,
   app / logic / mixed_effects / comparisons,
+  app / logic / mixed_effects / emms_compute,
   app / logic / mixed_effects / emms_utils,
   app / logic / mixed_effects / export_utils,
   app / logic / mixed_effects / model_fitting,
@@ -1061,7 +1062,7 @@ navpanel_server <- function(id, sidebar_reactives) {
         session_logger$with_performance(
           "mixed_effects_emms",
           function() {
-            beezdemand$get_observed_demand_param_emms(
+            emms_compute$run_observed_emms(
               fit_obj = model_fit,
               factors_in_emm = model_factors,
               at = cov_info$at_list,
@@ -1239,9 +1240,9 @@ navpanel_server <- function(id, sidebar_reactives) {
         session_logger$with_performance(
           "mixed_effects_comparisons",
           function() {
-            beezdemand$get_demand_comparisons(
+            comparisons$run_demand_comparisons(
               fit_obj = model_fit,
-              params_to_compare = c("Q0", "alpha"),
+              param = c("Q0", "alpha"),
               compare_specs = comparisons$build_specs_formula(specs_str),
               contrast_by = contrast_by_arg,
               at = cov_info$at_list,
