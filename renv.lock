@@ -862,9 +862,9 @@
     },
     "beezdemand": {
       "Package": "beezdemand",
-      "Version": "0.2.0.9000",
+      "Version": "0.3.0",
       "Source": "GitHub",
-      "Date": "2026-02-27",
+      "Date": "2026-06-01",
       "Title": "Behavioral Economic Easy Demand",
       "Authors@R": "c(person(\"Brent\", \"Kaplan\", email = \"bkaplan.ku@gmail.com\", role = c(\"aut\", \"cre\", \"cph\"), comment = c(ORCID = \"0000-0002-3758-6776\")), person(\"Shawn\", \"Gilroy\", email = \"shawn.gilroy@temple.edu\", role = \"ctb\"))",
       "Author": "Brent Kaplan [aut, cre, cph] (<https://orcid.org/0000-0002-3758-6776>), Shawn Gilroy [ctb]",
@@ -893,11 +893,13 @@
         "tidyr",
         "nlme",
         "rlang",
+        "cli",
         "utils",
-        "TMB"
+        "TMB (>= 1.9.0)"
       ],
       "Suggests": [
         "broom.mixed",
+        "car",
         "GGally",
         "knitr",
         "tidyverse",
@@ -908,7 +910,8 @@
         "here",
         "readr",
         "patchwork",
-        "testthat (>= 3.0.0)"
+        "testthat (>= 3.0.0)",
+        "withr"
       ],
       "LinkingTo": [
         "TMB",
@@ -918,18 +921,21 @@
       "URL": "https://brentkaplan.github.io/beezdemand/, https://github.com/brentkaplan/beezdemand",
       "BugReports": "https://github.com/brentkaplan/beezdemand/issues",
       "Encoding": "UTF-8",
+      "Language": "en-US",
       "LazyData": "true",
       "Roxygen": "list(markdown = TRUE)",
       "RoxygenNote": "7.3.3",
       "VignetteBuilder": "knitr",
       "SystemRequirements": "GNU make",
       "Config/testthat/edition": "3",
+      "Config/testthat/parallel": "true",
+      "Config/testthat/start-first": "fit_demand_tmb, cross-price, fit_demand_fixed, diagnostics, model-comparison",
       "RemoteType": "github",
       "RemoteHost": "api.github.com",
       "RemoteUsername": "brentkaplan",
       "RemoteRepo": "beezdemand",
       "RemoteRef": "develop",
-      "RemoteSha": "c3e6e4adc2a902d291b5b3ead2873a3e4da586d6"
+      "RemoteSha": "8671eb467696e72bb071665cb222f2fd438900d2"
     },
     "beezdiscounting": {
       "Package": "beezdiscounting",
