@@ -3,8 +3,47 @@
 #' Pure functions for building comparison specifications and formatting results.
 
 box::use(
-  stats
+  beezdemand[get_demand_comparisons],
+  stats,
 )
+
+#' Run Q0/alpha demand parameter comparisons via beezdemand
+#'
+#' Thin wrapper over [beezdemand::get_demand_comparisons()] that uses the
+#' canonical `param=` argument (beezdemand 0.3.0+; the legacy
+#' `params_to_compare=` argument is soft-deprecated and hard-aborts if combined
+#' with `param=`). Keeping the rename here means the Shiny view never touches
+#' the deprecated argument.
+#'
+#' @param fit_obj A fitted `beezdemand_nlme` object
+#' @param param Character vector of parameters to compare ("Q0", "alpha")
+#' @param compare_specs Formula (or NULL) describing the comparison structure
+#' @param contrast_by Optional factor name to stratify contrasts within
+#' @param at Optional named list for covariate conditioning
+#' @param adjust P-value adjustment method (e.g., "holm")
+#' @param report_ratios Logical; report natural-scale ratios alongside log10
+#' @return Named list with `$Q0` and `$alpha`, each carrying `contrasts_ratio`
+#'   and `contrasts_log10` data frames
+#' @export
+run_demand_comparisons <- function(
+  fit_obj,
+  param = c("Q0", "alpha"),
+  compare_specs = NULL,
+  contrast_by = NULL,
+  at = NULL,
+  adjust = "holm",
+  report_ratios = TRUE
+) {
+  get_demand_comparisons(
+    fit_obj = fit_obj,
+    param = param,
+    compare_specs = compare_specs,
+    contrast_by = contrast_by,
+    at = at,
+    adjust = adjust,
+    report_ratios = report_ratios
+  )
+}
 
 #' Build comparison specs string from factors
 #'
