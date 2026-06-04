@@ -61,4 +61,20 @@ describe("run_observed_emms", {
     expect_gt(nrow(alpha), 0)
     expect_gt(nrow(ev), 0)
   })
+
+  it("conditions EMMs on the at covariate without error", {
+    fit <- fit_mixed_fixture_covariate()
+
+    result <- emms_compute$run_observed_emms(
+      fit_obj = fit,
+      factors_in_emm = "drug",
+      at = list(bodyweight = 8.0),
+      include_ev = TRUE,
+      ci_level = 0.95
+    )
+
+    expect_s3_class(result, "data.frame")
+    expect_gt(nrow(result), 0)
+    expect_true(any(grepl("Q0", names(result), ignore.case = TRUE)))
+  })
 })

@@ -59,4 +59,44 @@ describe("run_demand_comparisons", {
       )
     )
   })
+
+  it("stratifies contrasts within the levels of contrast_by", {
+    fit <- fit_mixed_fixture_2factor()
+
+    result <- comparisons$run_demand_comparisons(
+      fit_obj = fit,
+      param = c("Q0", "alpha"),
+      compare_specs = comparisons$build_specs_formula("drug * site"),
+      contrast_by = "site",
+      at = NULL,
+      adjust = "holm",
+      report_ratios = TRUE
+    )
+
+    # contrast_by yields one drug contrast per site level, and the resulting
+    # frame carries the stratifier column.
+    expect_s3_class(result$Q0$contrasts_ratio, "data.frame")
+    expect_gt(nrow(result$Q0$contrasts_ratio), 0)
+    expect_true(
+      any(grepl("site", names(result$Q0$contrasts_ratio), ignore.case = TRUE))
+    )
+  })
+
+  it("forwards the at covariate conditioning through the wrapper", {
+    fit <- fit_mixed_fixture_covariate()
+    withr::local_options(lifecycle_verbosity = "error")
+
+    result <- comparisons$run_demand_comparisons(
+      fit_obj = fit,
+      param = c("Q0", "alpha"),
+      compare_specs = comparisons$build_specs_formula("drug"),
+      contrast_by = NULL,
+      at = list(bodyweight = 8.0),
+      adjust = "holm",
+      report_ratios = TRUE
+    )
+
+    expect_s3_class(result$Q0$contrasts_ratio, "data.frame")
+    expect_gt(nrow(result$Q0$contrasts_ratio), 0)
+  })
 })

@@ -34,3 +34,51 @@ fit_mixed_fixture <- function() {
   }
   .mixed_fixture_env$fit
 }
+
+# Fit (once) a two-factor model crossing the within-subject drug factor with a
+# synthetic between-subject `site` factor, so the contrast_by stratification
+# path through run_demand_comparisons() can be exercised directly.
+fit_mixed_fixture_2factor <- function() {
+  if (is.null(.mixed_fixture_env$fit2)) {
+    dat <- load_mixed_fixture()
+    dat$site <- ifelse(dat$monkey %in% c("A", "B"), "north", "south")
+    .mixed_fixture_env$fit2 <- suppressMessages(
+      beezdemand::fit_demand_mixed(
+        data = dat,
+        y_var = "y_ll4",
+        x_var = "x",
+        id_var = "monkey",
+        factors = c("drug", "site"),
+        factor_interaction = TRUE,
+        equation_form = "zben",
+        random_effects = Q0 + alpha ~ 1,
+        covariance_structure = "pdDiag"
+      )
+    )
+  }
+  .mixed_fixture_env$fit2
+}
+
+# Fit (once) a single-factor model with a synthetic continuous covariate (one
+# value per subject), so the `at` covariate-conditioning path through both
+# wrappers can be exercised directly.
+fit_mixed_fixture_covariate <- function() {
+  if (is.null(.mixed_fixture_env$fitc)) {
+    dat <- load_mixed_fixture()
+    dat$bodyweight <- unname(c(A = 8.2, B = 7.4, C = 9.1)[dat$monkey])
+    .mixed_fixture_env$fitc <- suppressMessages(
+      beezdemand::fit_demand_mixed(
+        data = dat,
+        y_var = "y_ll4",
+        x_var = "x",
+        id_var = "monkey",
+        factors = "drug",
+        continuous_covariates = "bodyweight",
+        equation_form = "zben",
+        random_effects = Q0 + alpha ~ 1,
+        covariance_structure = "pdDiag"
+      )
+    )
+  }
+  .mixed_fixture_env$fitc
+}
