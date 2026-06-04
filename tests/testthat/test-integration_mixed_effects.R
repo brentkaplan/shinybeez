@@ -106,6 +106,57 @@ describe("Mixed Effects - upload minimal fixture", {
     expect_true(any(nchar(html) > 0))
   })
 
+  it("activates the EMMs tab and renders real Q0 estimates", {
+    require_app(app)
+    tabs_id <- ns_id("mixed_effects_demand", "results_display_tabs")
+    q0_id <- ns_id("mixed_effects_demand", "emms_q0_table")
+
+    app$set_inputs(!!tabs_id := "EMMs & EV")
+    app$wait_for_js(
+      sprintf("document.querySelector('#%s tbody tr') !== null", q0_id),
+      timeout = 30000
+    )
+    app$wait_for_idle(duration = 500, timeout = 30000)
+
+    html <- app$get_html(paste0("#", q0_id))
+    # EMM table rendered data rows, not the empty-state fallback. This drives
+    # the rewired emms_compute$run_observed_emms() wrapper end-to-end.
+    expect_true(any(grepl("<td", html, fixed = TRUE)))
+    expect_false(any(grepl("No Q0 EMMs available", html, fixed = TRUE)))
+
+    err_html <- app$get_html(".shiny-notification-error")
+    expect_true(is.null(err_html) || !grepl("Error", err_html))
+  })
+
+  it("activates the Pairwise Comparisons tab and renders Q0 contrasts", {
+    require_app(app)
+    tabs_id <- ns_id("mixed_effects_demand", "results_display_tabs")
+    factor_id <- ns_id("mixed_effects_demand", "comparison_factor")
+    comp_id <- ns_id("mixed_effects_demand", "comparisons_q0_table")
+
+    app$set_inputs(!!tabs_id := "Pairwise Comparisons")
+    # The factor selector auto-selects the first model factor (drug).
+    app$wait_for_value(input = factor_id, timeout = 30000)
+    app$wait_for_js(
+      sprintf("document.querySelector('#%s tbody tr') !== null", comp_id),
+      timeout = 30000
+    )
+    app$wait_for_idle(duration = 500, timeout = 30000)
+
+    html <- app$get_html(paste0("#", comp_id))
+    # Contrast rows rendered: drives comparisons$run_demand_comparisons().
+    expect_true(any(grepl("<td", html, fixed = TRUE)))
+
+    err_html <- app$get_html(".shiny-notification-error")
+    expect_true(is.null(err_html) || !grepl("Error", err_html))
+
+    # The wrapper uses the canonical param=; the deprecated params_to_compare
+    # path must never be exercised by the rewired view.
+    logs <- app$get_logs()
+    log_messages <- if (is.data.frame(logs)) logs$message else unlist(logs)
+    expect_false(any(grepl("params_to_compare", log_messages, fixed = TRUE)))
+  })
+
   withr::defer(try(app$stop(), silent = TRUE), envir = teardown_env())
 })
 

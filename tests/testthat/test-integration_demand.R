@@ -47,12 +47,20 @@ describe("Demand - pooled, two-stage, and mean analysis", {
     expect_true(any(nchar(html) > 0))
   })
 
-  it("runs pooled calculation and renders results", {
+  it("runs pooled calculation and renders results with demand columns", {
     require_app(app)
     app$click(selector = paste0("#", ids$demand$calculate))
     wait_for_output(app, result_id, timeout_ms = 15000)
-    html <- app$get_html(".datatables")
+    # Target the results table specifically (not the upload preview table) and
+    # assert it carries the demand parameter columns, not merely any cells.
+    html <- app$get_html(paste0("#", result_id))
     expect_true(any(grepl("<td", html, fixed = TRUE)))
+    for (col in c("Q0d", "Alpha", "Omaxd", "Pmaxd", "EV")) {
+      expect_true(
+        any(grepl(col, html, fixed = TRUE)),
+        info = paste("expected demand column header:", col)
+      )
+    }
   })
 
   it("switches to Two Stage and runs calculation", {
