@@ -49,6 +49,7 @@ jobs:
       run: |
         sudo apt-get update
         sudo apt-get install -y --no-install-recommends \
+          build-essential \
           libcurl4-openssl-dev libssl-dev libxml2-dev \
           libpng-dev libcairo2-dev libicu-dev \
           cmake pkg-config gfortran unixodbc-dev pandoc
@@ -229,6 +230,7 @@ jobs:
       run: |
         sudo apt-get update
         sudo apt-get install -y --no-install-recommends \
+          build-essential \
           libcurl4-openssl-dev libssl-dev libxml2-dev \
           libpng-dev libcairo2-dev libicu-dev \
           cmake pkg-config gfortran unixodbc-dev pandoc
