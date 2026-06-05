@@ -511,3 +511,22 @@ code {
     display: none;
   }
 }
+
+// codedbx attribution: hero byline + Welcome-page footer (mode-aware vars)
+.welcome-byline {
+  font-size: 0.85rem;
+  color: var(--bs-secondary-color);
+  margin: 0.25rem 0 0;
+
+  a {
+    color: var(--app-accent);
+    font-weight: 600;
+    text-decoration: none;
+
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+}
+
+// (App-wide persistent footer styling lives in overrides.scss as .app-footer.)

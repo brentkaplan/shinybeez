@@ -33,6 +33,35 @@
   box-shadow: none;
 }
 
+// Persistent app footer (page_navbar footer slot in main.R): a slim full-width
+// bar fixed to the viewport bottom, identical on every tab (the bslib fill/scroll
+// behavior differs between the fill data panels and the non-fill Welcome
+// .container, so fixed positioning is the only consistent pin). Content scroll
+// areas get padding-bottom below so nothing hides behind it.
+.app-footer {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 1020;
+  border-top: 1px solid var(--bs-border-color);
+  background-color: var(--bs-body-bg);
+  padding: 0.45rem 1rem;
+  font-size: 0.8rem;
+  text-align: center;
+  color: var(--bs-secondary-color);
+
+  a {
+    color: var(--app-accent);
+    font-weight: 600;
+    text-decoration: none;
+
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+}
+
 // Unified sidebar — the bslib sidebar shares the page background and is set off
 // by a single hairline, replacing the tinted block whose top-left corner read
 // as a hard 90deg angle. One surface, no inner card (see sidebar.scss).
@@ -85,9 +114,11 @@
   }
 }
 
-// Themed scrollbars (subtle, mode-aware via --bs-border-color)
+// Themed scrollbars (subtle, mode-aware via --bs-border-color).
+// padding-bottom reserves room so the fixed .app-footer never covers content.
 .bslib-sidebar-layout > .main,
 .sidebar-content {
+  padding-bottom: 2.75rem;
   scrollbar-width: thin;
   scrollbar-color: var(--bs-border-color) transparent;
 
