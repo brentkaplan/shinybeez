@@ -3,7 +3,17 @@
         <div class="row">
             <!-- Main Content -->
             <main class="col-md-9">
-                <section id="about" class="section">
+                <section id="about" class="section welcome-hero">
+                    <svg class="welcome-curve" viewBox="0 0 220 120" fill="none" aria-hidden="true">
+                        <path d="M8 16 C 50 18, 78 40, 104 76 S 180 112, 212 110" stroke="var(--app-accent)"
+                            stroke-width="2.25" fill="none" stroke-linecap="round" />
+                        <circle cx="8" cy="16" r="3.5" fill="var(--app-accent)" />
+                        <circle cx="60" cy="26" r="3.5" fill="var(--app-accent)" />
+                        <circle cx="104" cy="76" r="3.5" fill="var(--app-accent)" />
+                        <circle cx="160" cy="104" r="3.5" fill="var(--app-accent)" />
+                        <circle cx="212" cy="110" r="3.5" fill="var(--app-accent)" />
+                    </svg>
+                    <p class="welcome-eyebrow">Behavioral Economics Toolkit</p>
                     <h3>About Shinybeez</h3>
                     <p><em>shinybeez</em> provides an intuitive, no-code interface for behavioral economic demand and
                         discounting analyses. It consolidates tools previously scattered across multiple packages into a
@@ -18,6 +28,51 @@
                     <p>Built on R Shiny and leveraging existing R packages, <em>shinybeez</em> ensures reproducibility
                         and consistency with underlying analytical methods while remaining flexible for future
                         enhancements.</p>
+                    <div class="welcome-stats">
+                        <div class="welcome-stat"><strong>3</strong><span>Analysis modules</span></div>
+                        <div class="welcome-stat"><strong>7</strong><span>Output tabs / model</span></div>
+                        <div class="welcome-stat"><strong>2</strong><span>Demand equations</span></div>
+                        <div class="welcome-stat"><strong>R<sup>2</sup></strong><span>Fit reporting</span></div>
+                    </div>
+                </section>
+
+                <section id="explore" class="section">
+                    <h3>Explore the tools</h3>
+                    <div class="welcome-explore">
+                        <div class="welcome-card" role="button" tabindex="0" onclick="sbGoTab('Demand')"
+                            onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();sbGoTab('Demand')}">
+                            <div class="welcome-card-ico"><i class="fa-solid fa-chart-line"></i></div>
+                            <h4>Demand</h4>
+                            <p>Empirical measures, systematic criteria, and nonlinear demand-curve fitting.</p>
+                            <span class="welcome-go">Open &rarr;</span>
+                        </div>
+                        <div class="welcome-card" role="button" tabindex="0" onclick="sbGoTab('Discounting')"
+                            onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();sbGoTab('Discounting')}">
+                            <div class="welcome-card-ico"><i class="fa-solid fa-hourglass-half"></i></div>
+                            <h4>Discounting</h4>
+                            <p>Indifference points, 27-Item MCQ scoring, and 5.5-Trial discounting tasks.</p>
+                            <span class="welcome-go">Open &rarr;</span>
+                        </div>
+                        <div class="welcome-card" role="button" tabindex="0" onclick="sbGoTab('Mixed Effects Demand')"
+                            onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();sbGoTab('Mixed Effects Demand')}">
+                            <div class="welcome-card-ico"><i class="fa-solid fa-diagram-project"></i></div>
+                            <h4>Mixed Effects</h4>
+                            <p>Population &amp; individual demand parameters via nonlinear mixed models.</p>
+                            <span class="welcome-go">Open &rarr;</span>
+                        </div>
+                    </div>
+                    <script>
+                        window.sbGoTab = function (name) {
+                            var links = document.querySelectorAll(".navbar .nav-link");
+                            for (var i = 0; i < links.length; i++) {
+                                if (links[i].textContent.trim() === name) {
+                                    links[i].click();
+                                    window.scrollTo(0, 0);
+                                    break;
+                                }
+                            }
+                        };
+                    </script>
                 </section>
 
                 <section id="citation" class="section">

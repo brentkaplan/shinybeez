@@ -1,15 +1,20 @@
 // Sidebar container styling - Light mode (default)
+// Unified/borderless: the nav sits directly on the shared sidebar surface
+// (no inner card) so it reads as one panel with the page — see overrides.scss
+// for the bslib sidebar (aside) treatment that removes the old square corner.
 .sidebar-container {
-  background-color: #fff;
-  padding: 0;
+  background-color: transparent;
+  padding: 0.5rem 0;
   height: 100%;
   color: #212529;
+  border: 0;
+  border-radius: 0;
+  overflow: visible;
 
-  // Section headers in sidebar
+  // Section headers in sidebar (no hard divider — de-blockified)
   .sidebar-header {
     padding: 0.5rem 1rem;
     margin-bottom: 0.5rem;
-    border-bottom: 1px solid #e9ecef;
   }
 
   // Add spacing between sidebar sections
@@ -37,7 +42,7 @@
 
     // Add hover effect to toggle button
     &:hover {
-      background-color: rgb(121 82 179 / 5%);
+      background-color: rgb(83 75 122 / 5%);
     }
   }
 
@@ -54,15 +59,15 @@
       // Better hover states for links
       &:hover,
       &:focus {
-        background-color: rgb(121 82 179 / 10%);
-        color: #7952b3;
+        background-color: rgb(83 75 122 / 10%);
+        color: #534b7a;
         border-radius: 5px;
       }
 
       // Active state for links
       &.active {
-        background-color: rgb(121 82 179 / 20%);
-        color: #7952b3;
+        background-color: rgb(83 75 122 / 20%);
+        color: #534b7a;
         font-weight: 500;
       }
     }
@@ -80,17 +85,17 @@
     }
   }
 
-  // Add subtle dividers between major sections
+  // Spacing between major sections (no hard divider lines)
   > div:not(:last-child) {
-    border-bottom: 1px solid rgb(0 0 0 / 5%);
-    margin-bottom: 1rem;
-    padding-bottom: 0.5rem;
+    margin-bottom: 0.5rem;
   }
 
-  // Make section titles stand out
+  // Make section titles stand out (serif, matches page headings)
   .fs-5.fw-semibold {
     color: #495057;
     margin-bottom: 0.75rem;
+    font-family: var(--app-head);
+    font-size: 1.15rem;
   }
 
   // Add some polish to list items
@@ -111,9 +116,7 @@
 // Dark mode styles targeting Bootstrap's data-bs-theme attribute
 [data-bs-theme="dark"] {
   .sidebar-container {
-    background-color: #2d2d2d !important;
-
-    // border-right-color: #343a40 !important;
+    background-color: transparent !important;
     color: #f8f9fa !important;
 
     .sidebar-header {
@@ -152,10 +155,6 @@
         color: #fff !important;
         font-weight: 500 !important;
       }
-    }
-
-    > div:not(:last-child) {
-      border-bottom-color: rgb(255 255 255 / 10%) !important;
     }
   }
 }

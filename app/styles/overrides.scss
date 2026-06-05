@@ -1,0 +1,376 @@
+// Custom app component overrides (migrated from the former main.scss tail).
+// Bootstrap component theming (buttons, accordion, progress, pagination, form
+// focus rings, etc.) now derives from the brand primary via
+// bslib::bs_theme(primary = "#534b7a") in app/logic/theme.R, so those redundant
+// overrides were dropped. Only rules Bootstrap does NOT color from `primary`
+// are kept here, recolored to the codedbx brand accent:
+//   accent #534b7a / accent-dark #433c63 / dark-mode accent #9c93c6
+
+// ---------------------------------------------------------------------------
+// Theming foundation: unified borderless layout, underline tabs, scrollbars.
+// Accent is exposed as a CSS var so a single rule serves both color modes.
+// ---------------------------------------------------------------------------
+:root {
+  --app-head: "Fraunces", "Georgia", "Times New Roman", serif;
+  --app-accent: #534b7a;
+  --app-accent-strong: #433c63;
+}
+
+// (Dark-mode accent overrides live in the consolidated [data-bs-theme="dark"]
+// block below to avoid a duplicate top-level selector.)
+
+// Serif wordmark, matching the page headings (heading_font = Fraunces)
+.navbar-brand {
+  font-family: var(--app-head);
+}
+
+// Navbar shares the page background with a single hairline, instead of the
+// heavy Spacelab bar (black in dark / grey in light). One rule serves both
+// modes because --bs-body-bg / --bs-border-color flip with the color mode.
+.navbar.navbar-default {
+  background-color: var(--bs-body-bg) !important;
+  border-bottom: 1px solid var(--bs-border-color);
+  box-shadow: none;
+}
+
+// Unified sidebar — the bslib sidebar shares the page background and is set off
+// by a single hairline, replacing the tinted block whose top-left corner read
+// as a hard 90deg angle. One surface, no inner card (see sidebar.scss).
+.bslib-sidebar-layout > .sidebar {
+  background-color: transparent;
+  border-right: 1px solid var(--bs-border-color);
+  border-radius: 0;
+}
+
+// Underline top-nav tabs
+.navbar .nav-link {
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  transition: color 0.15s ease, border-color 0.15s ease;
+
+  &:hover {
+    border-bottom-color: rgb(83 75 122 / 35%);
+  }
+
+  &.active {
+    color: var(--app-accent) !important;
+    background-color: transparent !important;
+    border-bottom-color: var(--app-accent);
+  }
+}
+
+// Underline content tabs (tabsetPanel + navset_card_tab)
+.nav-tabs {
+  border-bottom: 1px solid var(--bs-border-color);
+
+  .nav-link {
+    border: 0;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    color: var(--bs-secondary-color);
+    background-color: transparent;
+
+    &:hover,
+    &:focus {
+      color: var(--app-accent);
+      border-color: transparent transparent rgb(83 75 122 / 35%);
+    }
+
+    &.active {
+      color: var(--app-accent);
+      font-weight: 500;
+      background-color: transparent;
+      border-color: transparent transparent var(--app-accent);
+    }
+  }
+}
+
+// Themed scrollbars (subtle, mode-aware via --bs-border-color)
+.bslib-sidebar-layout > .main,
+.sidebar-content {
+  scrollbar-width: thin;
+  scrollbar-color: var(--bs-border-color) transparent;
+
+  &::-webkit-scrollbar {
+    width: 11px;
+    height: 11px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: var(--bs-border-color);
+    border-radius: 8px;
+    border: 3px solid var(--bs-body-bg);
+    background-clip: padding-box;
+  }
+}
+
+// Nav link underline removal (utility)
+.nav-link:hover,
+.navbar-nav .nav-link:hover,
+.nav-item a:hover,
+a.nav-link:hover {
+  text-decoration: none !important;
+}
+
+.sidebar-container a:hover,
+.link-body-emphasis:hover {
+  text-decoration: none !important;
+}
+
+// Buttons: consistent rounding + polish, unified brand hierarchy.
+// Primary CTAs stay filled brand purple (via bs_theme); secondary/utility
+// buttons (Update Plot, esquisse export, Export All, Shiny default buttons)
+// share one outline-purple treatment instead of clashing blue/grey/green.
+.btn {
+  border-radius: 0.5rem;
+  font-weight: 500;
+  transition: all 0.15s ease-in-out;
+}
+
+.btn-primary {
+  box-shadow: 0 1px 2px rgb(0 0 0 / 8%);
+
+  &:hover {
+    box-shadow: 0 2px 6px rgb(83 75 122 / 25%);
+  }
+}
+
+// Secondary / utility buttons (Browse, DataTables export, Update Plot, Export
+// All, esquisse export) are coloured entirely by the theme: filled neutral-grey
+// `secondary` so they recede from the purple primary, each with proper white
+// text. Custom colour overrides were removed — they fought bslib's per-button
+// rules and produced low-contrast pairings (e.g. purple text on a grey download
+// button). bs_theme guarantees readable text/background contrast by construction.
+
+// navset_card_tab: tabs sit inside the card header, which already provides a
+// bottom border — drop the nav-tabs baseline so only the active underline shows.
+// Colors come from the mode-aware general .nav-tabs rule above.
+.nav-tabs.card-header-tabs {
+  border-bottom: 0;
+}
+
+// Shiny radioButtons (old-style `.radio` markup, custom-drawn control)
+input[type="radio"] {
+  accent-color: #534b7a;
+}
+
+.radio label {
+  position: relative;
+  padding-left: 1.5rem;
+  cursor: pointer;
+}
+
+.radio input[type="radio"] {
+  position: absolute;
+  opacity: 0;
+
+  + span::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0.25rem;
+    width: 1rem;
+    height: 1rem;
+    border: 2px solid #adb5bd;
+    border-radius: 50%;
+    background-color: transparent;
+    transition: all 0.2s ease;
+  }
+
+  &:checked + span::before {
+    border-color: #534b7a;
+    background-color: #fff;
+  }
+
+  &:checked + span::after {
+    content: "";
+    position: absolute;
+    left: 0.3125rem;
+    top: 0.5625rem;
+    width: 0.375rem;
+    height: 0.375rem;
+    border-radius: 50%;
+    background-color: #534b7a;
+  }
+
+  &:focus + span::before {
+    box-shadow: 0 0 0 0.25rem rgb(83 75 122 / 25%);
+  }
+}
+
+[data-bs-theme="dark"] .radio input[type="radio"] {
+  accent-color: #9c93c6;
+
+  + span::before {
+    border-color: #6c757d;
+  }
+
+  &:checked + span::before {
+    border-color: #9c93c6;
+    background-color: #212529;
+  }
+
+  &:checked + span::after {
+    background-color: #9c93c6;
+  }
+
+  &:focus + span::before {
+    box-shadow: 0 0 0 0.25rem rgb(156 147 198 / 25%);
+  }
+}
+
+// Checkboxes / radios — brand accent on checked + focus
+.form-check-input:checked,
+.shiny-input-container .checkbox input:checked,
+.shiny-input-container .checkbox-inline input:checked {
+  background-color: #534b7a !important;
+  box-shadow: 0 0 0 0.25rem rgb(83 75 122 / 25%) !important;
+  border-color: #534b7a !important;
+}
+
+.shiny-input-container .radio input:checked,
+.shiny-input-container .radio-inline input:checked {
+  background-color: #534b7a !important;
+  border-color: #534b7a !important;
+}
+
+.form-check-input:focus {
+  border-color: #534b7a !important;
+  box-shadow: 0 0 0 0.25rem rgb(83 75 122 / 25%) !important;
+}
+
+input[type="checkbox"]:focus-visible,
+input[type="checkbox"]:focus {
+  outline: none !important;
+  box-shadow: 0 0 4px 2px rgb(83 75 122 / 50%) !important;
+  border-radius: 4px;
+}
+
+input[type="checkbox"] {
+  accent-color: #534b7a !important;
+}
+
+// Selectize inputs (third-party widget; neutral surfaces + brand focus shadow)
+.selectize-control .selectize-input {
+  background-color: transparent !important;
+  color: #e9ecef !important;
+  border-color: rgb(255 255 255 / 30%);
+
+  &.focus {
+    border-color: #495057 !important;
+    box-shadow: 0 0 0 0.25rem rgb(73 80 87 / 25%);
+  }
+
+  .item {
+    background-color: transparent !important;
+    color: #e9ecef !important;
+  }
+}
+
+[data-bs-theme="light"] {
+  .selectize-control .selectize-input {
+    background-color: #fff !important;
+    border-color: rgb(73 80 87 / 30%);
+    color: #495057 !important;
+
+    .item {
+      background-color: transparent !important;
+      color: #495057 !important;
+    }
+  }
+
+  .selectize-dropdown {
+    background-color: #fff !important;
+    border-color: rgb(73 80 87 / 30%);
+    box-shadow: 0 6px 12px rgb(83 75 122 / 17.5%);
+
+    .option {
+      color: #495057 !important;
+
+      &.active,
+      &.selected {
+        background-color: rgb(73 80 87 / 25%) !important;
+        color: #495057 !important;
+      }
+
+      &:hover {
+        background-color: rgb(73 80 87 / 15%) !important;
+      }
+    }
+  }
+}
+
+// Dark-mode surfaces for the custom inputs above (single consolidated block)
+[data-bs-theme="dark"] {
+  // Brand accent lightens in dark mode (underline tabs, active nav, etc.)
+  --app-accent: #9c93c6;
+  --app-accent-strong: #b3abdd;
+
+  .form-check-input:checked,
+  .shiny-input-container .checkbox input:checked,
+  .shiny-input-container .checkbox-inline input:checked,
+  .shiny-input-container .radio input:checked,
+  .shiny-input-container .radio-inline input:checked {
+    background-color: #9c93c6 !important;
+    box-shadow: 0 0 0 0.25rem rgb(83 75 122 / 25%) !important;
+    border-color: #9c93c6 !important;
+  }
+
+  .form-check-input:focus {
+    box-shadow: 0 0 0 0.25rem rgb(156 147 198 / 25%) !important;
+  }
+
+  input[type="checkbox"].form-check-input,
+  .shiny-input-container input[type="checkbox"] {
+    &,
+    &:checked {
+      border-color: rgb(133 133 133) !important;
+    }
+  }
+
+  .selectize-control .selectize-input {
+    background-color: #2d2d2d !important;
+    border-color: rgb(255 255 255 / 30%) !important;
+    color: #e9ecef !important;
+
+    .item {
+      background-color: transparent !important;
+      color: #e9ecef !important;
+    }
+  }
+
+  .selectize-dropdown {
+    background-color: #2d2d2d !important;
+    border-color: rgb(255 255 255 / 30%);
+    box-shadow: 0 6px 12px rgb(83 75 122 / 25%);
+
+    .option {
+      color: #e9ecef !important;
+
+      &.active,
+      &.selected {
+        background-color: rgb(73 80 87 / 25%) !important;
+        color: #e9ecef !important;
+      }
+
+      &:hover {
+        background-color: rgb(73 80 87 / 15%) !important;
+      }
+    }
+  }
+}
+
+// esquisse plot "save"/move selection handles (third-party generated class name)
+/* stylelint-disable selector-class-pattern */
+.rCSwtyrwf {
+  --moveable-color: #433c63 !important;
+}
+
+.rCSwtyrwf .moveable-control {
+  background: #433c63 !important;
+}
+/* stylelint-enable selector-class-pattern */

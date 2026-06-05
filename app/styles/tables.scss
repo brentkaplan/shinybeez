@@ -1,0 +1,17 @@
+// Numerals as data: brand monospace (Fira Mono via bs_theme code_font) with
+// tabular figures so columns of parameters (Q0, alpha, k, EMMs) align and read
+// as data. Applies to every DT::datatable() in the app.
+// DataTables emits the non-kebab `.dataTable` class, so the kebab-case rule is
+// disabled for this file.
+/* stylelint-disable selector-class-pattern */
+table.dataTable td {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+  font-family: var(--bs-font-monospace);
+}
+
+// Headers stay in the UI font — only cell data reads as "data".
+table.dataTable thead th {
+  font-family: inherit;
+}
+/* stylelint-enable selector-class-pattern */

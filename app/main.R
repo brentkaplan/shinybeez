@@ -8,6 +8,7 @@ box::use(
 box::use(
   app / logic / logging_utils,
   app / logic / telemetry_utils,
+  app / logic / theme,
   app / view / mixed_effects_demand_coordinator,
   app / view / demand,
   app / view / discounting,
@@ -66,6 +67,7 @@ ui <- function(id) {
   }
 
   bslib$page_navbar(
+    theme = theme$app_theme(),
     header = shiny$tags$head(
       ga_script_tag,
       # Invert plot images in dark mode so they blend with the dark background

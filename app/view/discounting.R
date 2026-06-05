@@ -173,7 +173,8 @@ sidebar_server <- function(id) {
         shiny$req(session$userData$data$discounting)
         shiny$actionButton(
           inputId = ns("calculate_discounting"),
-          label = "Calculate"
+          label = "Calculate",
+          class = "btn-primary w-100"
         )
       })
     })

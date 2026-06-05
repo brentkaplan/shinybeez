@@ -15,7 +15,7 @@
   }
 
   a {
-    color: #7952b3;
+    color: #534b7a;
     text-decoration: none;
 
     &:hover {
@@ -46,20 +46,20 @@
   &:hover {
     transform: translateY(-5px);
     box-shadow: 0 10px 25px rgb(0 0 0 / 7%);
-    border-color: rgb(121 82 179 / 20%);
+    border-color: rgb(83 75 122 / 20%);
   }
 
   &:focus-visible {
-    outline: 3px solid #7952b3;
+    outline: 3px solid #534b7a;
     outline-offset: 2px;
     box-shadow: 0 10px 25px rgb(0 0 0 / 7%);
-    border-color: rgb(121 82 179 / 20%);
+    border-color: rgb(83 75 122 / 20%);
   }
 
   .info-icon {
     width: 3.5rem;
     height: 3.5rem;
-    background-color: rgb(121 82 179 / 10%);
+    background-color: rgb(83 75 122 / 10%);
     border-radius: 50%;
     display: flex;
     align-items: center;
@@ -68,18 +68,18 @@
     transition: all 0.2s ease;
 
     i {
-      color: #7952b3;
+      color: #534b7a;
       font-size: 1.5rem;
       transition: all 0.2s ease;
     }
   }
 
   &:hover .info-icon {
-    background-color: rgb(121 82 179 / 20%);
+    background-color: rgb(83 75 122 / 20%);
     transform: scale(1.05);
 
     i {
-      color: #6f42c1;
+      color: #433c63;
     }
   }
 
@@ -98,7 +98,7 @@
   }
 
   .learn-more {
-    color: #7952b3;
+    color: #534b7a;
     font-weight: 500;
     cursor: pointer;
     display: inline-flex;
@@ -195,10 +195,10 @@ code {
     }
 
     a {
-      color: #a78bda;
+      color: #9c93c6;
 
       &:hover {
-        color: #be9ff0;
+        color: #b3abdd;
       }
     }
   }
@@ -210,26 +210,26 @@ code {
 
     &:hover {
       box-shadow: 0 10px 25px rgb(0 0 0 / 30%);
-      border-color: rgb(169 143 214 / 30%);
+      border-color: rgb(156 147 198 / 30%);
     }
 
     &:focus-visible {
-      outline-color: #a78bda;
+      outline-color: #9c93c6;
     }
 
     .info-icon {
-      background-color: rgb(169 143 214 / 15%);
+      background-color: rgb(156 147 198 / 15%);
 
       i {
-        color: #a78bda;
+        color: #9c93c6;
       }
     }
 
     &:hover .info-icon {
-      background-color: rgb(169 143 214 / 25%);
+      background-color: rgb(156 147 198 / 25%);
 
       i {
-        color: #be9ff0;
+        color: #b3abdd;
       }
     }
 
@@ -242,10 +242,10 @@ code {
     }
 
     .learn-more {
-      color: #a78bda;
+      color: #9c93c6;
 
       &:hover {
-        color: #be9ff0;
+        color: #b3abdd;
       }
     }
   }
@@ -275,10 +275,10 @@ code {
     }
 
     a {
-      color: #a78bda;
+      color: #9c93c6;
 
       &:hover {
-        color: #be9ff0;
+        color: #b3abdd;
       }
     }
   }
@@ -289,12 +289,12 @@ code {
   }
 
   .btn-primary {
-    background-color: #6f42c1;
-    border-color: #6f42c1;
+    background-color: #433c63;
+    border-color: #433c63;
 
     &:hover {
-      background-color: #5e35b1;
-      border-color: #5e35b1;
+      background-color: #433c63;
+      border-color: #433c63;
     }
   }
 
@@ -342,6 +342,15 @@ code {
       }
     }
   }
+
+  // Welcome flourishes (dark): warmer eyebrow + lighter accent icon wash
+  .welcome-eyebrow {
+    color: #c9a87d;
+  }
+
+  .welcome-card .welcome-card-ico {
+    background-color: rgb(156 147 198 / 16%);
+  }
 }
 
 // Media queries for responsive design
@@ -364,5 +373,141 @@ code {
 @media (min-width: 1200px) {
   .info-grid {
     grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Welcome flourishes: hero eyebrow + demand-curve flourish, stat chips,
+// "explore the tools" cards. Surfaces use Bootstrap 5.3 mode-aware vars
+// (--bs-tertiary-bg / --bs-border-color / --bs-secondary-color) plus the
+// shared --app-accent, so a single set of rules serves light and dark.
+// ---------------------------------------------------------------------------
+.welcome-eyebrow {
+  font-family: var(--bs-font-monospace);
+  font-size: 0.72rem;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #a07a4e;
+  margin-bottom: 0.5rem;
+}
+
+.welcome-hero {
+  position: relative;
+  overflow: hidden;
+
+  // Keep hero copy clear of the curve flourish (and improve line length)
+  > p,
+  > ul {
+    max-width: 62ch;
+  }
+}
+
+.welcome-curve {
+  position: absolute;
+  top: 0.25rem;
+  right: 0;
+  width: 220px;
+  height: 120px;
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+.welcome-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 0.75rem;
+  margin: 1.25rem 0 0.25rem;
+}
+
+.welcome-stat {
+  background-color: var(--bs-tertiary-bg);
+  border: 1px solid var(--bs-border-color);
+  border-radius: 0.625rem;
+  padding: 0.85rem 1rem;
+
+  strong {
+    display: block;
+    font-family: var(--bs-font-monospace);
+    font-size: 1.5rem;
+    font-weight: 500;
+    letter-spacing: -0.02em;
+    color: var(--bs-emphasis-color);
+    line-height: 1.1;
+  }
+
+  span {
+    display: block;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--bs-secondary-color);
+    margin-top: 0.25rem;
+  }
+}
+
+.welcome-explore {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
+  margin: 1rem 0 0.5rem;
+}
+
+.welcome-card {
+  display: flex;
+  flex-direction: column;
+  background-color: var(--bs-tertiary-bg);
+  border: 1px solid var(--bs-border-color);
+  border-radius: 0.75rem;
+  padding: 1.25rem;
+  cursor: pointer;
+  transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+
+  &:hover,
+  &:focus-visible {
+    transform: translateY(-3px);
+    border-color: rgb(83 75 122 / 35%);
+    box-shadow: 0 8px 22px rgb(20 24 33 / 8%);
+    outline: none;
+  }
+
+  .welcome-card-ico {
+    width: 2.6rem;
+    height: 2.6rem;
+    border-radius: 0.7rem;
+    display: grid;
+    place-items: center;
+    background-color: rgb(83 75 122 / 10%);
+    color: var(--app-accent);
+    font-size: 1.2rem;
+    margin-bottom: 0.85rem;
+  }
+
+  h4 {
+    font-family: var(--app-head);
+    font-size: 1.2rem;
+    font-weight: 600;
+    margin: 0 0 0.35rem;
+    color: var(--bs-emphasis-color);
+  }
+
+  p {
+    font-size: 0.85rem;
+    color: var(--bs-secondary-color);
+    margin: 0 0 0.9rem;
+    line-height: 1.5;
+  }
+
+  .welcome-go {
+    margin-top: auto;
+    color: var(--app-accent);
+    font-weight: 600;
+    font-size: 0.85rem;
+  }
+}
+
+@media (max-width: 991px) {
+  .welcome-curve {
+    display: none;
   }
 }
