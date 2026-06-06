@@ -69,6 +69,11 @@
   background-color: transparent;
   border-right: 1px solid var(--bs-border-color);
   border-radius: 0;
+
+  // The sidebar itself is the scroll container, so it (not .sidebar-content,
+  // whose padding bslib controls) needs the bottom clearance for the fixed
+  // .app-footer — otherwise the last control (e.g. "Run Model") hides behind it.
+  padding-bottom: 3rem;
 }
 
 // Underline top-nav tabs
