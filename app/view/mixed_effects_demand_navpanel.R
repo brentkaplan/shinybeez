@@ -245,22 +245,28 @@ navpanel_ui <- function(id) {
               shiny$selectInput(
                 ns("plot_color_by"),
                 "Color lines/points by:",
-                choices = NULL
+                choices = NULL,
+                # Native select so the "None" (value "") option stays selectable
+                # to deselect; selectize drops empty-value options after a pick.
+                selectize = FALSE
               ),
               shiny$selectInput(
                 ns("plot_linetype_by"),
                 "Linetype by:",
-                choices = NULL
+                choices = NULL,
+                selectize = FALSE
               ),
               shiny$selectInput(
                 ns("plot_facet_by"),
                 "Facet by:",
-                choices = NULL
+                choices = NULL,
+                selectize = FALSE
               ),
               shiny$selectInput(
                 ns("plot_shape_by"),
                 "Shape by:",
-                choices = NULL
+                choices = NULL,
+                selectize = FALSE
               ),
               shiny$selectInput(
                 ns("plot_x_trans"),
