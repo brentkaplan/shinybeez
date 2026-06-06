@@ -86,7 +86,7 @@ ui <- function(id) {
     ),
     footer = shiny$tags$footer(
       class = "app-footer",
-      "Built by Brent Kaplan · ",
+      "Developed and Built by Brent Kaplan · ",
       shiny$tags$a(
         href = "https://codedbx.com",
         target = "_blank",

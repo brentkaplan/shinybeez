@@ -413,37 +413,10 @@ code {
   pointer-events: none;
 }
 
-.welcome-stats {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: 0.75rem;
-  margin: 1.25rem 0 0.25rem;
-}
-
-.welcome-stat {
-  background-color: var(--bs-tertiary-bg);
-  border: 1px solid var(--bs-border-color);
-  border-radius: 0.625rem;
-  padding: 0.85rem 1rem;
-
-  strong {
-    display: block;
-    font-family: var(--bs-font-monospace);
-    font-size: 1.5rem;
-    font-weight: 500;
-    letter-spacing: -0.02em;
-    color: var(--bs-emphasis-color);
-    line-height: 1.1;
-  }
-
-  span {
-    display: block;
-    font-size: 0.72rem;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    color: var(--bs-secondary-color);
-    margin-top: 0.25rem;
-  }
+// A second flourish stacked below the demand curve: a prototypical hyperbolic
+// discounting curve (steep early drop, long flat tail).
+.welcome-curve-discounting {
+  top: 8.5rem;
 }
 
 .welcome-explore {
@@ -509,23 +482,6 @@ code {
 @media (max-width: 991px) {
   .welcome-curve {
     display: none;
-  }
-}
-
-// codedbx attribution: hero byline + Welcome-page footer (mode-aware vars)
-.welcome-byline {
-  font-size: 0.85rem;
-  color: var(--bs-secondary-color);
-  margin: 0.25rem 0 0;
-
-  a {
-    color: var(--app-accent);
-    font-weight: 600;
-    text-decoration: none;
-
-    &:hover {
-      text-decoration: underline;
-    }
   }
 }
 
