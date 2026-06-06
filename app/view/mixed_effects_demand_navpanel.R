@@ -239,8 +239,8 @@ navpanel_ui <- function(id) {
               shiny$selectInput(
                 ns("plot_palette"),
                 "Color Palette",
-                choices = c("Okabe-Ito", "HCL Light", "HCL Dark"),
-                selected = "Okabe-Ito"
+                choices = c("Codedbx", "Okabe-Ito", "HCL Light", "HCL Dark"),
+                selected = "Codedbx"
               ),
               shiny$selectInput(
                 ns("plot_color_by"),

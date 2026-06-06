@@ -64,8 +64,8 @@ sidebar_ui <- function(
         shiny$selectInput(
           inputId = ns("palette"),
           label = "Color Palette",
-          choices = c("Okabe-Ito", "HCL Light", "HCL Dark"),
-          selected = "Okabe-Ito"
+          choices = c("Codedbx", "Okabe-Ito", "HCL Light", "HCL Dark"),
+          selected = "Codedbx"
         )
       )
     )

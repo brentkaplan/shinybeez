@@ -60,8 +60,8 @@ ui <- function(id) {
             shiny$selectInput(
               inputId = ns("palette"),
               label = "Color Palette",
-              choices = c("Okabe-Ito", "HCL Light", "HCL Dark"),
-              selected = "Okabe-Ito"
+              choices = c("Codedbx", "Okabe-Ito", "HCL Light", "HCL Dark"),
+              selected = "Codedbx"
             ),
             shiny$checkboxInput(
               inputId = ns("xlog"),

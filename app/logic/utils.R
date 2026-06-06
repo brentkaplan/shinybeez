@@ -42,11 +42,23 @@ add_shiny_logo <- function(logo) {
   )
 }
 
+# Eagerly load the decorative watermark grobs. Wrapped in tryCatch so the
+# module stays importable when the working directory is not the app root
+# (e.g. testthat runs from tests/testthat, where the relative path won't
+# resolve). The grobs are only consumed by render paths, which always run
+# with the app root as the working directory, so production behaviour is
+# unchanged; only out-of-app contexts get NULL.
 #' @export
-watermark_br <- get_png_br("./app/static/img/shinybeez-watermark-alpha.png")
+watermark_br <- tryCatch(
+  get_png_br("./app/static/img/shinybeez-watermark-alpha.png"),
+  error = function(e) NULL
+)
 
 #' @export
-watermark_tr <- get_png_tr("./app/static/img/shinybeez-watermark-alpha.png")
+watermark_tr <- tryCatch(
+  get_png_tr("./app/static/img/shinybeez-watermark-alpha.png"),
+  error = function(e) NULL
+)
 
 # -----------------------------------------------------------------------------
 # Palette helpers (discrete)
@@ -54,20 +66,36 @@ watermark_tr <- get_png_tr("./app/static/img/shinybeez-watermark-alpha.png")
 
 #' Get a vector of colors for a named discrete palette
 #'
-#' @param name Character palette name. Supported: "Okabe-Ito", "HCL Light",
-#'   "HCL Dark".
+#' @param name Character palette name. Supported: "Codedbx" (default, brand),
+#'   "Okabe-Ito" (colorblind-safe), "HCL Light", "HCL Dark". The name is matched
+#'   case-insensitively for the brand palette.
 #' @param n Integer number of colors required.
 #' @return Character vector of hex colors of length n.
 #' @export
-get_palette_colors <- function(name = "Okabe-Ito", n = 2L) {
+get_palette_colors <- function(name = "Codedbx", n = 2L) {
   if (is.null(n) || is.na(n) || n <= 0) {
     return(character(0))
   }
 
   if (is.null(name) || is.na(name) || !nzchar(name)) {
-    name <- "Okabe-Ito"
+    name <- "Codedbx"
   }
   name <- as.character(name)
+
+  # codedbx "Refined Contemporary" brand palette (6 colors). Default so that
+  # grouped curves carry the brand identity; recycles for n > 6.
+  codedbx <- c(
+    "#534B7A",
+    "#A25F5F",
+    "#5D8AA8",
+    "#7D9C7F",
+    "#2B4560",
+    "#B08C6A"
+  )
+
+  if (identical(tolower(name), "codedbx")) {
+    return(rep(codedbx, length.out = n))
+  }
 
   # Okabe-Ito colorblind-safe base (8 colors)
   okabe_ito <- c(
