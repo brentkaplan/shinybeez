@@ -406,12 +406,21 @@ server <- function(
           utils$add_shiny_logo(utils$watermark_tr)
       }
 
+      # Match the plot to the active color mode (re-renders on toggle, below)
+      res$plot <- utils$apply_dark_mode_theme(
+        res$plot,
+        session$rootScope()$input$dark_mode
+      )
+
       esquisse$render_ggplot(
         id = "plot",
         expr = res$plot,
         filename = "shinybeez-demand"
       )
     }) |>
-      shiny$bindEvent(c(calculate_btn(), input$update_plot_btn))
+      shiny$bindEvent(
+        c(calculate_btn(), input$update_plot_btn),
+        session$rootScope()$input$dark_mode
+      )
   })
 }

@@ -126,6 +126,47 @@ get_palette_colors <- function(name = "Codedbx", n = 2L) {
   }
 }
 
+#' Apply dark mode styling to a ggplot object
+#'
+#' Paints plot backgrounds with the app's dark page color and adjusts
+#' text/grid colors for dark mode contexts. Applies no-op when dark_mode is
+#' "light". A solid fill (rather than transparent) is used because the plots
+#' render to an opaque PNG canvas, so a transparent fill would show through as
+#' white; the fill matches the app's dark `--bs-body-bg`/card background so the
+#' image blends seamlessly with the page.
+#'
+#' @param p A ggplot object
+#' @param dark_mode Character, "dark" or "light"
+#' @return Modified ggplot object
+#' @export
+apply_dark_mode_theme <- function(p, dark_mode = "light") {
+  if (!identical(dark_mode, "dark")) {
+    return(p)
+  }
+
+  bg_color <- "#2d2d2d"
+  text_color <- "#dee2e6"
+  grid_color <- "#495057"
+
+  p +
+    ggplot2$theme(
+      plot.background = ggplot2$element_rect(fill = bg_color, color = NA),
+      panel.background = ggplot2$element_rect(fill = bg_color, color = NA),
+      legend.background = ggplot2$element_rect(fill = bg_color, color = NA),
+      legend.key = ggplot2$element_rect(fill = bg_color, color = NA),
+      text = ggplot2$element_text(color = text_color),
+      axis.text = ggplot2$element_text(color = text_color),
+      axis.title = ggplot2$element_text(color = text_color),
+      plot.title = ggplot2$element_text(color = text_color),
+      plot.subtitle = ggplot2$element_text(color = text_color),
+      legend.text = ggplot2$element_text(color = text_color),
+      legend.title = ggplot2$element_text(color = text_color),
+      panel.grid.major = ggplot2$element_line(color = grid_color),
+      panel.grid.minor = ggplot2$element_line(color = grid_color),
+      axis.ticks = ggplot2$element_line(color = grid_color)
+    )
+}
+
 #' @export
 geomean <- function(x) {
   return(round(exp(mean(log((x + 1)))) - 1, 2))

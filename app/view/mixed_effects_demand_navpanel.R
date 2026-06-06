@@ -1524,9 +1524,16 @@ navpanel_server <- function(id, sidebar_reactives) {
         get_palette_fn = utils$get_palette_colors
       )
 
+      # Match the plot to the active color mode
+      p <- utils$apply_dark_mode_theme(
+        p,
+        session$rootScope()$input$dark_mode
+      )
+
       return(p)
     }) |>
       shiny$bindCache(
+        session$rootScope()$input$dark_mode,
         sidebar_reactives$run_trigger(),
         input$plot_color_by,
         input$plot_linetype_by,
@@ -1555,6 +1562,7 @@ navpanel_server <- function(id, sidebar_reactives) {
       shiny$bindEvent(
         input$update_plot_settings,
         fitted_model_reactive(),
+        session$rootScope()$input$dark_mode,
         ignoreNULL = FALSE
       )
 

@@ -371,8 +371,20 @@ server <- function(
       )
     })
 
-    esquisse$render_ggplot(id = "prop_plot", expr = main_calc_reactive()$propplot)
-    esquisse$render_ggplot(id = "boxplot_plot", expr = main_calc_reactive()$boxplot)
+    esquisse$render_ggplot(
+      id = "prop_plot",
+      expr = utils$apply_dark_mode_theme(
+        main_calc_reactive()$propplot,
+        session$rootScope()$input$dark_mode
+      )
+    )
+    esquisse$render_ggplot(
+      id = "boxplot_plot",
+      expr = utils$apply_dark_mode_theme(
+        main_calc_reactive()$boxplot,
+        session$rootScope()$input$dark_mode
+      )
+    )
 
     plot_object_reactive <- shiny$eventReactive(c(calculate_btn(), input$update_plot_btn), {
       shiny$req(main_calc_reactive()$dd_fit)
@@ -386,7 +398,13 @@ server <- function(
         utils$add_shiny_logo(utils$watermark_tr)
     })
 
-    esquisse$render_ggplot(id = "regression_plot", expr = plot_object_reactive())
+    esquisse$render_ggplot(
+      id = "regression_plot",
+      expr = utils$apply_dark_mode_theme(
+        plot_object_reactive(),
+        session$rootScope()$input$dark_mode
+      )
+    )
 
   })
 }

@@ -61,3 +61,33 @@ describe("get_palette_colors - existing palettes are preserved", {
     expect_length(utils$get_palette_colors("Codedbx", 0), 0)
   })
 })
+
+describe("apply_dark_mode_theme", {
+  it("returns unchanged plot when mode is light", {
+    box::use(ggplot2)
+    p <- ggplot2$ggplot()
+    result <- utils$apply_dark_mode_theme(p, "light")
+    expect_s3_class(result, "gg")
+  })
+
+  it("paints the dark page background in dark mode", {
+    box::use(ggplot2)
+    p <- ggplot2$ggplot() + ggplot2$geom_point(ggplot2$aes(1, 1))
+    result <- utils$apply_dark_mode_theme(p, "dark")
+    expect_s3_class(result, "gg")
+    built <- ggplot2$ggplot_build(result)
+    theme <- built$plot$theme
+    # Solid fill matching the app's dark --bs-body-bg so the rendered PNG
+    # blends with the page/card (an opaque canvas would show through a
+    # transparent fill).
+    expect_equal(theme$plot.background$fill, "#2d2d2d")
+    expect_equal(theme$panel.background$fill, "#2d2d2d")
+  })
+
+  it("defaults to light when called with no argument", {
+    box::use(ggplot2)
+    p <- ggplot2$ggplot()
+    result <- utils$apply_dark_mode_theme(p)
+    expect_s3_class(result, "gg")
+  })
+})
