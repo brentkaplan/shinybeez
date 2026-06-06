@@ -184,6 +184,35 @@ a.nav-link:hover {
   border-bottom: 0;
 }
 
+// "Export All" is a download action bslib appends as the last item of the
+// Mixed-Effects results card-tab row. The downloadButton carries .btn-default
+// styling, so it renders as a bordered box that overlaps the borderless
+// underline tabs and the row's bottom hairline. Strip the box, push it to the
+// far right, and tint it with the accent so it reads as a row action, not a tab.
+.nav-tabs .nav-item:has(> .shiny-download-link) {
+  margin-left: auto;
+}
+
+// The Spacelab `.btn-default:not(...)` selector hardcodes a 1px border box at
+// high specificity (a long :not() chain), so !important is the pragmatic
+// override here — consistent with the navbar Bootswatch overrides above. The
+// background is already transparent; dropping the border removes the box that
+// otherwise clashes with the borderless underline tabs.
+.nav-tabs .nav-link.shiny-download-link {
+  margin-bottom: 0;
+  border: 0 !important;
+
+  // Spacelab .btn-default also paints a grey gradient via background-image.
+  background-color: transparent !important;
+  background-image: none !important;
+  color: var(--app-accent);
+}
+
+.nav-tabs .nav-link.shiny-download-link:hover,
+.nav-tabs .nav-link.shiny-download-link:focus {
+  color: var(--bs-emphasis-color);
+}
+
 // Shiny radioButtons (old-style `.radio` markup, custom-drawn control)
 input[type="radio"] {
   accent-color: #534b7a;
