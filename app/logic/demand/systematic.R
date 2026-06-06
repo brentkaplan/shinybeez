@@ -8,6 +8,14 @@ box::use(
   dplyr,
 )
 
+# Coalesce a NULL / empty / all-NA value back to a default. Shiny numericInputs
+# report NULL until they initialize, so a reactive that fires on data upload can
+# call compute_systematic() with NULL thresholds during that brief init race;
+# without this, the NULLs reach check_systematic_demand() and abort.
+coalesce_default <- function(x, default) {
+  if (is.null(x) || length(x) == 0 || all(is.na(x))) default else x
+}
+
 #' Compute systematic criteria with optional grouping
 #'
 #' @param data Data frame with id, x, y (and optionally group) columns
@@ -25,6 +33,11 @@ compute_systematic <- function(
     reversals = 0,
     ncons0 = 2,
     is_grouped = FALSE) {
+  deltaq <- coalesce_default(deltaq, 0.025)
+  bounce <- coalesce_default(bounce, 0.10)
+  reversals <- coalesce_default(reversals, 0)
+  ncons0 <- coalesce_default(ncons0, 2)
+
   if (is_grouped) {
     if (!"group" %in% colnames(data)) {
       stop("Grouping requested but no 'group' column found in data.")

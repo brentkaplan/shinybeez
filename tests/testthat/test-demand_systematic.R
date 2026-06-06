@@ -204,3 +204,52 @@ describe("compute_systematic (grouped)", {
     )
   })
 })
+
+# ------------------------------------------------------------------------------
+# compute_systematic() — robustness to uninitialized (NULL) criteria inputs
+# ------------------------------------------------------------------------------
+
+describe("compute_systematic (NULL criteria inputs)", {
+  it("falls back to defaults when criteria inputs are NULL", {
+    # Simulates the Shiny init race where the threshold numericInputs have not
+    # yet reported their values to the server, so they arrive as NULL.
+    d <- make_demand_data()
+    result <- systematic$compute_systematic(
+      d,
+      deltaq = NULL,
+      bounce = NULL,
+      reversals = NULL,
+      ncons0 = NULL
+    )
+    expect_s3_class(result, "data.frame")
+    expect_equal(nrow(result), length(unique(d$id)))
+  })
+
+  it("produces the same result for NULL inputs as for default inputs", {
+    d <- make_demand_data()
+    expect_equal(
+      systematic$compute_systematic(
+        d,
+        deltaq = NULL,
+        bounce = NULL,
+        reversals = NULL,
+        ncons0 = NULL
+      ),
+      systematic$compute_systematic(d)
+    )
+  })
+
+  it("falls back to defaults for grouped data too", {
+    d <- make_grouped_demand_data()
+    result <- systematic$compute_systematic(
+      d,
+      deltaq = NULL,
+      bounce = NULL,
+      reversals = NULL,
+      ncons0 = NULL,
+      is_grouped = TRUE
+    )
+    expect_s3_class(result, "data.frame")
+    expect_true("group" %in% names(result))
+  })
+})

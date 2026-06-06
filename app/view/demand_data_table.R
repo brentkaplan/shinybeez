@@ -138,6 +138,15 @@ server <- function(id, isgroup = NULL, data_r) {
     # Debounced to avoid redundant recomputations when adjusting multiple thresholds
     systematic_r_raw <- shiny$reactive({
       shiny$req(session$userData$data$demand)
+      # Wait for the threshold inputs to initialize before computing; otherwise
+      # the reactive fires on upload with NULL thresholds (compute_systematic
+      # coalesces these to defaults as a safety net regardless).
+      shiny$req(
+        input$deltaq,
+        input$bounce,
+        input$reversals,
+        input$ncons0
+      )
       session_logger$info("Computing systematic criteria", "data_processing")
       shiny$withProgress(message = "Computing systematic criteria...", {
         tryCatch(
