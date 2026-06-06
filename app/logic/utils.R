@@ -126,10 +126,66 @@ get_palette_colors <- function(name = "Codedbx", n = 2L) {
   }
 }
 
+# TRUE when a colour is missing (NULL -> the geom default, which is black for
+# lines/points/paths) or a dark, near-neutral tone that would vanish on the
+# dark canvas. Saturated hues (the brand palette, a red fit line, a blue
+# smooth) return FALSE so they are preserved.
+is_dark_neutral <- function(col) {
+  if (is.null(col)) {
+    return(TRUE)
+  }
+  if (length(col) != 1L || is.na(col)) {
+    return(FALSE)
+  }
+  rgb <- tryCatch(grDevices$col2rgb(col)[, 1], error = function(e) NULL)
+  if (is.null(rgb)) {
+    return(FALSE)
+  }
+  mx <- max(rgb)
+  saturation <- if (mx == 0) 0 else (mx - min(rgb)) / mx
+  luminance <- (0.2126 * rgb[1] + 0.7152 * rgb[2] + 0.0722 * rgb[3]) / 255
+  luminance < 0.4 && saturation < 0.25
+}
+
+# Lighten geoms that would otherwise render in a default / near-black color and
+# disappear on the dark canvas (e.g. a black prediction line, dark data
+# points). Layers that map colour/fill to data — the brand palette via
+# scale_color_manual — are left untouched so their true colors show through.
+recolor_default_geoms <- function(p, light_color) {
+  plot_aes <- names(p$mapping)
+  for (i in seq_along(p$layers)) {
+    layer <- p$layers[[i]]
+    layer_aes <- names(layer$mapping)
+
+    colour_mapped <- any(c("colour", "color") %in% c(layer_aes, plot_aes))
+    if (!colour_mapped) {
+      current <- layer$aes_params$colour
+      if (is.null(current)) {
+        current <- layer$aes_params$color
+      }
+      if (is_dark_neutral(current)) {
+        p$layers[[i]]$aes_params$colour <- light_color
+      }
+    }
+
+    fill_mapped <- "fill" %in% c(layer_aes, plot_aes)
+    if (!fill_mapped) {
+      current_fill <- layer$aes_params$fill
+      # Only adjust an explicitly dark fill; leave NULL (most geoms have no
+      # fill) and light fills (e.g. white points) as they are.
+      if (!is.null(current_fill) && is_dark_neutral(current_fill)) {
+        p$layers[[i]]$aes_params$fill <- light_color
+      }
+    }
+  }
+  p
+}
+
 #' Apply dark mode styling to a ggplot object
 #'
-#' Paints plot backgrounds with the app's dark page color and adjusts
-#' text/grid colors for dark mode contexts. Applies no-op when dark_mode is
+#' Paints plot backgrounds with the app's dark page color, adjusts text/grid
+#' colors, and lightens default/near-black geoms so they remain visible on the
+#' dark canvas (palette-mapped colors are preserved). No-op when dark_mode is
 #' "light". A solid fill (rather than transparent) is used because the plots
 #' render to an opaque PNG canvas, so a transparent fill would show through as
 #' white; the fill matches the app's dark `--bs-body-bg`/card background so the
@@ -147,6 +203,8 @@ apply_dark_mode_theme <- function(p, dark_mode = "light") {
   bg_color <- "#2d2d2d"
   text_color <- "#dee2e6"
   grid_color <- "#495057"
+
+  p <- recolor_default_geoms(p, text_color)
 
   p +
     ggplot2$theme(

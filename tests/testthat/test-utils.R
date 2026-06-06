@@ -91,3 +91,44 @@ describe("apply_dark_mode_theme", {
     expect_s3_class(result, "gg")
   })
 })
+
+describe("apply_dark_mode_theme - geom contrast", {
+  df <- data.frame(x = 1:3, y = 1:3, g = c("a", "b", "a"))
+
+  it("lightens a default-colored (black) geom so it shows on the dark canvas", {
+    box::use(ggplot2)
+    p <- ggplot2$ggplot(df, ggplot2$aes(x, y)) + ggplot2$geom_line()
+    result <- utils$apply_dark_mode_theme(p, "dark")
+    expect_equal(result$layers[[1]]$aes_params$colour, "#dee2e6")
+  })
+
+  it("preserves colour that is mapped to data (the brand palette)", {
+    box::use(ggplot2)
+    p <- ggplot2$ggplot(df, ggplot2$aes(x, y, colour = g)) + ggplot2$geom_line()
+    result <- utils$apply_dark_mode_theme(p, "dark")
+    expect_null(result$layers[[1]]$aes_params$colour)
+  })
+
+  it("preserves an explicit saturated colour (e.g. a red fit line)", {
+    box::use(ggplot2)
+    p <- ggplot2$ggplot(df, ggplot2$aes(x, y)) +
+      ggplot2$geom_line(colour = "red")
+    result <- utils$apply_dark_mode_theme(p, "dark")
+    expect_equal(result$layers[[1]]$aes_params$colour, "red")
+  })
+
+  it("preserves a light fill such as white points", {
+    box::use(ggplot2)
+    p <- ggplot2$ggplot(df, ggplot2$aes(x, y)) +
+      ggplot2$geom_point(shape = 21, fill = "white")
+    result <- utils$apply_dark_mode_theme(p, "dark")
+    expect_equal(result$layers[[1]]$aes_params$fill, "white")
+  })
+
+  it("does not recolor geoms in light mode", {
+    box::use(ggplot2)
+    p <- ggplot2$ggplot(df, ggplot2$aes(x, y)) + ggplot2$geom_line()
+    result <- utils$apply_dark_mode_theme(p, "light")
+    expect_null(result$layers[[1]]$aes_params$colour)
+  })
+})
