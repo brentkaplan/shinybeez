@@ -10,13 +10,23 @@ box::use(
 
 #' Format regression results with rounding and id sorting
 #'
+#' Pooled and Mean fits return a single aggregate row with no `id` column, so
+#' the id relevel/sort is applied only when an `id` column is present (i.e. for
+#' per-subject Two Stage fits).
+#'
 #' @param results Data frame from results_dd()
 #' @param id_levels Character vector of original id levels for factor ordering
-#' @return Data frame with numeric cols rounded to 4dp, id sorted
+#' @return Data frame with numeric cols rounded to 4dp; id sorted when present
 #' @export
 format_regression_results <- function(results, id_levels) {
+  results <- results |>
+    dplyr$mutate(dplyr$across(dplyr$where(is.numeric), \(x) round(x, 4)))
+
+  if (!"id" %in% names(results)) {
+    return(results)
+  }
+
   results |>
-    dplyr$mutate(dplyr$across(dplyr$where(is.numeric), \(x) round(x, 4))) |>
     dplyr$mutate(id = factor(id, levels = id_levels)) |>
     dplyr$arrange(id)
 }

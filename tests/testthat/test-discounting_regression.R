@@ -132,6 +132,28 @@ describe("format_regression_results", {
     expect_equal(as.character(result$id), c("c", "b", "a"))
     expect_equal(levels(result$id), c("c", "b", "a"))
   })
+
+  it("handles results without an id column (pooled/mean fits)", {
+    # results_dd() for Pooled and Mean fits returns a single row with NO id
+    # column, so the formatter must not assume one exists.
+    pooled <- data.frame(
+      method = "Pooled",
+      term = "k",
+      estimate = 0.12345678,
+      R2 = 0.87654321,
+      stringsAsFactors = FALSE
+    )
+    result <- regression$format_regression_results(
+      pooled,
+      id_levels = character(0)
+    )
+
+    expect_s3_class(result, "data.frame")
+    expect_equal(nrow(result), 1)
+    expect_false("id" %in% names(result))
+    expect_equal(result$estimate, 0.1235)
+    expect_equal(result$R2, 0.8765)
+  })
 })
 
 # ------------------------------------------------------------------------------
@@ -264,5 +286,28 @@ describe("fit_and_format_regression", {
     # Factor levels should match original data order, not alphabetical
     expect_equal(levels(result$results$id), c("z_last", "a_first", "m_mid"))
     expect_equal(as.character(result$results$id), c("z_last", "a_first", "m_mid"))
+  })
+
+  it("works with the pooled method, whose results have no id column", {
+    dat <- make_dd_data()
+    result <- suppressWarnings(
+      regression$fit_and_format_regression(dat, equation = "Mazur", method = "Pooled")
+    )
+
+    expect_type(result, "list")
+    expect_s3_class(result$results, "data.frame")
+    expect_equal(nrow(result$results), 1)
+    expect_true("fit_dd" %in% class(result$dd_fit))
+  })
+
+  it("works with the mean method, whose results have no id column", {
+    dat <- make_dd_data()
+    result <- suppressWarnings(
+      regression$fit_and_format_regression(dat, equation = "Mazur", method = "Mean")
+    )
+
+    expect_type(result, "list")
+    expect_s3_class(result$results, "data.frame")
+    expect_equal(nrow(result$results), 1)
   })
 })
