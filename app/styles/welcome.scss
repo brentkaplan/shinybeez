@@ -403,20 +403,27 @@ code {
   }
 }
 
-.welcome-curve {
+// Decorative curve pair (demand + discounting) vertically centered against the
+// hero text on the right.
+.welcome-curves {
   position: absolute;
-  top: 0.25rem;
+  top: 50%;
   right: 0;
-  width: 220px;
-  height: 120px;
-  opacity: 0.55;
+  transform: translateY(-50%);
   pointer-events: none;
 }
 
-// A second flourish stacked below the demand curve: a prototypical hyperbolic
-// discounting curve (steep early drop, long flat tail).
+.welcome-curve {
+  display: block;
+  width: 220px;
+  height: 120px;
+  opacity: 0.55;
+}
+
+// Prototypical hyperbolic discounting curve (steep early drop, long flat tail)
+// stacked below the demand curve; pull it up slightly to tighten the pair.
 .welcome-curve-discounting {
-  top: 8.5rem;
+  margin-top: -1rem;
 }
 
 .welcome-explore {
@@ -480,7 +487,7 @@ code {
 }
 
 @media (max-width: 991px) {
-  .welcome-curve {
+  .welcome-curves {
     display: none;
   }
 }
