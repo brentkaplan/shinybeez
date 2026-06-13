@@ -1,16 +1,27 @@
 # Dependabot configuration for shinybeez (Rhino Shiny app)
-# Rhino's Node.js build toolchain lives in /.rhino, so npm updates target that dir.
+#
+# Rhino's Node.js build toolchain lives in /.rhino. Those packages are
+# dev/build-time only (webpack, babel, eslint, sass, cypress) and never ship
+# in the deployed app, so we want security patches but NOT broad version bumps
+# (the latter pull majors the old toolchain can't accept, e.g. eslint 10 vs
+# @babel/eslint-parser). open-pull-requests-limit: 0 disables version updates;
+# security updates still flow (enabled via the repo's Dependabot security
+# updates setting) and are grouped into a single PR.
 version: 2
 updates:
   - package-ecosystem: "npm"
     directory: "/.rhino"
     schedule:
       interval: "weekly"
+    open-pull-requests-limit: 0
     groups:
-      rhino-build-toolchain:
+      rhino-security:
+        applies-to: security-updates
         patterns:
           - "*"
-    open-pull-requests-limit: 5
+
+  # GitHub Actions version updates are low-risk and clear the critical
+  # trivy-action alert, so keep them as full version updates.
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
