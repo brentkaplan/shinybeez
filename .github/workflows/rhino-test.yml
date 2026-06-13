@@ -8,7 +8,7 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup system dependencies
         run: |
@@ -27,7 +27,7 @@ jobs:
         uses: r-lib/actions/setup-renv@v2
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: 20
 
@@ -63,7 +63,7 @@ jobs:
 
       - name: Run Cypress end-to-end tests
         if: always()
-        uses: cypress-io/github-action@v6
+        uses: cypress-io/github-action@v7
         with:
           working-directory: .rhino # Created by earlier commands which use Node.js
           start: npm run run-app
