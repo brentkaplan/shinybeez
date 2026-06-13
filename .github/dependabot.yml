@@ -1,0 +1,21 @@
+# Dependabot configuration for shinybeez (Rhino Shiny app)
+# Rhino's Node.js build toolchain lives in /.rhino, so npm updates target that dir.
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/.rhino"
+    schedule:
+      interval: "weekly"
+    groups:
+      rhino-build-toolchain:
+        patterns:
+          - "*"
+    open-pull-requests-limit: 5
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    groups:
+      ci-actions:
+        patterns:
+          - "*"
