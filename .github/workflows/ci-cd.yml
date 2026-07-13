@@ -15,6 +15,10 @@ on:
         description: 'Run full integration tests'
         type: boolean
         default: true
+      deploy_production:
+        description: 'Deploy this ref to production targets'
+        type: boolean
+        default: false
 
 env:
   REGISTRY: docker.io
@@ -48,6 +52,12 @@ jobs:
     - name: Setup renv
       uses: r-lib/actions/setup-renv@v2
 
+    - name: Verify renv lockfile consistency
+      run: >-
+        Rscript -e
+        'status <- renv::status();
+        quit(status = if (isTRUE(status$synchronized)) 0L else 1L)'
+
     - name: Setup Node.js
       uses: actions/setup-node@v6
       with:
@@ -55,6 +65,9 @@ jobs:
 
     - name: Install .rhino JS dependencies
       run: cd .rhino && npm ci
+
+    - name: Verify .rhino JS dependency compatibility
+      run: npm --prefix .rhino ls --all
 
     - name: Install Chrome for integration tests
       uses: browser-actions/setup-chrome@v2
@@ -104,7 +117,7 @@ jobs:
       with:
         images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
         tags: |
-          type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+          type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.deploy_production) }}
           type=ref,event=branch
           type=ref,event=pr
           type=semver,pattern={{version}}
@@ -178,9 +191,11 @@ jobs:
           docker pull brentkaplan/shinybeez:develop
           docker images brentkaplan/shinybeez:develop --format "{{.ID}} {{.CreatedAt}}"
 
-  # Deploy to production (main branch and tags)
+  # Deploy to production for explicit releases only.
   deploy-production:
-    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
+    if: >-
+      startsWith(github.ref, 'refs/tags/v') ||
+      (github.event_name == 'workflow_dispatch' && inputs.deploy_production)
     needs: build
     runs-on: ubuntu-latest
     name: Deploy to Production
@@ -201,7 +216,9 @@ jobs:
 
   # Deploy to shinyapps.io (parallel to ShinyProxy)
   deploy-shinyapps:
-    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
+    if: >-
+      startsWith(github.ref, 'refs/tags/v') ||
+      (github.event_name == 'workflow_dispatch' && inputs.deploy_production)
     needs: test
     runs-on: ubuntu-latest
     name: Deploy to shinyapps.io
@@ -284,7 +301,10 @@ jobs:
     needs: [deploy-production, deploy-shinyapps]
     runs-on: ubuntu-latest
     name: Notify Deployment
-    if: always() && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
+    if: >-
+      always() &&
+      (startsWith(github.ref, 'refs/tags/v') ||
+      (github.event_name == 'workflow_dispatch' && inputs.deploy_production))
 
     steps:
     - name: Deployment summary
