@@ -1,0 +1,24 @@
+# Rhino's JavaScript toolchain is build-time only and its Babel, ESLint, and
+# AirBnB packages must be upgraded together. Allow grouped security updates,
+# but avoid independent version updates that can create invalid peer trees.
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/.rhino"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 0
+    groups:
+      rhino-security:
+        applies-to: security-updates
+        patterns:
+          - "*"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    groups:
+      ci-actions:
+        patterns:
+          - "*"
