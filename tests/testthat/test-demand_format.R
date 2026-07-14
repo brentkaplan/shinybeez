@@ -23,24 +23,29 @@ box::use(
 # The upload sequence under test is the real one from app/view/file_input.R:
 # validate, then drop NA rows, then store, then rename headers, then reshape.
 
-# Reproduce app/view/file_input.R's ordering exactly, so the test exercises the
-# ordering gap rather than only the reactive chain in demand.R.
+# Reproduce app/view/file_input.R's ordering EXACTLY - including the sufficiency
+# gate at :138 - so the tests exercise the real upload path, not a subset of it.
 upload_sequence <- function(dat) {
   chk <- validate$check_data(dat, type = "demand")
   if (is.character(chk)) {
     return(list(rejected = TRUE, message = chk))
   }
   stored <- validate$remove_na_rows(dat)$data
+  enough <- validate$check_demand_sufficiency(stored)
+  if (is.character(enough)) {
+    return(list(rejected = TRUE, message = enough))
+  }
   reshaped <- validate$rename_cols(stored) |>
     validate$reshape_data(dat = _, type = "demand")
   list(rejected = FALSE, data = reshaped)
 }
 
 describe("demand format classification (the NA-removal flip)", {
-  it("keeps long data long when NA-row removal makes ids unique", {
-    # Long file: each id has 2 price points, the second of which is NA.
-    # After remove_na_rows() each id appears exactly ONCE, so the old
-    # id-uniqueness heuristic reclassified this long file as wide.
+  it("rejects honestly when NA-row removal leaves one point per id", {
+    # The flip needed EVERY id to survive with exactly one row - that is the only
+    # way `length(unique(id)) == length(id)` becomes true. Such data cannot fit a
+    # curve at all, so the honest outcome is a named rejection, NOT a beezdemand
+    # abort about column names ("Cannot parse prices from column names: NA").
     dat <- data.frame(
       id = c("s1", "s1", "s2", "s2"),
       x  = c(1, 2, 1, 2),
@@ -49,19 +54,36 @@ describe("demand format classification (the NA-removal flip)", {
 
     res <- upload_sequence(dat)
 
-    # It must not blow up in beezdemand, and must not invent "NA" columns.
+    expect_true(res$rejected)
+    expect_match(res$message, "price point", ignore.case = TRUE)
+    expect_match(res$message, "s1", fixed = TRUE)
+    # the defect signature must NOT be what the user sees
+    expect_false(grepl("Cannot parse prices", res$message, fixed = TRUE))
+    expect_false(grepl("scale_id", res$message, fixed = TRUE))
+  })
+
+  it("keeps long data long when ids survive NA removal with enough points", {
+    # 3 price points per id, one NA each -> 2 survive. Ids stay duplicated here,
+    # but the frame must be classified long on its NAMES, not on that fact.
+    dat <- data.frame(
+      id = c("s1", "s1", "s1", "s2", "s2", "s2"),
+      x  = c(1, 2, 3, 1, 2, 3),
+      y  = c(10, 6, NA, 8, 5, NA)
+    )
+
+    res <- upload_sequence(dat)
+
     expect_false(res$rejected)
-    expect_false(any(is.na(names(res$data))))
     expect_false(any(names(res$data) == "NA"))
     expect_true(all(c("id", "x", "y") %in% names(res$data)))
   })
 
-  it("keeps grouped long data long when NA-row removal makes ids unique", {
+  it("keeps grouped long data long through the full upload sequence", {
     dat <- data.frame(
-      id    = c("s1", "s1", "s2", "s2"),
-      group = c("a", "a", "b", "b"),
-      x     = c(1, 2, 1, 2),
-      y     = c(10, NA, 8, NA)
+      id    = c("s1", "s1", "s1", "s2", "s2", "s2"),
+      group = c("a", "a", "a", "b", "b", "b"),
+      x     = c(1, 2, 3, 1, 2, 3),
+      y     = c(10, 6, NA, 8, 5, NA)
     )
 
     res <- upload_sequence(dat)
@@ -216,6 +238,46 @@ describe("post-NA-removal sufficiency", {
       y  = c(10, 5, 8, 4)
     )
     expect_true(validate$check_demand_sufficiency(dat))
+  })
+
+  it("rejects a wide frame with only one price column", {
+    # Reshapes to exactly one observation per id, which cannot fit a curve.
+    dat <- data.frame(
+      id = c("s1", "s2"),
+      `0.01` = c(100, 90),
+      check.names = FALSE
+    )
+
+    res <- validate$check_demand_sufficiency(dat)
+
+    expect_type(res, "character")
+    expect_match(res, "price", ignore.case = TRUE)
+  })
+
+  it("accepts a wide frame with two or more price columns", {
+    dat <- data.frame(
+      id = c("s1", "s2"),
+      `0.01` = c(100, 90),
+      `0.1` = c(80, 70),
+      check.names = FALSE
+    )
+    expect_true(validate$check_demand_sufficiency(dat))
+  })
+
+  it("counts distinct PARSED prices, not distinct raw strings", {
+    # "$1" and "1.00" are two raw strings but one price - retype_data() parses
+    # both to 1, so this id really has a single price point.
+    dat <- data.frame(
+      id = c("s1", "s1"),
+      x  = c("$1", "1.00"),
+      y  = c(10, 8),
+      stringsAsFactors = FALSE
+    )
+
+    res <- validate$check_demand_sufficiency(dat)
+
+    expect_type(res, "character")
+    expect_match(res, "s1", fixed = TRUE)
   })
 })
 

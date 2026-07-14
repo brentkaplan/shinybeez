@@ -125,9 +125,26 @@ check_demand_data <- function(dat) {
 #' @return TRUE or character error message naming the offending ids
 #' @export
 check_demand_sufficiency <- function(dat) {
-  if (demand_format(dat) != "long") return(TRUE)
+  if (demand_format(dat) == "wide") {
+    # One price column gives every participant a single point once reshaped.
+    if (length(price_col_index(dat)) < 2) {
+      return(paste0(
+        "The data have fewer than two price columns. Each participant needs at ",
+        "least two price points to fit a demand curve."
+      ))
+    }
+    return(TRUE)
+  }
 
-  distinct_prices <- tapply(dat$x, dat$id, function(v) length(unique(v)))
+  # Count distinct PARSED prices, mirroring retype_data(): "$1" and "1.00" are
+  # two raw strings but one price, and would otherwise be counted as two.
+  prices <- dat$x
+  if (!is.numeric(prices)) {
+    prices <- suppressWarnings(readr$parse_number(as.character(prices)))
+  }
+  distinct_prices <- tapply(
+    prices, dat$id, function(v) length(unique(v[!is.na(v)]))
+  )
   short <- names(distinct_prices)[distinct_prices < 2]
   if (length(short) > 0) {
     return(paste0(
