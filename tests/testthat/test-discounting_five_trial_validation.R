@@ -103,6 +103,51 @@ describe("validate_five_trial", {
     expect_match(res, "Click Count", ignore.case = TRUE)
   })
 
+  it("rejects a Timing measure whose values are all NA", {
+    # Headers present but no usable data: timing_dd() drops incomplete cases, the
+    # measure vanishes from the spread, and beezdiscounting aborts with
+    # "Location 7 doesn't exist. There are only 6 columns."
+    dat <- as_uploaded(qualtrics_fixture("dd"))
+    first_click <- grep("timing_first click", names(dat), fixed = TRUE)
+    dat[first_click] <- NA
+
+    res <- five_trial$validate_five_trial(dat)
+
+    expect_type(res, "character")
+    expect_match(res, "First Click", fixed = TRUE)
+    expect_match(res, "usable", fixed = TRUE)
+  })
+
+  it("rejects a file with no rows", {
+    dat <- as_uploaded(qualtrics_fixture("dd"))[0, , drop = FALSE]
+
+    res <- five_trial$validate_five_trial(dat)
+
+    expect_type(res, "character")
+    expect_match(res, "no rows", fixed = TRUE)
+  })
+
+  it("rejects duplicate ResponseId values", {
+    # calc_dd joins on ResponseId; duplicates produce the unique-key abort.
+    dat <- as_uploaded(qualtrics_fixture("dd"))
+    dat <- rbind(dat, dat[1, , drop = FALSE])
+
+    res <- five_trial$validate_five_trial(dat)
+
+    expect_type(res, "character")
+    expect_match(res, "duplicate", ignore.case = TRUE)
+  })
+
+  it("rejects a blank ResponseId", {
+    dat <- as_uploaded(qualtrics_fixture("dd"))
+    dat$responseid[1] <- NA
+
+    res <- five_trial$validate_five_trial(dat)
+
+    expect_type(res, "character")
+    expect_match(res, "blank", ignore.case = TRUE)
+  })
+
   it("accepts the real DD template as it arrives from the uploader", {
     expect_true(
       five_trial$validate_five_trial(as_uploaded(qualtrics_fixture("dd")))

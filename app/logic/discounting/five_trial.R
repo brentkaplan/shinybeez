@@ -5,6 +5,7 @@
 box::use(
   beezdiscounting[calc_dd, calc_pd],
   stats,
+  utils,
 )
 
 #' The Qualtrics 5.5-Trial column vocabulary, in the case beezdiscounting expects
@@ -68,6 +69,25 @@ validate_five_trial <- function(data) {
     ))
   }
 
+  if (nrow(data) == 0) {
+    return("The 5.5-Trial data have no rows. Please upload a file with responses.")
+  }
+
+  # calc_dd/calc_pd join on ResponseId; blank or repeated ids collapse rows and
+  # produce "Each row of output must be identified by a unique combination of keys".
+  response_id <- data[[which(present == "responseid")[1]]]
+  if (anyNA(response_id) || any(!nzchar(trimws(as.character(response_id))))) {
+    return("Some rows have a blank `ResponseId`. Every response needs an id.")
+  }
+  duplicated_ids <- unique(response_id[duplicated(response_id)])
+  if (length(duplicated_ids) > 0) {
+    return(paste0(
+      "The 5.5-Trial data have duplicate `ResponseId` values: ",
+      paste(utils$head(duplicated_ids, 5), collapse = ", "),
+      ". Each response must appear exactly once."
+    ))
+  }
+
   expected_items <- paste0("i", 1:31)
   missing_items <- expected_items[!expected_items %in% present]
   if (length(missing_items) > 0) {
@@ -93,24 +113,32 @@ validate_five_trial <- function(data) {
     ))
   }
 
-  # timing_dd()/timing_pd() pivot every Timing column and then spread on the
-  # measure, so a partial set of measures produces a ragged frame rather than a
-  # clean abort. Require all four.
+  # timing_dd()/timing_pd() pivot every Timing column, drop incomplete cases, then
+  # spread on the measure. A measure whose columns are all NA therefore vanishes
+  # from the spread and the frame comes back with too few columns - beezdiscounting
+  # then aborts with "Location 7 doesn't exist. There are only 6 columns."
+  # So the headers being PRESENT is not enough; each measure must carry data.
   expected_measures <- c(
-    "timing_first click", "timing_last click",
-    "timing_page submit", "timing_click count"
+    "timing_first click" = "First Click",
+    "timing_last click" = "Last Click",
+    "timing_page submit" = "Page Submit",
+    "timing_click count" = "Click Count"
   )
-  missing_measures <- expected_measures[
-    !vapply(
-      expected_measures,
-      function(m) any(grepl(m, present, fixed = TRUE)),
-      logical(1)
-    )
-  ]
-  if (length(missing_measures) > 0) {
+
+  measure_usable <- vapply(
+    names(expected_measures),
+    function(m) {
+      cols <- which(grepl(m, present, fixed = TRUE))
+      if (length(cols) == 0) return(FALSE)
+      any(vapply(cols, function(i) any(!is.na(data[[i]])), logical(1)))
+    },
+    logical(1)
+  )
+
+  if (!all(measure_usable)) {
     return(paste0(
-      "The 5.5-Trial data are missing Timing measure(s): ",
-      paste(missing_measures, collapse = ", "),
+      "The 5.5-Trial data have no usable values for Timing measure(s): ",
+      paste(unname(expected_measures[!measure_usable]), collapse = ", "),
       ". Export the Qualtrics survey with all four timing measures ",
       "(First Click, Last Click, Page Submit, Click Count)."
     ))
