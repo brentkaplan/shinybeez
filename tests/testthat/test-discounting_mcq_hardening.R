@@ -56,16 +56,26 @@ describe("resolve_imputation", {
     expect_identical(scoring$resolve_imputation(NULL)$impute_method, "none")
   })
 
-  it("preserves the real imputation methods and the random flag", {
-    expect_identical(scoring$resolve_imputation("GGM")$impute_method, "GGM")
+  # Pin the UI options to the Yeh et al. (2023) methods they are meant to select
+  # (doi:10.1371/journal.pone.0292258). `random` is a separate boolean argument to
+  # score_mcq27 — "insert a random draw (0 or 1) for NAs" — NOT an imputation method, so the
+  # whitelist must constrain impute_method without collapsing the INN-with-random option.
+  it("maps each UI option to its Yeh et al. method and random flag", {
+    expected <- list(
+      none = list(impute_method = "none", random = FALSE),
+      GGM = list(impute_method = "GGM", random = FALSE),
+      INN = list(impute_method = "INN", random = FALSE),
+      INN_random = list(impute_method = "INN", random = TRUE)
+    )
 
-    inn_random <- scoring$resolve_imputation("INN_random")
-    expect_identical(inn_random$impute_method, "INN")
-    expect_true(inn_random$random)
-
-    inn <- scoring$resolve_imputation("INN")
-    expect_identical(inn$impute_method, "INN")
-    expect_false(inn$random)
+    for (ui_value in names(expected)) {
+      resolved <- scoring$resolve_imputation(ui_value)
+      expect_identical(
+        resolved$impute_method, expected[[ui_value]]$impute_method,
+        info = ui_value
+      )
+      expect_identical(resolved$random, expected[[ui_value]]$random, info = ui_value)
+    }
   })
 })
 

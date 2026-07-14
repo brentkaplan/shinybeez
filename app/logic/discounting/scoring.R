@@ -7,9 +7,15 @@ box::use(
   dplyr,
 )
 
-# The only methods beezdiscounting accepts. Anything else — an empty string from a
-# selectInput that has not initialised yet, a stale value, NA — is rejected outright with
-# "Impute method must be one of none, ggm, GGM, inn, INN" (signature 1155c2d9, 21 events).
+# The only methods beezdiscounting accepts (mcq.R:27-28). Anything else — an empty string
+# from a selectInput that has not initialised yet, a stale value, NA — is rejected outright
+# with "Impute method must be one of none, ggm, GGM, inn, INN" (signature 1155c2d9, 21 events).
+#
+# GGM (Group Geometric Mean) and INN (Item Nearest Neighbor) are the imputation approaches of
+# Yeh et al. (2023), doi:10.1371/journal.pone.0292258. Note that `random` is a SEPARATE
+# boolean argument to score_mcq27() — "insert a random draw (0 or 1) for NAs" — not an
+# imputation method. The UI's "INN (random)" is INN plus that flag, which is why the
+# "_random" suffix is stripped off the method before it is validated here.
 valid_impute_methods <- c("none", "ggm", "GGM", "inn", "INN")
 
 #' Fail early, and precisely, when a subject does not have all 27 MCQ items
