@@ -102,3 +102,34 @@ describe("with_performance_logging error ownership", {
     )
   })
 })
+
+describe("caller-level error ownership (one failure = one record)", {
+  # The wrapper writing zero records only closes half of the double-log defect.
+  # This proves the other half end to end: the canonical caller pattern used
+  # across the view modules - wrap the failing op in with_performance(), then log
+  # the failure in the caller's OWN error handler - produces EXACTLY ONE error
+  # record, not the two the old code wrote (wrapper + caller).
+  it("a with_performance failure handled by the caller logs exactly one record", {
+    counter <- new.env(parent = emptyenv())
+    counter$n <- 0L
+    local_spy_on_error_log(counter)
+
+    logger <- logging_utils$create_session_logger(list(token = "test-session"))
+
+    tryCatch(
+      logger$with_performance(
+        "caller_op", function() stop("boom"),
+        always_log = TRUE
+      ),
+      error = function(e) {
+        logger$error_enhanced(
+          paste("Caller op failed:", conditionMessage(e)),
+          error_object = e,
+          context = "caller_op"
+        )
+      }
+    )
+
+    expect_equal(counter$n, 1L)
+  })
+})

@@ -185,34 +185,45 @@ check_mixed_effects_data <- function(dat) {
 #' @param dat Data frame
 #' @return TRUE or character error message
 check_discounting_data <- function(dat) {
-  chk <- validate_condition(
-    any(colnames(dat) %in% c("subjectid", "responseid", "id", "x", "y")),
-    "Check colnames for 'subjectid', 'responseid', 'id', 'x', or 'y' are in data"
-  )
-  if (is.character(chk)) return(chk)
+  # Require ONE complete, recognised schema. The old guard passed a frame if any
+  # of subjectid/responseid/id/x/y was present and only tightened within the
+  # matched branch, so an "x,y"-only frame (no id) and a three-column
+  # "subjectid,foo,bar" frame both slipped through and deferred their failure to
+  # the scoring/model code (Codex Finding 1).
+  cols <- colnames(dat)
 
-  if ("subjectid" %in% colnames(dat)) {
-    chk <- validate_condition(
-      ncol(dat) == 28 || ncol(dat) == 3,
-      "Number of columns does not appear to match the template"
-    )
-    if (is.character(chk)) return(chk)
-  } else if ("responseid" %in% colnames(dat)) {
-    i_cols <- grep("^i[0-9]+$", colnames(dat), value = TRUE)
-    chk <- validate_condition(
-      length(i_cols) >= 1,
-      "Check to make sure you are using the correct Qualtrics template."
-    )
-    if (is.character(chk)) return(chk)
-  } else if ("id" %in% colnames(dat)) {
-    chk <- validate_condition(
-      identical(colnames(dat), c("id", "x", "y")),
-      "Indifference point data must have exactly three columns: id, x, y"
-    )
-    if (is.character(chk)) return(chk)
+  if ("subjectid" %in% cols) {
+    # 27-Item MCQ: wide (subjectid + 27 items = 28 cols) or long (exactly
+    # subjectid, questionid, response).
+    if (ncol(dat) == 28) return(TRUE)
+    mcq_long_cols <- c("subjectid", "questionid", "response")
+    if (ncol(dat) == 3 && setequal(cols, mcq_long_cols)) return(TRUE)
+    return(paste0(
+      "27-Item MCQ data must be either 28 columns wide (subjectid + 27 items) ",
+      "or exactly subjectid, questionid, response (long)."
+    ))
   }
 
-  TRUE
+  if ("responseid" %in% cols) {
+    i_cols <- grep("^i[0-9]+$", cols, value = TRUE)
+    return(validate_condition(
+      length(i_cols) >= 1,
+      "Check to make sure you are using the correct Qualtrics template."
+    ))
+  }
+
+  if ("id" %in% cols) {
+    return(validate_condition(
+      identical(cols, c("id", "x", "y")),
+      "Indifference point data must have exactly three columns: id, x, y"
+    ))
+  }
+
+  paste0(
+    "Unrecognised discounting data format. Expected 27-Item MCQ data ",
+    "(subjectid), 5.5-Trial data (ResponseId), or Indifference Point ",
+    "data (id, x, y)."
+  )
 }
 
 #' @export

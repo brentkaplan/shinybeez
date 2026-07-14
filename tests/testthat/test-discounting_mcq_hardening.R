@@ -133,3 +133,49 @@ describe("score_and_format_mcq", {
     expect_no_error(scoring$score_and_format_mcq(mcq_long(2)))
   })
 })
+
+describe("check_mcq_item_counts - subject identifier validation", {
+  # Codex Finding 2: the row-count guard used table(subjectid), which silently
+  # DROPS NA identifiers (they never appear, so a subject that is entirely NA is
+  # invisible to the count) and treats a blank "" as an ordinary subject. Both
+  # then reach score_mcq27() as an unnamed/missing subject. This mirrors the
+  # blank-identifier validation already enforced for Qualtrics ResponseId.
+
+  it("rejects rows with an NA subject identifier", {
+    dat <- mcq_long(1)
+    dat$subjectid <- NA_integer_ # 27 rows, all NA - invisible to table()
+
+    err <- expect_error(scoring$score_and_format_mcq(dat))
+    expect_match(
+      conditionMessage(err), "missing or blank subject identifier",
+      fixed = TRUE
+    )
+  })
+
+  it("rejects rows with a blank subject identifier", {
+    dat <- mcq_long(1)
+    dat$subjectid <- "   " # 27 rows, all blank - table() counts "" as a subject
+
+    err <- expect_error(scoring$score_and_format_mcq(dat))
+    expect_match(
+      conditionMessage(err), "missing or blank subject identifier",
+      fixed = TRUE
+    )
+  })
+
+  it("rejects a single NA row mixed into otherwise complete subjects", {
+    dat <- mcq_long(2)
+    dat$subjectid <- as.character(dat$subjectid)
+    dat$subjectid[5] <- NA # one NA row; must be named as blank, not a short-count
+
+    err <- expect_error(scoring$score_and_format_mcq(dat))
+    expect_match(
+      conditionMessage(err), "missing or blank subject identifier",
+      fixed = TRUE
+    )
+  })
+
+  it("still scores clean nonblank identifiers", {
+    expect_no_error(scoring$score_and_format_mcq(mcq_long(2)))
+  })
+})

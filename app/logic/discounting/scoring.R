@@ -32,6 +32,20 @@ check_mcq_item_counts <- function(data) {
     return(invisible(TRUE))
   }
 
+  # A missing or blank subject identifier cannot be scored and silently corrupts
+  # the per-subject grouping below: table() drops NA entirely (so an all-NA
+  # subject is invisible and its short count never surfaces) and treats "" as an
+  # ordinary subject. Reject up front, mirroring the ResponseId blank-identifier
+  # validation in five_trial.R.
+  blank <- is.na(data$subjectid) | !nzchar(trimws(as.character(data$subjectid)))
+  if (any(blank)) {
+    stop(
+      sum(blank), " row(s) have a missing or blank subject identifier. ",
+      "Every MCQ row must have a subjectid.",
+      call. = FALSE
+    )
+  }
+
   counts <- table(data$subjectid)
   short <- counts[counts != 27]
   if (length(short) == 0L) {
