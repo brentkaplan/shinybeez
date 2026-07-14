@@ -158,6 +158,23 @@ apply_legend_position <- function(p, position = "right") {
   p + ggplot2$theme(legend.position = position)
 }
 
+# The colour levels present in one frame. A factor whose observed values are all NA still
+# declares its levels, so fall back to those rather than reporting none.
+color_levels_in <- function(color_var, df) {
+  if (is.null(df) || !color_var %in% names(df)) {
+    return(character(0))
+  }
+  col <- df[[color_var]]
+  if (is.factor(col)) {
+    observed <- levels(droplevels(col[!is.na(col)]))
+    if (length(observed) > 0L) {
+      return(observed)
+    }
+    return(levels(col))
+  }
+  as.character(unique(col[!is.na(col)]))
+}
+
 #' Apply color palette to plot
 #'
 #' @param p A ggplot object
@@ -167,6 +184,7 @@ apply_legend_position <- function(p, position = "right") {
 #' @param get_palette_fn Function to get palette colors (n_levels -> colors)
 #' @return Modified ggplot object
 #' @export
+
 apply_color_palette <- function(
   p,
   color_var,
@@ -178,15 +196,27 @@ apply_color_palette <- function(
     return(p)
   }
 
-  if (!is.null(fit_data) && color_var %in% names(fit_data)) {
-    n_levels <- length(unique(stats$na.omit(fit_data[[color_var]])))
-    p <- p +
-      ggplot2$scale_color_manual(
-        values = get_palette_fn(palette_name, n_levels)
-      )
+  # Size the palette from the union of the frame the model was FIT on and the frame the plot
+  # is DRAWN from. Those are not the same object: plot() builds a prediction grid (conditioned
+  # via `at`), which can carry colour levels that model_fit$data does not — and $data's column
+  # can even be entirely NA. Sizing from $data alone produced production error bce0bb1d,
+  # "Insufficient values in manual scale. 3 needed but only 0 provided.", because ggplot2
+  # aborts when a manual scale is short. Supplying MORE values than needed is harmless, so the
+  # union can never come up short, while either frame alone can.
+  levels_seen <- union(
+    color_levels_in(color_var, fit_data),
+    color_levels_in(color_var, p$data)
+  )
+
+  # Nothing to colour: add no scale at all rather than a zero-length one.
+  if (length(levels_seen) == 0L) {
+    return(p)
   }
 
-  p
+  p +
+    ggplot2$scale_color_manual(
+      values = get_palette_fn(palette_name, length(levels_seen))
+    )
 }
 
 #' Build validated plot aesthetics from user inputs
