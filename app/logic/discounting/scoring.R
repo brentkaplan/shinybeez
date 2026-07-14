@@ -7,15 +7,62 @@ box::use(
   dplyr,
 )
 
+# The only methods beezdiscounting accepts. Anything else — an empty string from a
+# selectInput that has not initialised yet, a stale value, NA — is rejected outright with
+# "Impute method must be one of none, ggm, GGM, inn, INN" (signature 1155c2d9, 21 events).
+valid_impute_methods <- c("none", "ggm", "GGM", "inn", "INN")
+
+#' Fail early, and precisely, when a subject does not have all 27 MCQ items
+#'
+#' score_mcq27() aborts with "Response length not equal to 27 for subjectid: N", naming the
+#' subject but not what is actually wrong with it. Imputation cannot rescue this: it fills
+#' missing *values*, not missing *rows*. Check up front so the user is told which subjects are
+#' short and by how much, and so the whole results panel does not collapse on a raw abort.
+#'
+#' @param data Long MCQ data frame with a subjectid column.
+#' @return Invisibly TRUE; aborts with a precise message otherwise.
+check_mcq_item_counts <- function(data) {
+  if (is.null(data) || !"subjectid" %in% colnames(data)) {
+    return(invisible(TRUE))
+  }
+
+  counts <- table(data$subjectid)
+  short <- counts[counts != 27]
+  if (length(short) == 0L) {
+    return(invisible(TRUE))
+  }
+
+  detail <- paste0(
+    "Subject ", names(short), " has ", as.integer(short),
+    " of the 27 required MCQ items",
+    collapse = "; "
+  )
+  stop(detail, ". Each subject must have exactly 27 items.", call. = FALSE)
+}
+
 #' Resolve imputation settings from UI input
 #'
+#' Anything not recognised falls back to "none" rather than being handed to beezdiscounting,
+#' which aborts on an unknown method. An empty string is the common case: the selectInput
+#' reports "" before it has initialised, and the Calculate button was reachable in that window.
+#'
 #' @param imputation Character imputation method from UI ("none", or a method)
-#' @return List with impute_method (NULL or character) and random (logical)
+#' @return List with impute_method (character) and random (logical)
 #' @export
 resolve_imputation <- function(imputation) {
-  if (is.null(imputation)) imputation <- "none"
+  if (is.null(imputation) || length(imputation) != 1L || is.na(imputation)) {
+    imputation <- "none"
+  }
+  imputation <- as.character(imputation)
+
   random <- grepl("random", imputation, ignore.case = TRUE)
   impute_method <- sub("_random$", "", imputation, ignore.case = TRUE)
+
+  if (!nzchar(impute_method) || !impute_method %in% valid_impute_methods) {
+    impute_method <- "none"
+    random <- FALSE
+  }
+
   list(
     impute_method = impute_method,
     random = random
@@ -51,8 +98,15 @@ friendly_discounting_error <- function(msg) {
     )
   )
 
+  # beezdiscounting wraps its abort messages across lines with runs of padding spaces, so the
+  # raw text looks like "Response length\n      not equal to 27\n      for subjectid: 1".
+  # Matching that with fixed = TRUE against a flat pattern never succeeded, which is why every
+  # one of these translations silently fell through to the generic fallback in production.
+  # Flatten the whitespace before matching; keep the original for the fallback message.
+  flattened <- gsub("[[:space:]]+", " ", trimws(msg))
+
   for (p in patterns) {
-    if (grepl(p$pattern, msg, fixed = TRUE)) return(p$friendly)
+    if (grepl(p$pattern, flattened, fixed = TRUE)) return(p$friendly)
   }
 
   paste0("An error occurred during scoring: ", msg)
@@ -79,6 +133,8 @@ format_mcq_results <- function(results) {
 #'   and summary (summary statistics)
 #' @export
 score_and_format_mcq <- function(data, imputation = "none", trans = "none") {
+  check_mcq_item_counts(data)
+
   imp <- resolve_imputation(imputation)
 
   calc_results <- score_mcq27(
