@@ -22,10 +22,17 @@ box::use(
 #             names() and req()s a non-empty result. CLOSED; guards pinned here.
 #
 #   abc75312  startup "argument is of length zero"
-#             The investigation states the cause is UNKNOWN. Last occurrence
-#             2026-03-27. No reproduction, so no test and no speculative req().
-#             CLOSED as unreproducible - see the handoff: "Reproduce it or drop
-#             it; do not guess at a req()."
+#             NOT closed - it turned out to be REAL and is fixed on
+#             fix/file-input-startup-guard. I had it queued for closure as
+#             unreproducible; Codex reproduced it. file_input.R's observer runs at
+#             session start with input$upload NULL, so the size check compared a
+#             zero-length numeric and aborted, on every session start. Covered by
+#             the file-input startup test file.
+#
+#             The lesson: "the investigation says the cause is unknown" is not
+#             evidence of absence. Two of these three closed because the guard is
+#             provably present in the source; this one had no such proof, and I was
+#             about to close it on the strength of the triage's own uncertainty.
 
 describe("undefined columns selected - the guards that prevent it", {
   it("compute_systematic_criteria returns NULL when the id/x/y columns are absent", {
