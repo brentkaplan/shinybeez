@@ -162,6 +162,18 @@ server <- function(
 
       } else if (type() == "5.5 Trial Delay Discounting") {
         rhino$log$info("Calculating 5.5 Trial DD")
+        # Gate on the format BEFORE scoring. compute_five_trial_dd() also guards,
+        # but an abort there would be routed through friendly_discounting_error()
+        # and prefixed with the generic "An error occurred during scoring:"
+        # fallback, burying a message that is already specific.
+        fmt_chk <- five_trial$validate_five_trial(data_r$data_d)
+        if (is.character(fmt_chk)) {
+          telemetry_utils$track_validation(
+            "discounting", "failure", "five_trial_format", fmt_chk, session
+          )
+          shiny$showNotification(fmt_chk, type = "error", duration = NULL)
+          return(list())
+        }
         telemetry_utils$track_configuration(
           "discounting",
           config = list(type = "5.5_DD"),
@@ -207,6 +219,14 @@ server <- function(
         res$results <- dd_out
       } else if (type() == "5.5 Trial Probability Discounting") {
         rhino$log$info("Calculating 5.5 Trial PD")
+        fmt_chk <- five_trial$validate_five_trial(data_r$data_d)
+        if (is.character(fmt_chk)) {
+          telemetry_utils$track_validation(
+            "discounting", "failure", "five_trial_format", fmt_chk, session
+          )
+          shiny$showNotification(fmt_chk, type = "error", duration = NULL)
+          return(list())
+        }
         telemetry_utils$track_configuration(
           "discounting",
           config = list(type = "5.5_PD"),
