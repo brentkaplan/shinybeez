@@ -202,6 +202,42 @@ reshape_data <- function(dat, type = "demand") {
   }
 }
 
+#' Shape a discounting upload into the frame the analysis functions expect
+#'
+#' Mirrors the branches the discounting navpanel used to inline, with one correction: a
+#' long `id`/`x`/`y` upload is now numeric-coerced like every other shape. Previously it fell
+#' into a bare `else` that stored the frame verbatim, so a character `y` (quoted numbers, a
+#' blank, a stray text cell) reached `beezdiscounting::check_unsystematic`, which does
+#' arithmetic on it — production errors 2a0fc474 / 46abab75 / 11dc772e.
+#'
+#' The coercion is shape-gated on purpose. The final branch is a catch-all that also receives
+#' Qualtrics 5.5-Trial uploads (ResponseId / I1-I31, no id/x/y at all); those must pass
+#' through untouched.
+#'
+#' @param dat Data frame as uploaded.
+#' @return Data frame ready for the discounting analyses.
+#' @export
+prepare_discounting_data <- function(dat) {
+  cols <- colnames(dat)
+
+  # 28 columns is the MCQ shape.
+  if (ncol(dat) == 28) {
+    return(reshape_data(dat, type = "discounting"))
+  }
+
+  # id-first and wide: reshape to long, then coerce.
+  if (identical(cols[1], "id") && ncol(dat) > 3) {
+    return(retype_data(reshape_data(dat, type = "discounting")))
+  }
+
+  # Already long. This is the branch that used to skip coercion entirely.
+  if (all(c("id", "x", "y") %in% cols)) {
+    return(retype_data(dat))
+  }
+
+  dat
+}
+
 #' @export
 retype_data <- function(dat) {
   if (!is.numeric(dat$x)) {
