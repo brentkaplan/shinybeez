@@ -120,7 +120,12 @@ server <- function(
       data = NULL,
       output = NULL,
       results = NULL,
-      plot = NULL
+      base_plot = NULL,
+      plot = NULL,
+      # The group levels the base plot was actually built with (NULL when it has no colour
+      # aesthetic). The colour scale is derived from THIS, never from the live upload —
+      # see resolve_group_scale() and production error bce0bb1d.
+      plot_group_levels = NULL
     )
 
     shiny$observe({
@@ -239,9 +244,19 @@ server <- function(
       )
     })
 
+    # Drop every plot artefact. Must run before ANY early return from the plot observer:
+    # a stale base_plot left behind by a bailed-out run still satisfies the decorator's
+    # req(), which then colours it against the *new* data — that is bce0bb1d.
+    clear_plot_state <- function() {
+      res$base_plot <- NULL
+      res$plot <- NULL
+      res$plot_group_levels <- NULL
+    }
+
     shiny$observe({
       if (groupcol()) {
         if (!"group" %in% colnames(data_r$data_d)) {
+          clear_plot_state()
           shiny$showNotification(
             "You have selected to group the data but there is no
             'group' column in the data.",
@@ -263,7 +278,7 @@ server <- function(
         })
       }
       analysis_type <- agg()
-      res$base_plot <- NULL
+      clear_plot_state()
       pt_shape <- 21
       pt_fill <- "white"
       pt_size <- 3
@@ -271,6 +286,14 @@ server <- function(
       # Only create plots if we have valid output from FitCurves
       if (is.null(res$output)) {
         return()
+      }
+
+      # Every branch below that maps colour = group records the levels it used; the branches
+      # that don't map colour leave this NULL (set by clear_plot_state above), so the
+      # decorator adds no scale at all.
+      is_coloured_by_group <- groupcol() && !analysis_type %in% "Ind"
+      if (is_coloured_by_group) {
+        res$plot_group_levels <- unique(data_r$data_d$group)
       }
 
       if (analysis_type %in% c("Mean")) {
@@ -388,17 +411,17 @@ server <- function(
           ggplot2$scale_y_continuous()
       }
 
-      if (groupcol()) {
+      # Colour from the levels the base plot was BUILT with, not from the live upload. The
+      # two can disagree: this observer also fires on Update Plot and the dark-mode toggle,
+      # by which time the user may have uploaded different data without re-running Calculate.
+      # resolve_group_scale() returns NULL when there is nothing to colour, and adding NULL
+      # to a ggplot is a no-op — so this is safe to add unconditionally.
+      if (!is.null(res$plot_group_levels)) {
         res$plot <- res$plot +
           ggplot2$guides(
             color = ggplot2$guide_legend(title = input$legend_title)
-          )
-        # Apply discrete palette for groups
-        n_groups <- length(unique(data_r$data_d$group))
-        res$plot <- res$plot +
-          ggplot2$scale_color_manual(
-            values = utils$get_palette_colors(input$palette, n_groups)
-          )
+          ) +
+          utils$resolve_group_scale(res$plot_group_levels, input$palette)
       }
 
       if (agg() != "Ind" || length(unique(data_r$data_d$id)) > 51) {
