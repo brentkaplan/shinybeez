@@ -138,6 +138,33 @@ describe("validate_five_trial", {
     expect_match(res, "duplicate", ignore.case = TRUE)
   })
 
+  it("rejects duplicate column names that differ only by case", {
+    # A file with both "ResponseId" and "responseid" survives vroom; the uploader
+    # lowercases both, case restoration then makes two ResponseId columns, and
+    # calc_dd aborts with "Names must be unique".
+    dat <- as_uploaded(qualtrics_fixture("dd"))
+    dat <- cbind(dat, responseid = dat$responseid)
+
+    res <- five_trial$validate_five_trial(dat)
+
+    expect_type(res, "character")
+    expect_match(res, "duplicate column name", ignore.case = TRUE)
+  })
+
+  it("rejects non-numeric Timing values", {
+    # One junk entry makes vroom read the whole column as character while its
+    # neighbours stay double; pivot_longer() then cannot combine the two types.
+    dat <- as_uploaded(qualtrics_fixture("dd"))
+    col <- grep("timing_first click", names(dat), fixed = TRUE)[1]
+    dat[[col]] <- as.character(dat[[col]])
+    dat[[col]][1] <- "not-a-number"
+
+    res <- five_trial$validate_five_trial(dat)
+
+    expect_type(res, "character")
+    expect_match(res, "non-numeric", fixed = TRUE)
+  })
+
   it("rejects a blank ResponseId", {
     dat <- as_uploaded(qualtrics_fixture("dd"))
     dat$responseid[1] <- NA

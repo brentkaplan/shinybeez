@@ -62,6 +62,19 @@ restore_qualtrics_case <- function(data) {
 validate_five_trial <- function(data) {
   present <- tolower(names(data))
 
+  # A file carrying both "ResponseId" and "responseid" survives vroom, and the
+  # uploader lowercases both to the same name. Restoring the case would then
+  # produce two ResponseId columns and calc_dd aborts with "Names must be unique".
+  # The same applies to any duplicated item or timing header.
+  duplicate_headers <- unique(present[duplicated(present)])
+  if (length(duplicate_headers) > 0) {
+    return(paste0(
+      "The 5.5-Trial data have duplicate column name(s): ",
+      paste(utils$head(duplicate_headers, 5), collapse = ", "),
+      ". Column names must be unique, ignoring case."
+    ))
+  }
+
   if (!"responseid" %in% present) {
     return(paste0(
       "This does not look like a Qualtrics 5.5-Trial export: the `ResponseId` ",
@@ -141,6 +154,31 @@ validate_five_trial <- function(data) {
       paste(unname(expected_measures[!measure_usable]), collapse = ", "),
       ". Export the Qualtrics survey with all four timing measures ",
       "(First Click, Last Click, Page Submit, Click Count)."
+    ))
+  }
+
+  # Timing values must be numeric. A single junk entry makes vroom read the whole
+  # column as character while its neighbours stay double, and timing_dd()'s
+  # pivot_longer() then aborts with "Can't combine <character> and <double>".
+  timing_cols <- which(grepl("timing", present, fixed = TRUE))
+  non_numeric <- names(data)[timing_cols][
+    !vapply(
+      timing_cols,
+      function(i) {
+        values <- data[[i]]
+        if (is.numeric(values)) return(TRUE)
+        observed <- values[!is.na(values)]
+        if (length(observed) == 0) return(TRUE)
+        !anyNA(suppressWarnings(as.numeric(as.character(observed))))
+      },
+      logical(1)
+    )
+  ]
+  if (length(non_numeric) > 0) {
+    return(paste0(
+      "These Timing column(s) contain non-numeric values: ",
+      paste(utils$head(non_numeric, 5), collapse = ", "),
+      ". Timing data must be numeric."
     ))
   }
 
