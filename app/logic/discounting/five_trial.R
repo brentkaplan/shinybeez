@@ -79,10 +79,40 @@ validate_five_trial <- function(data) {
     ))
   }
 
-  if (!any(grepl("timing", present, fixed = TRUE))) {
+  # beezdiscounting selects Attend-SS/Attend-LL by name; without them calc_dd
+  # aborts with "Column `Attend-SS` doesn't exist".
+  expected_attend <- c("attend-ll", "attend-ss")
+  missing_attend <- expected_attend[!expected_attend %in% present]
+  if (length(missing_attend) > 0) {
     return(paste0(
-      "The 5.5-Trial data have no Timing columns. Export the Qualtrics survey ",
-      "with timing data included (e.g. `I16-Timing_Page Submit`)."
+      "The 5.5-Trial data are missing the attention-check column(s): ",
+      paste(c("Attend-LL", "Attend-SS")[expected_attend %in% missing_attend],
+        collapse = ", "
+      ),
+      ". Please use the 5.5-Trial template from the welcome page."
+    ))
+  }
+
+  # timing_dd()/timing_pd() pivot every Timing column and then spread on the
+  # measure, so a partial set of measures produces a ragged frame rather than a
+  # clean abort. Require all four.
+  expected_measures <- c(
+    "timing_first click", "timing_last click",
+    "timing_page submit", "timing_click count"
+  )
+  missing_measures <- expected_measures[
+    !vapply(
+      expected_measures,
+      function(m) any(grepl(m, present, fixed = TRUE)),
+      logical(1)
+    )
+  ]
+  if (length(missing_measures) > 0) {
+    return(paste0(
+      "The 5.5-Trial data are missing Timing measure(s): ",
+      paste(missing_measures, collapse = ", "),
+      ". Export the Qualtrics survey with all four timing measures ",
+      "(First Click, Last Click, Page Submit, Click Count)."
     ))
   }
 

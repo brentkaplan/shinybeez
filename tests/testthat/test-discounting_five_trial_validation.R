@@ -1,5 +1,6 @@
 box::use(
   app/logic/discounting/five_trial,
+  app/logic/validate,
 )
 
 # Two defects in five_trial.R, both in the column-name handling:
@@ -28,9 +29,19 @@ qualtrics_fixture <- function(task = c("dd", "pd")) {
   utils::read.csv(path, check.names = FALSE)
 }
 
-# file_input.R lowercases and trims every column name before storing the frame.
+# Reproduce app/view/file_input.R's discounting path EXACTLY: lowercase the names,
+# then run the empty-column step - which must now SKIP Qualtrics/MCQ, because an
+# unanswered branch of the 5.5-trial adaptive tree is an entirely empty item
+# column and beezdiscounting still selects all of I1-I31 by name.
+#
+# An earlier version of this helper only lowercased. That omission is exactly why
+# these tests passed while the app could not score its own bundled template:
+# obliterate_empty_cols() strips 17 of the 31 DD item columns.
 as_uploaded <- function(dat) {
   colnames(dat) <- trimws(tolower(colnames(dat)))
+  if (!validate$preserves_empty_cols(dat)) {
+    dat <- validate$obliterate_empty_cols(dat)
+  }
   dat
 }
 
@@ -56,21 +67,40 @@ describe("validate_five_trial", {
     expect_match(res, "I31", fixed = TRUE)
   })
 
-  it("rejects a Qualtrics file with items but no timing columns", {
+  it("rejects a Qualtrics file with items and attention checks but no timing", {
     dat <- as.data.frame(
       c(
         list(responseid = c("r1", "r2")),
-        stats::setNames(
-          rep(list(c(1, 2)), 31),
-          paste0("i", 1:31)
-        )
-      )
+        stats::setNames(rep(list(c(1, 2)), 31), paste0("i", 1:31)),
+        stats::setNames(rep(list(c(1, 2)), 2), c("attend-ll", "attend-ss"))
+      ),
+      check.names = FALSE
     )
 
     res <- five_trial$validate_five_trial(dat)
 
     expect_type(res, "character")
     expect_match(res, "timing", ignore.case = TRUE)
+  })
+
+  it("rejects a file missing the attention checks", {
+    dat <- as_uploaded(qualtrics_fixture("dd"))
+    dat <- dat[, !names(dat) %in% c("attend-ss", "attend-ll"), drop = FALSE]
+
+    res <- five_trial$validate_five_trial(dat)
+
+    expect_type(res, "character")
+    expect_match(res, "Attend-SS", fixed = TRUE)
+  })
+
+  it("rejects a file missing some of the four Timing measures", {
+    dat <- as_uploaded(qualtrics_fixture("dd"))
+    dat <- dat[, !grepl("timing_click count", names(dat), fixed = TRUE), drop = FALSE]
+
+    res <- five_trial$validate_five_trial(dat)
+
+    expect_type(res, "character")
+    expect_match(res, "Click Count", ignore.case = TRUE)
   })
 
   it("accepts the real DD template as it arrives from the uploader", {
@@ -82,6 +112,28 @@ describe("validate_five_trial", {
   it("accepts the real PD template as it arrives from the uploader", {
     expect_true(
       five_trial$validate_five_trial(as_uploaded(qualtrics_fixture("pd")))
+    )
+  })
+})
+
+describe("empty columns are structural for Qualtrics and MCQ", {
+  it("keeps every item column of the DD template through the upload path", {
+    # obliterate_empty_cols() would strip 17 of the 31 item columns - unanswered
+    # branches of the adaptive tree - and beezdiscounting selects all 31 by name.
+    uploaded <- as_uploaded(qualtrics_fixture("dd"))
+
+    items <- grep("^i[0-9]+$", names(uploaded), value = TRUE)
+    expect_equal(length(items), 31)
+  })
+
+  it("flags Qualtrics and MCQ frames as preserving empty columns", {
+    expect_true(validate$preserves_empty_cols(data.frame(responseid = "r1")))
+    expect_true(validate$preserves_empty_cols(data.frame(subjectid = 1)))
+  })
+
+  it("still obliterates empty columns for ordinary discounting data", {
+    expect_false(
+      validate$preserves_empty_cols(data.frame(id = "a", x = 1, y = 2))
     )
   })
 })

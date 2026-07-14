@@ -152,6 +152,20 @@ check_data <- function(dat, type = "demand") {
   }
 }
 
+#' Does this discounting format use all-NA columns structurally?
+#'
+#' Qualtrics 5.5-Trial: an unanswered branch of the adaptive tree is an entirely
+#' empty item column, but beezdiscounting still selects all of I1-I31 by name.
+#' MCQ: an all-NA question would break the `ncol(dat) == 28` format detection.
+#' For both, dropping empty columns destroys structure rather than noise.
+#'
+#' @param dat Data frame with lowercased column names
+#' @return TRUE if empty columns must be preserved
+#' @export
+preserves_empty_cols <- function(dat) {
+  any(c("responseid", "subjectid") %in% colnames(dat))
+}
+
 #' @export
 obliterate_empty_cols <- function(dat) {
   # figure out which columns are empty

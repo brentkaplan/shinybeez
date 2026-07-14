@@ -167,8 +167,16 @@ server <- function(id, type = "demand") {
         }
         # Normalize column names (lowercase, trim whitespace)
         colnames(tmp) <- tryCatch(trimws(tolower(colnames(tmp))), error = function(e) colnames(tmp))
-        # Remove phantom columns (all-NA) before validation
-        tmp <- validate$obliterate_empty_cols(tmp)
+        # Remove phantom columns (all-NA) before validation - but NOT for the
+        # formats whose all-NA columns are STRUCTURAL. In a Qualtrics 5.5-Trial
+        # export an unanswered branch of the adaptive tree is an entirely empty
+        # item column, and beezdiscounting still needs all of I1-I31 present;
+        # obliterating them left calc_dd unable to select I3/I7/I9/... and the
+        # app could not score its own bundled template. MCQ is the same: dropping
+        # an all-NA question would break the ncol == 28 format detection below.
+        if (!validate$preserves_empty_cols(tmp)) {
+          tmp <- validate$obliterate_empty_cols(tmp)
+        }
 
         chk_data <- validate$check_data(tmp, type = "discounting")
         if (is.character(chk_data)) {
