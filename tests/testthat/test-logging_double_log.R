@@ -23,7 +23,8 @@ local_spy_on_error_log <- function(counter, env = parent.frame()) {
   ns <- environment(logging_utils$with_performance_logging)
   original <- get("log_error_enhanced", envir = ns, inherits = FALSE)
 
-  if (bindingIsLocked("log_error_enhanced", ns)) {
+  was_locked <- bindingIsLocked("log_error_enhanced", ns)
+  if (was_locked) {
     unlockBinding("log_error_enhanced", ns)
   }
   assign(
@@ -35,7 +36,15 @@ local_spy_on_error_log <- function(counter, env = parent.frame()) {
     envir = ns
   )
 
-  withr::defer(assign("log_error_enhanced", original, envir = ns), envir = env)
+  # restore the VALUE and the locked state - leaving the binding unlocked would
+  # quietly weaken the module for every test that runs afterwards
+  withr::defer(
+    {
+      assign("log_error_enhanced", original, envir = ns)
+      if (was_locked) lockBinding("log_error_enhanced", ns)
+    },
+    envir = env
+  )
   invisible(NULL)
 }
 
