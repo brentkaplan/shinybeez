@@ -46,6 +46,26 @@ describe("check_discounting_data - rejects malformed schemas (Finding 1)", {
     res <- validate$check_data(df, type = "discounting")
     expect_type(res, "character")
   })
+
+  it("rejects a 28-column MCQ-wide frame whose subjectid is not first", {
+    # wide_to_long_mcq() pivots columns 2 onward and treats column 1 as the
+    # subject id, so subjectid must be first or the reshape is silently wrong.
+    df <- as.data.frame(matrix(1, nrow = 2, ncol = 28))
+    colnames(df) <- c("foo", "subjectid", as.character(1:26))
+    res <- validate$check_data(df, type = "discounting")
+    expect_type(res, "character")
+  })
+
+  it("rejects a reordered MCQ-long frame (questionid, subjectid, response)", {
+    # The uploader classifies MCQ-long with an ordered identical() check; a
+    # reordered frame would otherwise pass validation and be routed to the
+    # standard-data branch, whose NA-row dropping defeats MCQ imputation.
+    df <- data.frame(
+      questionid = 1:3, subjectid = rep(1, 3), response = c(1, 2, 1)
+    )
+    res <- validate$check_data(df, type = "discounting")
+    expect_type(res, "character")
+  })
 })
 
 describe("check_discounting_data - still accepts every valid shape", {

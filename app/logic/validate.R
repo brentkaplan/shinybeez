@@ -193,14 +193,20 @@ check_discounting_data <- function(dat) {
   cols <- colnames(dat)
 
   if ("subjectid" %in% cols) {
-    # 27-Item MCQ: wide (subjectid + 27 items = 28 cols) or long (exactly
-    # subjectid, questionid, response).
-    if (ncol(dat) == 28) return(TRUE)
-    mcq_long_cols <- c("subjectid", "questionid", "response")
-    if (ncol(dat) == 3 && setequal(cols, mcq_long_cols)) return(TRUE)
+    # 27-Item MCQ. Match the downstream contracts exactly, so nothing that
+    # passes here is later misclassified or misreshaped:
+    #   * wide: subjectid FIRST + 27 items (28 cols). wide_to_long_mcq() pivots
+    #     columns 2 onward and treats column 1 as the subject id.
+    #   * long: subjectid, questionid, response IN ORDER. file_input.R classifies
+    #     MCQ-long with an ordered identical() check; a reordered frame would pass
+    #     a looser test here and then fall into the standard-data branch, whose
+    #     NA-row dropping defeats MCQ imputation.
+    if (ncol(dat) == 28 && identical(cols[1], "subjectid")) return(TRUE)
+    if (identical(cols, c("subjectid", "questionid", "response"))) return(TRUE)
     return(paste0(
-      "27-Item MCQ data must be either 28 columns wide (subjectid + 27 items) ",
-      "or exactly subjectid, questionid, response (long)."
+      "27-Item MCQ data must be either 28 columns wide with subjectid first ",
+      "(subjectid + 27 items) or exactly subjectid, questionid, response ",
+      "(long, in that order)."
     ))
   }
 
