@@ -18,12 +18,82 @@ validate_condition <- function(condition, msg) {
   TRUE
 }
 
+#' Classify a demand frame as wide or long
+#'
+#' The format is a property of the column NAMES, never of the rows. Deciding it
+#' from id-uniqueness (the old heuristic) is unsafe: `check_data()` runs before
+#' `remove_na_rows()` while `rename_cols()`/`reshape_data()` run on the stored,
+#' post-removal frame (file_input.R:95/:111/:135). Dropping rows can make
+#' duplicated ids unique, flipping an already-validated long file into the wide
+#' branch, where `parse_number()` turns the literal headers `x`/`y` into `NA` and
+#' the frame ends up with columns named "NA".
+#'
+#' @param dat Data frame
+#' @return "long" or "wide"
+#' @export
+demand_format <- function(dat) {
+  nms <- colnames(dat)
+  if (identical(nms, c("id", "x", "y")) ||
+        identical(nms, c("id", "group", "x", "y"))) {
+    return("long")
+  }
+  "wide"
+}
+
+#' Positions of the price columns in a wide demand frame
+#' @param dat Data frame
+#' @return Integer vector, empty if there are no price columns
+price_col_index <- function(dat) {
+  start <- if ("group" %in% colnames(dat)) 3L else 2L
+  n <- length(colnames(dat))
+  if (n < start) return(integer(0))
+  seq.int(start, n)
+}
+
+#' Validate the price headers of a wide demand frame
+#'
+#' Single source of truth for header validation, so the exported `rename_cols()`
+#' and `reshape_data()` cannot be called directly to bypass the guard.
+#'
+#' @param dat Data frame in wide format
+#' @return TRUE or character error message naming the offending headers
+#' @export
+check_price_headers <- function(dat) {
+  idx <- price_col_index(dat)
+  if (length(idx) == 0) {
+    return("There are no price columns in the data.")
+  }
+
+  headers <- colnames(dat)[idx]
+  # An unparseable header is an expected, handled condition here - the warning
+  # readr emits for it is noise, so it is suppressed at the parse call only.
+  parsed <- suppressWarnings(readr$parse_number(headers))
+
+  bad <- headers[is.na(parsed)]
+  if (length(bad) > 0) {
+    return(paste0(
+      "The column names are not numeric. Could not parse these price headers: ",
+      paste0("\"", bad, "\"", collapse = ", "), "."
+    ))
+  }
+
+  dupes <- unique(parsed[duplicated(parsed)])
+  if (length(dupes) > 0) {
+    return(paste0(
+      "Duplicate price columns. These headers all resolve to the same price: ",
+      paste0("\"", headers[parsed %in% dupes], "\"", collapse = ", "),
+      ". Please give each price a single column."
+    ))
+  }
+
+  TRUE
+}
+
 #' Validate demand data (wide or long format)
 #' @param dat Data frame
 #' @return TRUE or character error message
 check_demand_data <- function(dat) {
-  if (length(unique(dat$id)) == length(dat$id)) {
-    # Wide format
+  if (demand_format(dat) == "wide") {
     if ("group" %in% colnames(dat)) {
       chk <- validate_condition(
         all(colnames(dat)[1:2] == c("id", "group")),
@@ -31,42 +101,57 @@ check_demand_data <- function(dat) {
       )
       if (is.character(chk)) return(chk)
       dat <- dplyr$relocate(dat, group, .after = id)
-      chk <- validate_condition(
-        all(!is.na(
-          readr$parse_number(colnames(dat)[3:length(colnames(dat))])
-        )),
-        "The column names are not numeric"
-      )
-      if (is.character(chk)) return(chk)
     } else {
       chk <- validate_condition(
         colnames(dat)[1] == "id",
         "The first column is not `id`"
       )
       if (is.character(chk)) return(chk)
-      chk <- validate_condition(
-        all(!is.na(
-          readr$parse_number(colnames(dat)[2:length(colnames(dat))])
-        )),
-        "The column names are not numeric"
-      )
-      if (is.character(chk)) return(chk)
     }
-  } else {
-    # Long format
-    if ("group" %in% colnames(dat)) {
-      chk <- validate_condition(
-        all(colnames(dat) == c("id", "group", "x", "y")),
-        "Check colnames `id`, `group`, `x`, and `y` in data"
-      )
-      if (is.character(chk)) return(chk)
-    } else {
-      chk <- validate_condition(
-        all(colnames(dat) == c("id", "x", "y")),
-        "Check colnames `id`, `x`, and `y` are ordered in  data"
-      )
-      if (is.character(chk)) return(chk)
+    chk <- check_price_headers(dat)
+    if (is.character(chk)) return(chk)
+  }
+  TRUE
+}
+
+#' Check every id retains enough price points to fit a demand curve
+#'
+#' Must run on the STORED, post-`remove_na_rows()` frame. A single observation per
+#' participant cannot support an individual curve - the systematicity code divides
+#' by `nrow(adf) - 1` and by a zero price range - so accepting it only defers the
+#' failure into beezdemand.
+#'
+#' @param dat Long-format demand data frame
+#' @return TRUE or character error message naming the offending ids
+#' @export
+check_demand_sufficiency <- function(dat) {
+  if (demand_format(dat) == "wide") {
+    # One price column gives every participant a single point once reshaped.
+    if (length(price_col_index(dat)) < 2) {
+      return(paste0(
+        "The data have fewer than two price columns. Each participant needs at ",
+        "least two price points to fit a demand curve."
+      ))
     }
+    return(TRUE)
+  }
+
+  # Count distinct PARSED prices, mirroring retype_data(): "$1" and "1.00" are
+  # two raw strings but one price, and would otherwise be counted as two.
+  prices <- dat$x
+  if (!is.numeric(prices)) {
+    prices <- suppressWarnings(readr$parse_number(as.character(prices)))
+  }
+  distinct_prices <- tapply(
+    prices, dat$id, function(v) length(unique(v[!is.na(v)]))
+  )
+  short <- names(distinct_prices)[distinct_prices < 2]
+  if (length(short) > 0) {
+    return(paste0(
+      "After removing missing values these ids have fewer than two distinct ",
+      "price points: ", paste0("\"", short, "\"", collapse = ", "),
+      ". Each participant needs at least two price points to fit a demand curve."
+    ))
   }
   TRUE
 }
@@ -163,28 +248,32 @@ obliterate_empty_cols <- function(dat) {
 
 #' @export
 rename_cols <- function(dat) {
-  # check if dat is wider than it is long
-  if (length(unique(dat$id)) == length(dat$id)) {
-    lcols <- length(colnames(dat))
-    if ("group" %in% colnames(dat)) {
-      dat <- dplyr$relocate(dat, group, .after = id)
-      colnames(dat)[3:lcols] <- readr$parse_number(colnames(dat)[3:lcols])
-    } else {
-      colnames(dat)[2:lcols] <- readr$parse_number(colnames(dat)[2:lcols])
-    }
+  if (demand_format(dat) == "long") return(dat)
+
+  chk <- check_price_headers(dat)
+  if (is.character(chk)) stop(chk, call. = FALSE)
+
+  if ("group" %in% colnames(dat)) {
+    dat <- dplyr$relocate(dat, group, .after = id)
   }
+  idx <- price_col_index(dat)
+  colnames(dat)[idx] <- suppressWarnings(
+    readr$parse_number(colnames(dat)[idx])
+  )
   dat
 }
 
 #' @export
 reshape_data <- function(dat, type = "demand") {
   if (type == "demand") {
-    # check if dat is wider than it is long
-    if (length(unique(dat$id)) == length(dat$id)) {
-      pivot_demand_data(dat, format = "long", drop_na = FALSE)
-    } else {
-      dat
+    if (demand_format(dat) == "long") {
+      return(dat)
     }
+    # Guard here too: reshape_data() is exported and can be called without ever
+    # going through check_data(), which would hand an "NA" column to beezdemand.
+    chk <- check_price_headers(dat)
+    if (is.character(chk)) stop(chk, call. = FALSE)
+    pivot_demand_data(dat, format = "long", drop_na = FALSE)
   } else if (type == "discounting") {
     if (ncol(dat) == 28) {
       dat |>

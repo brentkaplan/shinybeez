@@ -132,6 +132,17 @@ server <- function(id, type = "demand") {
               duration = 8
             )
           }
+          # Re-check on the frame we are about to STORE. Dropping rows above can
+          # leave an id with too few price points to fit a curve; accepting it
+          # only defers the failure into beezdemand.
+          chk_enough <- validate$check_demand_sufficiency(tmp)
+          if (is.character(chk_enough)) {
+            telemetry_utils$track_validation(
+              "demand", "failure", "insufficient_price_points", chk_enough, session
+            )
+            shiny$showNotification(chk_enough, type = "error", duration = NULL)
+            return()
+          }
           session$userData$data$demand <- tmp
           telemetry_utils$track_data_upload(
             file_info = list(
