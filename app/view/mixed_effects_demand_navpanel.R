@@ -1486,29 +1486,42 @@ navpanel_server <- function(id, sidebar_reactives) {
       df_now <- data_to_analyze()
       cov_info <- build_covariate_modeling_info(df_now)
 
-      p <- session_logger$with_performance(
-        "mixed_effects_plot",
-        function() {
-          plot(
-            model_fit,
-            inv_fun = inv_transform_fun,
-            x_trans = input$plot_x_trans,
-            y_trans = input$plot_y_trans,
-            style = input$plot_style,
-            at = cov_info$at_list,
-            facet = aesthetics$facet_formula,
-            color_by = aesthetics$color,
-            linetype_by = aesthetics$linetype,
-            shape_by = aesthetics$shape,
-            show_observed = input$show_observed_points_plot,
-            show_pred = show_lines_arg,
-            title = input$plot_title,
-            subtitle = if (nzchar(input$plot_subtitle)) input$plot_subtitle else NULL,
-            x_lab = input$plot_xlab,
-            y_lab = input$plot_ylab
+      # The wrapper no longer records the error itself, so this call site - the
+      # only one of the 13 without its own handler - owns it. Re-raised, so the
+      # reactive behaves exactly as before.
+      p <- tryCatch(
+        session_logger$with_performance(
+          "mixed_effects_plot",
+          function() {
+            plot(
+              model_fit,
+              inv_fun = inv_transform_fun,
+              x_trans = input$plot_x_trans,
+              y_trans = input$plot_y_trans,
+              style = input$plot_style,
+              at = cov_info$at_list,
+              facet = aesthetics$facet_formula,
+              color_by = aesthetics$color,
+              linetype_by = aesthetics$linetype,
+              shape_by = aesthetics$shape,
+              show_observed = input$show_observed_points_plot,
+              show_pred = show_lines_arg,
+              title = input$plot_title,
+              subtitle = if (nzchar(input$plot_subtitle)) input$plot_subtitle else NULL,
+              x_lab = input$plot_xlab,
+              y_lab = input$plot_ylab
+            )
+          },
+          always_log = TRUE
+        ),
+        error = function(e) {
+          session_logger$error_enhanced(
+            paste("Mixed effects plot failed:", e$message),
+            error_object = e,
+            context = "mixed_effects_plot"
           )
-        },
-        always_log = TRUE
+          stop(e)
+        }
       )
 
       # Apply theme and styling using plotting module
