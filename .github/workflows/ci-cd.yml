@@ -197,8 +197,13 @@ jobs:
         key: ${{ secrets.PRODUCTION_SSH_KEY }}
         port: 22
         script: |
+          set -euo pipefail
           docker pull brentkaplan/shinybeez:develop
           docker images brentkaplan/shinybeez:develop --format "{{.ID}} {{.CreatedAt}}"
+          docker image prune -f
+          echo "Staging image refreshed. No ShinyProxy restart: shinybeez-develop has no pre-warmed seats, so"
+          echo "the next on-demand session launches from the new image (a shared-service restart would drop"
+          echo "production sessions in the shared JVM)."
 
   # Deploy to production for explicit releases only.
   deploy-production:
@@ -219,9 +224,32 @@ jobs:
         key: ${{ secrets.PRODUCTION_SSH_KEY }}
         port: 22
         script: |
+          set -euo pipefail
+          # Fail-closed guard using ShinyProxy's own recyclability signal (verified live on the droplet):
+          #   GET :9090/actuator/recyclable -> {"isRecyclable":<bool>,"activeConnections":<int>}
+          # A restart cycles the whole shared JVM (both specs), so proceed ONLY when ShinyProxy reports it is
+          # recyclable with zero active connections; otherwise abort so a live session is never dropped. This is
+          # authoritative and image-agnostic (a container/image filter misses containers on a now-dangling old
+          # image — the exact stale case). No response / not-safe both abort (fail-closed).
+          rec=$(curl -s -m 10 http://127.0.0.1:9090/actuator/recyclable 2>/dev/null || true)
+          echo "recyclable probe: ${rec:-<no response>}"
+          if ! printf '%s' "$rec" | grep -q '"isRecyclable":true' \
+             || ! printf '%s' "$rec" | grep -qE '"activeConnections":0([,}]|$)'; then
+            echo "Aborting restart: ShinyProxy not safely recyclable (need isRecyclable=true, activeConnections=0). Retry when idle."
+            exit 1
+          fi
           docker pull brentkaplan/shinybeez:latest
           docker images brentkaplan/shinybeez:latest --format "{{.ID}} {{.CreatedAt}}"
           docker image prune -f
+          systemctl restart shinyproxy
+          systemctl is-active --quiet shinyproxy || { echo "shinyproxy not active after restart"; exit 1; }
+          for i in $(seq 1 12); do
+            code=$(curl -fsS -o /dev/null -w "%{http_code}" --max-time 10 http://127.0.0.1:8080/ || echo 000)
+            echo "smoke attempt $i: ShinyProxy landing HTTP $code"
+            if [ "$code" = "200" ]; then break; fi
+            if [ "$i" = "12" ]; then echo "ShinyProxy did not return 200 within ~60s"; exit 1; fi
+            sleep 5
+          done
 
   # Deploy to shinyapps.io (parallel to ShinyProxy)
   deploy-shinyapps:
