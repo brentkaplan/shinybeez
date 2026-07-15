@@ -365,13 +365,14 @@ with_performance_logging <- function(
       )) *
         1000
 
-      log_error_enhanced(
-        error_message = glue::glue("Error in {operation_name}: {e$message}"),
-        error_object = e,
-        session_id = session_id,
-        context = operation_name
-      )
-
+      # Deliberately does NOT write an error record. This wrapper re-throws, and
+      # the caller's tryCatch logs the failure with far more context than the
+      # operation name alone. Logging here as well produced two type='error' rows
+      # per failure, with different messages, so one defect became two or three
+      # telemetry signatures and inflated the new-error count.
+      #
+      # The *_FAILED entry below is category='performance', not an error row, so
+      # a failure is still visible in the performance timeline.
       log_performance(
         operation_name = paste0(operation_name, "_FAILED"),
         duration_ms = duration_ms,

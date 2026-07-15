@@ -28,6 +28,25 @@ read_upload <- function(path, ext) {
   )
 }
 
+#' Size of an uploaded file in MB, or NA when nothing has been uploaded
+#'
+#' At session start `input$upload` is NULL. `NULL$size` is NULL, and
+#' `NULL / (1024 * 1024)` is `numeric(0)` - so the old inline
+#' `if (file_size_mb > max_size_mb)` aborted with "argument is of length zero"
+#' on every single session start (abc75312). Returning NA_real_ makes the
+#' comparison well-defined; the `req()` in the observer stops it being reached
+#' at all.
+#'
+#' @param upload The `input$upload` value (NULL before a file is chosen)
+#' @return File size in MB, or NA_real_ if there is no upload
+#' @export
+upload_size_mb <- function(upload) {
+  if (is.null(upload) || is.null(upload$size) || length(upload$size) != 1) {
+    return(NA_real_)
+  }
+  upload$size / (1024 * 1024)
+}
+
 #' @export
 ui <- function(id) {
   ns <- shiny$NS(id)
@@ -54,10 +73,16 @@ server <- function(id, type = "demand") {
     session_logger <- logging_utils$create_session_logger(session)
 
     shiny$observe({
+      # This observer runs once at session start, before any file exists. Without
+      # this req(), input$upload is NULL, input$upload$size / (1024 * 1024) is
+      # numeric(0), and `if (numeric(0) > 20)` aborts with "argument is of length
+      # zero" - abc75312, on every session start.
+      shiny$req(input$upload)
+
       # Reject files larger than 20 MB
       max_size_mb <- 20
-      file_size_mb <- input$upload$size / (1024 * 1024)
-      if (file_size_mb > max_size_mb) {
+      file_size_mb <- upload_size_mb(input$upload)
+      if (!is.na(file_size_mb) && file_size_mb > max_size_mb) {
         size_msg <- paste0(
           "File is too large (", round(file_size_mb, 1), " MB). ",
           "Maximum allowed size is ", max_size_mb, " MB."
@@ -132,6 +157,17 @@ server <- function(id, type = "demand") {
               duration = 8
             )
           }
+          # Re-check on the frame we are about to STORE. Dropping rows above can
+          # leave an id with too few price points to fit a curve; accepting it
+          # only defers the failure into beezdemand.
+          chk_enough <- validate$check_demand_sufficiency(tmp)
+          if (is.character(chk_enough)) {
+            telemetry_utils$track_validation(
+              "demand", "failure", "insufficient_price_points", chk_enough, session
+            )
+            shiny$showNotification(chk_enough, type = "error", duration = NULL)
+            return()
+          }
           session$userData$data$demand <- tmp
           telemetry_utils$track_data_upload(
             file_info = list(
@@ -167,8 +203,16 @@ server <- function(id, type = "demand") {
         }
         # Normalize column names (lowercase, trim whitespace)
         colnames(tmp) <- tryCatch(trimws(tolower(colnames(tmp))), error = function(e) colnames(tmp))
-        # Remove phantom columns (all-NA) before validation
-        tmp <- validate$obliterate_empty_cols(tmp)
+        # Remove phantom columns (all-NA) before validation - but NOT for the
+        # formats whose all-NA columns are STRUCTURAL. In a Qualtrics 5.5-Trial
+        # export an unanswered branch of the adaptive tree is an entirely empty
+        # item column, and beezdiscounting still needs all of I1-I31 present;
+        # obliterating them left calc_dd unable to select I3/I7/I9/... and the
+        # app could not score its own bundled template. MCQ is the same: dropping
+        # an all-NA question would break the ncol == 28 format detection below.
+        if (!validate$preserves_empty_cols(tmp)) {
+          tmp <- validate$obliterate_empty_cols(tmp)
+        }
 
         chk_data <- validate$check_data(tmp, type = "discounting")
         if (is.character(chk_data)) {

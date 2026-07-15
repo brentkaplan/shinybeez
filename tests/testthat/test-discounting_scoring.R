@@ -55,40 +55,35 @@ describe("resolve_imputation", {
     expect_false(result$random)
   })
 
-  it("returns the method name and FALSE random for 'mean'", {
-    result <- scoring$resolve_imputation("mean")
-    expect_equal(result$impute_method, "mean")
-    expect_false(result$random)
+  # These previously asserted that arbitrary strings ("mean", "median", "random", "Random",
+  # "RANDOM") were passed through unchanged. beezdiscounting accepts none/ggm/GGM/inn/INN and
+  # nothing else — every one of those values is rejected with
+  #   "Impute method must be one of none, ggm, GGM, inn, INN"
+  # which is production signature 1155c2d9, 21 events. The old expectations described a
+  # pass-through contract that could only ever end in that abort, so they documented the bug
+  # instead of catching it. resolve_imputation() now falls back to "none" for anything the
+  # downstream package will not accept.
+
+  it("falls back to 'none' for methods beezdiscounting does not accept", {
+    for (unsupported in c("mean", "median", "random", "Random", "RANDOM", "")) {
+      result <- scoring$resolve_imputation(unsupported)
+      expect_equal(result$impute_method, "none")
+      expect_false(result$random)
+    }
   })
 
-  it("returns 'median' and FALSE random for 'median'", {
-    result <- scoring$resolve_imputation("median")
-    expect_equal(result$impute_method, "median")
-    expect_false(result$random)
+  it("passes through the supported methods unchanged", {
+    for (supported in c("none", "ggm", "GGM", "inn", "INN")) {
+      result <- scoring$resolve_imputation(supported)
+      expect_equal(result$impute_method, supported)
+      expect_false(result$random)
+    }
   })
 
-  it("returns 'random' and TRUE random for 'random'", {
-    result <- scoring$resolve_imputation("random")
-    expect_equal(result$impute_method, "random")
+  it("splits the _random suffix into the method and the random flag", {
+    result <- scoring$resolve_imputation("INN_random")
+    expect_equal(result$impute_method, "INN")
     expect_true(result$random)
-  })
-
-  it("detects 'random' case-insensitively for 'Random'", {
-    result <- scoring$resolve_imputation("Random")
-    expect_equal(result$impute_method, "Random")
-    expect_true(result$random)
-  })
-
-  it("detects 'random' case-insensitively for 'RANDOM'", {
-    result <- scoring$resolve_imputation("RANDOM")
-    expect_equal(result$impute_method, "RANDOM")
-    expect_true(result$random)
-  })
-
-  it("passes through non-random methods unchanged", {
-    result <- scoring$resolve_imputation("ggm")
-    expect_equal(result$impute_method, "ggm")
-    expect_false(result$random)
   })
 
   it("always returns a list with exactly two named elements", {

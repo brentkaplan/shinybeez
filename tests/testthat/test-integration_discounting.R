@@ -140,6 +140,16 @@ describe("Discounting - 5.5-Trial Delay Discounting (full)", {
     wait_for_output(app, result_id, timeout_ms = 45000)
     html <- app$get_html(".datatables")
     expect_true(any(grepl("<td", html, fixed = TRUE)))
+
+    # Journey 8 regression guard (obliterate_empty_cols): before the fix,
+    # obliterate_empty_cols() deleted 17 of the 31 item columns and calc_dd
+    # could not score the bundled template at all. A bare "<td exists" check is
+    # too weak - a partial or empty result still has <td>. Pin the exact scored
+    # row count. The raw data table shows 4 respondents ("of 4 entries"), so
+    # "of 22 entries" is unique to the scored results table.
+    wait_for_result_rows(app, result_id, "of 22 entries")
+    results_html <- app$get_html(paste0("#", result_id))
+    expect_true(any(grepl("of 22 entries", results_html, fixed = TRUE)))
   })
 
   withr::defer(
@@ -175,6 +185,13 @@ describe("Discounting - 5.5-Trial Probability Discounting (full)", {
     wait_for_output(app, result_id, timeout_ms = 45000)
     html <- app$get_html(".datatables")
     expect_true(any(grepl("<td", html, fixed = TRUE)))
+
+    # Journey 8 regression guard (obliterate_empty_cols): PD scores 21 rows from
+    # the bundled template. See the DD test above for why the row count, not a
+    # bare "<td", is the meaningful assertion.
+    wait_for_result_rows(app, result_id, "of 21 entries")
+    results_html <- app$get_html(paste0("#", result_id))
+    expect_true(any(grepl("of 21 entries", results_html, fixed = TRUE)))
   })
 
   withr::defer(

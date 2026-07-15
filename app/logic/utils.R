@@ -126,6 +126,30 @@ get_palette_colors <- function(name = "Codedbx", n = 2L) {
   }
 }
 
+#' Build the discrete colour scale for a plot's group levels
+#'
+#' Callers must pass the levels the plot was *actually built with*, never the levels of
+#' whatever data happens to be loaded now. Deriving the colour count from live data while
+#' the plot was built from an earlier dataset is what produced production error bce0bb1d:
+#' "Insufficient values in manual scale. 3 needed but only 0 provided."
+#'
+#' @param levels Character/factor vector of the group levels the plot was built with, or
+#'   NULL when the plot has no colour aesthetic. NA levels are dropped: ggplot2 colours
+#'   NA via `na.value`, not from the manual palette.
+#' @param palette_name Character palette name, passed to [get_palette_colors()].
+#' @return A ggplot2 discrete colour scale, or NULL when there is nothing to colour.
+#'   NULL added to a ggplot is a no-op, so callers can add the result unconditionally.
+#' @export
+resolve_group_scale <- function(levels, palette_name = "Codedbx") {
+  levels <- unique(levels[!is.na(levels)])
+  if (length(levels) == 0L) {
+    return(NULL)
+  }
+  ggplot2$scale_colour_manual(
+    values = get_palette_colors(palette_name, length(levels))
+  )
+}
+
 # TRUE when a colour is missing (NULL -> the geom default, which is black for
 # lines/points/paths) or a dark, near-neutral tone that would vanish on the
 # dark canvas. Saturated hues (the brand palette, a red fit line, a blue

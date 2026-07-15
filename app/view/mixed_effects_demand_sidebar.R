@@ -308,7 +308,7 @@ sidebar_ui <- function(id) {
 #' @export
 sidebar_server <- function(id, data_reactive) {
   shiny$moduleServer(id, function(input, output, session) {
-    ns <- session$NS
+    ns <- session$ns
 
     # Create session-specific logger
     session_logger <- logging_utils$create_session_logger(session)

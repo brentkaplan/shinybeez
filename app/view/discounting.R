@@ -202,23 +202,9 @@ navpanel_server <- function(id) {
 
     shiny$observe({
       shiny$req(session$userData$data$discounting)
-      if (ncol(session$userData$data$discounting) == 28) {
-        data_r$data_d <- validate$reshape_data(
-          session$userData$data$discounting,
-          type = "discounting"
-        )
-      } else if (
-        colnames(session$userData$data$discounting)[1] == "id" &
-          ncol(session$userData$data$discounting) > 3
-      ) {
-        data_r$data_d <- validate$reshape_data(
-          session$userData$data$discounting,
-          type = "discounting"
-        ) |>
-          validate$retype_data(dat = _)
-      } else {
-        data_r$data_d <- session$userData$data$discounting
-      }
+      data_r$data_d <- validate$prepare_discounting_data(
+        session$userData$data$discounting
+      )
     })
 
     # Show empty state or data content

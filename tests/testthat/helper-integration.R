@@ -130,6 +130,23 @@ wait_for_datatable <- function(app, timeout_ms = 15000) {
   app$wait_for_idle(duration = 500, timeout = timeout_ms)
 }
 
+wait_for_result_rows <- function(app, result_id, entries_text, timeout_ms = 20000) {
+  # Wait until the DataTables info line inside `#result_id` reports the given
+  # "of N entries" text. renderDT(server = FALSE) initialises DataTables in the
+  # browser a beat after Shiny goes idle, so wait_for_output() alone can return
+  # before the info line exists. Scope to the results container so the raw data
+  # table's own info line ("of 4 entries") can never satisfy this.
+  js <- sprintf(
+    paste0(
+      "(function(){var c=document.getElementById('%s');",
+      "if(!c)return false;var e=c.querySelector('.dataTables_info');",
+      "return !!(e && e.innerText.indexOf('%s')>=0);})()"
+    ),
+    result_id, entries_text
+  )
+  app$wait_for_js(js, timeout = timeout_ms)
+}
+
 wait_for_output <- function(app, output_id, timeout_ms = 15000) {
   # Use idle-based detection: wait until Shiny has been idle for 1s.
   # More robust than JS element checks for outputs wrapped in renderUI
