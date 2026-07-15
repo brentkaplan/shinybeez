@@ -33,5 +33,5 @@ runs instead of leaving them waiting until GitHub expires them.
 
 Every explicit production run publishes its tested image as `latest` before the
 approval gate. The ShinyProxy deployment then pulls that exact release image.
-Release tags should still identify commits already merged into `main` so source
-history and release history remain aligned.
+Release tags should identify commits already merged into `main` so source history
+and release history remain aligned.
