@@ -73,4 +73,48 @@ describe("telemetry_utils", {
       expect_equal(fmls, c("export_type", "module", "file_format", "row_count", "session"))
     })
   })
+
+  describe("init_telemetry app_name (env tagging)", {
+    # Enable telemetry against a throwaway SQLite DB, set SHINYBEEZ_ENV, and read back the
+    # app_name the constructed Telemetry object carries (it is written onto every event_log row).
+    init_with_env <- function(shinybeez_env) {
+      # Reset the cached telemetry object after the test so it does not leak into siblings
+      # (the disabled path in init_telemetry() nulls the cache).
+      withr::defer(
+        withr::with_envvar(
+          # R_CONFIG_ACTIVE="default" so the disabled path fires regardless of ambient profile
+          # (the production/development profiles hard-code telemetry enabled, which would re-init the cache).
+          c(R_CONFIG_ACTIVE = "default", TELEMETRY_ENABLED = "FALSE"),
+          telemetry_utils$init_telemetry()
+        ),
+        envir = parent.frame()
+      )
+      withr::with_envvar(
+        c(
+          R_CONFIG_ACTIVE = "default",
+          TELEMETRY_ENABLED = "TRUE",
+          TELEMETRY_STORAGE = "sqlite",
+          TELEMETRY_DB_PATH = tempfile(fileext = ".sqlite"),
+          SHINYBEEZ_ENV = shinybeez_env
+        ),
+        telemetry_utils$init_telemetry()
+      )
+    }
+
+    it("tags app_name with SHINYBEEZ_ENV when set", {
+      tel <- init_with_env("develop")
+      expect_false(is.null(tel))
+      expect_equal(tel$app_name, "develop")
+    })
+
+    it("defaults app_name to 'production' when SHINYBEEZ_ENV is unset", {
+      tel <- init_with_env(NA) # NA => with_envvar unsets the variable
+      expect_equal(tel$app_name, "production")
+    })
+
+    it("defaults app_name to 'production' when SHINYBEEZ_ENV is set but empty", {
+      tel <- init_with_env("") # set-but-empty must still default (Sys.getenv default only fires when unset)
+      expect_equal(tel$app_name, "production")
+    })
+  })
 })

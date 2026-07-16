@@ -23,6 +23,7 @@ init_telemetry <- function() {
 
   if (!.telemetry_env$config$enabled) {
     log$info("Telemetry is disabled via configuration")
+    .telemetry_env$telemetry <- NULL
     return(NULL)
   }
 
@@ -43,8 +44,17 @@ init_telemetry <- function() {
     return(NULL)
   }
 
+  # Tag each event with the deployment environment so production and staging rows are
+  # distinguishable in the shared telemetry DB. Sys.getenv()'s default only fires when the
+  # variable is unset, so guard against a set-but-empty SHINYBEEZ_ENV as well.
+  app_env <- Sys.getenv("SHINYBEEZ_ENV", "production")
+  if (!nzchar(app_env)) {
+    app_env <- "production"
+  }
+
   # Initialize telemetry object
   .telemetry_env$telemetry <- shiny.telemetry::Telemetry$new(
+    app_name = app_env,
     data_storage = data_storage
   )
 
