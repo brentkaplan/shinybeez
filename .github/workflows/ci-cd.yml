@@ -283,8 +283,11 @@ jobs:
     - name: Setup renv
       uses: r-lib/actions/setup-renv@v2
 
-    - name: Install rsconnect
-      run: Rscript -e "install.packages('rsconnect')"
+    # NOTE: do NOT `install.packages('rsconnect')` here. renv is active (.Rprofile sources renv/activate.R), so
+    # that would install current CRAN rsconnect over the lockfile-pinned rsconnect (renv.lock), desyncing the
+    # library from the lockfile. rsconnect::deployApp() then aborts with
+    # "parseRenvDependencies(): Library and lockfile are out of sync". `Setup renv` above already restores the
+    # pinned rsconnect from renv.lock, which is what deployApp() needs.
 
     - name: Configure rsconnect
       run: |
