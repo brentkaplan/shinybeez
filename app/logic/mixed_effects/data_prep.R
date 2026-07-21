@@ -182,3 +182,102 @@ as_ordered_factor <- function(x, levels = NULL) {
   }
   factor(x, levels = levels)
 }
+
+#' Test whether a column is numeric or cleanly coercible to numeric
+#'
+#' Factors and logicals are never numeric-like: a factor's as.numeric() yields
+#' level codes, not values, and grouping columns must not be offered as X or
+#' covariate candidates.
+#'
+#' @param v Vector to test
+#' @param threshold Minimum fraction of non-NA values that must survive
+#'   as.numeric() coercion for a character column to qualify. Use 1 for the
+#'   X variable (every row enters the model) and 0.95 for covariates.
+#' @return TRUE if the column qualifies
+#' @export
+is_numeric_like <- function(v, threshold = 0.95) {
+  if (is.numeric(v) || is.integer(v) || inherits(v, "integer64")) {
+    return(TRUE)
+  }
+  if (is.character(v)) {
+    num <- suppressWarnings(as.numeric(v))
+    non_na_orig <- sum(!is.na(v))
+    if (non_na_orig == 0) {
+      return(FALSE)
+    }
+    non_na_conv <- sum(!is.na(num))
+    return((non_na_conv / non_na_orig) >= threshold)
+  }
+  FALSE
+}
+
+#' Columns eligible for the X (price/ratio) dropdown
+#'
+#' Strict 100% clean coercion: the X column feeds fit_demand_mixed directly,
+#' so a column the picker offers must never be rejected at fit time.
+#'
+#' @param df Data frame to analyze
+#' @param exclude Character vector of column names to exclude
+#' @return Character vector of eligible column names
+#' @export
+numeric_x_candidates <- function(df, exclude = character(0)) {
+  if (is.null(df) || !is.data.frame(df)) {
+    return(character(0))
+  }
+  candidates <- setdiff(names(df), exclude)
+  candidates[
+    vapply(
+      candidates,
+      function(col) is_numeric_like(df[[col]], threshold = 1),
+      logical(1)
+    )
+  ]
+}
+
+#' Pick the X selection given the guessed column and the eligible candidates
+#'
+#' Keeps the guess when it is eligible; otherwise falls back to the first
+#' candidate that is not the id or y column (a numeric subject id must not be
+#' silently promoted to X); otherwise "".
+#'
+#' @param guessed Guessed X column name (may be NA)
+#' @param candidates Character vector of eligible X columns
+#' @param id Selected id column name
+#' @param y Selected y column name
+#' @return Column name to select, or "" if none qualifies
+#' @export
+choose_x_selection <- function(guessed, candidates, id, y) {
+  if (!is.na(guessed) && guessed %in% candidates) {
+    return(guessed)
+  }
+  fallback <- setdiff(candidates, c(id, y))
+  if (length(fallback) > 0) {
+    return(fallback[1])
+  }
+  ""
+}
+
+#' Coerce an X column to numeric for model fitting
+#'
+#' Numeric columns pass through untouched — pre-existing NA or Inf are
+#' beezdemand's contract to enforce, not ours. Character columns must coerce
+#' with zero newly-introduced NAs. Anything else (factor, logical) is rejected.
+#'
+#' @param v The X column vector
+#' @return list(ok, values, n_bad): ok = usable, values = numeric vector when
+#'   ok, n_bad = count of values that failed coercion
+#' @export
+coerce_x_numeric <- function(v) {
+  if (is.numeric(v) || is.integer(v)) {
+    return(list(ok = TRUE, values = as.numeric(v), n_bad = 0L))
+  }
+  if (is.character(v)) {
+    num <- suppressWarnings(as.numeric(v))
+    n_bad <- sum(is.na(num) & !is.na(v))
+    if (n_bad == 0L) {
+      return(list(ok = TRUE, values = num, n_bad = 0L))
+    }
+    return(list(ok = FALSE, values = NULL, n_bad = as.integer(n_bad)))
+  }
+  list(ok = FALSE, values = NULL, n_bad = as.integer(sum(!is.na(v))))
+}
