@@ -19,7 +19,14 @@ describe("Welcome tab and navigation", {
   it("renders welcome content in the main panel", {
     require_app(app)
     html <- app$get_html("main")
-    expect_true(any(nchar(html) > 0))
+    # The <main> wrapper exists even if the included welcome.html goes missing,
+    # so assert the actual content rather than merely a non-empty wrapper.
+    for (heading in c("About Shinybeez", "Explore the tools", "How to Cite")) {
+      expect_true(
+        any(grepl(heading, html, fixed = TRUE)),
+        info = paste("expected welcome heading:", heading)
+      )
+    }
   })
 
   it("navigates to Demand tab", {

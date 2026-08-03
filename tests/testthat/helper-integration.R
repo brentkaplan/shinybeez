@@ -119,6 +119,101 @@ ids <- list(
 )
 
 # ---------------------------------------------------------------------------
+# Result assertions
+# ---------------------------------------------------------------------------
+
+# Always scope result assertions to the results container. `get_html()` uses
+# querySelectorAll() and returns EVERY match, so an unscoped ".datatables"
+# selector combined with `any(grepl(...))` is satisfied by the raw data preview
+# table -- meaning such an assertion passes whether or not the model produced
+# anything, and would keep passing if results rendering broke entirely.
+#
+# Scoping alone is not sufficient, for two reasons:
+#   1. DataTables renders an empty state as `<td class="dataTables_empty">No
+#      data available in table</td>`, so a `<td` match does not imply data.
+#   2. The container keeps the PREVIOUS run's table, so a re-run that silently
+#      fails to fire still leaves populated, correctly-columned HTML behind.
+# Hence these helpers count real data rows, and callers pass the row count they
+# expect for that particular analysis so a stale table cannot satisfy them.
+
+# Count data rows inside `#result_id`, excluding DataTables' empty-state row.
+# Returns -1 when the container itself is absent.
+results_row_count <- function(app, result_id) {
+  js <- sprintf(
+    paste0(
+      "(function(){var c=document.getElementById('%s');if(!c)return -1;",
+      "var rows=c.querySelectorAll('tbody tr');var n=0;",
+      "for(var i=0;i<rows.length;i++){",
+      "if(!rows[i].querySelector('td.dataTables_empty'))n++;}",
+      "return n;})()"
+    ),
+    result_id
+  )
+  as.integer(app$get_js(js))
+}
+
+# Exact column-header text for `#result_id`. Substring matching over raw HTML is
+# not enough: "Alpha" also matches the AlphaSE / AlphaLow / AlphaHigh columns, so
+# dropping the Alpha column entirely would still pass a grepl() check.
+results_headers <- function(app, result_id) {
+  js <- sprintf(
+    paste0(
+      "(function(){var c=document.getElementById('%s');if(!c)return [];",
+      "return Array.prototype.map.call(c.querySelectorAll('thead th'),",
+      "function(th){return th.textContent.trim();});})()"
+    ),
+    result_id
+  )
+  unlist(app$get_js(js))
+}
+
+# Assert the results table at `#result_id` rendered real data rows.
+# `n_rows` pins the exact expected count, which is what distinguishes a fresh
+# result from the previous analysis's leftovers; `min_rows` is the looser form
+# for cases where the count is not fixed by the fixture.
+expect_results_table <- function(app, result_id, n_rows = NULL, min_rows = 1L,
+                                 info = NULL) {
+  actual <- results_row_count(app, result_id)
+  testthat::expect_false(
+    identical(actual, -1L),
+    label = paste0("results container #", result_id, " exists")
+  )
+  if (!is.null(n_rows)) {
+    testthat::expect_equal(
+      actual, as.integer(n_rows),
+      info = info %||% paste0(
+        "expected exactly ", n_rows, " data rows in ", result_id,
+        " (guards against a stale table from the previous run)"
+      )
+    )
+  } else {
+    testthat::expect_gte(actual, as.integer(min_rows))
+  }
+  invisible(actual)
+}
+
+# Demand results additionally carry the fitted demand parameters. Exact header
+# membership keeps this meaningful: a table that rendered but lost a parameter
+# column is a failure worth catching.
+expect_demand_results <- function(app, result_id, n_rows = NULL, min_rows = 1L,
+                                  cols = c("Q0d", "Alpha", "Omaxd", "Pmaxd", "EV")) {
+  actual <- expect_results_table(
+    app, result_id, n_rows = n_rows, min_rows = min_rows
+  )
+  headers <- results_headers(app, result_id)
+  for (col in cols) {
+    testthat::expect_true(
+      col %in% headers,
+      info = paste0(
+        "expected demand column header: ", col,
+        " (present: ", paste(headers, collapse = ", "), ")"
+      )
+    )
+  }
+  invisible(actual)
+}
+
+# ---------------------------------------------------------------------------
 # Condition-based wait helpers
 # ---------------------------------------------------------------------------
 
@@ -148,10 +243,34 @@ wait_for_result_rows <- function(app, result_id, entries_text, timeout_ms = 2000
 }
 
 wait_for_output <- function(app, output_id, timeout_ms = 15000) {
-  # Use idle-based detection: wait until Shiny has been idle for 1s.
-  # More robust than JS element checks for outputs wrapped in renderUI
+  # Idle-based detection first: wait until Shiny has been idle for 1s. This is
+  # more robust than a JS element check alone for outputs wrapped in renderUI
   # (e.g., discounting results inside uiOutput → DTOutput chain).
   app$wait_for_idle(duration = 1000, timeout = timeout_ms)
+
+  # Then confirm the requested output actually rendered something. Previously
+  # `output_id` was accepted and never used, so this returned as soon as Shiny
+  # went idle -- including when the target output was still empty. Callers that
+  # then asserted against an unscoped selector could pass on an unrelated
+  # element (e.g. the upload preview table). Kept deliberately generic: callers
+  # pass table containers and text summaries alike, so assert only that the
+  # element exists and is non-empty -- the calling test is responsible for
+  # asserting the content is fresh and correct (see expect_results_table()).
+  #
+  # A missing or malformed id is an error, not a reason to silently fall back to
+  # idle-only waiting -- that fallback is the exact defect this helper fixes.
+  if (!is.character(output_id) || length(output_id) != 1L ||
+        is.na(output_id) || !nzchar(output_id)) {
+    stop("wait_for_output() requires a single non-empty output id", call. = FALSE)
+  }
+  js <- sprintf(
+    paste0(
+      "(function(){var e=document.getElementById('%s');",
+      "return !!(e && e.innerHTML.trim().length > 0);})()"
+    ),
+    output_id
+  )
+  app$wait_for_js(js, timeout = timeout_ms)
 }
 
 wait_for_notification <- function(app, type = "error", timeout_ms = 10000) {
