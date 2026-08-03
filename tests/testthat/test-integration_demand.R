@@ -51,16 +51,8 @@ describe("Demand - pooled, two-stage, and mean analysis", {
     require_app(app)
     app$click(selector = paste0("#", ids$demand$calculate))
     wait_for_output(app, result_id, timeout_ms = 15000)
-    # Target the results table specifically (not the upload preview table) and
-    # assert it carries the demand parameter columns, not merely any cells.
-    html <- app$get_html(paste0("#", result_id))
-    expect_true(any(grepl("<td", html, fixed = TRUE)))
-    for (col in c("Q0d", "Alpha", "Omaxd", "Pmaxd", "EV")) {
-      expect_true(
-        any(grepl(col, html, fixed = TRUE)),
-        info = paste("expected demand column header:", col)
-      )
-    }
+    # Pooled fits a single aggregate curve -> exactly 1 row.
+    expect_demand_results(app, result_id, n_rows = 1)
   })
 
   it("switches to Two Stage and runs calculation", {
@@ -70,8 +62,9 @@ describe("Demand - pooled, two-stage, and mean analysis", {
     expect_equal(app$get_value(input = ids$demand$analysis_type), "Ind")
     app$click(selector = paste0("#", ids$demand$calculate))
     wait_for_output(app, result_id, timeout_ms = 30000)
-    html <- app$get_html(".datatables")
-    expect_true(any(grepl("<td", html, fixed = TRUE)))
+    # Two Stage fits per participant -> 3 rows for this fixture. The differing
+    # count also proves the table refreshed rather than showing pooled results.
+    expect_demand_results(app, result_id, n_rows = 3)
   })
 
   it("switches to Mean and runs calculation", {
@@ -81,8 +74,9 @@ describe("Demand - pooled, two-stage, and mean analysis", {
     expect_equal(app$get_value(input = ids$demand$analysis_type), "Mean")
     app$click(selector = paste0("#", ids$demand$calculate))
     wait_for_output(app, result_id, timeout_ms = 15000)
-    html <- app$get_html(".datatables")
-    expect_true(any(grepl("<td", html, fixed = TRUE)))
+    # Mean collapses to a single averaged curve -> back to 1 row, which also
+    # distinguishes this from the 3-row Two Stage table rendered just before.
+    expect_demand_results(app, result_id, n_rows = 1)
   })
 
   withr::defer(try(app$stop(), silent = TRUE), envir = teardown_env())
@@ -118,8 +112,8 @@ describe("Demand - grouped analysis", {
     require_app(app)
     app$click(selector = paste0("#", ids$demand$calculate))
     wait_for_output(app, result_id, timeout_ms = 15000)
-    html <- app$get_html(".datatables")
-    expect_true(any(grepl("<td", html, fixed = TRUE)))
+    # Grouped pooled fits one curve per group; this fixture has groups A and B.
+    expect_demand_results(app, result_id, n_rows = 2)
   })
 
   withr::defer(try(app$stop(), silent = TRUE), envir = teardown_env())
@@ -146,8 +140,8 @@ describe("Demand - full 50-subject grouped example", {
     app$wait_for_idle(duration = 500)
     app$click(selector = paste0("#", ids$demand$calculate))
     wait_for_output(app, result_id, timeout_ms = 60000)
-    html <- app$get_html(".datatables")
-    expect_true(any(grepl("<td", html, fixed = TRUE)))
+    # shinybeez-ex-apt-50.csv has groups A, B and C -> one curve per group.
+    expect_demand_results(app, result_id, n_rows = 3)
   })
 
   withr::defer(

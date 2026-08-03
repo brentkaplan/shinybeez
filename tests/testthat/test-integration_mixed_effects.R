@@ -52,16 +52,29 @@ describe("Mixed Effects - default ko data", {
   it("renders model summary output", {
     require_app(app)
     html <- app$get_html(paste0("#", summary_id))
-    expect_true(any(nchar(html) > 0))
+    # nchar() > 0 also passes on Shiny error markup, so assert the summary
+    # actually rendered and that it is not an error surface.
+    expect_true(
+      any(grepl("Model Specification", html, fixed = TRUE)),
+      info = "expected the Model Specification card in the model summary"
+    )
+    expect_false(any(grepl("shiny-output-error", html, fixed = TRUE)))
   })
 
   it("renders fixed effects table", {
     require_app(app)
-    fe_sel <- paste0(
-      "#", ns_id("mixed_effects_demand", "fixed_effects_table")
+    tabs_id <- ns_id("mixed_effects_demand", "results_display_tabs")
+    fe_id <- ns_id("mixed_effects_demand", "fixed_effects_table")
+    # The table only draws once its results tab is active. The previous
+    # `nchar(html) > 0` check passed against the empty DTOutput placeholder
+    # without ever activating the tab, so it never tested what it claimed to.
+    app$set_inputs(!!tabs_id := "Fixed Effects")
+    app$wait_for_js(
+      sprintf("document.querySelector('#%s tbody tr') !== null", fe_id),
+      timeout = 30000
     )
-    html <- app$get_html(fe_sel)
-    expect_true(any(nchar(html) > 0))
+    app$wait_for_idle(duration = 500, timeout = 30000)
+    expect_results_table(app, fe_id)
   })
 
   withr::defer(try(app$stop(), silent = TRUE), envir = teardown_env())
@@ -121,7 +134,9 @@ describe("Mixed Effects - upload minimal fixture", {
     html <- app$get_html(paste0("#", q0_id))
     # EMM table rendered data rows, not the empty-state fallback. This drives
     # the rewired emms_compute$run_observed_emms() wrapper end-to-end.
-    expect_true(any(grepl("<td", html, fixed = TRUE)))
+    # `<td` alone also matches DataTables' "No data available" row, so count
+    # real rows too.
+    expect_results_table(app, q0_id)
     expect_false(any(grepl("No Q0 EMMs available", html, fixed = TRUE)))
 
     err_html <- app$get_html(".shiny-notification-error")
@@ -143,9 +158,9 @@ describe("Mixed Effects - upload minimal fixture", {
     )
     app$wait_for_idle(duration = 500, timeout = 30000)
 
-    html <- app$get_html(paste0("#", comp_id))
     # Contrast rows rendered: drives comparisons$run_demand_comparisons().
-    expect_true(any(grepl("<td", html, fixed = TRUE)))
+    # Counting rows excludes DataTables' empty-state row, which `<td` matches.
+    expect_results_table(app, comp_id)
 
     err_html <- app$get_html(".shiny-notification-error")
     expect_true(is.null(err_html) || !grepl("Error", err_html))

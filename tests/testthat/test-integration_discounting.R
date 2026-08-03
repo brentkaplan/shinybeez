@@ -43,8 +43,7 @@ describe("Discounting - MCQ 27-Item scoring", {
     require_app(app)
     app$click(selector = paste0("#", ids$discounting$calculate))
     wait_for_output(app, result_id, timeout_ms = 15000)
-    html <- app$get_html(".datatables")
-    expect_true(any(grepl("<td", html, fixed = TRUE)))
+    expect_results_table(app, result_id)
   })
 
   withr::defer(try(app$stop(), silent = TRUE), envir = teardown_env())
@@ -87,8 +86,8 @@ describe("Discounting - IP Regression Pooled and Two Stage", {
     require_app(app)
     app$click(selector = paste0("#", ids$discounting$calculate))
     wait_for_output(app, result_id, timeout_ms = 30000)
-    html <- app$get_html(".datatables")
-    expect_true(any(grepl("<td", html, fixed = TRUE)))
+    # Pooled IP regression fits one aggregate curve -> exactly 1 row.
+    expect_results_table(app, result_id, n_rows = 1)
   })
 
   it("switches to Two Stage and runs calculation", {
@@ -103,8 +102,9 @@ describe("Discounting - IP Regression Pooled and Two Stage", {
     )
     app$click(selector = paste0("#", ids$discounting$calculate))
     wait_for_output(app, result_id, timeout_ms = 30000)
-    html <- app$get_html(".datatables")
-    expect_true(any(grepl("<td", html, fixed = TRUE)))
+    # Two Stage fits per participant -> 3 rows for this fixture. The change from
+    # the pooled table's single row proves the results actually refreshed.
+    expect_results_table(app, result_id, n_rows = 3)
   })
 
   withr::defer(try(app$stop(), silent = TRUE), envir = teardown_env())
@@ -138,8 +138,7 @@ describe("Discounting - 5.5-Trial Delay Discounting (full)", {
     app$wait_for_idle(duration = 500, timeout = 30000)
     app$click(selector = paste0("#", ids$discounting$calculate))
     wait_for_output(app, result_id, timeout_ms = 45000)
-    html <- app$get_html(".datatables")
-    expect_true(any(grepl("<td", html, fixed = TRUE)))
+    expect_results_table(app, result_id)
 
     # Journey 8 regression guard (obliterate_empty_cols): before the fix,
     # obliterate_empty_cols() deleted 17 of the 31 item columns and calc_dd
@@ -183,8 +182,7 @@ describe("Discounting - 5.5-Trial Probability Discounting (full)", {
     app$wait_for_idle(duration = 500, timeout = 30000)
     app$click(selector = paste0("#", ids$discounting$calculate))
     wait_for_output(app, result_id, timeout_ms = 45000)
-    html <- app$get_html(".datatables")
-    expect_true(any(grepl("<td", html, fixed = TRUE)))
+    expect_results_table(app, result_id)
 
     # Journey 8 regression guard (obliterate_empty_cols): PD scores 21 rows from
     # the bundled template. See the DD test above for why the row count, not a
@@ -220,8 +218,7 @@ describe("Discounting - MCQ with GGM imputation (full)", {
     app$wait_for_idle(duration = 500)
     app$click(selector = paste0("#", ids$discounting$calculate))
     wait_for_output(app, result_id, timeout_ms = 45000)
-    html <- app$get_html(".datatables")
-    expect_true(any(grepl("<td", html, fixed = TRUE)))
+    expect_results_table(app, result_id)
   })
 
   withr::defer(
