@@ -1,7 +1,7 @@
 # Dependabot configuration for shinybeez (Rhino Shiny app)
 #
 # Rhino's Node.js build toolchain lives in /.rhino. Those packages are
-# dev/build-time only (webpack, babel, eslint, sass, cypress) and never ship
+# dev/build-time only (webpack, babel, eslint, sass, stylelint) and never ship
 # in the deployed app, so we want security patches but NOT broad version bumps
 # (the latter pull majors the old toolchain can't accept, e.g. eslint 10 vs
 # @babel/eslint-parser). open-pull-requests-limit: 0 disables version updates;
