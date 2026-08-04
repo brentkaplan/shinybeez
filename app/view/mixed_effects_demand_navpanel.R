@@ -24,6 +24,7 @@ box::use(
   app / logic / telemetry_utils,
   app / logic / mixed_effects_demand_utils,
   app / logic / mixed_effects / comparisons,
+  app / logic / mixed_effects / data_prep,
   app / logic / mixed_effects / emms_compute,
   app / logic / mixed_effects / emms_utils,
   app / logic / mixed_effects / export_utils,
@@ -728,6 +729,35 @@ navpanel_server <- function(id, sidebar_reactives) {
           )
           return(NULL)
         }
+
+        # X must be numeric before it reaches fit_demand_mixed (production error
+        # e84804c9). Coerce a clean character column in place; reject anything
+        # else with an actionable message instead of beezdemand's raw error.
+        # Runs before the notification and telemetry so an invalid X never
+        # reports a fit as "started".
+        x_col <- sidebar_reactives$x_var()
+        if (is.null(x_col) || !nzchar(x_col) || !(x_col %in% names(df))) {
+          shiny$showNotification(
+            "No X (price/ratio) variable is selected — choose a numeric column in the sidebar.",
+            type = "error",
+            duration = 10
+          )
+          return(NULL)
+        }
+        x_coerced <- data_prep$coerce_x_numeric(df[[x_col]])
+        if (!x_coerced$ok) {
+          shiny$showNotification(
+            paste0(
+              "The selected X variable '", x_col, "' is not numeric (",
+              x_coerced$n_bad, " value(s) could not be read as numbers). ",
+              "Choose a numeric price/ratio column."
+            ),
+            type = "error",
+            duration = 10
+          )
+          return(NULL)
+        }
+        df[[x_col]] <- x_coerced$values
 
         notif_id <- shiny$showNotification(
           "Fitting mixed-effects model... This may take a moment.",

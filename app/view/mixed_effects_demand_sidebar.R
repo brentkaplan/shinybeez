@@ -373,8 +373,28 @@ sidebar_server <- function(id, data_reactive) {
         # Use extracted data_prep module for column guessing
         guessed <- data_prep$guess_variable_columns(df)
         id_selected <- guessed$id
-        x_selected <- guessed$x
         y_selected <- guessed$y
+
+        # X must be numeric: only offer columns that coerce 100% cleanly, so a
+        # column the picker offers can never be rejected at fit time (production
+        # error e84804c9: a character "x" column reached fit_demand_mixed raw).
+        x_candidates <- data_prep$numeric_x_candidates(df)
+        x_selected <- data_prep$choose_x_selection(
+          guessed$x,
+          x_candidates,
+          id = id_selected,
+          y = y_selected
+        )
+        if (length(x_candidates) == 0) {
+          shiny$showNotification(
+            paste(
+              "No numeric price/ratio column found in this file.",
+              "The mixed-effects fit needs a numeric X variable."
+            ),
+            type = "warning",
+            duration = 10
+          )
+        }
 
         # Explicitly set selected values to avoid defaulting to first choice
         shiny$updateSelectInput(
@@ -386,7 +406,7 @@ sidebar_server <- function(id, data_reactive) {
         shiny$updateSelectInput(
           session,
           "x_variable_choice",
-          choices = col_names,
+          choices = x_candidates,
           selected = x_selected
         )
         shiny$updateSelectInput(
@@ -445,26 +465,8 @@ sidebar_server <- function(id, data_reactive) {
           col_names[tolower(col_names) %in% reserved_lower]
         ))
 
-        is_numeric_like <- function(v) {
-          if (is.numeric(v) || is.integer(v) || inherits(v, "integer64")) {
-            return(TRUE)
-          }
-          if (is.character(v)) {
-            suppressWarnings({
-              num <- as.numeric(v)
-            })
-            non_na_orig <- sum(!is.na(v))
-            non_na_conv <- sum(!is.na(num))
-            if (non_na_orig == 0) {
-              return(FALSE)
-            }
-            return((non_na_conv / non_na_orig) >= 0.95)
-          }
-          FALSE
-        }
-
         numeric_candidates <- Filter(
-          function(col) is_numeric_like(df[[col]]),
+          function(col) data_prep$is_numeric_like(df[[col]]),
           setdiff(col_names, exclusions)
         )
         named_choices <- stats$setNames(numeric_candidates, numeric_candidates)
