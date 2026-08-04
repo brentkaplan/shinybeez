@@ -4,4 +4,5 @@
 .Renviron
 .rhino
 .rscignore
+logs
 tests

@@ -37,6 +37,7 @@ beezdemand_0.1.3.tar.gz
 logs/*.log
 logs/log.txt
 logs/log-*
+logs/*-log.txt
 logs/production/
 
 # Data (runtime/user)

@@ -4,11 +4,19 @@ This directory holds runtime logs. This README is the only tracked file, and it
 exists to record how logging actually works here, because the mechanism has been
 misdiagnosed twice.
 
-The log files produced by the `default:` profile are gitignored (`.gitignore`
-lines 37-40 cover `logs/*.log`, `logs/log.txt`, `logs/log-*`, `logs/production/`).
-Note the gap: the `development:` and `production:` profiles write
-`logs/dev-log.txt` and `logs/prod-log.txt`, and neither matches those rules, so
-they would show up as untracked files. Adding `logs/*-log.txt` would close it.
+Every log file written here is gitignored (`.gitignore` lines 37-41 cover
+`logs/*.log`, `logs/log.txt`, `logs/log-*`, `logs/*-log.txt`, `logs/production/`).
+The last of those closes what used to be a gap: the `development:` and
+`production:` profiles write `logs/dev-log.txt` and `logs/prod-log.txt`, which
+matched none of the other rules and so surfaced as untracked files after a run
+under either profile.
+
+`logs` is also listed in `.rscignore`, so the directory is excluded from an
+`rsconnect::deployApp()` bundle — otherwise a local deploy would ship every
+accumulated log file. Note that `.rscignore` does not support globs
+(`rsconnect:::ignoreBundleFiles()` does a plain `setdiff()` on directory
+entries), so the bare directory name is the only form that works; `logs/*.log`
+would silently exclude nothing.
 
 ## Why `logs/log.txt` is no longer tracked
 
