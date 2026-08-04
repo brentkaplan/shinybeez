@@ -1,4 +1,30 @@
-# shinybeez (development version)
+# shinybeez 1.1.3
+
+Patch release over v1.1.2. Runtime R dependencies are unchanged (`renv.lock` is
+identical to v1.1.2). The only user-visible behavior change is the
+mixed-effects fix below; the generated JavaScript bundle was rebuilt from
+unchanged source after the Babel 7 build-tool update.
+
+## Bug Fixes
+
+- **Mixed-effects X variable guard** — the X selector now offers only numeric
+  columns and character columns that convert completely to numeric. Clean
+  numeric text is converted before fitting; missing or invalid X selections
+  receive an actionable notification instead of reaching
+  `beezdemand::fit_demand_mixed()` and producing its raw error (#23).
+
+## Internal
+
+- Updated Babel 7 build dependencies to address the advisories tracked in #25.
+- Updated grouped GitHub Actions dependencies (#24, #27).
+- Removed vestigial Cypress scaffolding (#26).
+- Hardened integration assertions against empty or stale result tables (#28).
+- Excluded `logs/` from rsconnect bundles and stopped tracking `logs/log.txt`.
+
+# Historical development notes (shipped in v1.1.0–v1.1.2)
+
+> These sections predate per-release changelog entries. Release notes for those
+> versions live in their annotated tag messages.
 
 ## Major Changes
 
