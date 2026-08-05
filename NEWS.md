@@ -19,6 +19,9 @@ unchanged source after the Babel 7 build-tool update.
 - Updated grouped GitHub Actions dependencies (#24, #27).
 - Removed vestigial Cypress scaffolding (#26).
 - Hardened integration assertions against empty or stale result tables (#28).
+- Added integration coverage for the X-variable guard's module wiring, so the
+  selector filtering and the pre-fit rejection are tested end to end rather
+  than only as helper functions (#23).
 - Excluded `logs/` from rsconnect bundles and stopped tracking `logs/log.txt`.
 
 # Historical development notes (shipped in v1.1.0–v1.1.2)
