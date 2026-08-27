@@ -59,8 +59,15 @@ describe("Mixed Effects - async fit", {
     expect_results_table(app, comps_id)
   })
 
-  it("refreshes the comparisons table when rerun with a different adjustment", {
+  it("refreshes the comparisons table when the model is refitted", {
     require_app(app)
+    # Only a NEW FIT can refresh the table here: the covariance structure is not
+    # one of comparisons_reactive's bindCache keys, so under the old
+    # `run_trigger()` key the click recomputed against the previous model and the
+    # success never touched the cache -- this must fail there and pass on
+    # `fit_generation()`. Everything comparisons_reactive does key on (adjustment
+    # method, comparison factor, display type, covariate controls) is held fixed.
+    #
     # The container keeps the previous run's rows while DataTables fetches the
     # new ones, so remember the rendered text in the page and wait for it to
     # change; sampling right after Shiny goes idle is a race.
@@ -69,7 +76,8 @@ describe("Mixed Effects - async fit", {
       comps_id
     ))
     first <- app$get_html(paste0("#", comps_id))
-    app$set_inputs(!!ids$mixed$comparison_adjust := "bonferroni", wait_ = FALSE)
+    expect_equal(app$get_value(input = ids$mixed$covariance), "pdDiag")
+    app$set_inputs(!!ids$mixed$covariance := "pdSymm", wait_ = FALSE)
     app$wait_for_idle(duration = 500)
     app$click(selector = paste0("#", ids$mixed$run))
     app$wait_for_js(button_idle_js(ids$mixed$run), timeout = 60000)
