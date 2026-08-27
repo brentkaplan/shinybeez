@@ -70,4 +70,14 @@ describe("recycle_daemons / ensure_daemons", {
     expect_true(daemons$ensure_daemons())
     expect_false(daemons$ensure_daemons())
   })
+  it("refuses to recycle while a task is executing or awaiting", {
+    daemons$start_daemons(1L)
+    on.exit(daemons$stop_daemons(), add = TRUE)
+    m <- mirai$mirai(Sys.sleep(2))
+    Sys.sleep(0.2)
+    expect_false(daemons$recycle_daemons())
+    expect_true(mirai$unresolved(m))
+    m[]
+    expect_true(daemons$recycle_daemons())
+  })
 })
