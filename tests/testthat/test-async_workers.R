@@ -94,6 +94,10 @@ describe("fit_mixed_worker", {
 })
 
 describe("fit_demand_fixed_worker", {
+  it("is small when serialised and lives in globalenv", {
+    expect_identical(environment(workers$fit_demand_fixed_worker), globalenv())
+    expect_lt(length(serialize(workers$fit_demand_fixed_worker, NULL)), 20000)
+  })
   it("fits ungrouped example data via app/logic/demand/fitting inside a daemon", {
     daemons$start_daemons(1L)
     on.exit(daemons$stop_daemons(), add = TRUE)
