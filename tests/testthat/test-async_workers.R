@@ -5,6 +5,7 @@ box::use(
 box::use(
   app / logic / async / daemons,
   app / logic / async / workers,
+  app / logic / demand / fitting,
 )
 
 mixed_spec <- function() {
@@ -108,5 +109,11 @@ describe("fit_demand_fixed_worker", {
     expect_false(mirai$is_error_value(out))
     expect_true(is.list(out$fit))
     expect_true(all(c("output", "results") %in% names(out$fit)))
+    # Parity: the daemon result must match a direct call with the same args.
+    direct <- suppressWarnings(fitting$fit_demand_ungrouped(
+      dat,
+      eq = spec$eq, agg = spec$agg, k = spec$k, constrainq0 = spec$constrainq0
+    ))
+    expect_equal(out$fit$results, direct$results)
   })
 })

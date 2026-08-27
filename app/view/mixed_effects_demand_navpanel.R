@@ -654,6 +654,13 @@ navpanel_server <- function(id, sidebar_reactives, fit_task) {
     last_fit <- shiny$reactiveVal(NULL)
     fit_generation <- shiny$reactiveVal(0L)
     pending_fit <- shiny$reactiveVal(NULL)
+    # Snapshot of the data frame the last successful fit ran on, and of the
+    # covariate modeling info derived from it. The fit is async, so the sidebar
+    # (data, covariate, centering/scaling, "at" value) can change while it runs;
+    # the post-hoc readers must condition on what the fit actually used, not on
+    # live sidebar state. Sidebar changes take effect on the next Run.
+    last_fit_df <- shiny$reactiveVal(NULL)
+    last_fit_cov <- shiny$reactiveVal(NULL)
 
     shiny$observeEvent(sidebar_reactives$run_trigger(), {
       df <- data_to_analyze()
@@ -808,6 +815,7 @@ navpanel_server <- function(id, sidebar_reactives, fit_task) {
 
       pending_fit(list(
         df = df,
+        cov_info = cov_info,
         y_is_ll4 = y_is_ll4,
         notif_id = notif_id,
         sel_factors = sel_factors,
@@ -864,6 +872,8 @@ navpanel_server <- function(id, sidebar_reactives, fit_task) {
             status = "failed",
             session = session
           )
+          last_fit_df(NULL)
+          last_fit_cov(NULL)
           last_fit(NULL)
           fit_generation(fit_generation() + 1L)
           return()
@@ -899,6 +909,8 @@ navpanel_server <- function(id, sidebar_reactives, fit_task) {
           always_log = TRUE
         )
 
+        last_fit_df(p$df)
+        last_fit_cov(p$cov_info)
         last_fit(model_fit)
         fit_generation(fit_generation() + 1L)
         if (isTRUE(r$worker_rss_mb > daemons$rss_limit_mb())) {
@@ -944,6 +956,8 @@ navpanel_server <- function(id, sidebar_reactives, fit_task) {
           status = "timeout",
           session = session
         )
+        last_fit_df(NULL)
+        last_fit_cov(NULL)
         last_fit(NULL)
         fit_generation(fit_generation() + 1L)
         return()
@@ -973,6 +987,8 @@ navpanel_server <- function(id, sidebar_reactives, fit_task) {
         status = "failed",
         session = session
       )
+      last_fit_df(NULL)
+      last_fit_cov(NULL)
       last_fit(NULL)
       fit_generation(fit_generation() + 1L)
     })
@@ -1158,9 +1174,9 @@ navpanel_server <- function(id, sidebar_reactives, fit_task) {
         model_factors <- NULL
       }
 
-      # Build 'at' for covariate conditioning
-      df_now <- data_to_analyze()
-      cov_info <- build_covariate_modeling_info(df_now)
+      # Build 'at' for covariate conditioning from the fit's own snapshot
+      shiny$req(last_fit_df())
+      cov_info <- last_fit_cov()
       emms_data <- tryCatch(
         session_logger$with_performance(
           "mixed_effects_emms",
@@ -1335,9 +1351,9 @@ navpanel_server <- function(id, sidebar_reactives, fit_task) {
         model_factors
       )
 
-      # Build 'at' for covariate conditioning
-      df_now <- data_to_analyze()
-      cov_info <- build_covariate_modeling_info(df_now)
+      # Build 'at' for covariate conditioning from the fit's own snapshot
+      shiny$req(last_fit_df())
+      cov_info <- last_fit_cov()
 
       comps <- tryCatch(
         session_logger$with_performance(
@@ -1579,9 +1595,9 @@ navpanel_server <- function(id, sidebar_reactives, fit_task) {
       y_is_ll4 <- isTRUE(model_fit$param_info$y_is_ll4)
       inv_transform_fun <- if (y_is_ll4) beezdemand$ll4_inv else identity
 
-      # Build 'at' for covariate conditioning in plot
-      df_now <- data_to_analyze()
-      cov_info <- build_covariate_modeling_info(df_now)
+      # Covariate conditioning for the plot, from the fit's own snapshot
+      shiny$req(last_fit_df())
+      cov_info <- last_fit_cov()
 
       # The wrapper no longer records the error itself, so this call site - the
       # only one of the 13 without its own handler - owns it. Re-raised, so the

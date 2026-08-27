@@ -110,6 +110,34 @@ describe("demand results table plot state", {
 
       expect_setequal(res$plot_group_levels, c("a", "b", "c"))
       expect_false(is.null(res$base_plot))
+
+      # The plot is built from the fit's own snapshot, not from live state.
+      expect_false(is.null(res$fit_inputs))
+      expect_identical(res$fit_inputs$data, grouped_demand_data())
+      expect_identical(res$fit_inputs$agg, "Mean")
+      expect_true(res$fit_inputs$is_grouped)
+    })
+  })
+
+  it("keeps post-fit plot state on the fit's data when the upload changes", {
+    data_r <- shiny$reactiveValues(data_d = grouped_demand_data())
+    calc <- shiny$reactiveVal(0)
+
+    shiny$testServer(demand_results_table$server, args = module_args(data_r, calc), {
+      set_plot_inputs(session)
+      calc(1)
+      session$flushReact()
+      settle(session)
+      expect_setequal(res$plot_group_levels, c("a", "b", "c"))
+
+      # A new upload arrives WITHOUT a new Calculate: the completed fit's
+      # snapshot, and everything derived from it, must not move.
+      data_r$data_d <- ungrouped_demand_data()
+      session$flushReact()
+      settle(session)
+
+      expect_identical(res$fit_inputs$data, grouped_demand_data())
+      expect_setequal(res$plot_group_levels, c("a", "b", "c"))
     })
   })
 
@@ -202,8 +230,12 @@ describe("demand results table cancelled fit", {
         # survive a cancel untouched.
         seeded_output <- list(fake = "output")
         seeded_results <- data.frame(fake = "results")
+        seeded_inputs <- list(
+          data = grouped_demand_data(), agg = "Mean", is_grouped = TRUE
+        )
         res$output <- seeded_output
         res$results <- seeded_results
+        res$fit_inputs <- seeded_inputs
         seeded_generation <- fit_generation()
 
         calc(1)
@@ -218,6 +250,7 @@ describe("demand results table cancelled fit", {
         # A cancel must not disturb results the user already had.
         expect_identical(res$output, seeded_output)
         expect_identical(res$results, seeded_results)
+        expect_identical(res$fit_inputs, seeded_inputs)
         expect_equal(fit_generation(), seeded_generation)
         # Cleared on every terminal path, so the next Calculate is accepted.
         expect_null(pending_fit())
@@ -236,6 +269,9 @@ describe("demand results table cancelled fit", {
         seeded_generation <- fit_generation()
         res$output <- list(fake = "output")
         res$results <- data.frame(fake = "results")
+        res$fit_inputs <- list(
+          data = grouped_demand_data(), agg = "Mean", is_grouped = TRUE
+        )
 
         calc(1)
         expect_warning(
@@ -248,6 +284,7 @@ describe("demand results table cancelled fit", {
 
         expect_null(res$output)
         expect_null(res$results)
+        expect_null(res$fit_inputs)
         expect_equal(fit_generation(), seeded_generation + 1L)
       }
     )

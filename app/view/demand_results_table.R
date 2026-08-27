@@ -12,6 +12,7 @@ box::use(
 )
 
 box::use(
+  app / logic / async / daemons,
   app / logic / demand / fitting,
   app / logic / utils,
   app / logic / validate,
@@ -123,6 +124,9 @@ server <- function(
       results = NULL,
       base_plot = NULL,
       plot = NULL,
+      # The data / aggregation / grouping the last SUCCESSFUL fit ran on,
+      # captured at invoke. Cleared alongside output/results.
+      fit_inputs = NULL,
       # The group levels the base plot was actually built with (NULL when it has no colour
       # aesthetic). The colour scale is derived from THIS, never from the live upload —
       # see resolve_group_scale() and production error bce0bb1d.
@@ -184,7 +188,16 @@ server <- function(
         is_grouped = is_grouped, eq = eq_code, agg = agg_val,
         k = k, constrainq0 = constrainq0
       )
-      pending_fit(list(eq_code = eq_code, k = k, agg_val = agg_val))
+      # Snapshot everything the post-fit plot code needs. The fit is async, so
+      # the upload and the sidebar can change while it runs; the plot must be
+      # built from what the fit actually used.
+      pending_fit(list(
+        eq_code = eq_code, k = k, agg_val = agg_val,
+        data = data_r$data_d, is_grouped = is_grouped,
+        # The UI label ("Ind" / "Mean" / "Pooled"), NOT agg_val: the plot code
+        # branches on the label, while agg_val is NULL for "Ind".
+        analysis_type = analysis_type
+      ))
       fit_task$invoke(spec, data_r$data_d)
     }) |>
       shiny$bindEvent(calculate_btn())
@@ -204,12 +217,18 @@ server <- function(
         session_logger$performance(
           "demand_curve_fitting",
           duration_ms = r$duration_ms,
-          additional_metrics = list(status = "success"),
+          additional_metrics = list(
+            status = "success",
+            worker_rss_mb = r$worker_rss_mb
+          ),
           always_log = TRUE
         )
         fit_result <- r$fit
         res$output <- fit_result$output
         res$results <- fit_result$results
+        res$fit_inputs <- list(
+          data = p$data, agg = p$analysis_type, is_grouped = p$is_grouped
+        )
         fit_generation(fit_generation() + 1L)
         if (length(fit_result$failed_groups) > 0) {
           shiny$showNotification(
@@ -243,6 +262,9 @@ server <- function(
           type = "message",
           duration = 5
         )
+        if (isTRUE(r$worker_rss_mb > daemons$rss_limit_mb())) {
+          daemons$recycle_daemons()
+        }
         return()
       }
 
@@ -268,6 +290,7 @@ server <- function(
       if (identical(outcome, "timeout")) {
         res$output <- NULL
         res$results <- NULL
+        res$fit_inputs <- NULL
         fit_generation(fit_generation() + 1L)
         shiny$showNotification(
           "Demand curve fitting timed out.",
@@ -285,6 +308,7 @@ server <- function(
 
       res$output <- NULL
       res$results <- NULL
+      res$fit_inputs <- NULL
       fit_generation(fit_generation() + 1L)
       msg <- fit_task$error_message()
       session_logger$error_enhanced(
@@ -325,8 +349,14 @@ server <- function(
     }
 
     shiny$observe({
-      if (groupcol()) {
-        if (!"group" %in% colnames(data_r$data_d)) {
+      # Everything here describes the fit that just finished, so it reads the
+      # snapshot captured at invoke (res$fit_inputs) rather than the live
+      # upload / sidebar, which the user may have changed while the fit ran.
+      fit_inputs <- res$fit_inputs
+      fit_data <- fit_inputs$data
+      is_grouped <- isTRUE(fit_inputs$is_grouped)
+      if (is_grouped) {
+        if (!"group" %in% colnames(fit_data)) {
           clear_plot_state()
           shiny$showNotification(
             "You have selected to group the data but there is no
@@ -348,28 +378,29 @@ server <- function(
           shiny$div()
         })
       }
-      analysis_type <- agg()
+      analysis_type <- fit_inputs$agg
       clear_plot_state()
       pt_shape <- 21
       pt_fill <- "white"
       pt_size <- 3
 
       # Only create plots if we have valid output from FitCurves
-      if (is.null(res$output)) {
+      if (is.null(res$output) || is.null(fit_inputs)) {
         return()
       }
 
       # Every branch below that maps colour = group records the levels it used; the branches
       # that don't map colour leave this NULL (set by clear_plot_state above), so the
-      # decorator adds no scale at all.
-      is_coloured_by_group <- groupcol() && !analysis_type %in% "Ind"
+      # decorator adds no scale at all. The levels come from the fit's own data — that is
+      # bce0bb1d, now guaranteed by construction rather than by timing.
+      is_coloured_by_group <- is_grouped && !analysis_type %in% "Ind"
       if (is_coloured_by_group) {
-        res$plot_group_levels <- unique(data_r$data_d$group)
+        res$plot_group_levels <- unique(fit_data$group)
       }
 
       if (analysis_type %in% c("Mean")) {
-        if (!groupcol()) {
-          data_g <- aggregate(y ~ x, data_r$data_d, mean, na.rm = TRUE)
+        if (!is_grouped) {
+          data_g <- aggregate(y ~ x, fit_data, mean, na.rm = TRUE)
           res$base_plot <- data_g |>
             ggplot2$ggplot(ggplot2$aes(x = x, y = y)) +
             ggplot2$geom_line(
@@ -383,7 +414,7 @@ server <- function(
             ) +
             theme_apa()
         } else {
-          data_g <- aggregate(y ~ x + group, data_r$data_d, mean, na.rm = TRUE)
+          data_g <- aggregate(y ~ x + group, fit_data, mean, na.rm = TRUE)
           res$base_plot <- data_g |>
             ggplot2$ggplot(ggplot2$aes(x = x, y = y, group = group)) +
             ggplot2$geom_line(
@@ -399,7 +430,7 @@ server <- function(
             theme_apa()
         }
       } else if (analysis_type %in% "Ind") {
-        res$base_plot <- data_r$data_d |>
+        res$base_plot <- fit_data |>
           ggplot2$ggplot(ggplot2$aes(x = x, y = y, group = id)) +
           ggplot2$geom_line(
             ggplot2$aes(x = x, y = y, group = id),
@@ -407,8 +438,8 @@ server <- function(
             alpha = 0.33
           ) +
           theme_apa()
-        if (length(unique(data_r$data_d$id)) < 51) {
-          res$base_plot <- data_r$data_d |>
+        if (length(unique(fit_data$id)) < 51) {
+          res$base_plot <- fit_data |>
             ggplot2$ggplot(ggplot2$aes(x = x, y = y)) +
             ggplot2$geom_line(
               ggplot2$aes(x = x, y = y),
@@ -423,8 +454,8 @@ server <- function(
             ggplot2$facet_wrap(~id)
         }
       } else {
-        if (!groupcol()) {
-          res$base_plot <- data_r$data_d |>
+        if (!is_grouped) {
+          res$base_plot <- fit_data |>
             ggplot2$ggplot(ggplot2$aes(x = x, y = y)) +
             ggplot2$geom_line(
               ggplot2$aes(x = x, y = y),
@@ -437,7 +468,7 @@ server <- function(
             ) +
             theme_apa()
         } else {
-          res$base_plot <- data_r$data_d |>
+          res$base_plot <- fit_data |>
             ggplot2$ggplot(ggplot2$aes(x = x, y = y, group = group)) +
             ggplot2$geom_line(
               ggplot2$aes(x = x, y = y, color = group),
@@ -495,7 +526,14 @@ server <- function(
           utils$resolve_group_scale(res$plot_group_levels, input$palette)
       }
 
-      if (agg() != "Ind" || length(unique(data_r$data_d$id)) > 51) {
+      # Same rule as above: the watermark decision belongs to the fit's own data,
+      # not to whatever is loaded now (this observer also fires on Update Plot
+      # and on the dark-mode toggle).
+      fit_inputs <- res$fit_inputs
+      if (
+        !identical(fit_inputs$agg, "Ind") ||
+          length(unique(fit_inputs$data$id)) > 51
+      ) {
         res$plot <- res$plot +
           utils$add_shiny_logo(utils$watermark_tr)
       }

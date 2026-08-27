@@ -170,7 +170,11 @@ sidebar_server <- function(id, fit_task) {
           label_busy = "Fitting curves...",
           class = "w-100"
         ),
-        shiny$uiOutput(ns("cancel_demand_ui"))
+        shiny$uiOutput(ns("cancel_demand_ui")),
+        shiny$div(
+          class = "text-muted small mt-1",
+          shiny$textOutput(ns("fit_status_text"))
+        )
       )
     })
 
@@ -192,6 +196,17 @@ sidebar_server <- function(id, fit_task) {
     })
 
     shiny$observeEvent(input$cancel_demand, fit_task$cancel())
+
+    output$fit_status_text <- shiny$renderText({
+      if (!identical(fit_task$status(), "running")) {
+        return("")
+      }
+      shiny$invalidateLater(1000)
+      secs <- round(
+        as.numeric(difftime(Sys.time(), fit_task$started_at(), units = "secs"))
+      )
+      sprintf("Fitting... %ds elapsed. The rest of the app stays usable.", secs)
+    })
 
     # Log when user initiates calculation
     shiny$observeEvent(input$calculate_demand, {

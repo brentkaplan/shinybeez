@@ -104,6 +104,15 @@ describe("Mixed Effects - async fit", {
     )
     wait_for_input(app, ids$mixed$id_var, timeout_ms = 30000)
     app$click(selector = paste0("#", ids$mixed$run))
+    # The busy state itself, asserted once: the heavy fixture takes seconds, so
+    # the disabled window is observable. Without this the suite only ever proves
+    # the button comes BACK, which a button that never went busy also satisfies.
+    app$wait_for_js(
+      sprintf(
+        "document.getElementById('%s').disabled === true", ids$mixed$run
+      ),
+      timeout = 5000
+    )
     app$wait_for_js(
       sprintf("document.getElementById('%s') !== null", ids$mixed$cancel),
       timeout = 15000
@@ -115,6 +124,51 @@ describe("Mixed Effects - async fit", {
             ignore.case = TRUE)
     )
     app$wait_for_js(button_idle_js(ids$mixed$run), timeout = 30000)
+  })
+
+  # The fit runs on a snapshot taken at invoke, but the session stays live, so a
+  # sidebar edit made WHILE it runs must not leak into the finished fit's
+  # post-hoc output. (The Model Specification card does not surface the
+  # covariance structure, so the assertion lands on the fields it does show plus
+  # the comparisons table, which is one of the readers that used to rebuild from
+  # live state.)
+  it("post-hoc output belongs to the fit that started, not to a mid-run edit", {
+    require_app(app)
+    skip_if_not_full_tests()
+    started_with <- app$get_value(input = ids$mixed$covariance)
+    other <- if (identical(started_with, "pdDiag")) "pdSymm" else "pdDiag"
+    app$set_inputs(!!ids$mixed$factor1 := "drug", wait_ = FALSE)
+    app$wait_for_idle(duration = 500, timeout = 60000)
+
+    app$click(selector = paste0("#", ids$mixed$run))
+    app$wait_for_js(
+      sprintf(
+        "document.getElementById('%s').disabled === true", ids$mixed$run
+      ),
+      timeout = 5000
+    )
+    # Mid-flight model-setting change: must be ignored until the next Run.
+    app$set_inputs(!!ids$mixed$covariance := other, wait_ = FALSE)
+
+    app$wait_for_js(button_idle_js(ids$mixed$run), timeout = 120000)
+    wait_for_output(app, summary_id, timeout_ms = 60000)
+    summary_html <- app$get_html(paste0("#", summary_id))
+    expect_true(
+      any(grepl("Model Specification", summary_html, fixed = TRUE)),
+      info = "the completed fit still renders its own summary"
+    )
+    expect_true(
+      any(grepl("drug", summary_html, fixed = TRUE)),
+      info = "the summary reports the factors the fit was started with"
+    )
+    # The comparisons reader now conditions on the fit's own snapshot; before
+    # the fix it rebuilt from live sidebar state and could error here.
+    app$set_inputs(!!tabs_id := "Pairwise Comparisons")
+    app$wait_for_js(
+      sprintf("document.querySelector('#%s tbody tr') !== null", comps_id),
+      timeout = 120000
+    )
+    expect_results_table(app, comps_id)
   })
 
   withr::defer(
