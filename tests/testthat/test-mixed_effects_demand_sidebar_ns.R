@@ -19,14 +19,21 @@ box::use(
 )
 
 box::use(
+  app / logic / async / task,
   app / view / mixed_effects_demand_sidebar,
 )
+
+# sidebar_server now takes the ExtendedTask that runs the fit. These tests are
+# about namespacing, not fitting, so the task is a synchronous no-op.
+stub_fit_task <- function() {
+  task$make_fit_task(function(spec, data) NULL, async = FALSE)
+}
 
 describe("mixed effects demand sidebar namespacing", {
   it("renders the k-value input for the exponentiated model (c371dccc)", {
     shiny$testServer(
       mixed_effects_demand_sidebar$sidebar_server,
-      args = list(data_reactive = shiny$reactive(NULL)),
+      args = list(data_reactive = shiny$reactive(NULL), fit_task = stub_fit_task()),
       {
         # Selecting the exponentiated equation is the only path that calls ns() server-side.
         session$setInputs(model_choice = "exponentiated")
@@ -41,7 +48,7 @@ describe("mixed effects demand sidebar namespacing", {
   it("namespaces the k-value input id under the module", {
     shiny$testServer(
       mixed_effects_demand_sidebar$sidebar_server,
-      args = list(data_reactive = shiny$reactive(NULL)),
+      args = list(data_reactive = shiny$reactive(NULL), fit_task = stub_fit_task()),
       {
         session$setInputs(model_choice = "exponentiated")
 
@@ -58,7 +65,7 @@ describe("mixed effects demand sidebar namespacing", {
   it("renders nothing for a non-exponentiated model", {
     shiny$testServer(
       mixed_effects_demand_sidebar$sidebar_server,
-      args = list(data_reactive = shiny$reactive(NULL)),
+      args = list(data_reactive = shiny$reactive(NULL), fit_task = stub_fit_task()),
       {
         session$setInputs(model_choice = "exponential")
         expect_no_error(output$k_value_mixed)

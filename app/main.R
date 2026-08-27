@@ -6,6 +6,9 @@ box::use(
 )
 
 box::use(
+  app / logic / async / daemons,
+  app / logic / async / task,
+  app / logic / async / workers,
   app / logic / logging_utils,
   app / logic / telemetry_utils,
   app / logic / theme,
@@ -14,6 +17,12 @@ box::use(
   app / view / discounting,
   app / view / info,
 )
+
+# One daemon pool per process (SHINYBEEZ_DAEMONS; 0 = synchronous fits).
+if (daemons$async_enabled()) {
+  daemons$start_daemons()
+  shiny$onStop(daemons$stop_daemons)
+}
 
 #' @export
 ui <- function(id) {
@@ -301,16 +310,20 @@ server <- function(id) {
           "module_init"
         )
 
+        mmd_fit_task <- task$make_fit_task(workers$fit_mixed_worker)
+
         mmd_sidebar_reactives <- mixed_effects_demand_coordinator$sidebar_server(
           "mixed_effects_demand",
           data_reactive = shiny$reactive(
             session$userData$data$mixed_effects_demand
-          )
+          ),
+          fit_task = mmd_fit_task
         )
 
         mixed_effects_demand_coordinator$navpanel_server(
           "mixed_effects_demand",
-          sidebar_reactives = mmd_sidebar_reactives
+          sidebar_reactives = mmd_sidebar_reactives,
+          fit_task = mmd_fit_task
         )
 
         session_logger$info(

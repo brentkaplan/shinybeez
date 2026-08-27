@@ -53,6 +53,29 @@ example_path <- function(filename) {
   file.path(find_project_root(), "app", "static", "data", "examples", filename)
 }
 
+# A mixed-effects upload heavy enough that the fit takes seconds rather than
+# milliseconds, which is what makes a Cancel click land while the task is still
+# running. The ko example (135 rows, 3 monkeys) fits in ~25 ms; replicating it
+# with unique subject ids is the cheapest way to get a genuinely slow NLME fit
+# without inventing data with different convergence behaviour.
+heavy_mixed_fixture <- function(copies = 500L) {
+  path <- file.path(tempdir(), sprintf("heavy-mixed-fixture-%d.csv", copies))
+  if (file.exists(path)) {
+    return(path)
+  }
+  long <- utils::read.csv(
+    example_path("shinybeez-ex-ko.csv"),
+    check.names = FALSE
+  )
+  replicated <- lapply(seq_len(copies), function(i) {
+    chunk <- long
+    chunk$monkey <- paste0(chunk$monkey, "_", i)
+    chunk
+  })
+  utils::write.csv(do.call(rbind, replicated), path, row.names = FALSE)
+  path
+}
+
 # ---------------------------------------------------------------------------
 # Namespace ID helper
 # ---------------------------------------------------------------------------
@@ -109,7 +132,9 @@ ids <- list(
     factor2 = ns_id("mixed_effects_demand", "factor2_choice"),
     random_effects = ns_id("mixed_effects_demand", "random_effects_spec"),
     covariance = ns_id("mixed_effects_demand", "covariance_structure"),
-    run = ns_id("mixed_effects_demand", "run_mixed_model")
+    run = ns_id("mixed_effects_demand", "run_mixed_model"),
+    cancel = ns_id("mixed_effects_demand", "cancel_mixed_model"),
+    comparison_adjust = ns_id("mixed_effects_demand", "comparison_adjust_method")
   ),
 
   # --- Info modal ---

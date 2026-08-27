@@ -19,6 +19,7 @@ box::use(
 )
 
 box::use(
+  app / logic / async / daemons,
   app / logic / utils,
   app / logic / logging_utils,
   app / logic / telemetry_utils,
@@ -343,7 +344,7 @@ navpanel_ui <- function(id) {
 }
 
 #' @export
-navpanel_server <- function(id, sidebar_reactives) {
+navpanel_server <- function(id, sidebar_reactives, fit_task) {
   shiny$moduleServer(id, function(input, output, session) {
     ns <- session$ns
 
@@ -647,213 +648,203 @@ navpanel_server <- function(id, sidebar_reactives) {
       })
     })
 
-    # Reactive for the fitted model
-    fitted_model_reactive <- shiny$eventReactive(
-      sidebar_reactives$run_trigger(),
-      {
-        df <- data_to_analyze()
-        shiny$req(df)
+    # The fit runs on a mirai daemon via fit_task (app/logic/async). The click
+    # observer validates and invokes; the status observer handles the outcome;
+    # `fitted_model_reactive` stays the single read point for the rest of the
+    # module and holds the last SUCCESSFUL model.
+    last_fit <- shiny$reactiveVal(NULL)
+    fit_generation <- shiny$reactiveVal(0L)
+    pending_fit <- shiny$reactiveVal(NULL)
 
-        # Get the user's selected parameters for random effects (e.g., c("alpha", "q0"))
-        rand_eff_spec <- sidebar_reactives$random_effects_spec()
+    shiny$observeEvent(sidebar_reactives$run_trigger(), {
+      df <- data_to_analyze()
+      shiny$req(df)
 
-        # Map the checkbox values to the formal parameter names used in the model
-        random_params_for_formula <- character(0)
-        if ("q0" %in% rand_eff_spec) {
-          random_params_for_formula <- c(random_params_for_formula, "Q0")
-        }
-        if ("alpha" %in% rand_eff_spec) {
-          random_params_for_formula <- c(random_params_for_formula, "alpha")
-        }
+      # Get the user's selected parameters for random effects (e.g., c("alpha", "q0"))
+      # and map them to the formal parameter names used in the model.
+      random_params_for_formula <- model_fitting$map_random_effects(
+        sidebar_reactives$random_effects_spec()
+      )
 
-        if (length(random_params_for_formula) == 0) {
-          shiny$showNotification(
-            "No random effects selected for model parameters.
+      if (length(random_params_for_formula) == 0) {
+        shiny$showNotification(
+          "No random effects selected for model parameters.
             \n\nTry using the demand tab at the top of the page.",
-            type = "error"
-          )
-          return(NULL) # Stop if nothing is selected
-        }
-
-        # Construct the simple formula string (e.g., "Q0 + alpha")
-        random_formula_str <- paste(random_params_for_formula, collapse = " + ")
-
-        # Create the final formula object required by fit_demand_mixed (e.g., Q0 + alpha ~ 1)
-        random_effects_formula_to_pass <- stats$as.formula(paste0(
-          random_formula_str,
-          " ~ 1"
-        ))
-
-        # Read the y-scale flag prepared in data_to_analyze()
-        y_is_ll4 <- isTRUE(attr(df, "y_is_ll4"))
-
-        # Ensure the authoritative column exists
-        shiny$validate(
-          shiny$need(
-            "y_for_model" %in% names(df),
-            "Internal error: 'y_for_model' not found."
-          )
+          type = "error"
         )
+        return(NULL) # Stop if nothing is selected
+      }
 
-        sel_factors <- setdiff(
-          sidebar_reactives$selected_factors(),
-          "None"
+      # The formula the fit will use, as a string (e.g., "Q0 + alpha ~ 1")
+      random_formula_str <- paste0(
+        paste(random_params_for_formula, collapse = " + "),
+        " ~ 1"
+      )
+
+      # Read the y-scale flag prepared in data_to_analyze()
+      y_is_ll4 <- isTRUE(attr(df, "y_is_ll4"))
+
+      # Ensure the authoritative column exists
+      shiny$validate(
+        shiny$need(
+          "y_for_model" %in% names(df),
+          "Internal error: 'y_for_model' not found."
         )
-        if (length(sel_factors) == 0) {
-          sel_factors <- NULL
-        }
+      )
 
-        # Build nlmeControl from user-selected advanced fitting controls
-        user_ctrl_vals <- sidebar_reactives$nlme_controls()
-        user_nlme_control <- nlme$nlmeControl(
-          maxIter = user_ctrl_vals$maxIter,
-          pnlsMaxIter = user_ctrl_vals$pnlsMaxIter,
-          msMaxIter = user_ctrl_vals$msMaxIter,
-          tolerance = user_ctrl_vals$tolerance,
-          pnlsTol = user_ctrl_vals$pnlsTol,
-          minScale = user_ctrl_vals$minScale,
-          niterEM = user_ctrl_vals$niterEM
+      sel_factors <- setdiff(
+        sidebar_reactives$selected_factors(),
+        "None"
+      )
+      if (length(sel_factors) == 0) {
+        sel_factors <- NULL
+      }
+
+      # User-selected advanced fitting controls travel to the worker as a plain
+      # list; the worker builds the nlmeControl object on the other side.
+      user_ctrl_vals <- sidebar_reactives$nlme_controls()
+
+      current_collapse_levels <- sidebar_reactives$collapse_levels_reactive()
+
+      # Check for invalid collapse definitions
+      if (
+        identical(current_collapse_levels, "ERROR_OVERLAP") ||
+          identical(current_collapse_levels, "ERROR_SINGLE_LEVEL")
+      ) {
+        shiny$showNotification(
+          "Cannot fit model due to an invalid collapse definition (overlap or single resulting level).",
+          type = "error",
+          duration = 7
         )
+        return(NULL)
+      }
 
-        current_collapse_levels <- sidebar_reactives$collapse_levels_reactive()
-
-        # Check for invalid collapse definitions
-        if (
-          identical(current_collapse_levels, "ERROR_OVERLAP") ||
-            identical(current_collapse_levels, "ERROR_SINGLE_LEVEL")
-        ) {
-          shiny$showNotification(
-            "Cannot fit model due to an invalid collapse definition (overlap or single resulting level).",
-            type = "error",
-            duration = 7
-          )
-          return(NULL)
-        }
-
-        # X must be numeric before it reaches fit_demand_mixed (production error
-        # e84804c9). Coerce a clean character column in place; reject anything
-        # else with an actionable message instead of beezdemand's raw error.
-        # Runs before the notification and telemetry so an invalid X never
-        # reports a fit as "started".
-        x_col <- sidebar_reactives$x_var()
-        if (is.null(x_col) || !nzchar(x_col) || !(x_col %in% names(df))) {
-          shiny$showNotification(
-            "No X (price/ratio) variable is selected — choose a numeric column in the sidebar.",
-            type = "error",
-            duration = 10
-          )
-          return(NULL)
-        }
-        x_coerced <- data_prep$coerce_x_numeric(df[[x_col]])
-        if (!x_coerced$ok) {
-          shiny$showNotification(
-            paste0(
-              "The selected X variable '", x_col, "' is not numeric (",
-              x_coerced$n_bad, " value(s) could not be read as numbers). ",
-              "Choose a numeric price/ratio column."
-            ),
-            type = "error",
-            duration = 10
-          )
-          return(NULL)
-        }
-        df[[x_col]] <- x_coerced$values
-
-        notif_id <- shiny$showNotification(
-          "Fitting mixed-effects model... This may take a moment.",
-          type = "message",
-          duration = NULL
+      # X must be numeric before it reaches fit_demand_mixed (production error
+      # e84804c9). Coerce a clean character column in place; reject anything
+      # else with an actionable message instead of beezdemand's raw error.
+      # Runs before the notification and telemetry so an invalid X never
+      # reports a fit as "started".
+      x_col <- sidebar_reactives$x_var()
+      if (is.null(x_col) || !nzchar(x_col) || !(x_col %in% names(df))) {
+        shiny$showNotification(
+          "No X (price/ratio) variable is selected — choose a numeric column in the sidebar.",
+          type = "error",
+          duration = 10
         )
-
-        # Prepare covariate info for modeling (ensures transformed column exists)
-        cov_info <- build_covariate_modeling_info(df)
-        cont_covars_to_pass <- cov_info$model_covariate_name
-
-        telemetry_utils$track_configuration(
-          "mixed_effects",
-          config = list(
-            equation_form = sidebar_reactives$equation_form(),
-            factors = paste(sel_factors, collapse = ","),
-            factor_interaction = sidebar_reactives$factor_interaction(),
-            random_effects = deparse(random_effects_formula_to_pass),
-            covariance_structure = sidebar_reactives$covariance_structure(),
-            covariates = paste(cont_covars_to_pass, collapse = ","),
-            n_rows = nrow(df),
-            n_groups = length(unique(df[[sidebar_reactives$id_var()]]))
+        return(NULL)
+      }
+      x_coerced <- data_prep$coerce_x_numeric(df[[x_col]])
+      if (!x_coerced$ok) {
+        shiny$showNotification(
+          paste0(
+            "The selected X variable '", x_col, "' is not numeric (",
+            x_coerced$n_bad, " value(s) could not be read as numbers). ",
+            "Choose a numeric price/ratio column."
           ),
-          session = session
+          type = "error",
+          duration = 10
         )
-        telemetry_utils$track_model_fitting(
-          "mixed_effects",
-          parameters = list(
-            equation = sidebar_reactives$equation_form(),
-            factors = paste(sel_factors, collapse = ",")
-          ),
-          status = "started",
-          session = session
-        )
+        return(NULL)
+      }
+      df[[x_col]] <- x_coerced$values
 
-        model_fit <- tryCatch(
-          session_logger$with_performance(
-            "mixed_effects_model_fit",
-            function() {
-              beezdemand$fit_demand_mixed(
-                data = df,
-                y_var = "y_for_model",
-                x_var = sidebar_reactives$x_var(),
-                id_var = sidebar_reactives$id_var(),
-                factors = sel_factors,
-                factor_interaction = sidebar_reactives$factor_interaction(),
-                equation_form = sidebar_reactives$equation_form(),
-                k = if (identical(sidebar_reactives$equation_form(), "exponentiated")) {
-                  as.numeric(sidebar_reactives$k_mixed())
-                },
-                collapse_levels = current_collapse_levels,
-                random_effects = random_effects_formula_to_pass,
-                covariance_structure = sidebar_reactives$covariance_structure(),
-                nlme_control = user_nlme_control,
-                start_value_method = "pooled_nls",
-                continuous_covariates = cont_covars_to_pass
-              )
-            },
-            always_log = TRUE
+      notif_id <- shiny$showNotification(
+        "Fitting mixed-effects model... This may take a moment.",
+        type = "message",
+        duration = NULL
+      )
+
+      # Prepare covariate info for modeling (ensures transformed column exists)
+      cov_info <- build_covariate_modeling_info(df)
+      cont_covars_to_pass <- cov_info$model_covariate_name
+
+      telemetry_utils$track_configuration(
+        "mixed_effects",
+        config = list(
+          equation_form = sidebar_reactives$equation_form(),
+          factors = paste(sel_factors, collapse = ","),
+          factor_interaction = sidebar_reactives$factor_interaction(),
+          random_effects = random_formula_str,
+          covariance_structure = sidebar_reactives$covariance_structure(),
+          covariates = paste(cont_covars_to_pass, collapse = ","),
+          n_rows = nrow(df),
+          n_groups = length(unique(df[[sidebar_reactives$id_var()]]))
+        ),
+        session = session
+      )
+      telemetry_utils$track_model_fitting(
+        "mixed_effects",
+        parameters = list(
+          equation = sidebar_reactives$equation_form(),
+          factors = paste(sel_factors, collapse = ",")
+        ),
+        status = "started",
+        session = session
+      )
+
+      spec <- model_fitting$build_mixed_fit_spec(
+        x_var = sidebar_reactives$x_var(),
+        id_var = sidebar_reactives$id_var(),
+        equation_form = sidebar_reactives$equation_form(),
+        random_effects_params = random_params_for_formula,
+        factors = sel_factors,
+        factor_interaction = sidebar_reactives$factor_interaction(),
+        k = sidebar_reactives$k_mixed(),
+        collapse_levels = current_collapse_levels,
+        covariance_structure = sidebar_reactives$covariance_structure(),
+        nlme_control = user_ctrl_vals,
+        continuous_covariates = cont_covars_to_pass
+      )
+
+      if (identical(fit_task$status(), "running")) {
+        shiny$removeNotification(notif_id)
+        shiny$showNotification(
+          "A model fit is already running — wait for it or press Cancel.",
+          type = "warning",
+          duration = 5
+        )
+        return(NULL)
+      }
+
+      pending_fit(list(
+        df = df,
+        y_is_ll4 = y_is_ll4,
+        notif_id = notif_id,
+        sel_factors = sel_factors,
+        equation_form = sidebar_reactives$equation_form(),
+        id_var = sidebar_reactives$id_var()
+      ))
+      fit_task$invoke(spec, df)
+    })
+
+    # Task outcome -> notifications, logging, telemetry, last_fit.
+    shiny$observeEvent(fit_task$status(), {
+      st <- fit_task$status()
+      p <- pending_fit()
+      if (is.null(p) || st %in% c("initial", "running")) {
+        return()
+      }
+      shiny$removeNotification(p$notif_id)
+      on.exit(pending_fit(NULL), add = TRUE)
+      fit_params <- list(
+        equation = p$equation_form,
+        factors = paste(p$sel_factors, collapse = ",")
+      )
+
+      if (identical(st, "success")) {
+        r <- fit_task$result()
+        model_fit <- r$fit
+        session_logger$performance(
+          "mixed_effects_model_fit",
+          duration_ms = r$duration_ms,
+          additional_metrics = list(
+            status = "success",
+            worker_rss_mb = r$worker_rss_mb
           ),
-          error = function(e) {
-            shiny$removeNotification(notif_id)
-            shiny$showNotification(
-              paste("Model fitting error:", e$message),
-              type = "error",
-              duration = NULL
-            )
-            session_logger$error_enhanced(
-              paste("Model fitting error:", e$message), e,
-              context = "mixed_effects_model_fit"
-            )
-            session_logger$model_fitting(
-              model_type = "mixed_effects_demand",
-              parameters = list(
-                equation = sidebar_reactives$equation_form(),
-                factors = sel_factors
-              ),
-              status = "failed",
-              metrics = list(error = e$message)
-            )
-            telemetry_utils$track_model_fitting(
-              "mixed_effects",
-              parameters = list(
-                equation = sidebar_reactives$equation_form(),
-                factors = paste(sel_factors, collapse = ","),
-                error = e$message
-              ),
-              status = "failed",
-              session = session
-            )
-            NULL
-          }
+          always_log = TRUE
         )
 
         if (is.null(model_fit) || is.null(model_fit$model)) {
-          shiny$removeNotification(notif_id)
           shiny$showNotification(
             "Model fitting failed or did not converge.",
             type = "error"
@@ -861,37 +852,34 @@ navpanel_server <- function(id, sidebar_reactives) {
           session_logger$model_fitting(
             model_type = "mixed_effects_demand",
             parameters = list(
-              equation = sidebar_reactives$equation_form(),
-              factors = sel_factors
+              equation = p$equation_form,
+              factors = p$sel_factors
             ),
             status = "failed",
             metrics = list(error = "Model did not converge")
           )
           telemetry_utils$track_model_fitting(
             "mixed_effects",
-            parameters = list(
-              equation = sidebar_reactives$equation_form(),
-              factors = paste(sel_factors, collapse = ",")
-            ),
+            parameters = fit_params,
             status = "failed",
             session = session
           )
-          return(NULL)
+          return()
         }
 
         # Persist the scale info for plotting
-        model_fit$param_info$y_is_ll4 <- y_is_ll4
+        model_fit$param_info$y_is_ll4 <- p$y_is_ll4
 
-        shiny$removeNotification(notif_id)
         shiny$showNotification("Model fitting complete.", type = "message")
 
         telemetry_utils$track_model_fitting(
           "mixed_effects",
-          parameters = list(
-            equation = sidebar_reactives$equation_form(),
-            factors = paste(sel_factors, collapse = ","),
-            n_rows = nrow(df),
-            n_groups = length(unique(df[[sidebar_reactives$id_var()]]))
+          parameters = c(
+            fit_params,
+            list(
+              n_rows = nrow(p$df),
+              n_groups = length(unique(p$df[[p$id_var]]))
+            )
           ),
           status = "completed",
           session = session
@@ -902,16 +890,88 @@ navpanel_server <- function(id, sidebar_reactives) {
           "mixed_effects_model_fit_metadata",
           duration_ms = 0,
           additional_metrics = list(
-            n_rows = nrow(df),
-            n_groups = length(unique(df$id)),
-            equation = sidebar_reactives$equation_form()
+            n_rows = nrow(p$df),
+            n_groups = length(unique(p$df$id)),
+            equation = p$equation_form
           ),
           always_log = TRUE
         )
 
-        return(model_fit)
+        last_fit(model_fit)
+        fit_generation(fit_generation() + 1L)
+        if (isTRUE(r$worker_rss_mb > daemons$rss_limit_mb())) {
+          daemons$recycle_daemons()
+        }
+        return()
       }
-    )
+
+      outcome <- fit_task$outcome()
+      msg <- fit_task$error_message()
+
+      if (identical(outcome, "cancelled")) {
+        shiny$showNotification(
+          "Model fitting cancelled.",
+          type = "warning",
+          duration = 5
+        )
+        telemetry_utils$track_model_fitting(
+          "mixed_effects",
+          parameters = fit_params,
+          status = "cancelled",
+          session = session
+        )
+        return()
+      }
+
+      if (identical(outcome, "timeout")) {
+        shiny$showNotification(
+          sprintf(
+            paste(
+              "Model fitting stopped after %d minutes without converging.",
+              "Try fewer factors or a simpler random-effects structure."
+            ),
+            round(daemons$fit_timeout_ms() / 60000)
+          ),
+          type = "error",
+          duration = NULL
+        )
+        telemetry_utils$track_model_fitting(
+          "mixed_effects",
+          parameters = fit_params,
+          status = "timeout",
+          session = session
+        )
+        return()
+      }
+
+      shiny$showNotification(
+        paste("Model fitting error:", msg),
+        type = "error",
+        duration = NULL
+      )
+      session_logger$error_enhanced(
+        paste("Model fitting error:", msg), simpleError(msg),
+        context = "mixed_effects_model_fit"
+      )
+      session_logger$model_fitting(
+        model_type = "mixed_effects_demand",
+        parameters = list(
+          equation = p$equation_form,
+          factors = p$sel_factors
+        ),
+        status = "failed",
+        metrics = list(error = msg)
+      )
+      telemetry_utils$track_model_fitting(
+        "mixed_effects",
+        parameters = c(fit_params, list(error = msg)),
+        status = "failed",
+        session = session
+      )
+    })
+
+    # Drop-in for the readers below: the last successful model.
+    fitted_model_reactive <- shiny$reactive(last_fit())
 
     output$model_summary_structured <- shiny$renderUI({
       model_fit <- fitted_model_reactive()
@@ -1303,7 +1363,7 @@ navpanel_server <- function(id, sidebar_reactives) {
       comps
     }) |>
       shiny$bindCache(
-        sidebar_reactives$run_trigger(),
+        fit_generation(),
         input$comparison_factor,
         input$contrast_by_factor,
         input$comparison_adjust_method,
@@ -1583,7 +1643,7 @@ navpanel_server <- function(id, sidebar_reactives) {
     }) |>
       shiny$bindCache(
         session$rootScope()$input$dark_mode,
-        sidebar_reactives$run_trigger(),
+        fit_generation(),
         input$plot_color_by,
         input$plot_linetype_by,
         input$plot_facet_by,
