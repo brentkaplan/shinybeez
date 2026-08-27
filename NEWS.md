@@ -9,7 +9,8 @@
   Fitted numbers are unchanged. Controlled by three new environment variables:
   `SHINYBEEZ_DAEMONS` (default `1`; set to `0` to restore the previous
   synchronous fitting behavior), `SHINYBEEZ_FIT_TIMEOUT_MS` (default
-  `600000`), and `SHINYBEEZ_DAEMON_RSS_LIMIT_MB` (default `900`).
+  `600000`), and `SHINYBEEZ_DAEMON_RSS_LIMIT_MB` (default `900`). See
+  `deploy-shinyproxy/ASYNC-FITS.md` for the operational runbook.
 
 # shinybeez 1.1.3
 

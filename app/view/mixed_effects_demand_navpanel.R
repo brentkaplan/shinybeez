@@ -11,7 +11,6 @@ box::use(
   ggplot2,
   ggprism,
   htmltools,
-  nlme,
   openxlsx,
   rlang,
   shiny,
@@ -748,6 +747,17 @@ navpanel_server <- function(id, sidebar_reactives, fit_task) {
       }
       df[[x_col]] <- x_coerced$values
 
+      # Refuse a concurrent fit before any notification or telemetry is
+      # recorded — a refused click should not log a phantom "started" event.
+      if (identical(fit_task$status(), "running")) {
+        shiny$showNotification(
+          "A model fit is already running — wait for it or press Cancel.",
+          type = "warning",
+          duration = 5
+        )
+        return(NULL)
+      }
+
       notif_id <- shiny$showNotification(
         "Fitting mixed-effects model... This may take a moment.",
         type = "message",
@@ -795,16 +805,6 @@ navpanel_server <- function(id, sidebar_reactives, fit_task) {
         nlme_control = user_ctrl_vals,
         continuous_covariates = cont_covars_to_pass
       )
-
-      if (identical(fit_task$status(), "running")) {
-        shiny$removeNotification(notif_id)
-        shiny$showNotification(
-          "A model fit is already running — wait for it or press Cancel.",
-          type = "warning",
-          duration = 5
-        )
-        return(NULL)
-      }
 
       pending_fit(list(
         df = df,
@@ -927,8 +927,9 @@ navpanel_server <- function(id, sidebar_reactives, fit_task) {
         shiny$showNotification(
           sprintf(
             paste(
-              "Model fitting stopped after %d minutes without converging.",
-              "Try fewer factors or a simpler random-effects structure."
+              "Model fitting did not finish within %d minutes (including time",
+              "waiting for the worker). Try fewer factors or a simpler",
+              "random-effects structure."
             ),
             round(daemons$fit_timeout_ms() / 60000)
           ),
@@ -941,6 +942,8 @@ navpanel_server <- function(id, sidebar_reactives, fit_task) {
           status = "timeout",
           session = session
         )
+        last_fit(NULL)
+        fit_generation(fit_generation() + 1L)
         return()
       }
 
@@ -968,6 +971,8 @@ navpanel_server <- function(id, sidebar_reactives, fit_task) {
         status = "failed",
         session = session
       )
+      last_fit(NULL)
+      fit_generation(fit_generation() + 1L)
     })
 
     # Drop-in for the readers below: the last successful model.

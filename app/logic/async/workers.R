@@ -40,6 +40,9 @@ fit_mixed_worker <- as_worker(function(spec, data) {
     as.numeric(system(sprintf("ps -o rss= -p %d", Sys.getpid()), intern = TRUE)) / 1024,
     error = function(e) NA_real_
   )
+  # `ps` absent (non-POSIX image) makes system() warn and return character(0)
+  # rather than error, leaving rss as numeric(0) -- normalize to NA.
+  if (!length(rss) || !is.finite(rss)) rss <- NA_real_
   list(
     fit = fit,
     duration_ms = as.numeric(difftime(Sys.time(), started, units = "secs")) * 1000,
@@ -60,6 +63,9 @@ fit_demand_fixed_worker <- as_worker(function(spec, data) {
     as.numeric(system(sprintf("ps -o rss= -p %d", Sys.getpid()), intern = TRUE)) / 1024,
     error = function(e) NA_real_
   )
+  # `ps` absent (non-POSIX image) makes system() warn and return character(0)
+  # rather than error, leaving rss as numeric(0) -- normalize to NA.
+  if (!length(rss) || !is.finite(rss)) rss <- NA_real_
   list(
     fit = fit,
     duration_ms = as.numeric(difftime(Sys.time(), started, units = "secs")) * 1000,

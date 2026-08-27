@@ -154,6 +154,17 @@ server <- function(
         "model_fitting"
       )
 
+      # Refuse a concurrent fit before any telemetry is recorded — a refused
+      # click should not log a phantom "started" event.
+      if (identical(fit_task$status(), "running")) {
+        shiny$showNotification(
+          "Demand curve fitting is already running - wait for it or press Cancel.",
+          type = "warning",
+          duration = 5
+        )
+        return(NULL)
+      }
+
       telemetry_utils$track_configuration(
         "demand",
         config = list(
@@ -168,15 +179,6 @@ server <- function(
         status = "started",
         session = session
       )
-
-      if (identical(fit_task$status(), "running")) {
-        shiny$showNotification(
-          "Demand curve fitting is already running - wait for it or press Cancel.",
-          type = "warning",
-          duration = 5
-        )
-        return(NULL)
-      }
 
       spec <- list(
         is_grouped = is_grouped, eq = eq_code, agg = agg_val,
@@ -195,7 +197,6 @@ server <- function(
         return()
       }
       on.exit(pending_fit(NULL), add = TRUE)
-      on.exit(fit_generation(fit_generation() + 1L), add = TRUE)
       params <- list(equation = p$eq_code, k = p$k, aggregation = p$agg_val)
 
       if (identical(st, "success")) {
@@ -209,6 +210,7 @@ server <- function(
         fit_result <- r$fit
         res$output <- fit_result$output
         res$results <- fit_result$results
+        fit_generation(fit_generation() + 1L)
         if (length(fit_result$failed_groups) > 0) {
           shiny$showNotification(
             paste(
@@ -244,11 +246,11 @@ server <- function(
         return()
       }
 
-      res$output <- NULL
-      res$results <- NULL
       outcome <- fit_task$outcome()
 
       if (identical(outcome, "cancelled")) {
+        # A cancelled fit leaves any prior results on screen — only error and
+        # timeout clear res$output/res$results and advance fit_generation.
         shiny$showNotification(
           "Demand curve fitting cancelled.",
           type = "warning",
@@ -264,6 +266,9 @@ server <- function(
       }
 
       if (identical(outcome, "timeout")) {
+        res$output <- NULL
+        res$results <- NULL
+        fit_generation(fit_generation() + 1L)
         shiny$showNotification(
           "Demand curve fitting timed out.",
           type = "error",
@@ -278,6 +283,9 @@ server <- function(
         return()
       }
 
+      res$output <- NULL
+      res$results <- NULL
+      fit_generation(fit_generation() + 1L)
       msg <- fit_task$error_message()
       session_logger$error_enhanced(
         paste("Error in FitCurves:", msg), simpleError(msg),

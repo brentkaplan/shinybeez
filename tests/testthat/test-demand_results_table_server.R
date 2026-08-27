@@ -179,7 +179,7 @@ describe("demand results table plot state", {
 # uses (demand-minimal.csv fits before a click can land), so it is driven here:
 # a daemon-backed task running a worker that sleeps, cancelled mid-flight.
 describe("demand results table cancelled fit", {
-  it("clears results and the pending fit when the task is cancelled", {
+  it("preserves prior results and fit_generation when the task is cancelled", {
     daemons$start_daemons(1L)
     on.exit(daemons$stop_daemons(), add = TRUE)
 
@@ -197,6 +197,15 @@ describe("demand results table cancelled fit", {
       demand_results_table$server,
       args = module_args(data_r, calc, fit_task = slow_task),
       {
+        # Seed res with a completed fit's results (as the success branch would
+        # populate them) so the cancelled-fit assertions below can prove they
+        # survive a cancel untouched.
+        seeded_output <- list(fake = "output")
+        seeded_results <- data.frame(fake = "results")
+        res$output <- seeded_output
+        res$results <- seeded_results
+        seeded_generation <- fit_generation()
+
         calc(1)
         session$flushReact()
         settle(session, tries = 5)
@@ -206,10 +215,40 @@ describe("demand results table cancelled fit", {
         expect_warning(settle(session), regexp = "Operation canceled")
 
         expect_equal(slow_task$outcome(), "cancelled")
-        expect_null(res$output)
-        expect_null(res$results)
+        # A cancel must not disturb results the user already had.
+        expect_identical(res$output, seeded_output)
+        expect_identical(res$results, seeded_results)
+        expect_equal(fit_generation(), seeded_generation)
         # Cleared on every terminal path, so the next Calculate is accepted.
         expect_null(pending_fit())
+      }
+    )
+  })
+
+  it("clears results and bumps fit_generation on error", {
+    data_r <- shiny$reactiveValues(data_d = ungrouped_demand_data())
+    calc <- shiny$reactiveVal(0)
+
+    shiny$testServer(
+      demand_results_table$server,
+      args = module_args(data_r, calc),
+      {
+        seeded_generation <- fit_generation()
+        res$output <- list(fake = "output")
+        res$results <- data.frame(fake = "results")
+
+        calc(1)
+        expect_warning(
+          {
+            session$flushReact()
+            settle(session)
+          },
+          regexp = "no 'group' column found"
+        )
+
+        expect_null(res$output)
+        expect_null(res$results)
+        expect_equal(fit_generation(), seeded_generation + 1L)
       }
     )
   })
