@@ -17,6 +17,7 @@ box::use(
 )
 
 box::use(
+  app / logic / async / daemons,
   app / logic / async / task,
   app / logic / async / workers,
   app / view / demand_results_table,
@@ -69,7 +70,7 @@ set_plot_inputs <- function(session) {
 }
 
 # The module is always driven with the group checkbox ticked, exactly as the user had it.
-module_args <- function(data_r, calc) {
+module_args <- function(data_r, calc, fit_task = NULL) {
   list(
     data_r = data_r,
     eq = shiny$reactive("Exponential (with k)"),
@@ -81,7 +82,8 @@ module_args <- function(data_r, calc) {
     calculate_btn = calc,
     # In-process ExtendedTask: the fit runs inline, but its result still arrives
     # through a promise, so tests must pump the event loop (see settle()).
-    fit_task = task$make_fit_task(workers$fit_demand_fixed_worker, async = FALSE)
+    fit_task = fit_task %||%
+      task$make_fit_task(workers$fit_demand_fixed_worker, async = FALSE)
   )
 }
 
@@ -146,22 +148,69 @@ describe("demand results table plot state", {
     # The fit itself fails (no `group` column), which the module now surfaces via
     # the task's error branch. ExtendedTask additionally emits a cli warning for
     # every worker error — expected, deliberately not suppressed in the app, so
-    # it is suppressed here instead. The claim is that the MODULE does not error.
+    # that one known warning is captured here, scoped to the fit itself. The
+    # claim is that the MODULE does not error.
     expect_no_error(
-      suppressWarnings(
-        shiny$testServer(
-          demand_results_table$server,
-          args = module_args(data_r, calc),
-          {
-            calc(1)
-            session$flushReact()
-            settle(session)
+      shiny$testServer(
+        demand_results_table$server,
+        args = module_args(data_r, calc),
+        {
+          calc(1)
+          expect_warning(
+            {
+              session$flushReact()
+              settle(session)
+            },
+            regexp = "no 'group' column found"
+          )
 
-            expect_null(res$base_plot)
-            expect_null(res$plot_group_levels)
-          }
-        )
+          expect_null(res$base_plot)
+          expect_null(res$plot_group_levels)
+        }
       )
+    )
+  })
+})
+
+# ==============================================================================
+# Cancelled fit
+# ==============================================================================
+# The cancel path is unreachable from the fast fixtures the integration journey
+# uses (demand-minimal.csv fits before a click can land), so it is driven here:
+# a daemon-backed task running a worker that sleeps, cancelled mid-flight.
+describe("demand results table cancelled fit", {
+  it("clears results and the pending fit when the task is cancelled", {
+    daemons$start_daemons(1L)
+    on.exit(daemons$stop_daemons(), add = TRUE)
+
+    slow_task <- task$make_fit_task(
+      workers$as_worker(function(spec, data) {
+        Sys.sleep(30)
+        list(fit = NULL, duration_ms = 0)
+      }),
+      async = TRUE
+    )
+    data_r <- shiny$reactiveValues(data_d = grouped_demand_data())
+    calc <- shiny$reactiveVal(0)
+
+    shiny$testServer(
+      demand_results_table$server,
+      args = module_args(data_r, calc, fit_task = slow_task),
+      {
+        calc(1)
+        session$flushReact()
+        settle(session, tries = 5)
+        expect_equal(slow_task$status(), "running")
+
+        slow_task$cancel()
+        expect_warning(settle(session), regexp = "Operation canceled")
+
+        expect_equal(slow_task$outcome(), "cancelled")
+        expect_null(res$output)
+        expect_null(res$results)
+        # Cleared on every terminal path, so the next Calculate is accepted.
+        expect_null(pending_fit())
+      }
     )
   })
 })

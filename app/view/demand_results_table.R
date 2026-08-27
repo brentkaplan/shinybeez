@@ -134,7 +134,10 @@ server <- function(
 
     # Bumped once per COMPLETED fit (success or failure). The plot observers key
     # off this rather than off the Calculate button: the fit is now asynchronous,
-    # so at click time res$output still holds the previous run's fit.
+    # so at click time res$output still holds the previous run's fit. They bind it
+    # with ignoreInit = TRUE -- unlike an actionButton's 0, this counter's initial
+    # 0L is not treated as a null event, so without it they would fire once at
+    # module init, which the old calculate_btn() binding never did.
     fit_generation <- shiny$reactiveVal(0L)
 
     shiny$observe({
@@ -442,7 +445,7 @@ server <- function(
         }
       }
     }) |>
-      shiny$bindEvent(fit_generation())
+      shiny$bindEvent(fit_generation(), ignoreInit = TRUE)
 
     shiny$observe({
       shiny$req(res$base_plot)
@@ -503,7 +506,8 @@ server <- function(
     }) |>
       shiny$bindEvent(
         c(fit_generation(), input$update_plot_btn),
-        session$rootScope()$input$dark_mode
+        session$rootScope()$input$dark_mode,
+        ignoreInit = TRUE
       )
   })
 }
