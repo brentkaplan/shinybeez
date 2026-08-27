@@ -1,3 +1,16 @@
+# shinybeez 1.3.0 (development)
+
+## New Features
+
+- **Background model fits** — mixed-effects and fixed-effects demand model
+  fits now run in a background worker (via `mirai`/`shiny::ExtendedTask`)
+  instead of blocking the main session. The app stays responsive while a fit
+  runs, shows a busy indicator with elapsed time, and offers a Cancel button.
+  Fitted numbers are unchanged. Controlled by three new environment variables:
+  `SHINYBEEZ_DAEMONS` (default `1`; set to `0` to restore the previous
+  synchronous fitting behavior), `SHINYBEEZ_FIT_TIMEOUT_MS` (default
+  `600000`), and `SHINYBEEZ_DAEMON_RSS_LIMIT_MB` (default `900`).
+
 # shinybeez 1.1.3
 
 Patch release over v1.1.2. Runtime R dependencies are unchanged (`renv.lock` is

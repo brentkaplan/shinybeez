@@ -98,6 +98,9 @@ RUN R -q -e " \
   library(lme4); library(broom.mixed); library(glue); library(htmltools); \
   cat('Warmup complete\n')"
 
+# Smoke-test the mirai daemon pool (async fits) actually works in this image
+RUN R -q -e "library(mirai); daemons(1); stopifnot(mirai(1 + 1)[] == 2); daemons(0); cat('mirai daemon OK\n')"
+
 # Set ownership and switch to non-root user
 RUN chown -R shiny:shiny /home/shiny/shinybeez
 USER shiny
