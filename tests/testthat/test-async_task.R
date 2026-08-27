@@ -72,7 +72,10 @@ describe("make_fit_task (daemon)", {
       t$invoke(list(), NULL)
       Sys.sleep(0.5)
       t$cancel()
-      expect_identical(settle(t, session), "error")
+      expect_warning(
+        expect_identical(settle(t, session), "error"),
+        regexp = "Operation canceled"
+      )
       expect_identical(t$outcome(), "cancelled")
     }, expr = NULL)
     expect_identical(mirai$mirai(1 + 1)[], 2)
@@ -100,7 +103,10 @@ describe("make_fit_task (daemon)", {
         1
       }, timeout_ms = 500, async = TRUE)
       t$invoke(list(), NULL)
-      expect_identical(settle(t, session), "error")
+      expect_warning(
+        expect_identical(settle(t, session), "error"),
+        regexp = "Timed out"
+      )
       expect_identical(t$outcome(), "timeout")
     }, expr = NULL)
   })
@@ -110,7 +116,10 @@ describe("make_fit_task (daemon)", {
     shiny$testServer(function(input, output, session) {
       t <- task$make_fit_task(function(spec, data) stop("boom"), async = TRUE)
       t$invoke(list(), NULL)
-      expect_identical(settle(t, session), "error")
+      expect_warning(
+        expect_identical(settle(t, session), "error"),
+        regexp = "boom"
+      )
       expect_identical(t$outcome(), "error")
       expect_match(t$error_message(), "boom")
     }, expr = NULL)
