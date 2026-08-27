@@ -104,7 +104,8 @@ server <- function(
   q0_val = NULL,
   groupcol = NULL,
   kval,
-  calculate_btn
+  calculate_btn,
+  fit_task
 ) {
   shiny$moduleServer(id, function(input, output, session) {
     ns <- session$ns
@@ -127,6 +128,14 @@ server <- function(
       # see resolve_group_scale() and production error bce0bb1d.
       plot_group_levels = NULL
     )
+
+    # Metadata for the fit currently on the task; NULL when nothing is pending.
+    pending_fit <- shiny$reactiveVal(NULL)
+
+    # Bumped once per COMPLETED fit (success or failure). The plot observers key
+    # off this rather than off the Calculate button: the fit is now asynchronous,
+    # so at click time res$output still holds the previous run's fit.
+    fit_generation <- shiny$reactiveVal(0L)
 
     shiny$observe({
       eq_code <- fitting$resolve_equation(eq())
@@ -157,43 +166,44 @@ server <- function(
         session = session
       )
 
-      shiny$withProgress(message = "Fitting demand curves...", {
-        fit_result <- tryCatch(
-          session_logger$with_performance("demand_curve_fitting", function() {
-            if (is_grouped) {
-              fitting$fit_demand_grouped(
-                data_r$data_d, eq = eq_code, agg = agg_val,
-                k = k, constrainq0 = constrainq0
-              )
-            } else {
-              fitting$fit_demand_ungrouped(
-                data_r$data_d, eq = eq_code, agg = agg_val,
-                k = k, constrainq0 = constrainq0
-              )
-            }
-          }, always_log = TRUE),
-          error = function(e) {
-            session_logger$error_enhanced(
-              paste("Error in FitCurves:", e$message), e,
-              context = "demand_curve_fitting",
-              user_action = "demand model calculation"
-            )
-            telemetry_utils$track_model_fitting(
-              "demand_fixed",
-              parameters = list(equation = eq_code, k = k, aggregation = agg_val),
-              status = "failed",
-              session = session
-            )
-            shiny$showNotification(
-              paste("Error fitting demand curves:", e$message),
-              type = "error", duration = NULL
-            )
-            NULL
-          }
+      if (identical(fit_task$status(), "running")) {
+        shiny$showNotification(
+          "Demand curve fitting is already running - wait for it or press Cancel.",
+          type = "warning",
+          duration = 5
         )
-      })
+        return(NULL)
+      }
 
-      if (!is.null(fit_result)) {
+      spec <- list(
+        is_grouped = is_grouped, eq = eq_code, agg = agg_val,
+        k = k, constrainq0 = constrainq0
+      )
+      pending_fit(list(eq_code = eq_code, k = k, agg_val = agg_val))
+      fit_task$invoke(spec, data_r$data_d)
+    }) |>
+      shiny$bindEvent(calculate_btn())
+
+    # Task outcome -> results, notifications, logging, telemetry.
+    shiny$observeEvent(fit_task$status(), {
+      st <- fit_task$status()
+      p <- pending_fit()
+      if (is.null(p) || st %in% c("initial", "running")) {
+        return()
+      }
+      on.exit(pending_fit(NULL), add = TRUE)
+      on.exit(fit_generation(fit_generation() + 1L), add = TRUE)
+      params <- list(equation = p$eq_code, k = p$k, aggregation = p$agg_val)
+
+      if (identical(st, "success")) {
+        r <- fit_task$result()
+        session_logger$performance(
+          "demand_curve_fitting",
+          duration_ms = r$duration_ms,
+          additional_metrics = list(status = "success"),
+          always_log = TRUE
+        )
+        fit_result <- r$fit
         res$output <- fit_result$output
         res$results <- fit_result$results
         if (length(fit_result$failed_groups) > 0) {
@@ -207,9 +217,11 @@ server <- function(
           )
           telemetry_utils$track_model_fitting(
             "demand_fixed",
-            parameters = list(
-              equation = eq_code, k = k, aggregation = agg_val,
-              failed_groups = paste(fit_result$failed_groups, collapse = ",")
+            parameters = c(
+              params,
+              list(
+                failed_groups = paste(fit_result$failed_groups, collapse = ",")
+              )
             ),
             status = "partial",
             session = session
@@ -217,7 +229,7 @@ server <- function(
         }
         telemetry_utils$track_model_fitting(
           "demand_fixed",
-          parameters = list(equation = eq_code, k = k, aggregation = agg_val),
+          parameters = params,
           status = "completed",
           session = session
         )
@@ -226,12 +238,60 @@ server <- function(
           type = "message",
           duration = 5
         )
-      } else {
-        res$output <- NULL
-        res$results <- NULL
+        return()
       }
-    }) |>
-      shiny$bindEvent(calculate_btn())
+
+      res$output <- NULL
+      res$results <- NULL
+      outcome <- fit_task$outcome()
+
+      if (identical(outcome, "cancelled")) {
+        shiny$showNotification(
+          "Demand curve fitting cancelled.",
+          type = "warning",
+          duration = 5
+        )
+        telemetry_utils$track_model_fitting(
+          "demand_fixed",
+          parameters = params,
+          status = "cancelled",
+          session = session
+        )
+        return()
+      }
+
+      if (identical(outcome, "timeout")) {
+        shiny$showNotification(
+          "Demand curve fitting timed out.",
+          type = "error",
+          duration = NULL
+        )
+        telemetry_utils$track_model_fitting(
+          "demand_fixed",
+          parameters = params,
+          status = "timeout",
+          session = session
+        )
+        return()
+      }
+
+      msg <- fit_task$error_message()
+      session_logger$error_enhanced(
+        paste("Error in FitCurves:", msg), simpleError(msg),
+        context = "demand_curve_fitting",
+        user_action = "demand model calculation"
+      )
+      telemetry_utils$track_model_fitting(
+        "demand_fixed",
+        parameters = params,
+        status = "failed",
+        session = session
+      )
+      shiny$showNotification(
+        paste("Error fitting demand curves:", msg),
+        type = "error", duration = NULL
+      )
+    })
 
     output$model_results_table <- renderDT(server = FALSE, {
       shiny$req(res$results)
@@ -382,7 +442,7 @@ server <- function(
         }
       }
     }) |>
-      shiny$bindEvent(calculate_btn())
+      shiny$bindEvent(fit_generation())
 
     shiny$observe({
       shiny$req(res$base_plot)
@@ -442,7 +502,7 @@ server <- function(
       )
     }) |>
       shiny$bindEvent(
-        c(calculate_btn(), input$update_plot_btn),
+        c(fit_generation(), input$update_plot_btn),
         session$rootScope()$input$dark_mode
       )
   })

@@ -265,8 +265,9 @@ server <- function(id) {
     tryCatch(
       {
         session_logger$info("Initializing demand module", "module_init")
-        demand$sidebar_server("demand")
-        demand$navpanel_server("demand")
+        demand_fit_task <- task$make_fit_task(workers$fit_demand_fixed_worker)
+        demand$sidebar_server("demand", fit_task = demand_fit_task)
+        demand$navpanel_server("demand", fit_task = demand_fit_task)
         session_logger$info(
           "Demand module initialized successfully",
           "module_init"

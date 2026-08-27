@@ -17,6 +17,8 @@ box::use(
 )
 
 box::use(
+  app / logic / async / task,
+  app / logic / async / workers,
   app / view / demand_results_table,
 )
 
@@ -76,8 +78,21 @@ module_args <- function(data_r, calc) {
     q0_val = shiny$reactive(NULL),
     groupcol = shiny$reactive(TRUE),
     kval = shiny$reactive("2"),
-    calculate_btn = calc
+    calculate_btn = calc,
+    # In-process ExtendedTask: the fit runs inline, but its result still arrives
+    # through a promise, so tests must pump the event loop (see settle()).
+    fit_task = task$make_fit_task(workers$fit_demand_fixed_worker, async = FALSE)
   )
+}
+
+# The fit is asynchronous now: flushing reactives is not enough, the task's
+# promise has to resolve first. Run the later loop and re-flush until the status
+# observer has produced its results.
+settle <- function(session, tries = 50) {
+  for (i in seq_len(tries)) {
+    later::run_now(0.05)
+    session$flushReact()
+  }
 }
 
 describe("demand results table plot state", {
@@ -89,6 +104,7 @@ describe("demand results table plot state", {
       set_plot_inputs(session)
       calc(1)
       session$flushReact()
+      settle(session)
 
       expect_setequal(res$plot_group_levels, c("a", "b", "c"))
       expect_false(is.null(res$base_plot))
@@ -106,12 +122,14 @@ describe("demand results table plot state", {
       set_plot_inputs(session)
       calc(1)
       session$flushReact()
+      settle(session)
       expect_setequal(res$plot_group_levels, c("a", "b", "c"))
 
       # User uploads a dataset with no `group` column and hits Calculate again.
       data_r$data_d <- ungrouped_demand_data()
       calc(2)
       session$flushReact()
+      settle(session)
 
       # Nothing stale may survive. A leftover three-level plot is precisely what got
       # coloured with zero values; if any of these is non-NULL the bug is reachable again.
@@ -125,14 +143,25 @@ describe("demand results table plot state", {
     data_r <- shiny$reactiveValues(data_d = ungrouped_demand_data())
     calc <- shiny$reactiveVal(0)
 
+    # The fit itself fails (no `group` column), which the module now surfaces via
+    # the task's error branch. ExtendedTask additionally emits a cli warning for
+    # every worker error — expected, deliberately not suppressed in the app, so
+    # it is suppressed here instead. The claim is that the MODULE does not error.
     expect_no_error(
-      shiny$testServer(demand_results_table$server, args = module_args(data_r, calc), {
-        calc(1)
-        session$flushReact()
+      suppressWarnings(
+        shiny$testServer(
+          demand_results_table$server,
+          args = module_args(data_r, calc),
+          {
+            calc(1)
+            session$flushReact()
+            settle(session)
 
-        expect_null(res$base_plot)
-        expect_null(res$plot_group_levels)
-      })
+            expect_null(res$base_plot)
+            expect_null(res$plot_group_levels)
+          }
+        )
+      )
     )
   })
 })
