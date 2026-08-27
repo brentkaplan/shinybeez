@@ -864,6 +864,8 @@ navpanel_server <- function(id, sidebar_reactives, fit_task) {
             status = "failed",
             session = session
           )
+          last_fit(NULL)
+          fit_generation(fit_generation() + 1L)
           return()
         }
 
