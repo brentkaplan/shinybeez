@@ -1,3 +1,2 @@
 # Encrypt files containing credentials (readable locally, encrypted on GitHub)
-.Renviron filter=git-crypt diff=git-crypt
 deploy-shinyproxy/** filter=git-crypt diff=git-crypt
