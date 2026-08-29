@@ -6,6 +6,7 @@
 box::use(
   jsonlite[toJSON],
   rhino[log],
+  shiny[isolate],
   glue
 )
 
@@ -162,6 +163,35 @@ track_event <- function(event_name, event_data = list(), session = NULL) {
   }, error = function(e) {
     log$warn("Failed to track telemetry event {event_name}: {e$message}")
   })
+}
+
+#' Build the session_start event payload
+#'
+#' `session$clientData` is a reactiveValues; reading it at the top level of the server function
+#' (outside any reactive consumer) errors, so the read is isolated here.
+#' See shinybeez-analytics#7.
+#'
+#' @param session Shiny session object
+#' @return Named list with `url_search` and `url` (hostname)
+#' @export
+session_start_data <- function(session) {
+  isolate(list(
+    url_search = session$clientData$url_search,
+    url = session$clientData$url_hostname
+  ))
+}
+
+#' Session duration in seconds as a plain numeric
+#'
+#' `difftime` objects have no `jsonlite::toJSON` method, so `track_event()` would fail on them.
+#' See shinybeez-analytics#7.
+#'
+#' @param start_time POSIXct session start time
+#' @param end_time POSIXct end time (defaults to now)
+#' @return Numeric seconds (no `difftime` class)
+#' @export
+session_duration_secs <- function(start_time, end_time = Sys.time()) {
+  as.numeric(difftime(end_time, start_time, units = "secs"))
 }
 
 #' Track navigation event

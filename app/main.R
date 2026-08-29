@@ -186,10 +186,7 @@ server <- function(id) {
     # Track session start in telemetry
     session_telemetry$track_event(
       "session_start",
-      list(
-        url_search = session$clientData$url_search,
-        url = session$clientData$url_hostname
-      )
+      telemetry_utils$session_start_data(session)
     )
 
     # Initialize reactive data storage
@@ -363,10 +360,8 @@ server <- function(id) {
       session_telemetry$track_event(
         "session_end",
         list(
-          session_duration = difftime(
-            Sys.time(),
-            session$userData$.start_time,
-            units = "secs"
+          session_duration = telemetry_utils$session_duration_secs(
+            session$userData$.start_time
           ),
           last_tab = .last_tab
         )

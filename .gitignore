@@ -114,3 +114,6 @@ _review-for-deletion/
 
 # Git worktrees
 .worktrees/
+
+# Local env vars; never needed by the image (Dockerfile copies an explicit file list)
+.Renviron
