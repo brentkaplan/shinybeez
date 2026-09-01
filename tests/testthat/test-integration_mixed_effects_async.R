@@ -70,7 +70,9 @@ describe("Mixed Effects - async fit", {
     #
     # The container keeps the previous run's rows while DataTables fetches the
     # new ones, so remember the rendered text in the page and wait for it to
-    # change; sampling right after Shiny goes idle is a race.
+    # change; sampling right after Shiny goes idle is a race. The body is also
+    # emptied (one dataTables_empty cell) before the new rows land, so "changed"
+    # alone is not enough: wait until it changed AND holds a real data row.
     app$get_js(sprintf(
       "window.__comps = document.querySelector('#%s tbody').innerText; true",
       comps_id
@@ -85,7 +87,11 @@ describe("Mixed Effects - async fit", {
       sprintf(
         paste0(
           "(function(){var t=document.querySelector('#%s tbody');",
-          "return !!t && t.innerText !== window.__comps;})()"
+          "if(!t||t.innerText===window.__comps)return false;",
+          "var rows=t.querySelectorAll('tr');",
+          "for(var i=0;i<rows.length;i++){",
+          "if(!rows[i].querySelector('td.dataTables_empty'))return true;}",
+          "return false;})()"
         ),
         comps_id
       ),
