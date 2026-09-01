@@ -75,5 +75,5 @@ describe("Mixed Effects - X variable guard (#23)", {
     expect_false(grepl("Fixed Effects", summary_html, fixed = TRUE))
   })
 
-  withr::defer(try(app$stop(), silent = TRUE), envir = teardown_env())
+  local_app_stop()
 })

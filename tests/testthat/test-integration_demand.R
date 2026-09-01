@@ -79,7 +79,7 @@ describe("Demand - pooled, two-stage, and mean analysis", {
     expect_demand_results(app, result_id, n_rows = 1)
   })
 
-  withr::defer(try(app$stop(), silent = TRUE), envir = teardown_env())
+  local_app_stop()
 })
 
 # ==========================================================================
@@ -116,7 +116,7 @@ describe("Demand - grouped analysis", {
     expect_demand_results(app, result_id, n_rows = 2)
   })
 
-  withr::defer(try(app$stop(), silent = TRUE), envir = teardown_env())
+  local_app_stop()
 })
 
 # ==========================================================================
@@ -144,10 +144,7 @@ describe("Demand - full 50-subject grouped example", {
     expect_demand_results(app, result_id, n_rows = 3)
   })
 
-  withr::defer(
-    if (!is.null(app)) try(app$stop(), silent = TRUE),
-    envir = teardown_env()
-  )
+  local_app_stop()
 })
 
 # ==========================================================================
