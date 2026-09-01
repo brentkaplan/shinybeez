@@ -302,3 +302,42 @@ validate_factors <- function(df, factor_cols) {
 
   list(valid = length(errors) == 0, errors = errors)
 }
+
+#' Map random-effects checkbox values to model parameter names
+#'
+#' @param spec_vec Character vector from the sidebar (`"q0"`, `"alpha"`), or NULL.
+#' @return Character vector in model order (`"Q0"` then `"alpha"`).
+#' @export
+map_random_effects <- function(spec_vec) {
+  out <- character(0)
+  if ("q0" %in% spec_vec) out <- c(out, "Q0")
+  if ("alpha" %in% spec_vec) out <- c(out, "alpha")
+  out
+}
+
+#' Build the plain-value spec consumed by the mixed-effects fit worker
+#'
+#' Everything here is a plain value: the random-effects formula is a string,
+#' `nlme_control` is a named list, so the spec serialises without environments.
+#' @export
+build_mixed_fit_spec <- function(
+  x_var, id_var, equation_form, random_effects_params, factors, factor_interaction, k,
+  collapse_levels, covariance_structure, nlme_control, continuous_covariates
+) {
+  to_null_if_empty <- function(x) if (is.null(x) || length(x) == 0) NULL else x
+  list(
+    y_var = "y_for_model",
+    x_var = x_var,
+    id_var = id_var,
+    factors = to_null_if_empty(factors),
+    factor_interaction = isTRUE(factor_interaction),
+    equation_form = equation_form,
+    k = if (identical(equation_form, "exponentiated")) as.numeric(k) else NULL,
+    collapse_levels = collapse_levels,
+    random_effects = paste0(paste(random_effects_params, collapse = " + "), " ~ 1"),
+    covariance_structure = covariance_structure,
+    nlme_control = nlme_control,
+    start_value_method = "pooled_nls",
+    continuous_covariates = to_null_if_empty(continuous_covariates)
+  )
+}

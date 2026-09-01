@@ -149,3 +149,35 @@ describe("Demand - full 50-subject grouped example", {
     envir = teardown_env()
   )
 })
+
+# ==========================================================================
+# Async fit (ExtendedTask)
+# ==========================================================================
+# The task button is disabled exactly while its ExtendedTask is busy
+# (bslib components.js: `el.disabled = state === "busy"`), so "enabled again"
+# is the end-of-fit signal. A plain actionButton is never disabled, so this
+# journey's JS wait returns immediately there and the results assertion fires
+# before the blocking fit has rendered anything.
+describe("Demand - async fit", {
+  it("shows a busy Run button that clears when the fit completes", {
+    result_id <- ns_id("demand", "results_table_demand", "model_results_table")
+    app <- create_app_driver()
+    on.exit(try(app$stop(), silent = TRUE), add = TRUE)
+    require_app(app)
+    navigate_to_tab(app, "Demand")
+    upload_and_wait(app, ids$demand$upload, fixture_path("demand-minimal.csv"))
+    wait_for_input(app, ids$demand$calculate)
+    app$click(selector = paste0("#", ids$demand$calculate))
+    app$wait_for_js(
+      sprintf(
+        paste0(
+          "(function(){var b=document.getElementById('%s');",
+          "return !!b && !b.disabled;})()"
+        ),
+        ids$demand$calculate
+      ),
+      timeout = 60000
+    )
+    expect_demand_results(app, result_id, min_rows = 1L)
+  })
+})

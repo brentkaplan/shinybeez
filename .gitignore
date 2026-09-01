@@ -117,3 +117,16 @@ _review-for-deletion/
 
 # Local env vars; never needed by the image (Dockerfile copies an explicit file list)
 .Renviron
+
+# Local planning trail — kept out of the repo by owner decision (2026-08-27)
+docs/plans/
+docs/superpowers/
+engineering/
+design-mockups/
+
+# Local test/debug artifacts
+Rplots.pdf
+tests/testthat/logs/
+
+# SDD scratch workspace (superpowers)
+.superpowers/

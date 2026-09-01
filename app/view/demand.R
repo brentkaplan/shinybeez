@@ -90,7 +90,7 @@ sidebar_ui <- function(id) {
 }
 
 #' @export
-sidebar_server <- function(id) {
+sidebar_server <- function(id, fit_task) {
   shiny$moduleServer(id, function(input, output, session) {
     ns <- session$ns
 
@@ -158,14 +158,54 @@ sidebar_server <- function(id) {
       }
     })
 
+    # The fit runs on a mirai daemon (app/logic/async), so the button reports
+    # busy from the task itself rather than from a blocked session.
     output$calculate <- shiny$renderUI({
       shiny$req(session$userData$data$demand)
-      shiny$actionButton(
-        inputId = ns("calculate_demand"),
-        icon = shiny$icon("cogs"),
-        label = "Run Fixed Effects Model",
-        class = "btn-primary w-100"
+      shiny$tagList(
+        bslib$input_task_button(
+          ns("calculate_demand"),
+          "Run Fixed Effects Model",
+          icon = shiny$icon("cogs"),
+          label_busy = "Fitting curves...",
+          class = "w-100"
+        ),
+        shiny$uiOutput(ns("cancel_demand_ui")),
+        shiny$div(
+          class = "text-muted small mt-1",
+          shiny$textOutput(ns("fit_status_text"))
+        )
       )
+    })
+
+    # bind_task_button reaches an input only once it is bound in the DOM. The
+    # button is rendered on upload, before any click can start a fit, so it is
+    # always present when the busy state is sent; a button inserted *during* a
+    # running task would miss that state.
+    bslib$bind_task_button(fit_task$task, "calculate_demand", session = session)
+
+    output$cancel_demand_ui <- shiny$renderUI({
+      if (!identical(fit_task$status(), "running")) {
+        return(NULL)
+      }
+      shiny$actionButton(
+        ns("cancel_demand"),
+        "Cancel",
+        class = "btn-outline-secondary w-100 mt-1"
+      )
+    })
+
+    shiny$observeEvent(input$cancel_demand, fit_task$cancel())
+
+    output$fit_status_text <- shiny$renderText({
+      if (!identical(fit_task$status(), "running")) {
+        return("")
+      }
+      shiny$invalidateLater(1000)
+      secs <- round(
+        as.numeric(difftime(Sys.time(), fit_task$started_at(), units = "secs"))
+      )
+      sprintf("Fitting... %ds elapsed. The rest of the app stays usable.", secs)
     })
 
     # Log when user initiates calculation
@@ -190,7 +230,7 @@ navpanel_ui <- function(id) {
 }
 
 #' @export
-navpanel_server <- function(id) {
+navpanel_server <- function(id, fit_task) {
   shiny$moduleServer(id, function(input, output, session) {
     ns <- session$ns
 
@@ -251,7 +291,8 @@ navpanel_server <- function(id) {
       q0_val = shiny$reactive(input$q0_val),
       kval = shiny$reactive(input$k),
       calculate_btn = shiny$reactive(input$calculate_demand),
-      groupcol = shiny$reactive(input$group)
+      groupcol = shiny$reactive(input$group),
+      fit_task = fit_task
     )
   })
 }
