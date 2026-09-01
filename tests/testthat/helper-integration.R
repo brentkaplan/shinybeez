@@ -41,6 +41,23 @@ require_app <- function(app) {
   if (is.null(app)) skip("App driver not available")
 }
 
+# Stop the driver stored in `app` when the *enclosing describe() block* ends.
+#
+# Do not park app$stop() on teardown_env(): testthat runs those handlers once, after
+# the whole test_dir() run, so every app subprocess stayed alive across the entire
+# suite. Each app now also carries a mirai daemon with beezdemand/TMB loaded, and
+# 17 live app+daemon pairs exhausted the 16 GB CI runner (OOM kill, 2026-09-01).
+# A describe-level withr::defer() runs as soon as that block's last it() finishes.
+local_app_stop <- function(env = parent.frame()) {
+  withr::defer(
+    {
+      app <- get0("app", envir = env, inherits = FALSE)
+      if (!is.null(app)) try(app$stop(), silent = TRUE)
+    },
+    envir = env
+  )
+}
+
 # ---------------------------------------------------------------------------
 # Path helpers
 # ---------------------------------------------------------------------------

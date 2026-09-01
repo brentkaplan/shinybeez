@@ -171,10 +171,7 @@ describe("Mixed Effects - async fit", {
     expect_results_table(app, comps_id)
   })
 
-  withr::defer(
-    if (!is.null(app)) try(app$stop(), silent = TRUE),
-    envir = teardown_env()
-  )
+  local_app_stop()
 })
 
 describe("Mixed Effects - synchronous fallback (SHINYBEEZ_DAEMONS=0)", {

@@ -58,5 +58,5 @@ describe("Error handling", {
     expect_true(!is.null(html) && any(grepl("shiny-notification", html)))
   })
 
-  withr::defer(try(app$stop(), silent = TRUE), envir = teardown_env())
+  local_app_stop()
 })
