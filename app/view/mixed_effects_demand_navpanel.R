@@ -970,7 +970,8 @@ navpanel_server <- function(id, sidebar_reactives, fit_task) {
       )
       session_logger$error_enhanced(
         paste("Model fitting error:", msg), simpleError(msg),
-        context = "mixed_effects_model_fit"
+        context = "mixed_effects_model_fit",
+        details = fit_params
       )
       session_logger$model_fitting(
         model_type = "mixed_effects_demand",

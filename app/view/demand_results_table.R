@@ -177,22 +177,26 @@ server <- function(
         ),
         session = session
       )
-      telemetry_utils$track_model_fitting(
-        "demand_fixed",
-        parameters = list(equation = eq_code, k = k, aggregation = agg_val),
-        status = "started",
-        session = session
-      )
-
       spec <- list(
         is_grouped = is_grouped, eq = eq_code, agg = agg_val,
         k = k, constrainq0 = constrainq0
       )
+      # One parameter set for every telemetry event of this fit, so started,
+      # completed/failed/timeout/cancelled and the error row all carry the same
+      # spec and data size.
+      params <- fitting$fit_params(spec, data_r$data_d)
+      telemetry_utils$track_model_fitting(
+        "demand_fixed",
+        parameters = params,
+        status = "started",
+        session = session
+      )
+
       # Snapshot everything the post-fit plot code needs. The fit is async, so
       # the upload and the sidebar can change while it runs; the plot must be
       # built from what the fit actually used.
       pending_fit(list(
-        eq_code = eq_code, k = k, agg_val = agg_val,
+        eq_code = eq_code, k = k, agg_val = agg_val, params = params,
         data = data_r$data_d, is_grouped = is_grouped,
         # The UI label ("Ind" / "Mean" / "Pooled"), NOT agg_val: the plot code
         # branches on the label, while agg_val is NULL for "Ind".
@@ -210,7 +214,7 @@ server <- function(
         return()
       }
       on.exit(pending_fit(NULL), add = TRUE)
-      params <- list(equation = p$eq_code, k = p$k, aggregation = p$agg_val)
+      params <- p$params
 
       if (identical(st, "success")) {
         r <- fit_task$result()
@@ -314,7 +318,8 @@ server <- function(
       session_logger$error_enhanced(
         paste("Error in FitCurves:", msg), simpleError(msg),
         context = "demand_curve_fitting",
-        user_action = "demand model calculation"
+        user_action = "demand model calculation",
+        details = params
       )
       telemetry_utils$track_model_fitting(
         "demand_fixed",
