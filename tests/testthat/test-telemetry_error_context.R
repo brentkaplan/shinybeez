@@ -105,6 +105,19 @@ describe("error telemetry context", {
       st <- telemetry_utils$create_session_telemetry(fake_session())
       expect_equal(names(formals(st$track_error)), c("error_message", "error_context", "details"))
     })
+
+    it("forwards its bound session and the details to the error row", {
+      db_path <- with_sqlite_telemetry()
+      sess <- fake_session()
+      st <- telemetry_utils$create_session_telemetry(sess)
+
+      st$track_error("client boom", "client_js:app.js:4", details = list(line = 4L))
+
+      rows <- read_error_rows(db_path)
+      expect_equal(nrow(rows), 1L)
+      expect_equal(rows$session, sess$token)
+      expect_equal(jsonlite$fromJSON(rows$details)$details$line, 4L)
+    })
   })
 
   describe("logging_utils$create_session_logger()$error_enhanced", {
