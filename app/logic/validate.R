@@ -18,6 +18,24 @@ validate_condition <- function(condition, msg) {
   TRUE
 }
 
+#' Parse a wide-format price/delay header
+#'
+#' A header is a number only when the WHOLE header is one: optional currency
+#' symbol, digits, optional decimals, surrounding whitespace. `readr::parse_number()`
+#' accepts embedded digits, so `APT_1`/`APT_2` parsed to 1/2 and a Qualtrics item
+#' export fitted curves at invented prices (found 2026-09-06).
+#'
+#' @param headers Character vector
+#' @return Numeric vector, NA where a header is not a whole-header number
+#' @export
+parse_header_number <- function(headers) {
+  pattern <- "^\\s*[$€£]?\\s*[0-9]+(\\.[0-9]+)?\\s*$"
+  out <- rep(NA_real_, length(headers))
+  ok <- !is.na(headers) & grepl(pattern, headers, perl = TRUE)
+  out[ok] <- as.numeric(gsub("[^0-9.]", "", headers[ok]))
+  out
+}
+
 #' Classify a demand frame as wide or long
 #'
 #' The format is a property of the column NAMES, never of the rows. Deciding it
@@ -65,9 +83,8 @@ check_price_headers <- function(dat) {
   }
 
   headers <- colnames(dat)[idx]
-  # An unparseable header is an expected, handled condition here - the warning
-  # readr emits for it is noise, so it is suppressed at the parse call only.
-  parsed <- suppressWarnings(readr$parse_number(headers))
+  # Whole-header numbers only: "APT_1" must not become price 1.
+  parsed <- parse_header_number(headers)
 
   bad <- headers[is.na(parsed)]
   if (length(bad) > 0) {
@@ -181,6 +198,34 @@ check_mixed_effects_data <- function(dat) {
   TRUE
 }
 
+#' Validate a wide indifference-point frame: `id` first, one numeric delay per header
+#' @param dat Data frame with lowercased column names, `id` first
+#' @return TRUE or character error message
+check_wide_discounting <- function(dat) {
+  delay_headers <- colnames(dat)[-1]
+  if (length(delay_headers) < 2) {
+    return("Wide indifference point data need `id` plus at least two delay columns.")
+  }
+  parsed <- parse_header_number(delay_headers)
+  bad <- delay_headers[is.na(parsed)]
+  if (length(bad) > 0) {
+    return(paste0(
+      "Wide indifference point data must have one numeric delay per column header. ",
+      "Could not parse: ", paste0("\"", bad, "\"", collapse = ", "), "."
+    ))
+  }
+  if (anyDuplicated(parsed) > 0) {
+    return(paste0(
+      "Duplicate delay columns. These headers resolve to the same delay: ",
+      paste0("\"", delay_headers[parsed %in% parsed[duplicated(parsed)]], "\"", collapse = ", "), "."
+    ))
+  }
+  if (anyDuplicated(dat$id) > 0) {
+    return("Wide indifference point data must have one row per id.")
+  }
+  TRUE
+}
+
 #' Validate discounting data
 #' @param dat Data frame
 #' @return TRUE or character error message
@@ -219,10 +264,14 @@ check_discounting_data <- function(dat) {
   }
 
   if ("id" %in% cols) {
-    return(validate_condition(
-      identical(cols, c("id", "x", "y")),
-      "Indifference point data must have exactly three columns: id, x, y"
-    ))
+    if (identical(cols, c("id", "x", "y"))) return(TRUE)
+    # id first and no x/y: the wide template shape (id + one column per delay).
+    # prepare_discounting_data() already reshapes it; until 2026-09-06 this
+    # branch rejected the app's own template_discounting_wide.csv.
+    if (identical(cols[1], "id") && !any(c("x", "y") %in% cols)) {
+      return(check_wide_discounting(dat))
+    }
+    return("Indifference point data must have exactly three columns: id, x, y")
   }
 
   paste0(
@@ -288,9 +337,7 @@ rename_cols <- function(dat) {
     dat <- dplyr$relocate(dat, group, .after = id)
   }
   idx <- price_col_index(dat)
-  colnames(dat)[idx] <- suppressWarnings(
-    readr$parse_number(colnames(dat)[idx])
-  )
+  colnames(dat)[idx] <- parse_header_number(colnames(dat)[idx])
   dat
 }
 
@@ -346,7 +393,7 @@ prepare_discounting_data <- function(dat) {
   }
 
   # id-first and wide: reshape to long, then coerce.
-  if (identical(cols[1], "id") && ncol(dat) > 3) {
+  if (identical(cols[1], "id") && ncol(dat) >= 3 && !all(c("x", "y") %in% cols)) {
     return(retype_data(reshape_data(dat, type = "discounting")))
   }
 
