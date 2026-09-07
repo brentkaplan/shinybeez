@@ -3,6 +3,7 @@
 #' Opened by file_input when an upload fails template validation. Owns the modal,
 #' builds a reshape spec from the inputs, previews the long frame, and hands the
 #' converted frame back through `result()`. Knows nothing about storage or telemetry.
+#' There is no static UI: the modal is built server-side on each request.
 
 box::use(
   bslib,
@@ -28,11 +29,8 @@ cols_label <- function(target) if (target == "discounting") "Delay columns" else
 # input is NULL and the code falls back to the guess.
 rid <- function(token, name) sprintf("r%d_%s", as.integer(token), name)
 
-#' Static UI: none. The modal is built server-side on request.
-#' @export
-ui <- function(id) {
-  NULL
-}
+# JS condition for conditionalPanel: show the typed-prices box only in manual mode
+manual_condition <- function(ns, token) sprintf("input['%s'] == 'manual'", ns(rid(token, "x_source")))
 
 series_block <- function(ns, token, target, i, cols, series, show_manual_condition, show_label) {
   label_input <- shiny$textInput(
@@ -70,7 +68,6 @@ modal_ui <- function(ns, req, guess) {
   cols <- colnames(dat)
   target <- req$target
   token <- req$token
-  manual_condition <- sprintf("input['%s'] == 'manual'", ns(rid(token, "x_source")))
   other_cols <- setdiff(cols, c(guess$id_col, unlist(lapply(guess$series, `[[`, "cols"))))
 
   extras <- switch(
@@ -100,7 +97,8 @@ modal_ui <- function(ns, req, guess) {
     ),
     shiny$p(
       class = "text-muted small",
-      "Already one row per observation? Rename your columns to match the long template on the Welcome tab instead."
+      "Already one row per observation? Rename your columns to match the long template on the Welcome tab instead. ",
+      "Column names are shown lowercased."
     ),
     shiny$selectInput(
       ns(rid(token, "id_col")), "Participant id column",
@@ -199,7 +197,7 @@ server <- function(id, request_r) {
       shiny$req(req)
       n <- state$n_series
       carry <- state$carry
-      manual_condition <- sprintf("input['%s'] == 'manual'", ns(rid(req$token, "x_source")))
+      condition <- manual_condition(ns, req$token)
       shiny$isolate({
         shiny$tagList(lapply(seq_len(n), function(i) {
           guessed <- if (i <= length(state$guess$series)) state$guess$series[[i]] else spec$new_series(character(0))
@@ -213,7 +211,7 @@ server <- function(id, request_r) {
           } else {
             guessed
           }
-          series_block(ns, req$token, req$target, i, colnames(req$dat), current, manual_condition, show_label = n > 1)
+          series_block(ns, req$token, req$target, i, colnames(req$dat), current, condition, show_label = n > 1)
         }))
       })
     })
@@ -338,9 +336,9 @@ server <- function(id, request_r) {
       utils$head(p$data, 10)
     }, options = list(dom = "t", ordering = FALSE), rownames = FALSE)
 
-    # The download button is stateless (it only ever re-runs current_spec()/apply_spec()
-    # against whichever request is current), so it is the one modal control that keeps a
-    # static id rather than an rid()-namespaced one.
+    # The download button is stateless (it only ever writes preview() for whichever
+    # request is current, and is only rendered while that preview is valid), so it is
+    # the one modal control that keeps a static id rather than an rid()-namespaced one.
     output$footer <- shiny$renderUI({
       req <- state$req
       shiny$req(req)
@@ -357,7 +355,9 @@ server <- function(id, request_r) {
     output$download <- shiny$downloadHandler(
       filename = function() paste0(sub("\\.[^.]+$", "", state$req$meta$name), "-long.csv"),
       content = function(file) {
-        utils$write.csv(spec$apply_spec(current_spec(), state$req$dat)$data, file, row.names = FALSE)
+        p <- preview()
+        shiny$req(p)
+        utils$write.csv(p$data, file, row.names = FALSE)
       }
     )
 

@@ -38,6 +38,7 @@ read_event_rows <- function(db_path, type) {
 }
 
 # MockShinySession has a token but not the ShinySession class shiny.telemetry checks for.
+# R6 objects are environments, so this mutates `session` in place and returns the same object.
 as_telemetry_session <- function(session) {
   class(session) <- c("ShinySession", class(session))
   session

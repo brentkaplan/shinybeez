@@ -61,6 +61,11 @@ x_noun <- function(target) if (target == "discounting") "delays" else "prices"
 
 series_name <- function(s, i) if (nzchar(trimws(s$label))) s$label else paste("Series", i)
 
+# Response cells of one series as a numeric vector, column-major (all of cols[1], then cols[2], ...)
+series_cells <- function(s, dat) {
+  unlist(lapply(s$cols, function(cn) parse_cells(dat[[cn]])), use.names = FALSE)
+}
+
 #' Validate a spec against the frame it will be applied to
 #' @return TRUE or a user-facing character message (the first failure)
 #' @export
@@ -177,10 +182,7 @@ validate_spec <- function(spec, dat) {
   for (i in seq_along(spec$series)) {
     s <- spec$series[[i]]
     nm <- series_name(s, i)
-    ymat <- matrix(
-      unlist(lapply(s$cols, function(cn) parse_cells(dat[[cn]])), use.names = FALSE),
-      nrow = nrow(dat)
-    )
+    ymat <- matrix(series_cells(s, dat), nrow = nrow(dat))
     if (all(is.na(ymat))) {
       return(paste0(nm, ": none of the selected columns contain numbers."))
     }
@@ -223,7 +225,7 @@ apply_spec <- function(spec, dat) {
     out <- data.frame(
       id = rep(ids, times = k),
       x = rep(s$x, each = n),
-      y = unlist(lapply(s$cols, function(cn) parse_cells(dat[[cn]])), use.names = FALSE),
+      y = series_cells(s, dat),
       .row = rep(seq_len(n), times = k),
       .series = i,
       stringsAsFactors = FALSE
@@ -246,7 +248,6 @@ apply_spec <- function(spec, dat) {
   long <- long[order(long$.row, long$.series, long$x), , drop = FALSE]
   long$.row <- NULL
   long$.series <- NULL
-  rownames(long) <- NULL
 
   n_na_y <- sum(is.na(long$y))
   if (spec$drop_na) long <- long[!is.na(long$y), , drop = FALSE]
