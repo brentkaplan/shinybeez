@@ -218,3 +218,57 @@ describe("file_input mapper confirm and cancel", {
     })
   })
 })
+
+describe("file_input stores a long mapping", {
+  long_result <- function(token, dat) {
+    s <- spec$new_spec(
+      "demand", layout = "long", id_col = "subject", x_col = "price", y_col = "consumption"
+    )
+    out <- spec$apply_spec(s, dat)
+    list(data = out$data, spec = s, losses = out$losses, token = token,
+         meta = list(name = "long-misnamed.csv", ext = "csv", size = 1))
+  }
+
+  it("opens a request for a misnamed long file and stores the confirmed result", {
+    shiny$testServer(file_input$server, args = list(type = "demand"), {
+      session$setInputs(upload = upload_input("long-misnamed.csv"))
+      req <- mapper_request()
+      expect_false(is.null(req))
+      mapper$result(long_result(req$token, req$dat))
+      session$flushReact()
+      stored <- session$userData$data$demand
+      expect_equal(colnames(stored), c("id", "x", "y"))
+      expect_equal(nrow(stored), 12)
+    })
+  })
+
+  it("records layout = long in the reshape telemetry summary", {
+    db <- with_sqlite_telemetry()
+    shiny$testServer(file_input$server, args = list(type = "demand"), {
+      as_telemetry_session(session)
+      session$setInputs(upload = upload_input("long-misnamed.csv"))
+      req <- mapper_request()
+      mapper$result(long_result(req$token, req$dat))
+      session$flushReact()
+    })
+    details <- lapply(read_event_rows(db, "reshape")$details, jsonlite$fromJSON)
+    confirmed <- Filter(function(d) identical(d$outcome, "confirmed"), details)
+    expect_equal(length(confirmed), 1)
+    expect_equal(confirmed[[1]]$layout, "long")
+    expect_equal(confirmed[[1]]$x_source, "none")
+  })
+
+  it("records layout = wide for a pivoted file", {
+    db <- with_sqlite_telemetry()
+    shiny$testServer(file_input$server, args = list(type = "demand"), {
+      as_telemetry_session(session)
+      session$setInputs(upload = upload_input("wide-qualtrics-apt.csv"))
+      req <- mapper_request()
+      mapper$result(apt_result(req$token, req$dat))
+      session$flushReact()
+    })
+    details <- lapply(read_event_rows(db, "reshape")$details, jsonlite$fromJSON)
+    confirmed <- Filter(function(d) identical(d$outcome, "confirmed"), details)
+    expect_equal(confirmed[[1]]$layout, "wide")
+  })
+})

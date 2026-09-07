@@ -325,6 +325,7 @@ server <- function(id, type = "demand") {
       telemetry_utils$track_reshape(
         module_label, "confirmed",
         summary = list(
+          layout = res$spec$layout,
           n_series = length(res$spec$series),
           x_source = res$spec$x_source,
           n_cols_in = sum(vapply(res$spec$series, function(s) length(s$cols), numeric(1))),

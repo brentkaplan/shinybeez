@@ -20,6 +20,12 @@
   Several commodities side by side become groups (demand) or a `series`
   column (mixed effects); extra columns can be carried along on the
   mixed-effects tab. The converted long file can be downloaded from the form.
+  A file that is already one row per observation but carries the wrong column
+  names (`subject, price, consumption`, extra columns, any column order) is
+  handled by the same form: it opens on the layout it detects and asks which
+  columns hold the id, the price or delay, and the response, rather than asking
+  you to rename them by hand. A radio at the top switches between the two
+  layouts if the guess is wrong.
 
 ## Bug Fixes
 

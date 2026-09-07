@@ -65,5 +65,24 @@ describe("Demand - wide-to-long mapper", {
     app$wait_for_idle(duration = 500)
   })
 
+  it("maps a misnamed long file end to end", {
+    require_app(app)
+    # third upload on this tab, so the request token is 3
+    app$upload_file(!!ids$demand$upload := fixture_path("long-misnamed.csv"))
+    app$wait_for_js("document.querySelector('.modal.show') !== null", timeout = 10000)
+    expect_equal(app$wait_for_value(input = mapper(3, "layout"), timeout = 5000), "long")
+    expect_equal(app$wait_for_value(input = mapper(3, "long_x_col"), timeout = 5000), "price")
+    app$wait_for_js(
+      sprintf(
+        "(function(){var b=document.getElementById('%s');return b!==null && !b.disabled;})()", mapper(3, "confirm")
+      ),
+      timeout = 5000
+    )
+    app$click(selector = paste0("#", mapper(3, "confirm")))
+    wait_for_datatable(app)
+    wait_for_notification(app, "message")
+    expect_true(any(grepl("<td", app$get_html(".datatables"), fixed = TRUE)))
+  })
+
   local_app_stop()
 })
