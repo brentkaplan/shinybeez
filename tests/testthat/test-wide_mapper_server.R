@@ -131,6 +131,46 @@ describe("wide_mapper server", {
     })
   })
 
+  it("a second request renders from its own guesses, not the previous modal's inputs", {
+    request <- shiny$reactiveVal(NULL)
+    shiny$testServer(wide_mapper$server, args = list(request_r = request), {
+      request(request_for(fixture("wide-qualtrics-apt.csv"), token = 1L))
+      session$flushReact()
+      session$setInputs(
+        id_col = "responseid", x_source = "manual",
+        series_cols_1 = paste0("apt_", 1:5), series_x_1 = "0 0.5 1 5 10", series_label_1 = "", group_col = ""
+      )
+      session$setInputs(cancel = 1)
+      request(request_for(fixture("wide-price-suffix.csv"), token = 2L))
+      session$flushReact()
+      html <- output$series_ui$html
+      expect_match(html, "price_0.5", fixed = TRUE)
+      expect_false(grepl("apt_1", html, fixed = TRUE))
+      expect_false(state$carry)
+      session$setInputs(add_series = 1)
+      expect_true(state$carry)
+    })
+  })
+
+  it("offers header prices only when every selected column name carries one", {
+    request <- shiny$reactiveVal(NULL)
+    shiny$testServer(wide_mapper$server, args = list(request_r = request), {
+      request(request_for(fixture("wide-qualtrics-apt.csv")))
+      session$flushReact()
+      session$setInputs(id_col = "responseid", series_cols_1 = paste0("apt_", 1:5), series_label_1 = "", group_col = "")
+      expect_false(header_x_available())
+      expect_false(grepl("Read from column names", output$x_source_ui$html, fixed = TRUE))
+      request(request_for(fixture("wide-price-suffix.csv"), token = 2L))
+      session$flushReact()
+      session$setInputs(
+        id_col = "participant",
+        series_cols_1 = c("price_0", "price_0.5", "price_1", "price_5", "price_10")
+      )
+      expect_true(header_x_available())
+      expect_match(output$x_source_ui$html, "Read from column names", fixed = TRUE)
+    })
+  })
+
   it("resolves modal input ids under a nested namespace", {
     request <- shiny$reactiveVal(NULL)
     outer <- function(id, request_r) {

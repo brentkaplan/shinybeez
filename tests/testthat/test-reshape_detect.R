@@ -55,6 +55,21 @@ describe("x_from_names", {
   })
 })
 
+describe("header_x_available", {
+  it("is FALSE for an item-index run: the trailing number is a position, not a price", {
+    expect_false(detect$header_x_available(paste0("apt_", 1:5)))
+  })
+  it("is TRUE when the trailing numbers are not a sequential index", {
+    expect_true(detect$header_x_available(c("price_0", "price_0.5", "price_1", "price_5", "price_10")))
+  })
+  it("is TRUE for whole-header numbers even when they happen to be 1..n", {
+    expect_true(detect$header_x_available(c("1", "2", "3")))
+  })
+  it("is FALSE with no columns", {
+    expect_false(detect$header_x_available(character(0)))
+  })
+})
+
 describe("cluster_series_columns", {
   it("treats consecutive 1..n suffixes as item indices (manual prices)", {
     cl <- detect$cluster_series_columns(fixture("wide-qualtrics-apt.csv"), exclude = "responseid")

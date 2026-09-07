@@ -57,6 +57,21 @@ is_index_run <- function(suffix) {
   length(suffix) >= 2 && !anyNA(suffix) && isTRUE(all.equal(suffix, as.numeric(seq_along(suffix))))
 }
 
+#' Whether "Read from column names" should be offered for these columns
+#'
+#' A header carries a real price/delay when the whole header is a number, or when its
+#' trailing number is not merely a sequential item index: `apt_1, apt_2, …, apt_5` suffix-
+#' parses to 1, 2, 3, 4, 5, but that is the item's position, not a price, and mirrors the
+#' guess `cluster_series_columns()` makes for the same pattern (`x_source = "manual"`).
+#' @export
+header_x_available <- function(cols) {
+  if (length(cols) == 0) return(FALSE)
+  whole <- parse_header_number(cols)
+  if (all(!is.na(whole))) return(TRUE)
+  x <- x_from_names(cols)
+  !anyNA(x) && !is_index_run(x)
+}
+
 #' Group candidate response columns into series
 #' @param exclude Columns already used (id, etc.)
 #' @param min_numeric Minimum share of numeric cells for a column to count

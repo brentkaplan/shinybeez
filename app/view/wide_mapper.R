@@ -29,15 +29,16 @@ ui <- function(id) {
   NULL
 }
 
-series_block <- function(ns, target, i, cols, series, show_manual_condition) {
+series_block <- function(ns, target, i, cols, series, show_manual_condition, show_label) {
+  label_input <- shiny$textInput(
+    ns(paste0("series_label_", i)),
+    "Series name (used as the group when there is more than one series)",
+    value = series$label %||% ""
+  )
   bslib$card(
     class = "mb-2",
     bslib$card_body(
-      shiny$textInput(
-        ns(paste0("series_label_", i)),
-        "Series name (used as the group when there is more than one series)",
-        value = series$label %||% ""
-      ),
+      if (show_label) label_input else shiny$div(style = "display:none", label_input),
       shiny$selectizeInput(
         ns(paste0("series_cols_", i)),
         cols_label(target),
@@ -80,14 +81,15 @@ modal_ui <- function(ns, req, guess) {
     discounting = NULL
   )
 
+  reason <- sub("\\.\\s*$", "", req$reason)
+
   shiny$modalDialog(
     title = "Reshape your data",
     size = "xl",
     easyClose = FALSE,
     footer = shiny$uiOutput(ns("footer")),
     shiny$p(
-      "This file doesn't match a shinybeez template: ", shiny$em(req$reason),
-      " Tell us how to reshape it. ",
+      "This file doesn't match a shinybeez template: ", shiny$em(reason), ". Tell us how to reshape it. ",
       shiny$span(class = "text-muted", sprintf("%d rows × %d columns detected.", nrow(dat), ncol(dat)))
     ),
     shiny$p(
@@ -107,11 +109,7 @@ modal_ui <- function(ns, req, guess) {
         shiny$actionButton(ns("remove_series"), "Remove last series", class = "btn-outline-secondary btn-sm ms-2")
       )
     },
-    shiny$radioButtons(
-      ns("x_source"), x_label(target),
-      choices = c("Read from column names" = "header", "Enter them" = "manual"),
-      selected = guess$x_source, inline = TRUE
-    ),
+    shiny$uiOutput(ns("x_source_ui")),
     shiny$uiOutput(ns("pairs_ui")),
     extras,
     shiny$h6("Preview"),
@@ -124,7 +122,7 @@ modal_ui <- function(ns, req, guess) {
 server <- function(id, request_r) {
   shiny$moduleServer(id, function(input, output, session) {
     ns <- session$ns
-    state <- shiny$reactiveValues(req = NULL, guess = NULL, n_series = 0L)
+    state <- shiny$reactiveValues(req = NULL, guess = NULL, n_series = 0L, carry = FALSE)
     result <- shiny$reactiveVal(NULL)
     cancelled <- shiny$reactiveVal(NULL)
 
@@ -136,6 +134,7 @@ server <- function(id, request_r) {
         return()
       }
       guess <- detect$guess_spec(req$dat, req$target)
+      state$carry <- FALSE
       state$req <- req
       state$guess <- guess
       state$n_series <- length(guess$series)
@@ -143,32 +142,43 @@ server <- function(id, request_r) {
     })
 
     shiny$observeEvent(input$add_series, {
+      state$carry <- TRUE
       state$n_series <- state$n_series + 1L
     })
     shiny$observeEvent(input$remove_series, {
-      if (state$n_series > 1L) state$n_series <- state$n_series - 1L
+      if (state$n_series > 1L) {
+        state$carry <- TRUE
+        state$n_series <- state$n_series - 1L
+      }
     })
 
     # Series blocks are re-rendered when their number changes; carry the current
-    # inputs across so adding a series does not reset the others to the guess.
+    # inputs across so adding a series does not reset the others to the guess. A fresh
+    # reshape request (state$carry FALSE) always renders from its own guess, never from
+    # a previous, now-stale, modal's inputs surviving in `input`.
     output$series_ui <- shiny$renderUI({
       req <- state$req
       shiny$req(req)
       n <- state$n_series
+      carry <- state$carry
       manual_condition <- sprintf("input['%s'] == 'manual'", ns("x_source"))
       shiny$isolate({
         shiny$tagList(lapply(seq_len(n), function(i) {
           guessed <- if (i <= length(state$guess$series)) state$guess$series[[i]] else spec$new_series(character(0))
-          current <- spec$new_series(
-            input[[paste0("series_cols_", i)]] %||% guessed$cols,
-            x = if (!is.null(input[[paste0("series_x_", i)]])) {
-              spec$parse_x_text(input[[paste0("series_x_", i)]])
-            } else {
-              guessed$x
-            },
-            label = input[[paste0("series_label_", i)]] %||% guessed$label
-          )
-          series_block(ns, req$target, i, colnames(req$dat), current, manual_condition)
+          current <- if (carry) {
+            spec$new_series(
+              input[[paste0("series_cols_", i)]] %||% guessed$cols,
+              x = if (!is.null(input[[paste0("series_x_", i)]])) {
+                spec$parse_x_text(input[[paste0("series_x_", i)]])
+              } else {
+                guessed$x
+              },
+              label = input[[paste0("series_label_", i)]] %||% guessed$label
+            )
+          } else {
+            guessed
+          }
+          series_block(ns, req$target, i, colnames(req$dat), current, manual_condition, show_label = n > 1)
         }))
       })
     })
@@ -202,6 +212,34 @@ server <- function(id, request_r) {
         group_col = group_col,
         keep_cols = if (live) input$keep_cols %||% character(0) else character(0),
         x_source = x_source
+      )
+    })
+
+    # "Read from column names" is only offered when every selected column's header
+    # actually carries a price/delay (detect$header_x_available()); an item-index run
+    # like apt_1..apt_5 suffix-parses to numbers too, but those are positions, not prices.
+    header_x_available <- shiny$reactive({
+      cs <- current_spec()
+      cols <- unlist(lapply(cs$series, `[[`, "cols"))
+      detect$header_x_available(cols)
+    })
+
+    output$x_source_ui <- shiny$renderUI({
+      req <- state$req
+      shiny$req(req)
+      available <- header_x_available()
+      choices <- c("Enter them" = "manual")
+      if (available) choices <- c("Read from column names" = "header", choices)
+      current <- shiny$isolate(input$x_source) %||% state$guess$x_source
+      if (!current %in% choices) current <- "manual"
+      shiny$tagList(
+        shiny$radioButtons(ns("x_source"), x_label(req$target), choices = choices, selected = current, inline = TRUE),
+        if (!available) {
+          shiny$p(
+            class = "text-muted small",
+            "The column names do not contain ", x_noun(req$target), ", so enter them below."
+          )
+        }
       )
     })
 
