@@ -5,10 +5,15 @@
 
 box::use(
   app / logic / validate[parse_header_number],
-  . / spec[new_series, new_spec],
+  . / spec[new_series, new_spec, parse_cells],
 )
 
+`%||%` <- function(a, b) if (is.null(a)) b else a
+
 id_pattern <- "^(response_?id|subject_?id|subject|subj|participant|pid|ppt|id)$"
+x_name_pattern <- "^(x|price|prices|cost|delay|delays|amount)$"
+y_name_pattern <- "^(y|y_ll4|consumption|consumed|response|value|indiff|indifference|ip)$"
+group_name_pattern <- "^(group|series|condition|cond|commodity|drug|session|site|wave|arm)$"
 suffix_pattern <- "^(.*?)[_. -]?([0-9]+(\\.[0-9]+)?)$"
 
 #' @export
@@ -119,9 +124,104 @@ cluster_series_columns <- function(dat, exclude = character(0), min_numeric = 0.
   clusters[order(-sizes)]
 }
 
-#' Best-guess spec for a frame that failed template validation
+# A column can identify participants when it has no gaps and most of its values name
+# more than one row: 3 participants x 5 prices repeats every id five times.
+repeats_enough <- function(v) {
+  if (anyNA(v)) return(FALSE)
+  counts <- table(as.character(v))
+  length(counts) > 0 && mean(counts >= 2) >= 0.8
+}
+
+# Name matches first, then the supplied key ascending, then column order.
+rank_candidates <- function(cands, pattern, key = NULL) {
+  if (length(cands) == 0) return(cands)
+  hit <- grepl(pattern, tolower(cands), perl = TRUE)
+  if (is.null(key)) key <- seq_along(cands)
+  cands[order(!hit, key, seq_along(cands))]
+}
+
+n_distinct_chr <- function(v) length(unique(as.character(v)))
+
+constant_within_id <- function(v, ids) {
+  all(vapply(split(as.character(v), ids), function(z) length(unique(z)) == 1, logical(1)))
+}
+
+# The price grid: at least two participants, one value per participant per row, and a grid
+# they mostly share. With a single id nothing is learned from repetition - any constant
+# column is an "id" and any unique column an "x", which is how a 5.5-Trial export's timing
+# columns read as a long frame - so a one-participant file stays on the wide path.
+x_shape_ok <- function(v, ids) {
+  if (anyNA(v) || n_distinct_chr(v) < 2 || length(unique(ids)) < 2) return(FALSE)
+  if (!all(vapply(split(v, ids), function(z) anyDuplicated(z) == 0, logical(1)))) return(FALSE)
+  per_value <- vapply(split(ids, as.character(v)), function(z) length(unique(z)), numeric(1))
+  mean(per_value >= 2) >= 0.8
+}
+
+#' Is this frame already one row per observation, and which columns carry it?
+#'
+#' Scored on the rows: an id column whose values repeat, an x column unique within each id
+#' and shared across ids, and a second numeric column for y. Names only rank the candidates -
+#' except for one veto: a frame whose numeric columns form a wide series (numeric headers, or
+#' a shared `prefix_<number>` run) is a wide frame, however its rows happen to line up.
+#' Without that veto `demand-minimal-grouped.csv` - four rows, two groups, five price headers -
+#' reads as two participants with two prices.
+#'
+#' @return list(id_col, x_col, y_col, group_col) or NULL when the frame is not long
 #' @export
-guess_spec <- function(dat, target) {
+detect_long <- function(dat, target) {
+  if (!is.data.frame(dat) || nrow(dat) < 2 || ncol(dat) < 3) return(NULL)
+  if (length(cluster_series_columns(dat)) > 0) return(NULL)
+
+  nms <- colnames(dat)
+  numericish <- nms[vapply(nms, function(nm) numeric_share(dat[[nm]]) >= 0.8, logical(1))]
+  if (length(numericish) < 2) return(NULL)
+
+  id_cands <- nms[vapply(nms, function(nm) repeats_enough(dat[[nm]]), logical(1))]
+  id_cands <- rank_candidates(
+    id_cands, id_pattern, key = vapply(id_cands, function(nm) n_distinct_chr(dat[[nm]]), numeric(1))
+  )
+
+  for (id_col in id_cands) {
+    ids <- as.character(dat[[id_col]])
+    rest <- setdiff(numericish, id_col)
+    parsed <- lapply(rest, function(nm) parse_cells(dat[[nm]]))
+    names(parsed) <- rest
+    x_cands <- rest[vapply(rest, function(nm) x_shape_ok(parsed[[nm]], ids), logical(1))]
+    x_cands <- rank_candidates(
+      x_cands, x_name_pattern, key = vapply(x_cands, function(nm) n_distinct_chr(parsed[[nm]]), numeric(1))
+    )
+    if (length(x_cands) == 0) next
+    x_col <- x_cands[1]
+    y_cands <- setdiff(rest, x_col)
+    if (length(y_cands) == 0) next
+    y_cands <- rank_candidates(
+      y_cands, y_name_pattern,
+      key = vapply(y_cands, function(nm) as.numeric(constant_within_id(parsed[[nm]], ids)), numeric(1))
+    )
+    y_col <- y_cands[1]
+
+    group_col <- NULL
+    if (target != "discounting") {
+      n_ids <- length(unique(ids))
+      cands <- setdiff(nms, c(id_col, x_col, y_col))
+      cands <- cands[vapply(cands, function(nm) {
+        v <- dat[[nm]]
+        k <- n_distinct_chr(v)
+        !nm %in% numericish && !anyNA(v) && k >= 2 && k < n_ids && k <= 10 &&
+          constant_within_id(v, ids)
+      }, logical(1))]
+      cands <- rank_candidates(cands, group_name_pattern)
+      if (length(cands) > 0) group_col <- cands[1]
+    }
+
+    return(list(id_col = id_col, x_col = x_col, y_col = y_col, group_col = group_col))
+  }
+  NULL
+}
+
+#' Best-guess wide spec for a frame that failed template validation
+#' @export
+guess_spec_wide <- function(dat, target) {
   id_col <- guess_id_col(dat)
   clusters <- cluster_series_columns(dat, exclude = if (is.na(id_col)) character(0) else id_col)
   if (target == "discounting" && length(clusters) > 1) clusters <- clusters[1]
@@ -132,8 +232,31 @@ guess_spec <- function(dat, target) {
   all_header <- all(vapply(clusters, function(cl) identical(cl$x_source, "header"), logical(1)))
   new_spec(
     target = target,
+    layout = "wide",
     id_col = if (is.na(id_col)) NULL else id_col,
     series = lapply(clusters, function(cl) new_series(cl$cols, x = cl$x, label = cl$label)),
     x_source = if (all_header) "header" else "manual"
   )
+}
+
+#' Prefill for a frame that is already long; falls back to the first three columns
+#' @export
+guess_spec_long <- function(dat, target) {
+  hit <- detect_long(dat, target)
+  cols <- colnames(dat)
+  pick <- function(i) if (length(cols) >= i) cols[i] else NULL
+  new_spec(
+    target = target,
+    layout = "long",
+    id_col = hit$id_col %||% pick(1),
+    x_col = hit$x_col %||% pick(2),
+    y_col = hit$y_col %||% pick(3),
+    group_col = hit$group_col
+  )
+}
+
+#' Best-guess spec: long when the rows already are one per observation, else wide
+#' @export
+guess_spec <- function(dat, target) {
+  if (is.null(detect_long(dat, target))) guess_spec_wide(dat, target) else guess_spec_long(dat, target)
 }

@@ -24,12 +24,24 @@ new_series <- function(cols, x = NULL, label = "") {
 }
 
 #' @export
-new_spec <- function(target, id_col, series, group_col = NULL,
-                     keep_cols = character(0), x_source = "header", drop_na = TRUE) {
-  stopifnot(target %in% targets, x_source %in% c("header", "manual"))
+new_spec <- function(target, id_col, series = list(), group_col = NULL,
+                     keep_cols = character(0), x_source = "header", drop_na = TRUE,
+                     layout = "wide", x_col = NULL, y_col = NULL) {
+  stopifnot(target %in% targets, layout %in% c("wide", "long"))
+  if (layout == "long") {
+    # x_source describes how the wide pivot learns its prices; a long frame already has
+    # them in a column, and "none" keeps the telemetry summary honest.
+    stopifnot(length(series) == 0)
+    x_source <- "none"
+  } else {
+    stopifnot(x_source %in% c("header", "manual"))
+  }
   list(
     target = target,
+    layout = layout,
     id_col = id_col,
+    x_col = x_col,
+    y_col = y_col,
     group_col = group_col,
     keep_cols = as.character(keep_cols),
     series = series,

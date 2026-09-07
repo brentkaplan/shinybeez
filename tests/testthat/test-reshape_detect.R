@@ -152,3 +152,117 @@ describe("guess_spec", {
     expect_equal(s$series[[1]]$cols, character(0))
   })
 })
+
+describe("detect_long", {
+  it("finds id/x/y in a long file whose columns are misnamed", {
+    out <- detect$detect_long(fixture("long-misnamed.csv"), "demand")
+    expect_equal(out$id_col, "subject")
+    expect_equal(out$x_col, "price")
+    expect_equal(out$y_col, "consumption")
+    expect_null(out$group_col)
+  })
+  it("ignores extra columns, whatever their order, and offers a group column", {
+    out <- detect$detect_long(fixture("long-extra-cols.csv"), "demand")
+    expect_equal(out$id_col, "id")
+    expect_equal(out$x_col, "x")
+    expect_equal(out$y_col, "y")
+    expect_equal(out$group_col, "site")
+  })
+  it("never offers a group column on discounting", {
+    expect_null(detect$detect_long(fixture("long-extra-cols.csv"), "discounting")$group_col)
+  })
+  it("reads currency-style x cells", {
+    dat <- fixture("long-misnamed.csv")
+    dat$price <- paste0("$", dat$price)
+    expect_equal(detect$detect_long(dat, "demand")$x_col, "price")
+  })
+  it("finds the mixed-effects long shape with covariates", {
+    out <- detect$detect_long(fixture("long-me-covariates.csv"), "mixed_effects_demand")
+    expect_equal(out$id_col, "subject")
+    expect_equal(out$x_col, "price")
+    expect_equal(out$y_col, "consumption")
+    expect_equal(out$group_col, "sex")
+  })
+  it("finds delay/indifference names on discounting", {
+    out <- detect$detect_long(fixture("long-ip-named.csv"), "discounting")
+    expect_equal(out$x_col, "delay")
+    expect_equal(out$y_col, "indiff")
+  })
+  it("returns NULL for every wide fixture and template", {
+    wide <- c(
+      "wide-id-not-first.csv", "wide-ip-delays-named.csv", "wide-me-with-covariates.csv",
+      "wide-price-suffix.csv", "wide-qualtrics-apt.csv", "wide-two-commodities.csv",
+      "demand-minimal.csv", "demand-minimal-grouped.csv",
+      "discounting-five-trial-dd-minimal.csv", "discounting-five-trial-pd-minimal.csv"
+    )
+    # The MCQ fixtures are deliberately absent: they are genuinely one row per observation,
+    # and file_input's is_fixed_schema() blocks them before a mapper request exists.
+    for (nm in wide) {
+      expect_null(detect$detect_long(fixture(nm), "demand"), info = nm)
+    }
+    root <- find_project_root()
+    for (nm in list.files(file.path(root, "app/static/data/templates"), pattern = "wide.*[.]csv$")) {
+      dat <- vroom$vroom(file.path(root, "app/static/data/templates", nm), show_col_types = FALSE)
+      colnames(dat) <- trimws(tolower(colnames(dat)))
+      expect_null(detect$detect_long(dat, "demand"), info = nm)
+    }
+  })
+  it("returns NULL when there is nothing to reshape", {
+    expect_null(detect$detect_long(data.frame(id = c("a", "a"), x = c(1, 2)), "demand"))
+    expect_null(detect$detect_long(data.frame(id = "a", x = 1, y = 2), "demand"))
+    expect_null(detect$detect_long(data.frame(id = c("a", "b"), x = c(1, 2), y = c(3, 4)), "demand"))
+  })
+  it("returns NULL when the only repeating column has no second numeric column", {
+    dat <- data.frame(
+      site = c("north", "north", "south", "south"),
+      x = c(1, 2, 1, 2),
+      note = c("a", "b", "c", "d"),
+      stringsAsFactors = FALSE
+    )
+    expect_null(detect$detect_long(dat, "demand"))
+  })
+  it("recognises the app's own long files and templates", {
+    expect_equal(detect$detect_long(fixture("demand-minimal-long.csv"), "demand")$id_col, "id")
+    expect_equal(detect$detect_long(fixture("discounting-ip-minimal.csv"), "discounting")$x_col, "x")
+    root <- find_project_root()
+    dat <- vroom$vroom(
+      file.path(root, "app/static/data/templates/template_demand_long_onegroup.csv"), show_col_types = FALSE
+    )
+    colnames(dat) <- trimws(tolower(colnames(dat)))
+    out <- detect$detect_long(dat, "demand")
+    expect_equal(c(out$id_col, out$x_col, out$y_col, out$group_col), c("id", "x", "y", "group"))
+  })
+  it("declines a long frame whose x repeats within a participant rather than guessing", {
+    # monkey x drug x dose x price: no single column is a grid shared across participants,
+    # so there is no honest mapping to offer. Two grouping columns are out of scope.
+    expect_null(detect$detect_long(fixture("mixed-effects-minimal.csv"), "mixed_effects_demand"))
+  })
+  it("needs more than one participant before repetition means anything", {
+    one <- data.frame(id = rep("s1", 4), x = c(0, 1, 5, 10), y = c(10, 8, 5, 2), stringsAsFactors = FALSE)
+    expect_null(detect$detect_long(one, "demand"))
+  })
+})
+
+describe("guess_spec layout", {
+  it("returns a long spec for a misnamed long file", {
+    s <- detect$guess_spec(fixture("long-misnamed.csv"), "demand")
+    expect_equal(s$layout, "long")
+    expect_equal(s$id_col, "subject")
+    expect_equal(s$x_col, "price")
+    expect_equal(s$y_col, "consumption")
+    expect_length(s$series, 0)
+  })
+  it("still returns the wide spec for a wide file", {
+    s <- detect$guess_spec(fixture("wide-qualtrics-apt.csv"), "demand")
+    expect_equal(s$layout, "wide")
+    expect_equal(s$series[[1]]$cols, paste0("apt_", 1:5))
+  })
+  it("guess_spec_long falls back to the first three columns when detection misses", {
+    s <- detect$guess_spec_long(fixture("wide-qualtrics-apt.csv"), "demand")
+    expect_equal(s$layout, "long")
+    expect_equal(c(s$id_col, s$x_col, s$y_col), c("startdate", "responseid", "age"))
+  })
+  it("guess_spec_wide always returns the wide guess", {
+    expect_equal(detect$guess_spec_wide(fixture("long-misnamed.csv"), "demand")$layout, "wide")
+  })
+})
