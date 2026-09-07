@@ -192,12 +192,13 @@ detect_long <- function(dat, target) {
     )
     if (length(x_cands) == 0) next
     x_col <- x_cands[1]
+    # A response varies within the participant. A column that repeats the participant's own
+    # value is a covariate: `id, x, age` (whose empty y column was dropped before the mapper
+    # opened) must not offer ages as consumption.
     y_cands <- setdiff(rest, x_col)
+    y_cands <- y_cands[vapply(y_cands, function(nm) !constant_within_id(parsed[[nm]], ids), logical(1))]
     if (length(y_cands) == 0) next
-    y_cands <- rank_candidates(
-      y_cands, y_name_pattern,
-      key = vapply(y_cands, function(nm) as.numeric(constant_within_id(parsed[[nm]], ids)), numeric(1))
-    )
+    y_cands <- rank_candidates(y_cands, y_name_pattern)
     y_col <- y_cands[1]
 
     group_col <- NULL

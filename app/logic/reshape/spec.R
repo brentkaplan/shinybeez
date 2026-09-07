@@ -64,13 +64,31 @@ parse_x_text <- function(text) {
 }
 
 #' Parse response cells to numbers: numeric columns as-is, text via parse_number()
+#'
+#' Inf and NaN are missing responses, not responses: nothing downstream can fit them,
+#' and counting them as usable would let a participant pass the two-response rule with
+#' nothing to fit.
 #' @export
 parse_cells <- function(v) {
-  if (is.numeric(v)) return(as.numeric(v))
-  suppressWarnings(parse_number(as.character(v)))
+  out <- if (is.numeric(v)) as.numeric(v) else suppressWarnings(parse_number(as.character(v)))
+  out[!is.finite(out)] <- NA_real_
+  out
 }
 
 quote_names <- function(x) paste0("\"", x, "\"", collapse = ", ")
+
+# A row with no group belongs to no curve: the shared complete-case cleanup drops it after
+# the preview has already counted it, so refuse it here instead.
+group_values_ok <- function(spec, dat) {
+  if (is.null(spec$group_col)) return(TRUE)
+  values <- as.character(dat[[spec$group_col]])
+  if (anyNA(values) || any(!nzchar(trimws(values)))) {
+    return(paste0(
+      "The group column ", quote_names(spec$group_col), " has empty values; every row needs one."
+    ))
+  }
+  TRUE
+}
 
 x_noun <- function(target) if (target == "discounting") "delays" else "prices"
 
@@ -116,6 +134,10 @@ validate_extra_cols <- function(spec, dat, role_cols) {
   }
   if (spec$target == "discounting" && !is.null(spec$group_col)) {
     return("Indifference point data cannot carry a group column.")
+  }
+  chk <- group_values_ok(spec, dat)
+  if (is.character(chk)) {
+    return(chk)
   }
   clash <- intersect(extra, role_cols)
   if (length(clash) > 0) {
@@ -201,14 +223,20 @@ validate_long_spec <- function(spec, dat) {
     ))
   }
 
+  # One curve per participant, or per participant x group when a group column is chosen:
+  # two points in two different groups are two one-point curves, not a fittable pair.
+  curve <- ids
+  if (!is.null(spec$group_col)) curve <- paste(ids, as.character(dat[[spec$group_col]]), sep = "\r")
   keep <- if (spec$drop_na) !is.na(y) else rep(TRUE, length(y))
-  per_id <- table(ids[keep])
-  short <- setdiff(unique(ids), names(per_id)[per_id >= 2])
+  per_curve <- table(curve[keep])
+  short <- setdiff(unique(curve), names(per_curve)[per_curve >= 2])
   if (length(short) > 0) {
+    short_ids <- unique(ids[curve %in% short])
     return(paste0(
       "These ids have fewer than two usable responses: ",
-      quote_names(head(short, 10)), if (length(short) > 10) ", \u2026" else "",
-      ". Each participant needs at least two."
+      quote_names(head(short_ids, 10)), if (length(short_ids) > 10) ", \u2026" else "",
+      ". Each participant needs at least two",
+      if (!is.null(spec$group_col)) " in every group" else "", "."
     ))
   }
   TRUE
@@ -250,6 +278,10 @@ validate_wide_spec <- function(spec, dat) {
   }
   if (spec$target == "discounting" && !is.null(spec$group_col)) {
     return("Indifference point data cannot carry a group column.")
+  }
+  chk <- group_values_ok(spec, dat)
+  if (is.character(chk)) {
+    return(chk)
   }
 
   # series

@@ -266,3 +266,23 @@ describe("guess_spec layout", {
     expect_equal(detect$guess_spec_wide(fixture("long-misnamed.csv"), "demand")$layout, "wide")
   })
 })
+
+describe("detect_long, responses that are not responses", {
+  it("does not offer a covariate as the response column", {
+    # A file whose only real response column is empty loses it to obliterate_empty_cols()
+    # before the mapper opens; `age` is numeric and repeats the participant's own value, so
+    # it must not be prefilled as consumption.
+    dat <- data.frame(
+      id = rep(c("a", "b"), each = 3), x = rep(c(1, 2, 3), 2),
+      age = rep(c(30, 40), each = 3), stringsAsFactors = FALSE
+    )
+    expect_null(detect$detect_long(dat, "demand"))
+  })
+  it("still picks a response that varies within the participant", {
+    dat <- data.frame(
+      id = rep(c("a", "b"), each = 3), x = rep(c(1, 2, 3), 2),
+      age = rep(c(30, 40), each = 3), resp = c(9, 6, 3, 8, 5, 2), stringsAsFactors = FALSE
+    )
+    expect_equal(detect$detect_long(dat, "demand")$y_col, "resp")
+  })
+})

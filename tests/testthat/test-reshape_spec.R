@@ -443,3 +443,56 @@ describe("apply_spec, long layout", {
     ))
   })
 })
+
+describe("responses that cannot be fitted", {
+  it("counts responses per curve, not per participant, when a group column is used", {
+    dat <- data.frame(
+      id = c("a", "a", "b", "b"), grp = c("A", "B", "A", "B"),
+      x = c(1, 1, 1, 1), y = c(5, 6, 7, 8), stringsAsFactors = FALSE
+    )
+    s <- spec$new_spec("demand", layout = "long", id_col = "id", x_col = "x", y_col = "y", group_col = "grp")
+    expect_match(spec$validate_spec(s, dat), "fewer than two usable responses")
+  })
+  it("treats non-finite responses as missing in both layouts", {
+    dat <- data.frame(
+      id = rep(c("a", "b"), each = 3), x = rep(1:3, 2), y = c(5, Inf, 7, 8, 9, 10),
+      stringsAsFactors = FALSE
+    )
+    s <- spec$new_spec("demand", layout = "long", id_col = "id", x_col = "x", y_col = "y")
+    out <- spec$apply_spec(s, dat)
+    expect_true(all(is.finite(out$data$y)))
+    expect_equal(out$losses$n_na_y, 1)
+
+    wide <- data.frame(
+      id = c("a", "b"), `0` = c(5, Inf), `1` = c(3, 4), `2` = c(1, 2), check.names = FALSE
+    )
+    sw <- spec$new_spec("demand", "id", list(spec$new_series(c("0", "1", "2"), x = c(0, 1, 2))))
+    out_w <- spec$apply_spec(sw, wide)
+    expect_true(all(is.finite(out_w$data$y)))
+    expect_equal(out_w$losses$n_na_y, 1)
+  })
+  it("rejects an infinite response that would leave a participant with one point", {
+    dat <- data.frame(
+      id = rep(c("a", "b"), each = 3), x = rep(1:3, 2), y = c(5, Inf, Inf, 8, 9, 10),
+      stringsAsFactors = FALSE
+    )
+    s <- spec$new_spec("demand", layout = "long", id_col = "id", x_col = "x", y_col = "y")
+    expect_match(spec$validate_spec(s, dat), "fewer than two usable responses")
+  })
+  it("rejects empty values in the group column, in both layouts", {
+    dat <- data.frame(
+      id = rep(c("a", "b"), each = 3), grp = c("A", "A", NA, "B", "B", "B"),
+      x = rep(1:3, 2), y = c(5, 6, 7, 8, 9, 10), stringsAsFactors = FALSE
+    )
+    s <- spec$new_spec("demand", layout = "long", id_col = "id", x_col = "x", y_col = "y", group_col = "grp")
+    expect_match(spec$validate_spec(s, dat), "has empty values")
+
+    wide <- data.frame(
+      id = c("a", "b"), grp = c("A", NA), `0` = c(5, 6), `1` = c(3, 4), check.names = FALSE
+    )
+    sw <- spec$new_spec(
+      "demand", "id", list(spec$new_series(c("0", "1"), x = c(0, 1))), group_col = "grp"
+    )
+    expect_match(spec$validate_spec(sw, wide), "has empty values")
+  })
+})
