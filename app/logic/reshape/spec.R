@@ -9,7 +9,8 @@ box::use(
   utils[head],
 )
 
-TARGETS <- c("demand", "mixed_effects_demand", "discounting") # nolint: object_name_linter
+targets <- c("demand", "mixed_effects_demand", "discounting")
+
 #' Output column names a carried column may not collide with
 #' @export
 RESERVED <- c("id", "x", "y", "group", "series", "monkey", "y_ll4") # nolint: object_name_linter
@@ -22,7 +23,7 @@ new_series <- function(cols, x = NULL, label = "") {
 #' @export
 new_spec <- function(target, id_col, series, group_col = NULL,
                      keep_cols = character(0), x_source = "header", drop_na = TRUE) {
-  stopifnot(target %in% TARGETS, x_source %in% c("header", "manual"))
+  stopifnot(target %in% targets, x_source %in% c("header", "manual"))
   list(
     target = target,
     id_col = id_col,
