@@ -192,13 +192,17 @@ detect_long <- function(dat, target) {
     )
     if (length(x_cands) == 0) next
     x_col <- x_cands[1]
-    # A response varies within the participant. A column that repeats the participant's own
-    # value is a covariate: `id, x, age` (whose empty y column was dropped before the mapper
-    # opened) must not offer ages as consumption.
+    # A response varies within the participant, unless its name says otherwise. A column
+    # that repeats the participant's own value is usually a covariate - `id, x, age`, whose
+    # empty y column was dropped before the mapper opened, must not offer ages as
+    # consumption - but a non-discounter really does answer the same indifference point at
+    # every delay, so a flat column named like a response is still a response.
     y_cands <- setdiff(rest, x_col)
-    y_cands <- y_cands[vapply(y_cands, function(nm) !constant_within_id(parsed[[nm]], ids), logical(1))]
+    varies <- vapply(y_cands, function(nm) !constant_within_id(parsed[[nm]], ids), logical(1))
+    keep <- varies | grepl(y_name_pattern, tolower(y_cands), perl = TRUE)
+    y_cands <- y_cands[keep]
     if (length(y_cands) == 0) next
-    y_cands <- rank_candidates(y_cands, y_name_pattern)
+    y_cands <- rank_candidates(y_cands, y_name_pattern, key = as.numeric(!varies[keep]))
     y_col <- y_cands[1]
 
     group_col <- NULL

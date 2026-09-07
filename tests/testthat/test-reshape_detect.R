@@ -278,6 +278,24 @@ describe("detect_long, responses that are not responses", {
     )
     expect_null(detect$detect_long(dat, "demand"))
   })
+  it("keeps a flat response when its name says it is one", {
+    # A non-discounter answers the same value at every delay; every participant being flat
+    # is unusual but real, and `indiff` is not a covariate however flat it is.
+    dat <- data.frame(
+      id = rep(c("a", "b"), each = 3), delay = rep(c(1, 7, 30), 2),
+      indiff = c(0.5, 0.5, 0.5, 0.2, 0.2, 0.2), stringsAsFactors = FALSE
+    )
+    out <- detect$detect_long(dat, "discounting")
+    expect_equal(out$x_col, "delay")
+    expect_equal(out$y_col, "indiff")
+  })
+  it("prefers a response that varies over a flat one with a response-like name", {
+    dat <- data.frame(
+      id = rep(c("a", "b"), each = 3), x = rep(c(1, 2, 3), 2),
+      value = rep(c(30, 40), each = 3), consumption = c(9, 6, 3, 8, 5, 2), stringsAsFactors = FALSE
+    )
+    expect_equal(detect$detect_long(dat, "demand")$y_col, "consumption")
+  })
   it("still picks a response that varies within the participant", {
     dat <- data.frame(
       id = rep(c("a", "b"), each = 3), x = rep(c(1, 2, 3), 2),
