@@ -231,6 +231,31 @@ describe("wide_mapper server", {
     })
   })
 
+  it("clearing every column is a cleared selection, not a fallback to the guess", {
+    request <- shiny$reactiveVal(NULL)
+    shiny$testServer(wide_mapper$server, args = list(request_r = request), {
+      request(request_for(fixture("wide-price-suffix.csv")))
+      session$flushReact()
+      # not posted yet: the guess stands
+      expect_equal(current_spec()$series[[1]]$cols, c("price_0", "price_0.5", "price_1", "price_5", "price_10"))
+      # the client posts the guessed selection, then the user removes every column
+      session$setInputs(
+        r1_id_col = "participant",
+        r1_series_cols_1 = c("price_0", "price_0.5", "price_1", "price_5", "price_10")
+      )
+      expect_true(isTRUE(state$seen[["r1_series_cols_1"]]))
+      session$setInputs(r1_series_cols_1 = NULL)
+      expect_equal(current_spec()$series[[1]]$cols, character(0))
+      expect_match(validation(), "at least two response columns")
+      expect_match(output$footer$html, "disabled")
+      # a new request starts unseen again
+      request(request_for(fixture("wide-qualtrics-apt.csv"), token = 2L))
+      session$flushReact()
+      expect_null(state$seen[["r2_series_cols_1"]])
+      expect_equal(current_spec()$series[[1]]$cols, paste0("apt_", 1:5))
+    })
+  })
+
   it("resolves modal input ids under a nested namespace", {
     request <- shiny$reactiveVal(NULL)
     outer <- function(id, request_r) {

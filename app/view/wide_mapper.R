@@ -130,7 +130,7 @@ modal_ui <- function(ns, req, guess) {
 server <- function(id, request_r) {
   shiny$moduleServer(id, function(input, output, session) {
     ns <- session$ns
-    state <- shiny$reactiveValues(req = NULL, guess = NULL, n_series = 0L, carry = FALSE)
+    state <- shiny$reactiveValues(req = NULL, guess = NULL, n_series = 0L, carry = FALSE, seen = list())
     result <- shiny$reactiveVal(NULL)
     cancelled <- shiny$reactiveVal(NULL)
 
@@ -144,6 +144,25 @@ server <- function(id, request_r) {
       input[[rid(req$token, name)]]
     }
 
+    # A `selectizeInput(multiple = TRUE)` posts NULL when the user removes every
+    # option, which is indistinguishable from an input the client has not posted yet.
+    # `state$seen` records which series pickers have posted at least once for the
+    # current request, so a NULL afterwards means "cleared", not "use the guess".
+    series_cols <- function(token, i, guessed_cols) {
+      id <- rid(token, paste0("series_cols_", i))
+      posted <- input[[id]]
+      if (!is.null(posted)) posted else if (isTRUE(state$seen[[id]])) character(0) else guessed_cols
+    }
+
+    shiny$observe({
+      req <- state$req
+      if (is.null(req)) return()
+      for (i in seq_len(state$n_series)) {
+        id <- rid(req$token, paste0("series_cols_", i))
+        if (!is.null(input[[id]]) && !isTRUE(state$seen[[id]])) state$seen[[id]] <- TRUE
+      }
+    })
+
     shiny$observeEvent(request_r(), ignoreNULL = FALSE, {
       req <- request_r()
       if (is.null(req)) {
@@ -153,6 +172,7 @@ server <- function(id, request_r) {
       }
       guess <- detect$guess_spec(req$dat, req$target)
       state$carry <- FALSE
+      state$seen <- list()
       state$req <- req
       state$guess <- guess
       state$n_series <- length(guess$series)
@@ -186,7 +206,7 @@ server <- function(id, request_r) {
           current <- if (carry) {
             x_text <- req_input(paste0("series_x_", i))
             spec$new_series(
-              req_input(paste0("series_cols_", i)) %||% guessed$cols,
+              series_cols(req$token, i, guessed$cols),
               x = if (!is.null(x_text)) spec$parse_x_text(x_text) else guessed$x,
               label = req_input(paste0("series_label_", i)) %||% guessed$label
             )
@@ -205,7 +225,7 @@ server <- function(id, request_r) {
       x_source <- req_input("x_source") %||% guess$x_source
       series <- lapply(seq_len(state$n_series), function(i) {
         guessed <- if (i <= length(guess$series)) guess$series[[i]] else spec$new_series(character(0))
-        cols <- req_input(paste0("series_cols_", i)) %||% guessed$cols
+        cols <- series_cols(req$token, i, guessed$cols)
         x <- if (x_source == "header") {
           detect$x_from_names(cols)
         } else {
