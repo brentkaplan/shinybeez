@@ -43,7 +43,10 @@ describe("Error handling", {
       !!ids$discounting$upload := fixture_path("demand-minimal-grouped.csv")
     )
     app$wait_for_js("document.querySelector('.modal.show') !== null", timeout = 10000)
-    cancel_id <- ns_id("discounting", "discounting", "mapper", "cancel")
+    # This is the first (and only, in this session) upload to the Discounting tab, so
+    # file_input.R's per-tab token counter (bumped on every upload) is 1 here; every modal
+    # input id carries that token (see rid() in app/view/wide_mapper.R).
+    cancel_id <- ns_id("discounting", "discounting", "mapper", "r1_cancel")
     app$wait_for_js(sprintf("document.getElementById('%s') !== null", cancel_id), timeout = 10000)
     app$click(selector = paste0("#", cancel_id))
     wait_for_notification(app, "error")

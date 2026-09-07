@@ -5,26 +5,31 @@ describe("Demand - wide-to-long mapper", {
   skip_if_not_integration()
   app <- create_app_driver()
   result_id <- ns_id("demand", "results_table_demand", "model_results_table")
-  mapper <- function(input) ns_id("demand", "upload_demand", "mapper", input)
+  # Every modal input id carries the reshape request's token (see rid() in
+  # app/view/wide_mapper.R); file_input.R bumps the token on every upload. On this tab
+  # the first upload is token 1, the second is token 2.
+  mapper <- function(token, input) ns_id("demand", "upload_demand", "mapper", sprintf("r%d_%s", token, input))
 
   it("opens the modal for a wide Qualtrics export", {
     require_app(app)
     navigate_to_tab(app, "Demand")
     app$upload_file(!!ids$demand$upload := fixture_path("wide-qualtrics-apt.csv"))
     app$wait_for_js("document.querySelector('.modal.show') !== null", timeout = 10000)
-    expect_equal(app$get_value(input = mapper("id_col")), "responseid")
-    expect_equal(app$get_value(input = mapper("x_source")), "manual")
+    expect_equal(app$get_value(input = mapper(1, "id_col")), "responseid")
+    expect_equal(app$get_value(input = mapper(1, "x_source")), "manual")
   })
 
   it("enables confirm once prices are entered and loads the long data", {
     require_app(app)
-    app$set_inputs(!!mapper("series_x_1") := "0, 0.5, 1, 5, 10")
+    app$set_inputs(!!mapper(1, "series_x_1") := "0, 0.5, 1, 5, 10")
     app$wait_for_idle(duration = 500)
     app$wait_for_js(
-      sprintf("(function(){var b=document.getElementById('%s');return b!==null && !b.disabled;})()", mapper("confirm")),
+      sprintf(
+        "(function(){var b=document.getElementById('%s');return b!==null && !b.disabled;})()", mapper(1, "confirm")
+      ),
       timeout = 5000
     )
-    app$click(selector = paste0("#", mapper("confirm")))
+    app$click(selector = paste0("#", mapper(1, "confirm")))
     wait_for_datatable(app)
     wait_for_notification(app, "message")
     html <- app$get_html(".datatables")
@@ -43,21 +48,18 @@ describe("Demand - wide-to-long mapper", {
     app$upload_file(!!ids$demand$upload := fixture_path("wide-price-suffix.csv"))
     app$wait_for_js("document.querySelector('.modal.show') !== null", timeout = 10000)
     app$wait_for_idle(duration = 500)
-    expect_equal(app$get_value(input = mapper("id_col")), "participant")
-    # The radio's freshly-guessed value settles asynchronously (its own echo round-trip,
-    # separate from the id_col select's static initial value) - wait for it rather than
-    # asserting immediately.
-    header_radio_checked <- sprintf(
-      "(function(){var r=document.querySelector('input[name=\"%s\"][value=\"header\"]');%s})()",
-      mapper("x_source"), "return r !== null && r.checked;"
-    )
-    app$wait_for_js(header_radio_checked, timeout = 5000)
-    expect_equal(app$get_value(input = mapper("x_source")), "header")
+    # request 2's inputs (r2_*) are brand-new ids the client has never posted a value for
+    # under request 1, so there is no stale value to race with - the guessed prefill shows
+    # up as soon as the modal's own uiOutputs render.
+    expect_equal(app$get_value(input = mapper(2, "id_col")), "participant")
+    expect_equal(app$get_value(input = mapper(2, "x_source")), "header")
     app$wait_for_js(
-      sprintf("(function(){var b=document.getElementById('%s');return b!==null && !b.disabled;})()", mapper("confirm")),
+      sprintf(
+        "(function(){var b=document.getElementById('%s');return b!==null && !b.disabled;})()", mapper(2, "confirm")
+      ),
       timeout = 5000
     )
-    app$click(selector = paste0("#", mapper("cancel")))
+    app$click(selector = paste0("#", mapper(2, "cancel")))
     app$wait_for_idle(duration = 500)
   })
 

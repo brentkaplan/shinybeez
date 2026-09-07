@@ -23,15 +23,20 @@ x_noun <- function(target) if (target == "discounting") "delays" else "prices"
 x_label <- function(target) if (target == "discounting") "Delays" else "Prices"
 cols_label <- function(target) if (target == "discounting") "Delay columns" else "Price columns"
 
+# Every modal input id carries the request token, so a later request can never
+# read a value the previous modal posted. Before the client posts a value the
+# input is NULL and the code falls back to the guess.
+rid <- function(token, name) sprintf("r%d_%s", as.integer(token), name)
+
 #' Static UI: none. The modal is built server-side on request.
 #' @export
 ui <- function(id) {
   NULL
 }
 
-series_block <- function(ns, target, i, cols, series, show_manual_condition, show_label) {
+series_block <- function(ns, token, target, i, cols, series, show_manual_condition, show_label) {
   label_input <- shiny$textInput(
-    ns(paste0("series_label_", i)),
+    ns(rid(token, paste0("series_label_", i))),
     "Series name (used as the group when there is more than one series)",
     value = series$label %||% ""
   )
@@ -40,7 +45,7 @@ series_block <- function(ns, target, i, cols, series, show_manual_condition, sho
     bslib$card_body(
       if (show_label) label_input else shiny$div(style = "display:none", label_input),
       shiny$selectizeInput(
-        ns(paste0("series_cols_", i)),
+        ns(rid(token, paste0("series_cols_", i))),
         cols_label(target),
         choices = cols,
         selected = series$cols,
@@ -50,7 +55,7 @@ series_block <- function(ns, target, i, cols, series, show_manual_condition, sho
       shiny$conditionalPanel(
         condition = show_manual_condition,
         shiny$textAreaInput(
-          ns(paste0("series_x_", i)),
+          ns(rid(token, paste0("series_x_", i))),
           paste(x_label(target), "in column order (comma, space or newline separated)"),
           value = if (!is.null(series$x)) paste(series$x, collapse = ", ") else "",
           rows = 2
@@ -64,17 +69,18 @@ modal_ui <- function(ns, req, guess) {
   dat <- req$dat
   cols <- colnames(dat)
   target <- req$target
-  manual_condition <- sprintf("input['%s'] == 'manual'", ns("x_source"))
+  token <- req$token
+  manual_condition <- sprintf("input['%s'] == 'manual'", ns(rid(token, "x_source")))
   other_cols <- setdiff(cols, c(guess$id_col, unlist(lapply(guess$series, `[[`, "cols"))))
 
   extras <- switch(
     target,
     demand = shiny$selectInput(
-      ns("group_col"), "Group column (optional)",
+      ns(rid(token, "group_col")), "Group column (optional)",
       choices = c("None" = "", other_cols), selected = ""
     ),
     mixed_effects_demand = shiny$selectizeInput(
-      ns("keep_cols"), "Columns to carry along as covariates or factors (optional)",
+      ns(rid(token, "keep_cols")), "Columns to carry along as covariates or factors (optional)",
       choices = other_cols, selected = NULL, multiple = TRUE,
       options = list(plugins = list("remove_button"))
     ),
@@ -97,7 +103,7 @@ modal_ui <- function(ns, req, guess) {
       "Already one row per observation? Rename your columns to match the long template on the Welcome tab instead."
     ),
     shiny$selectInput(
-      ns("id_col"), "Participant id column",
+      ns(rid(token, "id_col")), "Participant id column",
       choices = cols, selected = guess$id_col %||% cols[1]
     ),
     shiny$h6(cols_label(target)),
@@ -105,8 +111,10 @@ modal_ui <- function(ns, req, guess) {
     if (target != "discounting") {
       shiny$div(
         class = "mb-3",
-        shiny$actionButton(ns("add_series"), "Add another series", class = "btn-outline-secondary btn-sm"),
-        shiny$actionButton(ns("remove_series"), "Remove last series", class = "btn-outline-secondary btn-sm ms-2")
+        shiny$actionButton(ns(rid(token, "add_series")), "Add another series", class = "btn-outline-secondary btn-sm"),
+        shiny$actionButton(
+          ns(rid(token, "remove_series")), "Remove last series", class = "btn-outline-secondary btn-sm ms-2"
+        )
       )
     },
     shiny$uiOutput(ns("x_source_ui")),
@@ -114,10 +122,7 @@ modal_ui <- function(ns, req, guess) {
     extras,
     shiny$h6("Preview"),
     shiny$uiOutput(ns("preview_status")),
-    DTOutput(ns("preview")),
-    shiny$tags$script(shiny$HTML(sprintf(
-      "Shiny.setInputValue('%s', %d, {priority: 'event'});", ns("opened"), as.integer(req$token)
-    )))
+    DTOutput(ns("preview"))
   )
 }
 
@@ -125,9 +130,19 @@ modal_ui <- function(ns, req, guess) {
 server <- function(id, request_r) {
   shiny$moduleServer(id, function(input, output, session) {
     ns <- session$ns
-    state <- shiny$reactiveValues(req = NULL, guess = NULL, n_series = 0L, carry = FALSE, x_source_set = FALSE)
+    state <- shiny$reactiveValues(req = NULL, guess = NULL, n_series = 0L, carry = FALSE)
     result <- shiny$reactiveVal(NULL)
     cancelled <- shiny$reactiveVal(NULL)
+
+    # Reads a modal input by NAME for the CURRENT request only: an old request's input
+    # (e.g. a previous modal's "confirm" click, or its typed prices) lives under a
+    # DIFFERENT id (rid(old_token, name)) and is never visible here. NULL until the
+    # client has posted a value for this request's id (or there is no current request).
+    req_input <- function(name) {
+      req <- state$req
+      if (is.null(req)) return(NULL)
+      input[[rid(req$token, name)]]
+    }
 
     shiny$observeEvent(request_r(), ignoreNULL = FALSE, {
       req <- request_r()
@@ -138,29 +153,17 @@ server <- function(id, request_r) {
       }
       guess <- detect$guess_spec(req$dat, req$target)
       state$carry <- FALSE
-      state$x_source_set <- FALSE
       state$req <- req
       state$guess <- guess
       state$n_series <- length(guess$series)
       shiny$showModal(modal_ui(ns, req, guess))
     })
 
-    # `output$x_source_ui` (below) re-renders whenever `header_x_available()` is
-    # invalidated - including by the `opened` ack that unblocks `current_spec()` - which
-    # can happen before the freshly-rendered radio's own value has echoed back from the
-    # client. Reading `input$x_source` unconditionally at that moment would read the
-    # PREVIOUS request's stale choice. This observer only flips `x_source_set` once
-    # `input$x_source` has genuinely reported a value for the CURRENT modal (its first
-    # echo, or a real user pick), so the radio's seed is never read before it is fresh.
-    shiny$observeEvent(input$x_source, {
-      state$x_source_set <- TRUE
-    })
-
-    shiny$observeEvent(input$add_series, {
+    shiny$observeEvent(req_input("add_series"), {
       state$carry <- TRUE
       state$n_series <- state$n_series + 1L
     })
-    shiny$observeEvent(input$remove_series, {
+    shiny$observeEvent(req_input("remove_series"), {
       if (state$n_series > 1L) {
         state$carry <- TRUE
         state$n_series <- state$n_series - 1L
@@ -169,68 +172,57 @@ server <- function(id, request_r) {
 
     # Series blocks are re-rendered when their number changes; carry the current
     # inputs across so adding a series does not reset the others to the guess. A fresh
-    # reshape request (state$carry FALSE) always renders from its own guess, never from
-    # a previous, now-stale, modal's inputs surviving in `input`.
+    # reshape request (state$carry FALSE) always renders from its own guess; the previous
+    # request's inputs are never read because they live under a different rid().
     output$series_ui <- shiny$renderUI({
       req <- state$req
       shiny$req(req)
       n <- state$n_series
       carry <- state$carry
-      manual_condition <- sprintf("input['%s'] == 'manual'", ns("x_source"))
+      manual_condition <- sprintf("input['%s'] == 'manual'", ns(rid(req$token, "x_source")))
       shiny$isolate({
         shiny$tagList(lapply(seq_len(n), function(i) {
           guessed <- if (i <= length(state$guess$series)) state$guess$series[[i]] else spec$new_series(character(0))
           current <- if (carry) {
+            x_text <- req_input(paste0("series_x_", i))
             spec$new_series(
-              input[[paste0("series_cols_", i)]] %||% guessed$cols,
-              x = if (!is.null(input[[paste0("series_x_", i)]])) {
-                spec$parse_x_text(input[[paste0("series_x_", i)]])
-              } else {
-                guessed$x
-              },
-              label = input[[paste0("series_label_", i)]] %||% guessed$label
+              req_input(paste0("series_cols_", i)) %||% guessed$cols,
+              x = if (!is.null(x_text)) spec$parse_x_text(x_text) else guessed$x,
+              label = req_input(paste0("series_label_", i)) %||% guessed$label
             )
           } else {
             guessed
           }
-          series_block(ns, req$target, i, colnames(req$dat), current, manual_condition, show_label = n > 1)
+          series_block(ns, req$token, req$target, i, colnames(req$dat), current, manual_condition, show_label = n > 1)
         }))
       })
     })
 
-    # Until the client acknowledges THIS request's modal (input$opened == req$token), the
-    # `input` values still belong to whichever modal was open before: a plain
-    # `!is.null(input$id_col)` check is permanently TRUE after the first modal and would
-    # read a superseded upload's inputs. `opened` is set client-side by a <script> tag
-    # shinybeez batches with the freshly-bound inputs in the same render, so once the
-    # tokens match, the input values are guaranteed fresh too.
     current_spec <- shiny$reactive({
       req <- state$req
       shiny$req(req)
       guess <- state$guess
-      live <- identical(as.integer(input$opened), as.integer(req$token))
-      x_source <- input$x_source %||% guess$x_source
+      x_source <- req_input("x_source") %||% guess$x_source
       series <- lapply(seq_len(state$n_series), function(i) {
         guessed <- if (i <= length(guess$series)) guess$series[[i]] else spec$new_series(character(0))
-        cols <- if (live) input[[paste0("series_cols_", i)]] %||% character(0) else guessed$cols
+        cols <- req_input(paste0("series_cols_", i)) %||% guessed$cols
         x <- if (x_source == "header") {
           detect$x_from_names(cols)
-        } else if (live) {
-          spec$parse_x_text(input[[paste0("series_x_", i)]])
         } else {
-          guessed$x %||% numeric(0)
+          x_text <- req_input(paste0("series_x_", i))
+          if (!is.null(x_text)) spec$parse_x_text(x_text) else guessed$x %||% numeric(0)
         }
-        label <- if (live) trimws(input[[paste0("series_label_", i)]] %||% "") else guessed$label
+        label <- trimws(req_input(paste0("series_label_", i)) %||% guessed$label)
         spec$new_series(cols, x = x, label = label)
       })
-      group_col <- if (live) input$group_col else NULL
+      group_col <- req_input("group_col")
       if (is.null(group_col) || !nzchar(group_col)) group_col <- NULL
       spec$new_spec(
         target = req$target,
-        id_col = if (live) input$id_col else guess$id_col,
+        id_col = req_input("id_col") %||% guess$id_col,
         series = series,
         group_col = group_col,
-        keep_cols = if (live) input$keep_cols %||% character(0) else character(0),
+        keep_cols = req_input("keep_cols") %||% character(0),
         x_source = x_source
       )
     })
@@ -250,17 +242,12 @@ server <- function(id, request_r) {
       available <- header_x_available()
       choices <- c("Enter them" = "manual")
       if (available) choices <- c("Read from column names" = "header", choices)
-      # `input$x_source` is only trustworthy once THIS request has actually set it (see
-      # the `observeEvent(input$x_source, ...)` above); until then it may still hold a
-      # superseded upload's choice, so seed from the fresh guess instead.
-      current <- if (state$x_source_set) {
-        shiny$isolate(input$x_source) %||% state$guess$x_source
-      } else {
-        state$guess$x_source
-      }
+      current <- shiny$isolate(req_input("x_source")) %||% state$guess$x_source
       if (!current %in% choices) current <- "manual"
       shiny$tagList(
-        shiny$radioButtons(ns("x_source"), x_label(req$target), choices = choices, selected = current, inline = TRUE),
+        shiny$radioButtons(
+          ns(rid(req$token, "x_source")), x_label(req$target), choices = choices, selected = current, inline = TRUE
+        ),
         if (!available) {
           shiny$p(
             class = "text-muted small",
@@ -331,12 +318,19 @@ server <- function(id, request_r) {
       utils$head(p$data, 10)
     }, options = list(dom = "t", ordering = FALSE), rownames = FALSE)
 
+    # The download button is stateless (it only ever re-runs current_spec()/apply_spec()
+    # against whichever request is current), so it is the one modal control that keeps a
+    # static id rather than an rid()-namespaced one.
     output$footer <- shiny$renderUI({
+      req <- state$req
+      shiny$req(req)
       valid <- isTRUE(validation())
       shiny$tagList(
-        shiny$actionButton(ns("cancel"), "Cancel", class = "btn-outline-secondary"),
+        shiny$actionButton(ns(rid(req$token, "cancel")), "Cancel", class = "btn-outline-secondary"),
         if (valid) shiny$downloadButton(ns("download"), "Download long CSV", class = "btn-outline-primary"),
-        shiny$actionButton(ns("confirm"), "Use these data", class = "btn-primary", disabled = !valid)
+        shiny$actionButton(
+          ns(rid(req$token, "confirm")), "Use these data", class = "btn-primary", disabled = !valid
+        )
       )
     })
 
@@ -347,7 +341,7 @@ server <- function(id, request_r) {
       }
     )
 
-    shiny$observeEvent(input$confirm, {
+    shiny$observeEvent(req_input("confirm"), {
       req <- state$req
       shiny$req(req)
       cs <- current_spec()
@@ -362,7 +356,7 @@ server <- function(id, request_r) {
       result(list(data = out$data, spec = cs, losses = out$losses, token = req$token, meta = req$meta))
     })
 
-    shiny$observeEvent(input$cancel, {
+    shiny$observeEvent(req_input("cancel"), {
       req <- state$req
       shiny$req(req)
       shiny$removeModal()
