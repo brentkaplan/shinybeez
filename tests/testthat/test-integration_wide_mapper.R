@@ -16,7 +16,8 @@ describe("Demand - wide-to-long mapper", {
     app$upload_file(!!ids$demand$upload := fixture_path("wide-qualtrics-apt.csv"))
     app$wait_for_js("document.querySelector('.modal.show') !== null", timeout = 10000)
     expect_equal(app$get_value(input = mapper(1, "id_col")), "responseid")
-    expect_equal(app$get_value(input = mapper(1, "x_source")), "manual")
+    # the radio is a renderUI output; its value posts after the modal is visible
+    expect_equal(app$wait_for_value(input = mapper(1, "x_source"), timeout = 5000), "manual")
   })
 
   it("enables confirm once prices are entered and loads the long data", {
@@ -52,7 +53,7 @@ describe("Demand - wide-to-long mapper", {
     # under request 1, so there is no stale value to race with - the guessed prefill shows
     # up as soon as the modal's own uiOutputs render.
     expect_equal(app$get_value(input = mapper(2, "id_col")), "participant")
-    expect_equal(app$get_value(input = mapper(2, "x_source")), "header")
+    expect_equal(app$wait_for_value(input = mapper(2, "x_source"), timeout = 5000), "header")
     app$wait_for_js(
       sprintf(
         "(function(){var b=document.getElementById('%s');return b!==null && !b.disabled;})()", mapper(2, "confirm")
