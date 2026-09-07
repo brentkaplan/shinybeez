@@ -47,7 +47,8 @@ describe("Error handling", {
     app$wait_for_js(sprintf("document.getElementById('%s') !== null", cancel_id), timeout = 10000)
     app$click(selector = paste0("#", cancel_id))
     wait_for_notification(app, "error")
-    expect_true(TRUE)
+    html <- app$get_html(".shiny-notification-error")
+    expect_true(!is.null(html) && any(grepl("shiny-notification", html)))
   })
 
   it("shows error when uploading MCQ data to mixed effects tab", {

@@ -21,13 +21,14 @@ describe("Demand - wide-to-long mapper", {
     app$set_inputs(!!mapper("series_x_1") := "0, 0.5, 1, 5, 10")
     app$wait_for_idle(duration = 500)
     app$wait_for_js(
-      sprintf("!document.getElementById('%s').disabled", mapper("confirm")),
+      sprintf("(function(){var b=document.getElementById('%s');return b!==null && !b.disabled;})()", mapper("confirm")),
       timeout = 5000
     )
     app$click(selector = paste0("#", mapper("confirm")))
     wait_for_datatable(app)
     wait_for_notification(app, "message")
-    expect_true(TRUE)
+    html <- app$get_html(".datatables")
+    expect_true(any(grepl("<td", html, fixed = TRUE)))
   })
 
   it("fits a pooled demand curve on the reshaped data", {

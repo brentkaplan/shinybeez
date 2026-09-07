@@ -233,7 +233,10 @@ track_model_fitting <- function(
 
 #' Track data upload event
 #'
-#' @param file_info Information about uploaded file
+#' @param file_info Information about uploaded file: `size`, `type`, `rows`, `cols`, and an
+#'   optional `reshaped` logical flag marking a file that went through the wide-to-long
+#'   mapper (`app/view/wide_mapper.R`) before it was stored, rather than uploaded already in
+#'   a template shape. Missing or non-`TRUE` values are recorded as `FALSE`.
 #' @param session Shiny session object
 #' @export
 track_data_upload <- function(file_info = list(), session = NULL) {
