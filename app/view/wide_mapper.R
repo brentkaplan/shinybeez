@@ -114,7 +114,10 @@ modal_ui <- function(ns, req, guess) {
     extras,
     shiny$h6("Preview"),
     shiny$uiOutput(ns("preview_status")),
-    DTOutput(ns("preview"))
+    DTOutput(ns("preview")),
+    shiny$tags$script(shiny$HTML(sprintf(
+      "Shiny.setInputValue('%s', %d, {priority: 'event'});", ns("opened"), as.integer(req$token)
+    )))
   )
 }
 
@@ -122,7 +125,7 @@ modal_ui <- function(ns, req, guess) {
 server <- function(id, request_r) {
   shiny$moduleServer(id, function(input, output, session) {
     ns <- session$ns
-    state <- shiny$reactiveValues(req = NULL, guess = NULL, n_series = 0L, carry = FALSE)
+    state <- shiny$reactiveValues(req = NULL, guess = NULL, n_series = 0L, carry = FALSE, x_source_set = FALSE)
     result <- shiny$reactiveVal(NULL)
     cancelled <- shiny$reactiveVal(NULL)
 
@@ -135,10 +138,22 @@ server <- function(id, request_r) {
       }
       guess <- detect$guess_spec(req$dat, req$target)
       state$carry <- FALSE
+      state$x_source_set <- FALSE
       state$req <- req
       state$guess <- guess
       state$n_series <- length(guess$series)
       shiny$showModal(modal_ui(ns, req, guess))
+    })
+
+    # `output$x_source_ui` (below) re-renders whenever `header_x_available()` is
+    # invalidated - including by the `opened` ack that unblocks `current_spec()` - which
+    # can happen before the freshly-rendered radio's own value has echoed back from the
+    # client. Reading `input$x_source` unconditionally at that moment would read the
+    # PREVIOUS request's stale choice. This observer only flips `x_source_set` once
+    # `input$x_source` has genuinely reported a value for the CURRENT modal (its first
+    # echo, or a real user pick), so the radio's seed is never read before it is fresh.
+    shiny$observeEvent(input$x_source, {
+      state$x_source_set <- TRUE
     })
 
     shiny$observeEvent(input$add_series, {
@@ -183,12 +198,17 @@ server <- function(id, request_r) {
       })
     })
 
-    # Until the client posts the modal's inputs, id_col is NULL: use the guess.
+    # Until the client acknowledges THIS request's modal (input$opened == req$token), the
+    # `input` values still belong to whichever modal was open before: a plain
+    # `!is.null(input$id_col)` check is permanently TRUE after the first modal and would
+    # read a superseded upload's inputs. `opened` is set client-side by a <script> tag
+    # shinybeez batches with the freshly-bound inputs in the same render, so once the
+    # tokens match, the input values are guaranteed fresh too.
     current_spec <- shiny$reactive({
       req <- state$req
       shiny$req(req)
       guess <- state$guess
-      live <- !is.null(input$id_col)
+      live <- identical(as.integer(input$opened), as.integer(req$token))
       x_source <- input$x_source %||% guess$x_source
       series <- lapply(seq_len(state$n_series), function(i) {
         guessed <- if (i <= length(guess$series)) guess$series[[i]] else spec$new_series(character(0))
@@ -230,7 +250,14 @@ server <- function(id, request_r) {
       available <- header_x_available()
       choices <- c("Enter them" = "manual")
       if (available) choices <- c("Read from column names" = "header", choices)
-      current <- shiny$isolate(input$x_source) %||% state$guess$x_source
+      # `input$x_source` is only trustworthy once THIS request has actually set it (see
+      # the `observeEvent(input$x_source, ...)` above); until then it may still hold a
+      # superseded upload's choice, so seed from the fresh guess instead.
+      current <- if (state$x_source_set) {
+        shiny$isolate(input$x_source) %||% state$guess$x_source
+      } else {
+        state$guess$x_source
+      }
       if (!current %in% choices) current <- "manual"
       shiny$tagList(
         shiny$radioButtons(ns("x_source"), x_label(req$target), choices = choices, selected = current, inline = TRUE),

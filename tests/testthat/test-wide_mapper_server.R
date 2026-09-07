@@ -29,7 +29,7 @@ describe("wide_mapper server", {
       session$flushReact()
       # The client would post the prefilled inputs; testServer has no client, so set them.
       session$setInputs(
-        id_col = "responseid", x_source = "manual",
+        opened = 1L, id_col = "responseid", x_source = "manual",
         series_cols_1 = paste0("apt_", 1:5), series_x_1 = "0 0.5 1 5 10", series_label_1 = "",
         group_col = ""
       )
@@ -51,7 +51,7 @@ describe("wide_mapper server", {
       request(request_for(fixture("wide-qualtrics-apt.csv")))
       session$flushReact()
       session$setInputs(
-        id_col = "responseid", x_source = "manual",
+        opened = 1L, id_col = "responseid", x_source = "manual",
         series_cols_1 = paste0("apt_", 1:5), series_x_1 = "0 0.5 1 5", series_label_1 = "", group_col = ""
       )
       expect_match(validation(), "5 columns selected but 4 prices entered")
@@ -67,7 +67,7 @@ describe("wide_mapper server", {
       request(request_for(fixture("wide-price-suffix.csv")))
       session$flushReact()
       session$setInputs(
-        id_col = "participant", x_source = "header",
+        opened = 1L, id_col = "participant", x_source = "header",
         series_cols_1 = c("price_0", "price_0.5", "price_1", "price_5", "price_10"),
         series_label_1 = "", group_col = ""
       )
@@ -107,7 +107,7 @@ describe("wide_mapper server", {
       request(request_for(dat, target = "mixed_effects_demand"))
       session$flushReact()
       session$setInputs(
-        id_col = "subject", x_source = "manual",
+        opened = 1L, id_col = "subject", x_source = "manual",
         series_cols_1 = paste0("apt_", 1:4), series_x_1 = "0,1,2,3", series_label_1 = "",
         keep_cols = c("age", "sex")
       )
@@ -137,7 +137,7 @@ describe("wide_mapper server", {
       request(request_for(fixture("wide-qualtrics-apt.csv"), token = 1L))
       session$flushReact()
       session$setInputs(
-        id_col = "responseid", x_source = "manual",
+        opened = 1L, id_col = "responseid", x_source = "manual",
         series_cols_1 = paste0("apt_", 1:5), series_x_1 = "0 0.5 1 5 10", series_label_1 = "", group_col = ""
       )
       session$setInputs(cancel = 1)
@@ -152,18 +152,51 @@ describe("wide_mapper server", {
     })
   })
 
+  it("a second request computes its spec from its own guesses until the client acknowledges the new modal", {
+    request <- shiny$reactiveVal(NULL)
+    shiny$testServer(wide_mapper$server, args = list(request_r = request), {
+      request(request_for(fixture("wide-qualtrics-apt.csv"), token = 1L))
+      session$flushReact()
+      session$setInputs(
+        opened = 1L, id_col = "responseid", x_source = "manual",
+        series_cols_1 = paste0("apt_", 1:5), series_x_1 = "0 0.5 1 5 10", series_label_1 = "", group_col = ""
+      )
+      session$setInputs(cancel = 1)
+      request(request_for(fixture("wide-price-suffix.csv"), token = 2L))
+      session$flushReact()
+      # no client acknowledgement yet: guesses, not the first modal's inputs
+      cs <- current_spec()
+      expect_equal(cs$id_col, "participant")
+      expect_equal(cs$series[[1]]$cols, c("price_0", "price_0.5", "price_1", "price_5", "price_10"))
+      expect_true(header_x_available())
+      expect_true(isTRUE(validation()))
+      expect_match(output$x_source_ui$html, 'value="header" checked="checked"', fixed = TRUE)
+      # client acknowledges and posts the (stale-looking) old values: still ignored until they match token 2
+      session$setInputs(
+        opened = 2L, id_col = "participant", x_source = "header",
+        series_cols_1 = c("price_0", "price_0.5", "price_1", "price_5", "price_10"), series_label_1 = "",
+        group_col = ""
+      )
+      expect_true(isTRUE(validation()))
+      expect_equal(current_spec()$series[[1]]$x, c(0, 0.5, 1, 5, 10))
+    })
+  })
+
   it("offers header prices only when every selected column name carries one", {
     request <- shiny$reactiveVal(NULL)
     shiny$testServer(wide_mapper$server, args = list(request_r = request), {
       request(request_for(fixture("wide-qualtrics-apt.csv")))
       session$flushReact()
-      session$setInputs(id_col = "responseid", series_cols_1 = paste0("apt_", 1:5), series_label_1 = "", group_col = "")
+      session$setInputs(
+        opened = 1L, id_col = "responseid", series_cols_1 = paste0("apt_", 1:5),
+        series_label_1 = "", group_col = ""
+      )
       expect_false(header_x_available())
       expect_false(grepl("Read from column names", output$x_source_ui$html, fixed = TRUE))
       request(request_for(fixture("wide-price-suffix.csv"), token = 2L))
       session$flushReact()
       session$setInputs(
-        id_col = "participant",
+        opened = 2L, id_col = "participant",
         series_cols_1 = c("price_0", "price_0.5", "price_1", "price_5", "price_10")
       )
       expect_true(header_x_available())
@@ -181,7 +214,7 @@ describe("wide_mapper server", {
     shiny$testServer(outer, args = list(request_r = request), {
       request(request_for(fixture("wide-qualtrics-apt.csv")))
       session$flushReact()
-      session$setInputs(`mapper-id_col` = "responseid")
+      session$setInputs(`mapper-opened` = 1L, `mapper-id_col` = "responseid")
       expect_equal(input[["mapper-id_col"]], "responseid")
     })
   })
