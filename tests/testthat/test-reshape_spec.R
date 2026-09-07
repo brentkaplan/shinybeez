@@ -144,6 +144,17 @@ describe("validate_spec", {
     expect_match(spec$validate_spec(s, dat), "\"nope\"")
   })
 
+  it("rejects keep_cols named after apply_spec's temporary columns", {
+    dat <- apt()
+    dat$.row <- 1:3
+    s <- spec$new_spec(
+      "mixed_effects_demand", "responseid",
+      list(spec$new_series(c("apt_1", "apt_2"), x = c(0, 0.5))),
+      keep_cols = ".row"
+    )
+    expect_match(spec$validate_spec(s, dat), "cannot be carried along")
+  })
+
   it("rejects a series with no numeric cells and ids with fewer than two responses", {
     dat <- apt()
     dat$apt_1 <- "x"

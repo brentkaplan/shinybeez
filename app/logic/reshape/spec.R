@@ -13,7 +13,7 @@ targets <- c("demand", "mixed_effects_demand", "discounting")
 
 #' Output column names a carried column may not collide with
 #' @export
-RESERVED <- c("id", "x", "y", "group", "series", "monkey", "y_ll4") # nolint: object_name_linter
+RESERVED <- c("id", "x", "y", "group", "series", "monkey", "y_ll4", ".row", ".series") # nolint: object_name_linter
 
 #' @export
 new_series <- function(cols, x = NULL, label = "") {
