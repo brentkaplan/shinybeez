@@ -94,6 +94,13 @@ describe("discounting wide indifference points (bug 2)", {
     expect_match(chk, "d_7", fixed = TRUE)
   })
 
+  it("names duplicated delay headers in the same style as duplicated price headers", {
+    dat <- data.frame(id = 1:2, `7` = c(0.9, 0.8), `7.0` = c(0.5, 0.4), `30` = c(0.2, 0.1), check.names = FALSE)
+    chk <- validate$check_data(dat, type = "discounting")
+    expect_match(chk, "Duplicate delay columns. These headers all resolve to the same delay: \"7\", \"7.0\"")
+    expect_match(chk, "Please give each delay a single column.", fixed = TRUE)
+  })
+
   it("rejects wide files with duplicated ids", {
     dat <- data.frame(id = c(1, 1), `7` = c(0.9, 0.8), `30` = c(0.5, 0.4), check.names = FALSE)
     expect_match(validate$check_data(dat, type = "discounting"), "one row per id", fixed = TRUE)

@@ -82,6 +82,21 @@ describe("file_input rejection opens a mapper request", {
     })
   })
 
+  it("rejects a header-only file before the mapper, with an empty-data reason", {
+    db <- with_sqlite_telemetry()
+    shiny$testServer(file_input$server, args = list(type = "demand"), {
+      as_telemetry_session(session)
+      session$setInputs(upload = upload_input("wide-header-only.csv"))
+      expect_null(mapper_request())
+      expect_null(session$userData$data$demand)
+    })
+    rows <- read_event_rows(db, "validation_outcome")
+    expect_equal(nrow(rows), 1)
+    details <- jsonlite$fromJSON(rows$details)
+    expect_equal(details$check_name, "empty_file")
+    expect_match(details$reason, "no data rows")
+  })
+
   it("never opens for any bundled template", {
     templates <- list.files(file.path(find_project_root(), "app/static/data/templates"), pattern = "\\.csv$")
     type_for <- function(f) if (grepl("demand", f)) "demand" else "discounting"

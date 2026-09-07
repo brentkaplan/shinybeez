@@ -214,10 +214,12 @@ check_wide_discounting <- function(dat) {
       "Could not parse: ", paste0("\"", bad, "\"", collapse = ", "), "."
     ))
   }
-  if (anyDuplicated(parsed) > 0) {
+  dupes <- unique(parsed[duplicated(parsed)])
+  if (length(dupes) > 0) {
     return(paste0(
-      "Duplicate delay columns. These headers resolve to the same delay: ",
-      paste0("\"", delay_headers[parsed %in% parsed[duplicated(parsed)]], "\"", collapse = ", "), "."
+      "Duplicate delay columns. These headers all resolve to the same delay: ",
+      paste0("\"", delay_headers[parsed %in% dupes], "\"", collapse = ", "),
+      ". Please give each delay a single column."
     ))
   }
   if (any(parsed <= 0)) {

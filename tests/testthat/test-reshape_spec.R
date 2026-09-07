@@ -155,6 +155,10 @@ describe("validate_spec", {
     expect_match(spec$validate_spec(s, dat), "cannot be carried along")
   })
 
+  it("rejects a frame with no data rows before any cell check", {
+    expect_equal(spec$validate_spec(apt_spec(), apt()[0, ]), "The file has no data rows.")
+  })
+
   it("rejects a series with no numeric cells and ids with fewer than two responses", {
     dat <- apt()
     dat$apt_1 <- "x"

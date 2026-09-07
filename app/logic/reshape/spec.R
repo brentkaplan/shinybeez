@@ -71,6 +71,9 @@ series_cells <- function(s, dat) {
 #' @export
 validate_spec <- function(spec, dat) {
   cols <- colnames(dat)
+  if (nrow(dat) == 0) {
+    return("The file has no data rows.")
+  }
 
   # id
   if (is.null(spec$id_col) || length(spec$id_col) != 1 || is.na(spec$id_col) || !nzchar(spec$id_col)) {

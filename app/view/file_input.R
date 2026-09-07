@@ -267,6 +267,14 @@ server <- function(id, type = "demand") {
         notify_error("Unable to read the uploaded file. Please ensure it is a valid CSV or TSV file.")
         return()
       }
+      # A header-only file has nothing to validate or reshape: obliterate_empty_cols()
+      # would strip every column (all sums equal nrow == 0) and the mapper would open empty.
+      if (nrow(tmp) == 0) {
+        empty_msg <- "The file has no data rows."
+        telemetry_utils$track_validation(module_label, "failure", "empty_file", empty_msg, session)
+        notify_error(empty_msg)
+        return()
+      }
       # Normalize column names (lowercase, trim whitespace)
       colnames(tmp) <- tryCatch(trimws(tolower(colnames(tmp))), error = function(e) colnames(tmp))
       # Remove phantom columns (all-NA) before validation - but NOT for the
