@@ -220,6 +220,9 @@ check_wide_discounting <- function(dat) {
       paste0("\"", delay_headers[parsed %in% parsed[duplicated(parsed)]], "\"", collapse = ", "), "."
     ))
   }
+  if (any(parsed <= 0)) {
+    return("Wide indifference point data must have delays greater than zero in every column header.")
+  }
   if (anyDuplicated(dat$id) > 0) {
     return("Wide indifference point data must have one row per id.")
   }
@@ -353,10 +356,10 @@ reshape_data <- function(dat, type = "demand") {
     if (is.character(chk)) stop(chk, call. = FALSE)
     pivot_demand_data(dat, format = "long", drop_na = FALSE)
   } else if (type == "discounting") {
-    if (ncol(dat) == 28) {
+    if (ncol(dat) == 28 && "subjectid" %in% colnames(dat)) {
       dat |>
         beezdiscounting$wide_to_long_mcq(dat = _)
-    } else if (ncol(dat) < 28 && length(unique(dat$id)) == length(dat$id)) {
+    } else if (length(unique(dat$id)) == length(dat$id)) {
       dat |>
         tidyr$pivot_longer(
           cols = 2:ncol(dat),
@@ -387,8 +390,9 @@ reshape_data <- function(dat, type = "demand") {
 prepare_discounting_data <- function(dat) {
   cols <- colnames(dat)
 
-  # 28 columns is the MCQ shape.
-  if (ncol(dat) == 28) {
+  # 28 columns is the MCQ shape, but only when subjectid is actually present:
+  # a wide indifference-point file with 27 delay columns is also 28 columns wide.
+  if (ncol(dat) == 28 && "subjectid" %in% cols) {
     return(reshape_data(dat, type = "discounting"))
   }
 

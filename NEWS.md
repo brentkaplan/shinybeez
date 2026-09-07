@@ -27,10 +27,17 @@
   `APT_1`, `APT_2` were parsed to prices 1, 2, … and fitted silently. A header
   now counts as a price only when the whole header is a number (currency symbol
   allowed); anything else opens the reshape form.
+
 - **Wide discounting template accepted** — the bundled
   `template_discounting_wide.csv` (`id` plus one column per delay) was rejected
   by the indifference-point validator. It now loads and is reshaped to
   `id, x, y` as documented.
+
+- **Wide files on the discounting tab** — because the wide indifference-point
+  template is now accepted, a wide demand file whose price headers are all
+  positive numbers is also accepted there as indifference points. Headers that
+  are not whole numbers (for example `price_1` or `1,000`), which the old
+  parser tolerated, now open the reshape form instead of loading directly.
 
 # shinybeez 1.1.3
 

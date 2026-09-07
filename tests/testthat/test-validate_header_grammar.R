@@ -106,4 +106,22 @@ describe("discounting wide indifference points (bug 2)", {
       "Indifference point data must have exactly three columns: id, x, y", fixed = TRUE
     )
   })
+
+  it("reshapes wide indifference-point files with 27 and 28 delays instead of routing them to MCQ", {
+    for (n_delays in c(27L, 28L)) {
+      delays <- seq_len(n_delays)
+      dat <- as.data.frame(matrix(runif(2 * n_delays), nrow = 2))
+      colnames(dat) <- as.character(delays)
+      dat <- cbind(id = c("a", "b"), dat)
+      expect_true(isTRUE(validate$check_data(dat, type = "discounting")), info = n_delays)
+      long <- validate$prepare_discounting_data(dat)
+      expect_equal(colnames(long), c("id", "x", "y"), info = n_delays)
+      expect_equal(nrow(long), 2L * n_delays, info = n_delays)
+    }
+  })
+
+  it("rejects a zero delay header", {
+    dat <- data.frame(id = 1:2, `0` = c(1, 1), `7` = c(0.9, 0.8), check.names = FALSE)
+    expect_match(validate$check_data(dat, type = "discounting"), "greater than zero")
+  })
 })
