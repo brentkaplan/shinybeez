@@ -282,3 +282,86 @@ describe("wide_mapper server", {
     })
   })
 })
+
+describe("wide_mapper server, long layout", {
+  it("opens in long mode with prefilled selects and confirms a long mapping", {
+    request <- shiny$reactiveVal(NULL)
+    shiny$testServer(wide_mapper$server, args = list(request_r = request), {
+      request(request_for(fixture("long-misnamed.csv")))
+      session$flushReact()
+      expect_equal(state$layout0, "long")
+      expect_true(isTRUE(validation()))          # the guess alone is already valid
+      expect_match(output$preview_status$html, "3 participants")
+      session$setInputs(r1_confirm = 1)
+      res <- result()
+      expect_equal(res$spec$layout, "long")
+      expect_equal(colnames(res$data), c("id", "x", "y"))
+      expect_equal(nrow(res$data), 12)
+    })
+  })
+
+  it("uses the picked columns, not the guessed ones", {
+    request <- shiny$reactiveVal(NULL)
+    shiny$testServer(wide_mapper$server, args = list(request_r = request), {
+      request(request_for(fixture("long-extra-cols.csv")))
+      session$flushReact()
+      session$setInputs(
+        r1_long_id_col = "id", r1_long_x_col = "x", r1_long_y_col = "y", r1_long_group_col = ""
+      )
+      expect_null(current_spec()$group_col)
+      expect_true(isTRUE(validation()))
+      session$setInputs(r1_long_group_col = "site")
+      expect_equal(current_spec()$group_col, "site")
+      expect_equal(colnames(preview()$data), c("id", "group", "x", "y"))
+    })
+  })
+
+  it("shows the validation message when the picked columns cannot work", {
+    request <- shiny$reactiveVal(NULL)
+    shiny$testServer(wide_mapper$server, args = list(request_r = request), {
+      request(request_for(fixture("long-misnamed.csv")))
+      session$flushReact()
+      session$setInputs(r1_long_x_col = "consumption")
+      expect_match(validation(), "used twice")
+      expect_match(output$footer$html, "disabled")
+    })
+  })
+
+  it("switching the layout radio re-renders the other body and back", {
+    request <- shiny$reactiveVal(NULL)
+    shiny$testServer(wide_mapper$server, args = list(request_r = request), {
+      request(request_for(fixture("long-misnamed.csv")))
+      session$flushReact()
+      expect_match(output$body$html, "r1_long_id_col")
+      session$setInputs(r1_layout = "wide")
+      expect_match(output$body$html, "r1_id_col")
+      expect_equal(current_spec()$layout, "wide")
+      session$setInputs(r1_layout = "long")
+      expect_match(output$body$html, "r1_long_x_col")
+      expect_true(isTRUE(validation()))
+    })
+  })
+
+  it("a wide request still opens in wide mode", {
+    request <- shiny$reactiveVal(NULL)
+    shiny$testServer(wide_mapper$server, args = list(request_r = request), {
+      request(request_for(fixture("wide-qualtrics-apt.csv")))
+      session$flushReact()
+      expect_equal(state$layout0, "wide")
+      expect_match(output$body$html, "r1_id_col")
+      # the series pickers live in the nested series_ui output the wide body renders
+      expect_match(output$series_ui$html, "r1_series_cols_1")
+    })
+  })
+
+  it("offers a series column and covariates on mixed effects", {
+    request <- shiny$reactiveVal(NULL)
+    shiny$testServer(wide_mapper$server, args = list(request_r = request), {
+      request(request_for(fixture("long-me-covariates.csv"), target = "mixed_effects_demand"))
+      session$flushReact()
+      session$setInputs(r1_long_keep_cols = "age")
+      expect_equal(current_spec()$keep_cols, "age")
+      expect_equal(colnames(preview()$data), c("id", "x", "y", "series", "age"))
+    })
+  })
+})

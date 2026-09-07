@@ -15,7 +15,8 @@ describe("Demand - wide-to-long mapper", {
     navigate_to_tab(app, "Demand")
     app$upload_file(!!ids$demand$upload := fixture_path("wide-qualtrics-apt.csv"))
     app$wait_for_js("document.querySelector('.modal.show') !== null", timeout = 10000)
-    expect_equal(app$get_value(input = mapper(1, "id_col")), "responseid")
+    # id_col renders inside the modal's server-rendered body, so wait for it to post
+    expect_equal(app$wait_for_value(input = mapper(1, "id_col"), timeout = 5000), "responseid")
     # the radio is a renderUI output; its value posts after the modal is visible
     expect_equal(app$wait_for_value(input = mapper(1, "x_source"), timeout = 5000), "manual")
   })
@@ -52,7 +53,7 @@ describe("Demand - wide-to-long mapper", {
     # request 2's inputs (r2_*) are brand-new ids the client has never posted a value for
     # under request 1, so there is no stale value to race with - the guessed prefill shows
     # up as soon as the modal's own uiOutputs render.
-    expect_equal(app$get_value(input = mapper(2, "id_col")), "participant")
+    expect_equal(app$wait_for_value(input = mapper(2, "id_col"), timeout = 5000), "participant")
     expect_equal(app$wait_for_value(input = mapper(2, "x_source"), timeout = 5000), "header")
     app$wait_for_js(
       sprintf(

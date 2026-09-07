@@ -23,6 +23,10 @@ box::use(
 x_noun <- function(target) if (target == "discounting") "delays" else "prices"
 x_label <- function(target) if (target == "discounting") "Delays" else "Prices"
 cols_label <- function(target) if (target == "discounting") "Delay columns" else "Price columns"
+x_col_label <- function(target) if (target == "discounting") "Delay column" else "Price column"
+y_col_label <- function(target) {
+  if (target == "discounting") "Indifference point column" else "Consumption column"
+}
 
 # Every modal input id carries the request token, so a later request can never
 # read a value the previous modal posted. Before the client posts a value the
@@ -63,9 +67,8 @@ series_block <- function(ns, token, target, i, cols, series, show_manual_conditi
   )
 }
 
-modal_ui <- function(ns, req, guess) {
-  dat <- req$dat
-  cols <- colnames(dat)
+wide_body <- function(ns, req, guess) {
+  cols <- colnames(req$dat)
   target <- req$target
   token <- req$token
   other_cols <- setdiff(cols, c(guess$id_col, unlist(lapply(guess$series, `[[`, "cols"))))
@@ -84,21 +87,11 @@ modal_ui <- function(ns, req, guess) {
     discounting = NULL
   )
 
-  reason <- sub("\\.\\s*$", "", req$reason)
-
-  shiny$modalDialog(
-    title = "Reshape your data",
-    size = "xl",
-    easyClose = FALSE,
-    footer = shiny$uiOutput(ns("footer")),
-    shiny$p(
-      "This file doesn't match a shinybeez template: ", shiny$em(reason), ". Tell us how to reshape it. ",
-      shiny$span(class = "text-muted", sprintf("%d rows × %d columns detected.", nrow(dat), ncol(dat)))
-    ),
+  shiny$tagList(
     shiny$p(
       class = "text-muted small",
-      "Already one row per observation? Rename your columns to match the long template on the Welcome tab instead. ",
-      "Column names are shown lowercased."
+      "Already one row per observation? Switch the layout above, or rename your columns to match ",
+      "the long template on the Welcome tab. Column names are shown lowercased."
     ),
     shiny$selectInput(
       ns(rid(token, "id_col")), "Participant id column",
@@ -117,7 +110,77 @@ modal_ui <- function(ns, req, guess) {
     },
     shiny$uiOutput(ns("x_source_ui")),
     shiny$uiOutput(ns("pairs_ui")),
-    extras,
+    extras
+  )
+}
+
+long_body <- function(ns, req, guess) {
+  cols <- colnames(req$dat)
+  target <- req$target
+  token <- req$token
+  other_cols <- setdiff(cols, c(guess$id_col, guess$x_col, guess$y_col))
+
+  extras <- switch(
+    target,
+    demand = shiny$selectInput(
+      ns(rid(token, "long_group_col")), "Group column (optional)",
+      choices = c("None" = "", other_cols), selected = guess$group_col %||% ""
+    ),
+    mixed_effects_demand = shiny$tagList(
+      shiny$selectInput(
+        ns(rid(token, "long_group_col")), "Series column (optional)",
+        choices = c("None" = "", other_cols), selected = guess$group_col %||% ""
+      ),
+      shiny$selectizeInput(
+        ns(rid(token, "long_keep_cols")), "Columns to carry along as covariates or factors (optional)",
+        choices = other_cols, selected = NULL, multiple = TRUE,
+        options = list(plugins = list("remove_button"))
+      )
+    ),
+    discounting = NULL
+  )
+
+  shiny$tagList(
+    shiny$selectInput(
+      ns(rid(token, "long_id_col")), "Participant id column",
+      choices = cols, selected = guess$id_col %||% cols[1]
+    ),
+    shiny$selectInput(
+      ns(rid(token, "long_x_col")), x_col_label(target),
+      choices = cols, selected = guess$x_col %||% cols[1]
+    ),
+    shiny$selectInput(
+      ns(rid(token, "long_y_col")), y_col_label(target),
+      choices = cols, selected = guess$y_col %||% cols[1]
+    ),
+    extras
+  )
+}
+
+# The body is rendered server-side so the layout radio can swap it; everything below the
+# preview heading is the same for both layouts.
+modal_ui <- function(ns, req, layout0) {
+  dat <- req$dat
+  reason <- sub("\\.\\s*$", "", req$reason)
+
+  shiny$modalDialog(
+    title = "Reshape your data",
+    size = "xl",
+    easyClose = FALSE,
+    footer = shiny$uiOutput(ns("footer")),
+    shiny$p(
+      "This file doesn't match a shinybeez template: ", shiny$em(reason), ". Tell us how to reshape it. ",
+      shiny$span(class = "text-muted", sprintf("%d rows × %d columns detected.", nrow(dat), ncol(dat)))
+    ),
+    shiny$radioButtons(
+      ns(rid(req$token, "layout")), "How is this file laid out?",
+      choices = c(
+        "One row per observation (long)" = "long",
+        "One row per participant (wide)" = "wide"
+      ),
+      selected = layout0, inline = TRUE
+    ),
+    shiny$uiOutput(ns("body")),
     shiny$h6("Preview"),
     shiny$uiOutput(ns("preview_status")),
     DTOutput(ns("preview"))
@@ -128,7 +191,10 @@ modal_ui <- function(ns, req, guess) {
 server <- function(id, request_r) {
   shiny$moduleServer(id, function(input, output, session) {
     ns <- session$ns
-    state <- shiny$reactiveValues(req = NULL, guess = NULL, n_series = 0L, carry = FALSE, seen = list())
+    state <- shiny$reactiveValues(
+      req = NULL, guess = NULL, guess_long = NULL, layout0 = "wide",
+      n_series = 0L, carry = FALSE, seen = list()
+    )
     result <- shiny$reactiveVal(NULL)
     cancelled <- shiny$reactiveVal(NULL)
 
@@ -168,14 +234,46 @@ server <- function(id, request_r) {
         state$req <- NULL
         return()
       }
-      guess <- detect$guess_spec(req$dat, req$target)
+      guess <- detect$guess_spec_wide(req$dat, req$target)
       state$carry <- FALSE
       state$seen <- list()
       state$req <- req
       state$guess <- guess
+      state$guess_long <- detect$guess_spec_long(req$dat, req$target)
+      state$layout0 <- if (is.null(detect$detect_long(req$dat, req$target))) "wide" else "long"
       state$n_series <- length(guess$series)
-      shiny$showModal(modal_ui(ns, req, guess))
+      shiny$showModal(modal_ui(ns, req, state$layout0))
     })
+
+    # The layout the modal is showing. The radio is NULL until the client posts it, so the
+    # detected layout stands until the user changes it.
+    layout <- shiny$reactive({
+      shiny$req(state$req)
+      req_input("layout") %||% state$layout0
+    })
+
+    output$body <- shiny$renderUI({
+      req <- state$req
+      shiny$req(req)
+      if (layout() == "long") long_body(ns, req, state$guess_long) else wide_body(ns, req, state$guess)
+    })
+
+    # Single selects always post a value, so NULL means "not posted yet for this request"
+    # and the guess stands; "" is the user choosing None.
+    long_spec_from_inputs <- function(req) {
+      g <- state$guess_long
+      group_col <- req_input("long_group_col")
+      group_col <- if (is.null(group_col)) g$group_col else if (nzchar(group_col)) group_col else NULL
+      spec$new_spec(
+        target = req$target,
+        layout = "long",
+        id_col = req_input("long_id_col") %||% g$id_col,
+        x_col = req_input("long_x_col") %||% g$x_col,
+        y_col = req_input("long_y_col") %||% g$y_col,
+        group_col = group_col,
+        keep_cols = req_input("long_keep_cols") %||% character(0)
+      )
+    }
 
     shiny$observeEvent(req_input("add_series"), {
       state$carry <- TRUE
@@ -219,6 +317,7 @@ server <- function(id, request_r) {
     current_spec <- shiny$reactive({
       req <- state$req
       shiny$req(req)
+      if (layout() == "long") return(long_spec_from_inputs(req))
       guess <- state$guess
       x_source <- req_input("x_source") %||% guess$x_source
       series <- lapply(seq_len(state$n_series), function(i) {
@@ -314,11 +413,19 @@ server <- function(id, request_r) {
       }
       p <- preview()
       cs <- current_spec()
-      n_cols <- sum(vapply(cs$series, function(s) length(s$cols), numeric(1)))
-      msg <- sprintf(
-        "%d series × %d participants × %d response columns → %s rows",
-        length(cs$series), p$n_ids, n_cols, format(nrow(p$data), big.mark = ",")
-      )
+      msg <- if (identical(cs$layout, "long")) {
+        sprintf(
+          "%d participants × %d responses → %s rows",
+          p$n_ids, length(unique(p$data$x)), format(nrow(p$data), big.mark = ",")
+        )
+      } else {
+        sprintf(
+          "%d series × %d participants × %d response columns → %s rows",
+          length(cs$series), p$n_ids,
+          sum(vapply(cs$series, function(s) length(s$cols), numeric(1))),
+          format(nrow(p$data), big.mark = ",")
+        )
+      }
       if (p$losses$n_na_y > 0) msg <- paste0(msg, sprintf(" · %d empty responses dropped", p$losses$n_na_y))
       if (p$losses$n_na_keep > 0) {
         msg <- paste0(msg, sprintf(
