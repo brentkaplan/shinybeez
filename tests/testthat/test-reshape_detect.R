@@ -289,12 +289,21 @@ describe("detect_long, responses that are not responses", {
     expect_equal(out$x_col, "delay")
     expect_equal(out$y_col, "indiff")
   })
-  it("prefers a response that varies over a flat one with a response-like name", {
+  it("prefers a response that varies, whatever the other column is called", {
     dat <- data.frame(
       id = rep(c("a", "b"), each = 3), x = rep(c(1, 2, 3), 2),
-      value = rep(c(30, 40), each = 3), consumption = c(9, 6, 3, 8, 5, 2), stringsAsFactors = FALSE
+      consumption = rep(c(30, 40), each = 3), mystery = c(9, 6, 3, 8, 5, 2), stringsAsFactors = FALSE
     )
-    expect_equal(detect$detect_long(dat, "demand")$y_col, "consumption")
+    expect_equal(detect$detect_long(dat, "demand")$y_col, "mystery")
+  })
+  it("does not let an ambiguous name rescue a flat covariate", {
+    # "value" reads as a response but is just as often a per-participant score; only an
+    # unmistakable response name (y, consumption, indiff, ip) rescues a flat column.
+    dat <- data.frame(
+      id = rep(c("a", "b"), each = 3), x = rep(c(1, 2, 3), 2),
+      value = rep(c(30, 40), each = 3), stringsAsFactors = FALSE
+    )
+    expect_null(detect$detect_long(dat, "demand"))
   })
   it("still picks a response that varies within the participant", {
     dat <- data.frame(

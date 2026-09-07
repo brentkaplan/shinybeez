@@ -13,6 +13,9 @@ box::use(
 id_pattern <- "^(response_?id|subject_?id|subject|subj|participant|pid|ppt|id)$"
 x_name_pattern <- "^(x|price|prices|cost|delay|delays|amount)$"
 y_name_pattern <- "^(y|y_ll4|consumption|consumed|response|value|indiff|indifference|ip)$"
+# Only an unmistakable response name rescues a column that never varies within a
+# participant: "value" or "response" is as often a per-participant score.
+flat_y_pattern <- "^(y|y_ll4|consumption|consumed|indiff|indifference|ip)$"
 group_name_pattern <- "^(group|series|condition|cond|commodity|drug|session|site|wave|arm)$"
 suffix_pattern <- "^(.*?)[_. -]?([0-9]+(\\.[0-9]+)?)$"
 
@@ -199,11 +202,14 @@ detect_long <- function(dat, target) {
     # every delay, so a flat column named like a response is still a response.
     y_cands <- setdiff(rest, x_col)
     varies <- vapply(y_cands, function(nm) !constant_within_id(parsed[[nm]], ids), logical(1))
-    keep <- varies | grepl(y_name_pattern, tolower(y_cands), perl = TRUE)
+    keep <- varies | grepl(flat_y_pattern, tolower(y_cands), perl = TRUE)
     y_cands <- y_cands[keep]
+    varies <- varies[keep]
     if (length(y_cands) == 0) next
-    y_cands <- rank_candidates(y_cands, y_name_pattern, key = as.numeric(!varies[keep]))
-    y_col <- y_cands[1]
+    # Variation first, then the name: a column that moves with price beats a flat one
+    # however it is spelled.
+    named <- grepl(y_name_pattern, tolower(y_cands), perl = TRUE)
+    y_col <- y_cands[order(!varies, !named, seq_along(y_cands))][1]
 
     group_col <- NULL
     if (target != "discounting") {
