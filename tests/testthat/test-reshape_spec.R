@@ -144,6 +144,25 @@ describe("validate_spec", {
     expect_match(spec$validate_spec(s, dat), "\"nope\"")
   })
 
+  it("lets a column named group be carried on ME and be the group column on demand", {
+    dat <- apt()
+    dat$group <- c("a", "b", "a")
+    s <- spec$new_spec(
+      "mixed_effects_demand", "responseid",
+      list(spec$new_series(c("apt_1", "apt_2"), x = c(0, 0.5))),
+      keep_cols = "group"
+    )
+    expect_true(isTRUE(spec$validate_spec(s, dat)))
+    expect_equal(colnames(spec$apply_spec(s, dat)$data), c("id", "x", "y", "group"))
+    d <- spec$new_spec(
+      "demand", "responseid",
+      list(spec$new_series(c("apt_1", "apt_2"), x = c(0, 0.5))),
+      group_col = "group"
+    )
+    expect_true(isTRUE(spec$validate_spec(d, dat)))
+    expect_equal(unique(spec$apply_spec(d, dat)$data$group), c("a", "b"))
+  })
+
   it("rejects keep_cols named after apply_spec's temporary columns", {
     dat <- apt()
     dat$.row <- 1:3

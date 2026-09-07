@@ -11,9 +11,12 @@ box::use(
 
 targets <- c("demand", "mixed_effects_demand", "discounting")
 
-#' Output column names a carried column may not collide with
+#' Names a carried (keep_cols) column may not have: the mixed-effects output columns,
+#' the pipeline's model column names, and apply_spec()'s temporaries. Only carried columns
+#' can clash - the group column is renamed to `group` on output, so a file column named
+#' "group" is a fine group column on demand and a fine covariate on mixed effects.
 #' @export
-RESERVED <- c("id", "x", "y", "group", "series", "monkey", "y_ll4", ".row", ".series") # nolint: object_name_linter
+RESERVED <- c("id", "x", "y", "series", "monkey", "y_ll4", ".row", ".series") # nolint: object_name_linter
 
 #' @export
 new_series <- function(cols, x = NULL, label = "") {
@@ -93,7 +96,7 @@ validate_spec <- function(spec, dat) {
   if (length(missing) > 0) {
     return(paste0("These columns are not in the data: ", quote_names(missing), "."))
   }
-  reserved <- intersect(extra, RESERVED)
+  reserved <- intersect(spec$keep_cols, RESERVED)
   if (length(reserved) > 0) {
     return(paste0(
       "Columns named ", quote_names(reserved), " cannot be carried along; they clash ",
