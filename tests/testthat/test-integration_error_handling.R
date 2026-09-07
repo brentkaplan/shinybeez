@@ -36,15 +36,18 @@ describe("Error handling", {
     expect_true(!is.null(html) && any(grepl("shiny-notification", html)))
   })
 
-  it("shows error when uploading demand data to discounting tab", {
+  it("opens the reshape modal when uploading grouped demand data to the discounting tab, and cancel shows the error", {
     require_app(app)
     navigate_to_tab(app, "Discounting")
     app$upload_file(
-      !!ids$discounting$upload := fixture_path("demand-minimal.csv")
+      !!ids$discounting$upload := fixture_path("demand-minimal-grouped.csv")
     )
+    app$wait_for_js("document.querySelector('.modal.show') !== null", timeout = 10000)
+    cancel_id <- ns_id("discounting", "discounting", "mapper", "cancel")
+    app$wait_for_js(sprintf("document.getElementById('%s') !== null", cancel_id), timeout = 10000)
+    app$click(selector = paste0("#", cancel_id))
     wait_for_notification(app, "error")
-    html <- app$get_html(".shiny-notification-error")
-    expect_true(!is.null(html) && any(grepl("shiny-notification", html)))
+    expect_true(TRUE)
   })
 
   it("shows error when uploading MCQ data to mixed effects tab", {

@@ -12,6 +12,26 @@
   `600000`), and `SHINYBEEZ_DAEMON_RSS_LIMIT_MB` (default `900`). See
   `deploy-shinyproxy/ASYNC-FITS.md` for the operational runbook.
 
+- **Wide-to-long reshape form** — when an uploaded file does not match a
+  template on the Demand, Mixed-effects demand, or Discounting (indifference
+  point) tab, a form now asks which column identifies the participant and
+  which columns hold the responses, takes the prices or delays (typed, or
+  read from the column names), previews the converted data, and loads it.
+  Several commodities side by side become groups (demand) or a `series`
+  column (mixed effects); extra columns can be carried along on the
+  mixed-effects tab. The converted long file can be downloaded from the form.
+
+## Bug Fixes
+
+- **Wide demand headers must be whole numbers** — item-style headers such as
+  `APT_1`, `APT_2` were parsed to prices 1, 2, … and fitted silently. A header
+  now counts as a price only when the whole header is a number (currency symbol
+  allowed); anything else opens the reshape form.
+- **Wide discounting template accepted** — the bundled
+  `template_discounting_wide.csv` (`id` plus one column per delay) was rejected
+  by the indifference-point validator. It now loads and is reshaped to
+  `id, x, y` as documented.
+
 # shinybeez 1.1.3
 
 Patch release over v1.1.2. Runtime R dependencies are unchanged (`renv.lock` is
