@@ -391,7 +391,8 @@ track_error <- function(error_message, error_context = NULL, session = NULL) {
 
 #' Track the wide-to-long mapper lifecycle
 #'
-#' @param target "demand", "mixed_effects_demand" or "discounting"
+#' @param target Module name, same vocabulary as track_validation(): "demand",
+#'   "mixed_effects" or "discounting"
 #' @param outcome "opened", "confirmed" or "cancelled"
 #' @param summary Optional list: n_series, x_source, n_cols_in, n_rows_out, n_dropped.
 #'   Never column names or cell values.

@@ -218,7 +218,7 @@ server <- function(id, type = "demand") {
         return(invisible(FALSE))
       }
       mapper_request(list(dat = tmp, reason = reason, token = upload_token, target = type, meta = meta))
-      telemetry_utils$track_reshape(type, "opened", session = session)
+      telemetry_utils$track_reshape(module_label, "opened", session = session)
       invisible(TRUE)
     }
 
@@ -241,7 +241,7 @@ server <- function(id, type = "demand") {
           "Maximum allowed size is ", max_size_mb, " MB."
         )
         telemetry_utils$track_validation(
-          type, "failure", "file_size", size_msg, session
+          module_label, "failure", "file_size", size_msg, session
         )
         notify_error(size_msg)
         return()
@@ -323,7 +323,7 @@ server <- function(id, type = "demand") {
         return()
       }
       telemetry_utils$track_reshape(
-        type, "confirmed",
+        module_label, "confirmed",
         summary = list(
           n_series = length(res$spec$series),
           x_source = res$spec$x_source,
@@ -339,7 +339,7 @@ server <- function(id, type = "demand") {
     shiny$observeEvent(mapper$cancelled(), {
       cancel <- mapper$cancelled()
       if (!identical(cancel$token, upload_token)) return()
-      telemetry_utils$track_reshape(type, "cancelled", session = session)
+      telemetry_utils$track_reshape(module_label, "cancelled", session = session)
       notify_error(rejection_message(cancel$reason))
     })
   })
