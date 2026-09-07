@@ -118,6 +118,17 @@ describe("wide_mapper server", {
     })
   })
 
+  it("does not offer header prices when each series is its own item-index run", {
+    request <- shiny$reactiveVal(NULL)
+    shiny$testServer(wide_mapper$server, args = list(request_r = request), {
+      request(request_for(fixture("wide-two-commodities.csv")))
+      session$flushReact()
+      expect_false(header_x_available())
+      expect_equal(current_spec()$x_source, "manual")
+      expect_false(grepl("Read from column names", output$x_source_ui$html, fixed = TRUE))
+    })
+  })
+
   it("adds and removes a series", {
     request <- shiny$reactiveVal(NULL)
     shiny$testServer(wide_mapper$server, args = list(request_r = request), {

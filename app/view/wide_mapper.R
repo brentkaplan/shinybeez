@@ -245,13 +245,13 @@ server <- function(id, request_r) {
       )
     })
 
-    # "Read from column names" is only offered when every selected column's header
-    # actually carries a price/delay (detect$header_x_available()); an item-index run
-    # like apt_1..apt_5 suffix-parses to numbers too, but those are positions, not prices.
+    # "Read from column names" is only offered when every series' selected headers
+    # actually carry a price/delay (detect$series_header_x_available()); an item-index
+    # run like apt_1..apt_5 suffix-parses to numbers too, but those are positions, not
+    # prices, and each series is judged on its own.
     header_x_available <- shiny$reactive({
       cs <- current_spec()
-      cols <- unlist(lapply(cs$series, `[[`, "cols"))
-      detect$header_x_available(cols)
+      detect$series_header_x_available(lapply(cs$series, `[[`, "cols"))
     })
 
     output$x_source_ui <- shiny$renderUI({

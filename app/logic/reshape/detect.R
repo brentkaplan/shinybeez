@@ -53,8 +53,10 @@ x_from_names <- function(cols) {
   split_suffix(cols)$suffix
 }
 
+# Consecutive whole numbers in column order (1..n, but also 3..10 from a Qualtrics
+# export whose first items were dropped) are item positions, not prices or delays.
 is_index_run <- function(suffix) {
-  length(suffix) >= 2 && !anyNA(suffix) && isTRUE(all.equal(suffix, as.numeric(seq_along(suffix))))
+  length(suffix) >= 2 && !anyNA(suffix) && all(suffix == round(suffix)) && all(diff(suffix) == 1)
 }
 
 #' Whether "Read from column names" should be offered for these columns
@@ -70,6 +72,16 @@ header_x_available <- function(cols) {
   if (all(!is.na(whole))) return(TRUE)
   x <- x_from_names(cols)
   !anyNA(x) && !is_index_run(x)
+}
+
+#' Whether header prices/delays can be read for EVERY series
+#'
+#' Each series is judged on its own: `alc_1..alc_3` and `cig_1..cig_3` are two item-index
+#' runs, but flattened together their suffixes (1, 2, 3, 1, 2, 3) are not one run.
+#' @param cols_list list of character vectors, one per series
+#' @export
+series_header_x_available <- function(cols_list) {
+  length(cols_list) > 0 && all(vapply(cols_list, header_x_available, logical(1)))
 }
 
 #' Group candidate response columns into series

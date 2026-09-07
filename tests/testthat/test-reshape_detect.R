@@ -62,6 +62,18 @@ describe("header_x_available", {
   it("is TRUE when the trailing numbers are not a sequential index", {
     expect_true(detect$header_x_available(c("price_0", "price_0.5", "price_1", "price_5", "price_10")))
   })
+  it("is FALSE for a partial index run: q5_3..q5_10 are item positions too", {
+    expect_false(detect$header_x_available(paste0("q5_", 3:10)))
+  })
+  it("is TRUE for non-consecutive trailing numbers such as delays", {
+    expect_true(detect$header_x_available(c("d_7", "d_30", "d_90")))
+  })
+  it("checks every series on its own: two index runs flattened are not one run", {
+    expect_false(detect$series_header_x_available(list(paste0("alc_", 1:3), paste0("cig_", 1:3))))
+    expect_true(detect$series_header_x_available(list(c("alc_0", "alc_5"), c("cig_0", "cig_5"))))
+    expect_false(detect$series_header_x_available(list(c("alc_0", "alc_5"), paste0("cig_", 1:3))))
+    expect_false(detect$series_header_x_available(list()))
+  })
   it("is TRUE for whole-header numbers even when they happen to be 1..n", {
     expect_true(detect$header_x_available(c("1", "2", "3")))
   })
@@ -75,6 +87,14 @@ describe("cluster_series_columns", {
     cl <- detect$cluster_series_columns(fixture("wide-qualtrics-apt.csv"), exclude = "responseid")
     expect_length(cl, 1)
     expect_equal(cl[[1]]$cols, paste0("apt_", 1:5))
+    expect_null(cl[[1]]$x)
+    expect_equal(cl[[1]]$x_source, "manual")
+  })
+  it("treats a partial consecutive run (q5_3..q5_10) as item indices too", {
+    dat <- as.data.frame(setNames(replicate(8, c(3, 2, 1), simplify = FALSE), paste0("q5_", 3:10)))
+    dat$id <- 1:3
+    cl <- detect$cluster_series_columns(dat, exclude = "id")
+    expect_length(cl, 1)
     expect_null(cl[[1]]$x)
     expect_equal(cl[[1]]$x_source, "manual")
   })
