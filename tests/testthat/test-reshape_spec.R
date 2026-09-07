@@ -496,3 +496,39 @@ describe("responses that cannot be fitted", {
     expect_match(spec$validate_spec(sw, wide), "has empty values")
   })
 })
+
+describe("keys built from values that contain the separator", {
+  # A key pasted together with a separator merges two distinct combinations when a value
+  # contains that separator: `paste("a", "\rb")` and `paste("a\r", "b")` are the same
+  # string, so two participants become one and validation stops telling the truth.
+  it("does not merge two one-row curves into one that looks fittable", {
+    dat <- data.frame(
+      subject = c("a", "a\r"),
+      cond = c("\rb", "b"),
+      price = c(1, 1),
+      consumption = c(10, 9),
+      stringsAsFactors = FALSE
+    )
+    expect_match(
+      spec$validate_spec(long_spec(group = "cond"), dat), "fewer than two usable responses"
+    )
+  })
+  it("does not call two distinct wide rows a duplicated id", {
+    dat <- data.frame(
+      subject = c("a", "a\r"),
+      cond = c("\rb", "b"),
+      `1` = c(10, 9),
+      `2` = c(8, 7),
+      check.names = FALSE,
+      stringsAsFactors = FALSE
+    )
+    s <- spec$new_spec(
+      target = "demand", layout = "wide", id_col = "subject", group_col = "cond",
+      series = list(spec$new_series(c("1", "2"), x = c(1, 2)))
+    )
+    expect_true(spec$validate_spec(s, dat))
+  })
+  it("gives each distinct combination its own key", {
+    expect_equal(length(unique(spec$composite_key(c("a", "a\r"), c("\rb", "b")))), 2)
+  })
+})

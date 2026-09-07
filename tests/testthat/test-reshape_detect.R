@@ -232,10 +232,15 @@ describe("detect_long", {
     out <- detect$detect_long(dat, "demand")
     expect_equal(c(out$id_col, out$x_col, out$y_col, out$group_col), c("id", "x", "y", "group"))
   })
-  it("declines a long frame whose x repeats within a participant rather than guessing", {
-    # monkey x drug x dose x price: no single column is a grid shared across participants,
-    # so there is no honest mapping to offer. Two grouping columns are out of scope.
-    expect_null(detect$detect_long(fixture("mixed-effects-minimal.csv"), "mixed_effects_demand"))
+  it("reads a monkey x drug frame as a within-subject design", {
+    # `dose` is perfectly confounded with `drug` here (Alfentanil <-> 0.003, Saline <-> 0),
+    # so this is one two-level factor wearing two column names, not two crossed factors.
+    # The file passes check_data() on the mixed-effects tab, so the mapper only ever sees
+    # it from the demand tab, where the wide guess had nothing to offer.
+    out <- detect$detect_long(fixture("mixed-effects-minimal.csv"), "mixed_effects_demand")
+    expect_equal(
+      c(out$id_col, out$x_col, out$y_col, out$group_col), c("monkey", "x", "y", "drug")
+    )
   })
   it("needs more than one participant before repetition means anything", {
     one <- data.frame(id = rep("s1", 4), x = c(0, 1, 5, 10), y = c(10, 8, 5, 2), stringsAsFactors = FALSE)
@@ -311,5 +316,107 @@ describe("detect_long, responses that are not responses", {
       age = rep(c(30, 40), each = 3), resp = c(9, 6, 3, 8, 5, 2), stringsAsFactors = FALSE
     )
     expect_equal(detect$detect_long(dat, "demand")$y_col, "resp")
+  })
+})
+
+describe("detect_long, within-subject grouped data", {
+  it("detects a file whose price grid repeats inside every condition", {
+    out <- detect$detect_long(fixture("long-within-subject.csv"), "demand")
+    expect_equal(
+      c(out$id_col, out$x_col, out$y_col, out$group_col),
+      c("subject", "price", "consumption", "condition")
+    )
+  })
+  it("does not need the condition column to be recognisably named", {
+    dat <- fixture("long-within-subject.csv")
+    colnames(dat)[colnames(dat) == "condition"] <- "phase"
+    out <- detect$detect_long(dat, "demand")
+    expect_equal(out$group_col, "phase")
+    expect_equal(out$x_col, "price")
+  })
+  it("carries the composite group through guess_spec", {
+    s <- detect$guess_spec(fixture("long-within-subject.csv"), "demand")
+    expect_equal(s$layout, "long")
+    expect_equal(s$group_col, "condition")
+  })
+  it("declines a ragged design where a participant is missing a condition", {
+    dat <- fixture("long-within-subject.csv")
+    dat <- dat[!(dat$subject == "s3" & dat$condition == "stress"), , drop = FALSE]
+    expect_null(detect$detect_long(dat, "demand"))
+  })
+  it("declines when the conditions do not ask the same prices", {
+    # One price differs, so the grids overlap without matching: the plain-id path still
+    # sees x repeat within the participant, and the composite attempt refuses a design
+    # whose levels are not asking the same question.
+    dat <- fixture("long-within-subject.csv")
+    dat$price[dat$condition == "stress" & dat$price == 4] <- 8
+    expect_null(detect$detect_long(dat, "demand"))
+  })
+  it("declines a genuinely crossed two-factor design", {
+    # monkey x drug x dose x price: widening the key by one column still leaves the price
+    # grid repeated inside every cell, so there is no honest single group to offer.
+    expect_null(detect$detect_long(fixture("long-two-factor.csv"), "mixed_effects_demand"))
+    expect_null(detect$detect_long(fixture("long-two-factor.csv"), "demand"))
+  })
+  it("prefers a recognisably named condition when two columns both partition", {
+    dat <- fixture("long-within-subject.csv")
+    dat$aaa_label <- dat$condition
+    out <- detect$detect_long(dat, "demand")
+    expect_equal(out$group_col, "condition")
+  })
+  it("leaves the plain-id path in charge when it already succeeds", {
+    # group is constant within id, so the between-subject path answers first and the
+    # composite attempt never runs.
+    dat <- fixture("long-extra-cols.csv")
+    out <- detect$detect_long(dat, "demand")
+    expect_equal(out$id_col, detect$detect_long(dat, "demand")$id_col)
+    expect_false(is.null(out))
+  })
+  it("never offers a group for a discounting target", {
+    expect_null(detect$detect_long(fixture("long-within-subject.csv"), "discounting")$group_col)
+  })
+})
+
+describe("detect_long, within-subject false positives", {
+  it("declines a condition column with blank levels", {
+    # validate_spec() rejects an empty group value outright (spec.R), so offering one
+    # prefills a mapping that cannot be confirmed.
+    dat <- expand.grid(
+      id = paste0("s", 1:3), condition = c("", "stress"), x = c(1, 2),
+      stringsAsFactors = FALSE
+    )
+    dat$y <- seq_len(nrow(dat))
+    expect_null(detect$detect_long(dat, "demand"))
+  })
+  it("declines a whitespace-only condition level", {
+    dat <- expand.grid(
+      id = paste0("s", 1:3), condition = c("  ", "stress"), x = c(1, 2),
+      stringsAsFactors = FALSE
+    )
+    dat$y <- seq_len(nrow(dat))
+    expect_null(detect$detect_long(dat, "demand"))
+  })
+  it("will not accept a per-condition score as the response, however it is named", {
+    # Flat within the cell means it does not answer the price. The name exception exists
+    # for a non-discounter answering one indifference point at every delay, and discounting
+    # never reaches the composite attempt.
+    dat <- expand.grid(
+      id = paste0("s", 1:3), condition = c("base", "stress"), x = c(1, 2, 4),
+      stringsAsFactors = FALSE
+    )
+    dat$consumption <- ifelse(dat$condition == "base", 100, 50)
+    expect_null(detect$detect_long(dat, "demand"))
+  })
+  it("keeps two participants apart when their names contain the key separator", {
+    dat <- data.frame(
+      id = rep(c("A", "A\r", "C"), each = 4),
+      condition = rep(c("\rB", "\rB", "B", "B"), 3),
+      x = rep(c(1, 2, 1, 2), 3),
+      y = seq_len(12),
+      stringsAsFactors = FALSE
+    )
+    out <- detect$detect_long(dat, "demand")
+    expect_equal(c(out$id_col, out$x_col, out$y_col, out$group_col),
+                 c("id", "x", "y", "condition"))
   })
 })

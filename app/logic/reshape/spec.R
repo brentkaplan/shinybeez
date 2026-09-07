@@ -11,6 +11,23 @@ box::use(
 
 targets <- c("demand", "mixed_effects_demand", "discounting")
 
+#' A key identifying each distinct combination of the columns given
+#'
+#' Pasting the values with a separator is not safe: a value that contains the separator
+#' merges two distinct combinations into one key, so two participants read as one. Position
+#' codes cannot contain it.
+#'
+#' The codes number the values as they first appear, so a key is only meaningful against the
+#' other keys from the same call: compare them within one vector, never across two.
+#' @export
+composite_key <- function(...) {
+  codes <- lapply(list(...), function(v) {
+    v <- as.character(v)
+    match(v, unique(v))
+  })
+  do.call(paste, c(codes, list(sep = ".")))
+}
+
 #' Names a carried (keep_cols) column may not have: the mixed-effects output columns,
 #' the pipeline's model column names, and apply_spec()'s temporaries. Only carried columns
 #' can clash - the group column is renamed to `group` on output, so a file column named
@@ -211,8 +228,11 @@ validate_long_spec <- function(spec, dat) {
 
   # A participant may repeat a price in another group or session; without a group column
   # the repeat is a duplicate row.
-  key <- paste(ids, x, sep = "\r")
-  if (!is.null(spec$group_col)) key <- paste(key, as.character(dat[[spec$group_col]]), sep = "\r")
+  key <- if (is.null(spec$group_col)) {
+    composite_key(ids, x)
+  } else {
+    composite_key(ids, x, dat[[spec$group_col]])
+  }
   dupes <- unique(ids[duplicated(key)])
   if (length(dupes) > 0) {
     return(paste0(
@@ -226,7 +246,7 @@ validate_long_spec <- function(spec, dat) {
   # One curve per participant, or per participant x group when a group column is chosen:
   # two points in two different groups are two one-point curves, not a fittable pair.
   curve <- ids
-  if (!is.null(spec$group_col)) curve <- paste(ids, as.character(dat[[spec$group_col]]), sep = "\r")
+  if (!is.null(spec$group_col)) curve <- composite_key(ids, dat[[spec$group_col]])
   keep <- if (spec$drop_na) !is.na(y) else rep(TRUE, length(y))
   per_curve <- table(curve[keep])
   short <- setdiff(unique(curve), names(per_curve)[per_curve >= 2])
@@ -336,7 +356,7 @@ validate_wide_spec <- function(spec, dat) {
 
   # one row per id (x group)
   key <- ids
-  if (!is.null(spec$group_col)) key <- paste(ids, as.character(dat[[spec$group_col]]), sep = "\r")
+  if (!is.null(spec$group_col)) key <- composite_key(ids, dat[[spec$group_col]])
   if (anyDuplicated(key) > 0) {
     return(paste0(
       "Rows do not have unique ids. If you have several sessions per participant, ",
