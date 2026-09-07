@@ -85,6 +85,136 @@ series_cells <- function(s, dat) {
 #' @return TRUE or a user-facing character message (the first failure)
 #' @export
 validate_spec <- function(spec, dat) {
+  if (identical(spec$layout, "long")) validate_long_spec(spec, dat) else validate_wide_spec(spec, dat)
+}
+
+x_col_label <- function(target) if (target == "discounting") "delay column" else "price column"
+
+y_col_label <- function(target) {
+  if (target == "discounting") "indifference point column" else "consumption column"
+}
+
+chosen <- function(v) !(is.null(v) || length(v) != 1 || is.na(v) || !nzchar(v))
+
+# The group/carried column rules, shared by both layouts.
+validate_extra_cols <- function(spec, dat, role_cols) {
+  cols <- colnames(dat)
+  extra <- c(spec$group_col, spec$keep_cols)
+  missing <- setdiff(extra, cols)
+  if (length(missing) > 0) {
+    return(paste0("These columns are not in the data: ", quote_names(missing), "."))
+  }
+  reserved <- intersect(spec$keep_cols, RESERVED)
+  if (length(reserved) > 0) {
+    return(paste0(
+      "Columns named ", quote_names(reserved), " cannot be carried along; they clash ",
+      "with the output columns. Rename them in the file first."
+    ))
+  }
+  if (spec$target != "mixed_effects_demand" && length(spec$keep_cols) > 0) {
+    return("Only the mixed-effects tab can carry extra columns.")
+  }
+  if (spec$target == "discounting" && !is.null(spec$group_col)) {
+    return("Indifference point data cannot carry a group column.")
+  }
+  clash <- intersect(extra, role_cols)
+  if (length(clash) > 0) {
+    return(paste0(
+      quote_names(clash), " cannot be a group or carried column and also an id, ",
+      x_col_label(spec$target), " or ", y_col_label(spec$target), "."
+    ))
+  }
+  TRUE
+}
+
+# A frame that is already one row per observation: three named columns, no pivot.
+validate_long_spec <- function(spec, dat) {
+  cols <- colnames(dat)
+  if (nrow(dat) == 0) {
+    return("The file has no data rows.")
+  }
+  if (!chosen(spec$id_col)) {
+    return("Choose the column that identifies each participant.")
+  }
+  if (!chosen(spec$x_col)) {
+    return(paste0("Choose the ", x_col_label(spec$target), "."))
+  }
+  if (!chosen(spec$y_col)) {
+    return(paste0("Choose the ", y_col_label(spec$target), "."))
+  }
+
+  roles <- c(spec$id_col, spec$x_col, spec$y_col)
+  absent <- setdiff(roles, cols)
+  if (length(absent) > 0) {
+    return(paste0("These columns are not in the data: ", quote_names(absent), "."))
+  }
+  if (anyDuplicated(roles) > 0) {
+    return(paste0(
+      "The id, ", x_col_label(spec$target), " and ", y_col_label(spec$target),
+      " must be three different columns; one cannot be used twice."
+    ))
+  }
+  chk <- validate_extra_cols(spec, dat, roles)
+  if (is.character(chk)) {
+    return(chk)
+  }
+
+  ids <- as.character(dat[[spec$id_col]])
+  if (anyNA(ids) || any(!nzchar(trimws(ids)))) {
+    return(paste0("The id column ", quote_names(spec$id_col), " has empty values."))
+  }
+
+  x <- parse_cells(dat[[spec$x_col]])
+  n_bad <- sum(is.na(x) | !is.finite(x))
+  if (n_bad > 0) {
+    return(sprintf(
+      "Every row needs a number in the %s %s; %d row%s do not.",
+      x_col_label(spec$target), quote_names(spec$x_col), n_bad, if (n_bad == 1) "" else "s"
+    ))
+  }
+  if (spec$target == "discounting" && any(x <= 0)) {
+    return(paste0("Delays must be greater than zero; ", quote_names(spec$x_col), " has values at or below zero."))
+  }
+  if (spec$target != "discounting" && any(x < 0)) {
+    return(paste0("Prices cannot be negative; ", quote_names(spec$x_col), " has negative values."))
+  }
+
+  y <- parse_cells(dat[[spec$y_col]])
+  if (all(is.na(y))) {
+    return(paste0(
+      "None of the values in the ", y_col_label(spec$target), " ", quote_names(spec$y_col),
+      " contain numbers."
+    ))
+  }
+
+  # A participant may repeat a price in another group or session; without a group column
+  # the repeat is a duplicate row.
+  key <- paste(ids, x, sep = "\r")
+  if (!is.null(spec$group_col)) key <- paste(key, as.character(dat[[spec$group_col]]), sep = "\r")
+  dupes <- unique(ids[duplicated(key)])
+  if (length(dupes) > 0) {
+    return(paste0(
+      "Some participants have the same ", sub(" column$", "", x_col_label(spec$target)),
+      " twice: ", quote_names(head(dupes, 10)), if (length(dupes) > 10) ", \u2026" else "",
+      ". If each participant has several sessions or conditions, choose the column that ",
+      "distinguishes them."
+    ))
+  }
+
+  keep <- if (spec$drop_na) !is.na(y) else rep(TRUE, length(y))
+  per_id <- table(ids[keep])
+  short <- setdiff(unique(ids), names(per_id)[per_id >= 2])
+  if (length(short) > 0) {
+    return(paste0(
+      "These ids have fewer than two usable responses: ",
+      quote_names(head(short, 10)), if (length(short) > 10) ", \u2026" else "",
+      ". Each participant needs at least two."
+    ))
+  }
+  TRUE
+}
+
+validate_wide_spec <- function(spec, dat) {
   cols <- colnames(dat)
   if (nrow(dat) == 0) {
     return("The file has no data rows.")
@@ -232,7 +362,44 @@ output_columns <- function(spec, long) {
 apply_spec <- function(spec, dat) {
   chk <- validate_spec(spec, dat)
   if (is.character(chk)) stop(chk, call. = FALSE)
+  if (identical(spec$layout, "long")) apply_long_spec(spec, dat) else apply_wide_spec(spec, dat)
+}
 
+# Already one row per observation: select, rename and parse. The file's row order stands.
+apply_long_spec <- function(spec, dat) {
+  ids <- as.character(dat[[spec$id_col]])
+  long <- data.frame(
+    id = ids,
+    x = parse_cells(dat[[spec$x_col]]),
+    y = parse_cells(dat[[spec$y_col]]),
+    stringsAsFactors = FALSE
+  )
+  if (!is.null(spec$group_col)) {
+    if (spec$target == "demand") long$group <- as.character(dat[[spec$group_col]])
+    if (spec$target == "mixed_effects_demand") long$series <- as.character(dat[[spec$group_col]])
+  }
+  if (spec$target == "mixed_effects_demand") {
+    for (kc in spec$keep_cols) long[[kc]] <- dat[[kc]]
+  }
+
+  n_na_y <- sum(is.na(long$y))
+  if (spec$drop_na) long <- long[!is.na(long$y), , drop = FALSE]
+  n_na_keep <- if (length(spec$keep_cols) > 0) {
+    sum(!complete.cases(long[, spec$keep_cols, drop = FALSE]))
+  } else {
+    0L
+  }
+  long <- long[, output_columns(spec, long), drop = FALSE]
+  rownames(long) <- NULL
+
+  list(
+    data = long,
+    losses = list(n_na_y = as.integer(n_na_y), n_na_keep = as.integer(n_na_keep)),
+    n_ids = length(unique(ids))
+  )
+}
+
+apply_wide_spec <- function(spec, dat) {
   n <- nrow(dat)
   ids <- as.character(dat[[spec$id_col]])
   multi <- length(spec$series) > 1

@@ -1,10 +1,26 @@
 box::use(
   testthat[...],
+  vroom,
 )
 
 box::use(
   app / logic / reshape / spec,
+  app / logic / validate,
 )
+
+fixture <- function(name) {
+  dat <- vroom$vroom(testthat::test_path("fixtures", name), show_col_types = FALSE)
+  colnames(dat) <- trimws(tolower(colnames(dat)))   # file_input.R normalises before validation
+  as.data.frame(dat)
+}
+
+long_spec <- function(target = "demand", id = "subject", x = "price", y = "consumption",
+                      group = NULL, keep = character(0)) {
+  spec$new_spec(
+    target = target, layout = "long", id_col = id, x_col = x, y_col = y,
+    group_col = group, keep_cols = keep
+  )
+}
 
 # Qualtrics-style purchase task: id not first, item headers, one demographic column.
 apt <- function() {
@@ -297,5 +313,133 @@ describe("apply_spec output re-enters the existing validators unchanged", {
     expect_true(isTRUE(validate$check_data(long, type = "mixed_effects_demand")))
     guessed <- data_prep$guess_variable_columns(long)
     expect_equal(guessed[c("id", "x", "y")], list(id = "id", x = "x", y = "y"))
+  })
+})
+
+describe("new_spec(layout = 'long')", {
+  it("carries the long columns and neutralises x_source", {
+    s <- long_spec()
+    expect_equal(s$layout, "long")
+    expect_equal(s$x_source, "none")
+    expect_length(s$series, 0)
+  })
+  it("rejects a long spec that also carries series", {
+    expect_error(spec$new_spec("demand", "id", list(spec$new_series(c("a", "b"))), layout = "long"))
+  })
+})
+
+describe("validate_spec, long layout", {
+  dat <- fixture("long-misnamed.csv")
+  it("accepts a well-formed long demand mapping", {
+    expect_true(spec$validate_spec(long_spec(), dat))
+  })
+  it("requires an id, an x and a y", {
+    expect_match(spec$validate_spec(long_spec(id = NULL), dat), "identifies each participant")
+    expect_match(spec$validate_spec(long_spec(x = NULL), dat), "price column")
+    expect_match(spec$validate_spec(long_spec(y = NULL), dat), "consumption column")
+  })
+  it("requires the three columns to be different and present", {
+    expect_match(spec$validate_spec(long_spec(y = "price"), dat), "cannot be used twice")
+    expect_match(spec$validate_spec(long_spec(x = "nope"), dat), "not in the data")
+  })
+  it("requires a number in every x cell and some number in y", {
+    bad <- dat
+    bad$price[2] <- NA
+    expect_match(spec$validate_spec(long_spec(), bad), "needs a number")
+    bad2 <- dat
+    bad2$consumption <- "none"
+    expect_match(spec$validate_spec(long_spec(), bad2), "contain numbers")
+  })
+  it("names the participants who repeat a price", {
+    dup <- dat
+    dup$price[2] <- dup$price[1]
+    expect_match(spec$validate_spec(long_spec(), dup), "s1")
+  })
+  it("allows the repeat when a group column distinguishes it", {
+    dup <- dat
+    dup$price[2] <- dup$price[1]
+    dup$session <- rep(c("a", "b"), length.out = nrow(dup))
+    expect_true(spec$validate_spec(long_spec(group = "session"), dup))
+  })
+  it("requires two usable responses per participant after empty y are dropped", {
+    short <- dat
+    short$consumption[short$subject == "s2"] <- NA
+    expect_match(spec$validate_spec(long_spec(), short), "fewer than two usable responses")
+  })
+  it("keeps the discounting and mixed-effects rules", {
+    ip <- fixture("long-ip-named.csv")
+    expect_true(spec$validate_spec(long_spec("discounting", "id", "delay", "indiff"), ip))
+    zero <- ip
+    zero$delay[1] <- 0
+    expect_match(spec$validate_spec(long_spec("discounting", "id", "delay", "indiff"), zero), "greater than zero")
+    expect_match(
+      spec$validate_spec(long_spec("discounting", "id", "delay", "indiff", group = "id"), ip),
+      "cannot carry a group column"
+    )
+    me <- fixture("long-me-covariates.csv")
+    expect_true(spec$validate_spec(long_spec("mixed_effects_demand", group = "sex", keep = "age"), me))
+    expect_match(spec$validate_spec(long_spec(keep = "age"), me), "Only the mixed-effects tab")
+    reserved <- me
+    reserved$series <- "a"
+    expect_match(
+      spec$validate_spec(long_spec("mixed_effects_demand", keep = "series"), reserved),
+      "cannot be carried along"
+    )
+  })
+})
+
+describe("apply_spec, long layout", {
+  it("renames the three columns and keeps the file's rows", {
+    out <- spec$apply_spec(long_spec(), fixture("long-misnamed.csv"))
+    expect_equal(colnames(out$data), c("id", "x", "y"))
+    expect_equal(nrow(out$data), 12)
+    expect_equal(out$n_ids, 3)
+    expect_equal(out$data$x[1:4], c(0, 0.5, 1, 5))
+    expect_true(is.numeric(out$data$y))
+  })
+  it("adds the group column on demand and a series column on mixed effects", {
+    d <- spec$apply_spec(
+      long_spec(id = "id", x = "x", y = "y", group = "site"), fixture("long-extra-cols.csv")
+    )
+    expect_equal(colnames(d$data), c("id", "group", "x", "y"))
+    m <- spec$apply_spec(
+      long_spec("mixed_effects_demand", group = "sex", keep = "age"), fixture("long-me-covariates.csv")
+    )
+    expect_equal(colnames(m$data), c("id", "x", "y", "series", "age"))
+  })
+  it("drops empty responses and reports the loss", {
+    dat <- fixture("long-misnamed.csv")
+    dat$consumption[1] <- NA
+    out <- spec$apply_spec(long_spec(), dat)
+    expect_equal(out$losses$n_na_y, 1)
+    expect_equal(nrow(out$data), 11)
+  })
+  it("parses currency cells", {
+    dat <- fixture("long-misnamed.csv")
+    dat$price <- paste0("$", dat$price)
+    expect_equal(spec$apply_spec(long_spec(), dat)$data$x[1:2], c(0, 0.5))
+  })
+  it("refuses to apply a spec that does not validate", {
+    expect_error(spec$apply_spec(long_spec(x = "nope"), fixture("long-misnamed.csv")), "not in the data")
+  })
+  it("produces frames that check_data() accepts on all three tabs", {
+    expect_true(validate$check_data(
+      spec$apply_spec(long_spec(), fixture("long-misnamed.csv"))$data, "demand"
+    ))
+    expect_true(validate$check_data(
+      spec$apply_spec(
+        long_spec(id = "id", x = "x", y = "y", group = "site"), fixture("long-extra-cols.csv")
+      )$data, "demand"
+    ))
+    expect_true(validate$check_data(
+      spec$apply_spec(
+        long_spec("mixed_effects_demand", keep = "age"), fixture("long-me-covariates.csv")
+      )$data, "mixed_effects_demand"
+    ))
+    expect_true(validate$check_data(
+      spec$apply_spec(
+        long_spec("discounting", "id", "delay", "indiff"), fixture("long-ip-named.csv")
+      )$data, "discounting"
+    ))
   })
 })
