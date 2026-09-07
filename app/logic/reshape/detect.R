@@ -4,10 +4,6 @@
 #' only gate. Designed to fail towards "ask the user" rather than invent prices.
 
 box::use(
-  readr[parse_number],
-)
-
-box::use(
   app / logic / validate[parse_header_number],
   . / spec[new_series, new_spec],
 )
@@ -27,13 +23,16 @@ guess_id_col <- function(dat) {
   NA_character_
 }
 
-#' Share of non-missing cells that parse as numbers
+#' Share of non-missing cells that are whole-cell numbers (optional currency symbol)
+#'
+#' Uses the header grammar, not readr::parse_number(): "2026-01-01" and "R_1"
+#' contain digits but are not responses, and must not pull a column into a series.
 #' @export
 numeric_share <- function(v) {
   v <- v[!is.na(v)]
   if (length(v) == 0) return(0)
   if (is.numeric(v)) return(1)
-  mean(!is.na(suppressWarnings(parse_number(as.character(v)))))
+  mean(!is.na(parse_header_number(as.character(v))))
 }
 
 #' Split "prefix_<number>" headers

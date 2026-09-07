@@ -34,6 +34,17 @@ describe("split_suffix", {
   })
 })
 
+describe("numeric_share", {
+  it("counts whole-cell numbers, with currency, and ignores NA", {
+    expect_equal(detect$numeric_share(c("$5", "6", NA, " 0.5 ")), 1)
+    expect_equal(detect$numeric_share(c(1, 2, NA)), 1)
+  })
+  it("does not count cells that merely contain digits", {
+    expect_equal(detect$numeric_share(c("2026-01-01", "R_1", "6 drinks")), 0)
+    expect_equal(detect$numeric_share(character(0)), 0)
+  })
+})
+
 describe("x_from_names", {
   it("uses whole-header numbers when every header is one", {
     expect_equal(detect$x_from_names(c("$0", "0.5", "1")), c(0, 0.5, 1))
@@ -72,6 +83,15 @@ describe("cluster_series_columns", {
     dat <- fixture("wide-qualtrics-apt.csv")
     cl <- detect$cluster_series_columns(dat)
     expect_false("startdate" %in% unlist(lapply(cl, `[[`, "cols")))
+  })
+  it("does not cluster columns whose cells merely contain digits", {
+    dat <- data.frame(
+      id = 1:2,
+      note_1 = c("2026-01-01", "2026-02-01"),
+      note_2 = c("2026-04-01", "2026-05-01"),
+      stringsAsFactors = FALSE
+    )
+    expect_length(detect$cluster_series_columns(dat, exclude = "id"), 0)
   })
 })
 
