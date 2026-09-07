@@ -196,3 +196,71 @@ validate_spec <- function(spec, dat) {
 
   TRUE
 }
+
+output_columns <- function(spec, long) {
+  switch(
+    spec$target,
+    demand = c("id", if ("group" %in% names(long)) "group", "x", "y"),
+    discounting = c("id", "x", "y"),
+    mixed_effects_demand = c("id", "x", "y", if ("series" %in% names(long)) "series", spec$keep_cols)
+  )
+}
+
+#' Apply a validated spec: one row per participant x series x price
+#' @return list(data, losses = list(n_na_y, n_na_keep), n_ids)
+#' @export
+apply_spec <- function(spec, dat) {
+  chk <- validate_spec(spec, dat)
+  if (is.character(chk)) stop(chk, call. = FALSE)
+
+  n <- nrow(dat)
+  ids <- as.character(dat[[spec$id_col]])
+  multi <- length(spec$series) > 1
+
+  pieces <- lapply(seq_along(spec$series), function(i) {
+    s <- spec$series[[i]]
+    k <- length(s$cols)
+    out <- data.frame(
+      id = rep(ids, times = k),
+      x = rep(s$x, each = n),
+      y = unlist(lapply(s$cols, function(cn) parse_cells(dat[[cn]])), use.names = FALSE),
+      .row = rep(seq_len(n), times = k),
+      .series = i,
+      stringsAsFactors = FALSE
+    )
+    if (spec$target == "demand") {
+      if (multi) {
+        out$group <- s$label
+      } else if (!is.null(spec$group_col)) {
+        out$group <- rep(as.character(dat[[spec$group_col]]), times = k)
+      }
+    }
+    if (spec$target == "mixed_effects_demand") {
+      if (multi) out$series <- s$label
+      for (kc in spec$keep_cols) out[[kc]] <- rep(dat[[kc]], times = k)
+    }
+    out
+  })
+
+  long <- do.call(rbind, pieces)
+  long <- long[order(long$.row, long$.series, long$x), , drop = FALSE]
+  long$.row <- NULL
+  long$.series <- NULL
+  rownames(long) <- NULL
+
+  n_na_y <- sum(is.na(long$y))
+  if (spec$drop_na) long <- long[!is.na(long$y), , drop = FALSE]
+  n_na_keep <- if (length(spec$keep_cols) > 0) {
+    sum(!complete.cases(long[, spec$keep_cols, drop = FALSE]))
+  } else {
+    0L
+  }
+  long <- long[, output_columns(spec, long), drop = FALSE]
+  rownames(long) <- NULL
+
+  list(
+    data = long,
+    losses = list(n_na_y = as.integer(n_na_y), n_na_keep = as.integer(n_na_keep)),
+    n_ids = length(unique(ids))
+  )
+}
