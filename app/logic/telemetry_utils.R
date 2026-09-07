@@ -233,7 +233,10 @@ track_model_fitting <- function(
 
 #' Track data upload event
 #'
-#' @param file_info Information about uploaded file
+#' @param file_info Information about uploaded file: `size`, `type`, `rows`, `cols`, and an
+#'   optional `reshaped` logical flag marking a file that went through the wide-to-long
+#'   mapper (`app/view/wide_mapper.R`) before it was stored, rather than uploaded already in
+#'   a template shape. Missing or non-`TRUE` values are recorded as `FALSE`.
 #' @param session Shiny session object
 #' @export
 track_data_upload <- function(file_info = list(), session = NULL) {
@@ -242,7 +245,8 @@ track_data_upload <- function(file_info = list(), session = NULL) {
     file_size = file_info$size,
     file_type = file_info$type,
     rows = file_info$rows,
-    cols = file_info$cols
+    cols = file_info$cols,
+    reshaped = isTRUE(file_info$reshaped)
   )
 
   track_event(
@@ -385,6 +389,25 @@ track_error <- function(error_message, error_context = NULL, session = NULL) {
   )
 }
 
+#' Track the wide-to-long mapper lifecycle
+#'
+#' @param target Module name, same vocabulary as track_validation(): "demand",
+#'   "mixed_effects" or "discounting"
+#' @param outcome "opened", "confirmed" or "cancelled"
+#' @param summary Optional list: n_series, x_source, n_cols_in, n_rows_out, n_dropped.
+#'   Never column names or cell values.
+#' @export
+track_reshape <- function(target, outcome, summary = list(), session = NULL) {
+  track_event(
+    event_name = "reshape",
+    event_data = c(
+      list(target = target, outcome = outcome, timestamp = Sys.time()),
+      summary
+    ),
+    session = session
+  )
+}
+
 #' Get telemetry data for analysis
 #'
 #' @param start_date Start date for data retrieval
@@ -446,6 +469,9 @@ create_session_telemetry <- function(session) {
     },
     track_validation = function(module, outcome, check_name = NULL, reason = NULL) {
       track_validation(module, outcome, check_name, reason, session)
+    },
+    track_reshape = function(target, outcome, summary = list()) {
+      track_reshape(target, outcome, summary, session)
     },
     track_configuration = function(module, config = list()) {
       track_configuration(module, config, session)
