@@ -5,7 +5,7 @@
 
 box::use(
   app / logic / validate[parse_header_number],
-  . / spec[new_series, new_spec, parse_cells],
+  . / spec[composite_key, new_series, new_spec, parse_cells],
 )
 
 `%||%` <- function(a, b) if (is.null(a)) b else a
@@ -160,6 +160,165 @@ x_shape_ok <- function(v, ids) {
   mean(per_value >= 2) >= 0.8
 }
 
+# A candidate condition column may widen the key only if it crosses the participants
+# perfectly: no gaps, and every (participant, level) cell the same size. A ragged or
+# unbalanced column is some other kind of descriptor, not one design repeated.
+#
+# It must also have fewer levels than there are participants, the same rule the
+# between-subject path uses. Without it the two roles are symmetric and can swap: three
+# subjects crossed with two conditions also reads as two "participants" (the conditions)
+# each carrying a three-level "group" (the subjects), and the frame would be transposed.
+partitions_cleanly <- function(v, ids) {
+  if (anyNA(v) || any(!nzchar(trimws(as.character(v))))) return(FALSE)
+  k <- n_distinct_chr(v)
+  if (k < 2 || k > 10 || k >= length(unique(ids))) return(FALSE)
+  tb <- table(ids, as.character(v))
+  # Two rows per cell at the least: a one-row cell is a one-point curve, which
+  # validate_long_spec() refuses anyway.
+  all(tb >= 2) && length(unique(as.vector(tb))) == 1
+}
+
+#' Columns that split each participant's rows into complete, equal sets
+#'
+#' A within-subject condition the plain participant key never had to consult: when its levels
+#' ask DIFFERENT x values, x is already unique within the participant, the long reading
+#' succeeds without it, and dropping it merges two curves into one.
+#'
+#' Structural and name-agnostic on purpose. A derived band of x - `low`/`high` over one price
+#' grid - has exactly this shape, and nothing in the rows tells the two apart. So this is the
+#' list the modal offers the user, not the one it picks for them.
+#' @param exclude Columns already spoken for (the x and y columns)
+#' @export
+partitioning_candidates <- function(dat, id_col, exclude = character(0)) {
+  if (!is.data.frame(dat) || length(id_col) != 1 || !id_col %in% colnames(dat)) {
+    return(character(0))
+  }
+  ids <- as.character(dat[[id_col]])
+  # Numbers are not excluded the way guess_group_col() excludes them: a condition coded 0/1 is
+  # as ordinary as one spelled out, and partitions_cleanly() is strict enough to carry the
+  # weight on its own - a covariate is constant within the participant, so its (id, level)
+  # table has empty cells, and a second response has far more than ten levels.
+  cands <- setdiff(colnames(dat), c(id_col, exclude))
+  cands <- cands[vapply(cands, function(nm) partitions_cleanly(dat[[nm]], ids), logical(1))]
+  rank_candidates(cands, group_name_pattern)
+}
+
+# Two commodities interleave on the price axis - beer at 1..16 and cigarettes at 0.25..6 are
+# asked over the same range. A band of one grid never does: every `low` price sits below every
+# `high` one. Only an interleave is evidence enough to choose a column unasked.
+levels_interleave <- function(x, lev) {
+  lo <- vapply(split(x, lev), min, numeric(1))
+  hi <- vapply(split(x, lev), max, numeric(1))
+  if (length(lo) < 2) return(FALSE)
+  o <- order(lo)
+  any(hi[o][-length(o)] >= lo[o][-1])
+}
+
+# The one within-subject condition safe to choose without asking. Three things have to agree,
+# because none of them is sufficient alone: the header names it a condition, its levels
+# interleave on the x axis, and its VALUES are words rather than codes. The last one matters -
+# `session = 1, 2, 1, 2` over four prices partitions exactly like a real two-session design,
+# and nothing in the rows says which it is. A column of bare numbers is offered in the modal
+# with the note instead; everything else that partitions is offered there too.
+named_partition_col <- function(dat, id_col, used, x, target) {
+  if (target == "discounting") return(NULL)
+  cands <- partitioning_candidates(dat, id_col, exclude = setdiff(used, id_col))
+  cands <- cands[grepl(group_name_pattern, tolower(cands), perl = TRUE)]
+  cands <- cands[vapply(cands, function(nm) numeric_share(dat[[nm]]) < 0.8, logical(1))]
+  for (nm in cands) {
+    if (levels_interleave(x, as.character(dat[[nm]]))) return(nm)
+  }
+  NULL
+}
+
+# The within-subject signature: inside each participant, every level asks the identical set
+# of x values. Exact, unlike the 80% overlap allowed across participants - a repeated design
+# repeats exactly, and the looser test is what would let an irregular frame through.
+grid_repeats_across_levels <- function(x, ids, lev) {
+  all(vapply(split(seq_along(x), ids), function(i) {
+    sets <- split(as.character(x[i]), lev[i])
+    length(sets) >= 2 && length(unique(lapply(sets, function(z) sort(unique(z))))) == 1
+  }, logical(1)))
+}
+
+# The x/y search, keyed on whatever identifies one series of observations: the participant,
+# or - for a within-subject design - the participant crossed with a condition.
+long_cols_for_key <- function(parsed, rest, keys, allow_flat = TRUE) {
+  x_cands <- rest[vapply(rest, function(nm) x_shape_ok(parsed[[nm]], keys), logical(1))]
+  x_cands <- rank_candidates(
+    x_cands, x_name_pattern,
+    key = vapply(x_cands, function(nm) n_distinct_chr(parsed[[nm]]), numeric(1))
+  )
+  if (length(x_cands) == 0) return(NULL)
+  x_col <- x_cands[1]
+  # A response varies within the series, unless its name says otherwise. A column that
+  # repeats the participant's own value is usually a covariate - `id, x, age`, whose empty y
+  # column was dropped before the mapper opened, must not offer ages as consumption - but a
+  # non-discounter really does answer the same indifference point at every delay, so a flat
+  # column named like a response is still a response.
+  #
+  # That exception is withdrawn on the composite attempt (`allow_flat = FALSE`): flat inside
+  # one condition means the column scores the condition rather than answering the price, and
+  # the non-discounter it was written for belongs to a discounting file, which never reaches
+  # the composite attempt at all.
+  y_cands <- setdiff(rest, x_col)
+  varies <- vapply(y_cands, function(nm) !constant_within_id(parsed[[nm]], keys), logical(1))
+  keep <- varies | (allow_flat & grepl(flat_y_pattern, tolower(y_cands), perl = TRUE))
+  y_cands <- y_cands[keep]
+  varies <- varies[keep]
+  if (length(y_cands) == 0) return(NULL)
+  # Variation first, then the name: a column that moves with price beats a flat one however
+  # it is spelled.
+  named <- grepl(y_name_pattern, tolower(y_cands), perl = TRUE)
+  list(x_col = x_col, y_col = y_cands[order(!varies, !named, seq_along(y_cands))][1])
+}
+
+# Between-subject grouping: a column the participant carries, one value throughout.
+guess_group_col <- function(dat, target, ids, numericish, used) {
+  if (target == "discounting") return(NULL)
+  n_ids <- length(unique(ids))
+  cands <- setdiff(colnames(dat), used)
+  cands <- cands[vapply(cands, function(nm) {
+    v <- dat[[nm]]
+    k <- n_distinct_chr(v)
+    !nm %in% numericish && !anyNA(v) && k >= 2 && k < n_ids && k <= 10 &&
+      constant_within_id(v, ids)
+  }, logical(1))]
+  cands <- rank_candidates(cands, group_name_pattern)
+  if (length(cands) > 0) cands[1] else NULL
+}
+
+# Within-subject grouping: a column that varies inside the participant and crosses them
+# cleanly. Ranked by name, then column order, so two columns that both partition give a
+# stable answer.
+composite_group_candidates <- function(dat, ids, numericish, id_col) {
+  cands <- setdiff(colnames(dat), c(id_col, numericish))
+  cands <- cands[vapply(cands, function(nm) partitions_cleanly(dat[[nm]], ids), logical(1))]
+  rank_candidates(cands, group_name_pattern)
+}
+
+# A response column standing where the price should be, and a price column standing where the
+# response should be. Not a mapping - a swap: the real x was rejected only because it repeats
+# once per condition, which is exactly what the composite key exists to see.
+reads_reversed <- function(hit) {
+  grepl(y_name_pattern, tolower(hit$x_col), perl = TRUE) &&
+    grepl(x_name_pattern, tolower(hit$y_col), perl = TRUE)
+}
+
+# The within-subject reading: the same grid asked once per condition, so x is unique only
+# inside (participant, condition). The caller decides what to do with it - a discounting file
+# cannot USE the condition, but knowing one exists is still what proves a reading reversed.
+composite_hit <- function(dat, id_col, ids, parsed, rest, numericish) {
+  for (g in composite_group_candidates(dat, ids, numericish, id_col)) {
+    lev <- as.character(dat[[g]])
+    hit <- long_cols_for_key(parsed, rest, composite_key(ids, lev), allow_flat = FALSE)
+    if (is.null(hit)) next
+    if (!grid_repeats_across_levels(parsed[[hit$x_col]], ids, lev)) next
+    return(list(id_col = id_col, x_col = hit$x_col, y_col = hit$y_col, group_col = g))
+  }
+  NULL
+}
+
 #' Is this frame already one row per observation, and which columns carry it?
 #'
 #' Scored on the rows: an id column whose values repeat, an x column unique within each id
@@ -168,6 +327,13 @@ x_shape_ok <- function(v, ids) {
 #' a shared `prefix_<number>` run) is a wide frame, however its rows happen to line up.
 #' Without that veto `demand-minimal-grouped.csv` - four rows, two groups, five price headers -
 #' reads as two participants with two prices.
+#'
+#' Two attempts, in order. The participant alone answers a between-subject file, and its
+#' grouping column is then guessed. Only when that finds nothing is the key widened to
+#' (participant, condition), which is what a within-subject design needs - the same grid
+#' asked once per condition leaves x repeating within the participant. The condition is not
+#' guessed there: it is whichever column let the key work, and it has to earn that by
+#' crossing the participants cleanly and repeating the grid exactly.
 #'
 #' @return list(id_col, x_col, y_col, group_col) or NULL when the frame is not long
 #' @export
@@ -184,48 +350,54 @@ detect_long <- function(dat, target) {
     id_cands, id_pattern, key = vapply(id_cands, function(nm) n_distinct_chr(dat[[nm]]), numeric(1))
   )
 
+  # Columns a proven-reversed reading put on the x axis: they are responses, not participants.
+  barred <- character(0)
   for (id_col in id_cands) {
+    if (id_col %in% barred) next
     ids <- as.character(dat[[id_col]])
     rest <- setdiff(numericish, id_col)
     parsed <- lapply(rest, function(nm) parse_cells(dat[[nm]]))
     names(parsed) <- rest
-    x_cands <- rest[vapply(rest, function(nm) x_shape_ok(parsed[[nm]], ids), logical(1))]
-    x_cands <- rank_candidates(
-      x_cands, x_name_pattern, key = vapply(x_cands, function(nm) n_distinct_chr(parsed[[nm]]), numeric(1))
-    )
-    if (length(x_cands) == 0) next
-    x_col <- x_cands[1]
-    # A response varies within the participant, unless its name says otherwise. A column
-    # that repeats the participant's own value is usually a covariate - `id, x, age`, whose
-    # empty y column was dropped before the mapper opened, must not offer ages as
-    # consumption - but a non-discounter really does answer the same indifference point at
-    # every delay, so a flat column named like a response is still a response.
-    y_cands <- setdiff(rest, x_col)
-    varies <- vapply(y_cands, function(nm) !constant_within_id(parsed[[nm]], ids), logical(1))
-    keep <- varies | grepl(flat_y_pattern, tolower(y_cands), perl = TRUE)
-    y_cands <- y_cands[keep]
-    varies <- varies[keep]
-    if (length(y_cands) == 0) next
-    # Variation first, then the name: a column that moves with price beats a flat one
-    # however it is spelled.
-    named <- grepl(y_name_pattern, tolower(y_cands), perl = TRUE)
-    y_col <- y_cands[order(!varies, !named, seq_along(y_cands))][1]
 
-    group_col <- NULL
-    if (target != "discounting") {
-      n_ids <- length(unique(ids))
-      cands <- setdiff(nms, c(id_col, x_col, y_col))
-      cands <- cands[vapply(cands, function(nm) {
-        v <- dat[[nm]]
-        k <- n_distinct_chr(v)
-        !nm %in% numericish && !anyNA(v) && k >= 2 && k < n_ids && k <= 10 &&
-          constant_within_id(v, ids)
-      }, logical(1))]
-      cands <- rank_candidates(cands, group_name_pattern)
-      if (length(cands) > 0) group_col <- cands[1]
+    hit <- long_cols_for_key(parsed, rest, ids)
+    if (!is.null(hit)) {
+      # A reading is normally taken as it stands. The exception is one that reads reversed:
+      # only then is the composite key consulted, and only to see whether it hands back the
+      # SAME two columns the other way round. The name never picks a mapping here - it flags
+      # a suspect one, and structure decides.
+      # Reversed vocabulary is a suspicion, never a verdict. What settles it is the composite
+      # key handing back the SAME two columns the other way round - that is the frame itself
+      # saying the price was only rejected because it repeats once per condition.
+      if (reads_reversed(hit)) {
+        fixed <- composite_hit(dat, id_col, ids, parsed, rest, numericish)
+        if (!is.null(fixed) &&
+              identical(fixed$x_col, hit$y_col) && identical(fixed$y_col, hit$x_col)) {
+          if (target != "discounting") return(fixed)
+          # Proven reversed, and the correction needs a condition this target has nowhere to
+          # put - the un-swapped columns would merge the conditions into one curve. Skip this
+          # participant candidate, and bar the response column it chose from becoming the next
+          # one. If nothing else fits, the file goes to the user rather than to a curve fitted
+          # on transposed data.
+          barred <- c(barred, hit$x_col)
+          next
+        }
+        # Unproven: the names alone are not enough to throw away a structurally valid reading.
+      }
+      used <- c(id_col, hit$x_col, hit$y_col)
+      group_col <- guess_group_col(dat, target, ids, numericish, used)
+      # A between-subject group is carried by the participant; when there is none, the
+      # condition may still be within-subject and simply invisible to the plain key.
+      if (is.null(group_col)) {
+        group_col <- named_partition_col(dat, id_col, used, parsed[[hit$x_col]], target)
+      }
+      return(list(id_col = id_col, x_col = hit$x_col, y_col = hit$y_col, group_col = group_col))
     }
 
-    return(list(id_col = id_col, x_col = x_col, y_col = y_col, group_col = group_col))
+    # The ordinary within-subject path, and never for discounting: that target has nowhere to
+    # put the condition, and dropping it would merge two curves into one.
+    if (target == "discounting") next
+    fixed <- composite_hit(dat, id_col, ids, parsed, rest, numericish)
+    if (!is.null(fixed)) return(fixed)
   }
   NULL
 }

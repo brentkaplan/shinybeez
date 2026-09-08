@@ -120,17 +120,24 @@ long_body <- function(ns, req, guess) {
   token <- req$token
   other_cols <- setdiff(cols, c(guess$id_col, guess$x_col, guess$y_col))
 
+  cands <- detect$partitioning_candidates(
+    req$dat, guess$id_col, exclude = c(guess$x_col, guess$y_col)
+  )
+  group_select <- function(label) {
+    shiny$tagList(
+      shiny$selectInput(
+        ns(rid(token, "long_group_col")), label,
+        choices = spec$group_choices(other_cols, cands), selected = guess$group_col %||% ""
+      ),
+      shiny$uiOutput(ns("long_group_note"))
+    )
+  }
+
   extras <- switch(
     target,
-    demand = shiny$selectInput(
-      ns(rid(token, "long_group_col")), "Group column (optional)",
-      choices = c("None" = "", other_cols), selected = guess$group_col %||% ""
-    ),
+    demand = group_select("Group column (optional)"),
     mixed_effects_demand = shiny$tagList(
-      shiny$selectInput(
-        ns(rid(token, "long_group_col")), "Series column (optional)",
-        choices = c("None" = "", other_cols), selected = guess$group_col %||% ""
-      ),
+      group_select("Series column (optional)"),
       shiny$selectizeInput(
         ns(rid(token, "long_keep_cols")), "Columns to carry along as covariates or factors (optional)",
         choices = other_cols, selected = NULL, multiple = TRUE,
@@ -256,6 +263,55 @@ server <- function(id, request_r) {
       req <- state$req
       shiny$req(req)
       if (layout() == "long") long_body(ns, req, state$guess_long) else wide_body(ns, req, state$guess)
+    })
+
+    # The body renders once per layout, but the participant id is a live input: a note saying
+    # "commodity splits each participant" is false the moment the user picks a different id
+    # column. Both the sections and the note follow the current selection.
+    long_partition <- shiny$reactive({
+      req <- state$req
+      shiny$req(req)
+      if (layout() != "long" || req$target == "discounting") return(NULL)
+      g <- state$guess_long
+      id_col <- req_input("long_id_col") %||% g$id_col
+      x_col <- req_input("long_x_col") %||% g$x_col
+      y_col <- req_input("long_y_col") %||% g$y_col
+      list(
+        id_col = id_col,
+        cands = detect$partitioning_candidates(req$dat, id_col, exclude = c(x_col, y_col)),
+        other_cols = setdiff(colnames(req$dat), c(id_col, x_col, y_col))
+      )
+    })
+
+    shiny$observe({
+      lp <- long_partition()
+      shiny$req(lp)
+      req <- state$req
+      # Isolated: this observer WRITES the group input, and reading it reactively would make
+      # that write re-trigger the observer. NULL means the client has not posted yet, so the
+      # guess still stands.
+      current <- shiny$isolate(req_input("long_group_col"))
+      wanted <- if (is.null(current)) state$guess_long$group_col %||% "" else current
+      shiny$updateSelectInput(
+        session, rid(req$token, "long_group_col"),
+        choices = spec$group_choices(lp$other_cols, lp$cands),
+        selected = if (wanted %in% lp$other_cols) wanted else ""
+      )
+    })
+
+    output$long_group_note <- shiny$renderUI({
+      lp <- long_partition()
+      if (is.null(lp) || length(lp$cands) == 0) return(NULL)
+      req <- state$req
+      col <- lp$cands[1]
+      cells <- table(as.character(req$dat[[lp$id_col]]), as.character(req$dat[[col]]))
+      chosen <- req_input("long_group_col") %||% state$guess_long$group_col %||% ""
+      shiny$div(
+        class = "form-text",
+        spec$partition_note(
+          col, ncol(cells), as.vector(cells)[1], req$target, identical(chosen, col)
+        )
+      )
     })
 
     # Single selects always post a value, so NULL means "not posted yet for this request"
@@ -411,30 +467,7 @@ server <- function(id, request_r) {
       if (!isTRUE(v)) {
         return(shiny$div(class = "alert alert-warning py-2", bsicons$bs_icon("exclamation-triangle"), " ", v))
       }
-      p <- preview()
-      cs <- current_spec()
-      msg <- if (identical(cs$layout, "long")) {
-        sprintf(
-          "%d participants × %d responses → %s rows",
-          p$n_ids, length(unique(p$data$x)), format(nrow(p$data), big.mark = ",")
-        )
-      } else {
-        sprintf(
-          "%d series × %d participants × %d response columns → %s rows",
-          length(cs$series), p$n_ids,
-          sum(vapply(cs$series, function(s) length(s$cols), numeric(1))),
-          format(nrow(p$data), big.mark = ",")
-        )
-      }
-      if (p$losses$n_na_y > 0) msg <- paste0(msg, sprintf(" · %d empty responses dropped", p$losses$n_na_y))
-      if (p$losses$n_na_keep > 0) {
-        msg <- paste0(msg, sprintf(
-          " · %d row%s will also be dropped for missing %s",
-          p$losses$n_na_keep, if (p$losses$n_na_keep == 1) "" else "s",
-          paste(cs$keep_cols, collapse = "/")
-        ))
-      }
-      shiny$p(class = "text-muted small", msg)
+      shiny$p(class = "text-muted small", spec$preview_summary(current_spec(), preview()))
     })
 
     output$preview <- renderDT(server = FALSE, {

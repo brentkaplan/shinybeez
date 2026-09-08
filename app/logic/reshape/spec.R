@@ -11,6 +11,23 @@ box::use(
 
 targets <- c("demand", "mixed_effects_demand", "discounting")
 
+#' A key identifying each distinct combination of the columns given
+#'
+#' Pasting the values with a separator is not safe: a value that contains the separator
+#' merges two distinct combinations into one key, so two participants read as one. Position
+#' codes cannot contain it.
+#'
+#' The codes number the values as they first appear, so a key is only meaningful against the
+#' other keys from the same call: compare them within one vector, never across two.
+#' @export
+composite_key <- function(...) {
+  codes <- lapply(list(...), function(v) {
+    v <- as.character(v)
+    match(v, unique(v))
+  })
+  do.call(paste, c(codes, list(sep = ".")))
+}
+
 #' Names a carried (keep_cols) column may not have: the mixed-effects output columns,
 #' the pipeline's model column names, and apply_spec()'s temporaries. Only carried columns
 #' can clash - the group column is renamed to `group` on output, so a file column named
@@ -112,6 +129,109 @@ y_col_label <- function(target) {
   if (target == "discounting") "indifference point column" else "consumption column"
 }
 
+group_role <- function(target) if (target == "mixed_effects_demand") "series" else "group"
+
+PARTITION_LABEL <- "Splits each participant into complete sets" # nolint: object_name_linter
+
+# The output frame names the grouping column differently per target, and not at all when there
+# is none, so the curve key is read off the result rather than the spec.
+curve_key <- function(d) {
+  g <- if (!is.null(d$group)) d$group else d$series
+  if (is.null(g)) as.character(d$id) else composite_key(d$id, g)
+}
+
+#' The one-line summary under the preview heading
+#'
+#' Long files get a curve count, because the group column is what decides it and nothing else
+#' on screen says so: the same 30 rows are three 10-point curves or six 5-point ones, and a
+#' file whose conditions were dropped looks exactly like a file that never had any.
+#' @export
+preview_summary <- function(spec, preview) {
+  d <- preview$data
+  msg <- if (identical(spec$layout, "long")) {
+    per <- table(curve_key(d))
+    n_resp <- if (length(unique(as.vector(per))) == 1) {
+      as.character(per[[1]])
+    } else {
+      paste(min(per), max(per), sep = "\u2013")
+    }
+    g <- if (!is.null(d$group)) d$group else d$series
+    if (is.null(g)) {
+      sprintf(
+        "%d participants \u00d7 %s responses \u2192 %s rows, %d curves",
+        preview$n_ids, n_resp, format(nrow(d), big.mark = ","), length(per)
+      )
+    } else {
+      sprintf(
+        "%d participants \u00d7 %d groups \u00d7 %s responses \u2192 %s rows, %d curves",
+        preview$n_ids, length(unique(as.character(g))), n_resp,
+        format(nrow(d), big.mark = ","), length(per)
+      )
+    }
+  } else {
+    sprintf(
+      "%d series \u00d7 %d participants \u00d7 %d response columns \u2192 %s rows",
+      length(spec$series), preview$n_ids,
+      sum(vapply(spec$series, function(s) length(s$cols), numeric(1))),
+      format(nrow(d), big.mark = ",")
+    )
+  }
+  losses <- preview$losses
+  if (losses$n_na_y > 0) {
+    msg <- paste0(msg, sprintf(" \u00b7 %d empty responses dropped", losses$n_na_y))
+  }
+  if (losses$n_na_keep > 0) {
+    msg <- paste0(msg, sprintf(
+      " \u00b7 %d row%s will also be dropped for missing %s",
+      losses$n_na_keep, if (losses$n_na_keep == 1) "" else "s",
+      paste(spec$keep_cols, collapse = "/")
+    ))
+  }
+  msg
+}
+
+#' Choices for the group selector, with the partitioning columns in their own section
+#'
+#' Sections are nested lists: a bare character vector of length one renders as a plain option
+#' carrying the SECTION's label, which would hide the column name.
+#' @export
+group_choices <- function(other_cols, candidates) {
+  candidates <- intersect(candidates, other_cols)
+  if (length(candidates) == 0) {
+    return(c("None" = "", stats::setNames(other_cols, other_cols)))
+  }
+  named <- function(v) as.list(stats::setNames(v, v))
+  out <- list("None" = "")
+  out[[PARTITION_LABEL]] <- named(candidates)
+  rest <- setdiff(other_cols, candidates)
+  if (length(rest) > 0) out[["Other columns"]] <- named(rest)
+  out
+}
+
+#' The note under the group selector, naming the split it found
+#'
+#' Detection cannot tell a real condition from a band of the x column, so the note says what
+#' the rows look like and leaves the reading to the person who made the file.
+#' @export
+partition_note <- function(col, n_levels, per_cell, target, selected) {
+  # x_noun() is already the plural ("prices"/"delays"); the note needs both forms.
+  plural <- x_noun(target)
+  one <- sub("s$", "", plural)
+  split <- sprintf("splits each participant into %d sets of %d %s", n_levels, per_cell, plural)
+  tail <- sprintf("if it only labels the %s.", one)
+  if (isTRUE(selected)) {
+    sprintf(
+      "\u201c%s\u201d was chosen as the %s: it %s. Set it to None %s",
+      col, group_role(target), split, tail
+    )
+  } else {
+    sprintf(
+      "\u201c%s\u201d %s. Choose it as the %s if these are separate conditions or %s; leave None %s",
+      col, split, group_role(target), "commodities", tail
+    )
+  }
+}
+
 chosen <- function(v) !(is.null(v) || length(v) != 1 || is.na(v) || !nzchar(v))
 
 # The group/carried column rules, shared by both layouts.
@@ -211,8 +331,11 @@ validate_long_spec <- function(spec, dat) {
 
   # A participant may repeat a price in another group or session; without a group column
   # the repeat is a duplicate row.
-  key <- paste(ids, x, sep = "\r")
-  if (!is.null(spec$group_col)) key <- paste(key, as.character(dat[[spec$group_col]]), sep = "\r")
+  key <- if (is.null(spec$group_col)) {
+    composite_key(ids, x)
+  } else {
+    composite_key(ids, x, dat[[spec$group_col]])
+  }
   dupes <- unique(ids[duplicated(key)])
   if (length(dupes) > 0) {
     return(paste0(
@@ -226,7 +349,7 @@ validate_long_spec <- function(spec, dat) {
   # One curve per participant, or per participant x group when a group column is chosen:
   # two points in two different groups are two one-point curves, not a fittable pair.
   curve <- ids
-  if (!is.null(spec$group_col)) curve <- paste(ids, as.character(dat[[spec$group_col]]), sep = "\r")
+  if (!is.null(spec$group_col)) curve <- composite_key(ids, dat[[spec$group_col]])
   keep <- if (spec$drop_na) !is.na(y) else rep(TRUE, length(y))
   per_curve <- table(curve[keep])
   short <- setdiff(unique(curve), names(per_curve)[per_curve >= 2])
@@ -336,7 +459,7 @@ validate_wide_spec <- function(spec, dat) {
 
   # one row per id (x group)
   key <- ids
-  if (!is.null(spec$group_col)) key <- paste(ids, as.character(dat[[spec$group_col]]), sep = "\r")
+  if (!is.null(spec$group_col)) key <- composite_key(ids, dat[[spec$group_col]])
   if (anyDuplicated(key) > 0) {
     return(paste0(
       "Rows do not have unique ids. If you have several sessions per participant, ",

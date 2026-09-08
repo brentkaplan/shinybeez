@@ -496,3 +496,140 @@ describe("responses that cannot be fitted", {
     expect_match(spec$validate_spec(sw, wide), "has empty values")
   })
 })
+
+describe("keys built from values that contain the separator", {
+  # A key pasted together with a separator merges two distinct combinations when a value
+  # contains that separator: `paste("a", "\rb")` and `paste("a\r", "b")` are the same
+  # string, so two participants become one and validation stops telling the truth.
+  it("does not merge two one-row curves into one that looks fittable", {
+    dat <- data.frame(
+      subject = c("a", "a\r"),
+      cond = c("\rb", "b"),
+      price = c(1, 1),
+      consumption = c(10, 9),
+      stringsAsFactors = FALSE
+    )
+    expect_match(
+      spec$validate_spec(long_spec(group = "cond"), dat), "fewer than two usable responses"
+    )
+  })
+  it("does not call two distinct wide rows a duplicated id", {
+    dat <- data.frame(
+      subject = c("a", "a\r"),
+      cond = c("\rb", "b"),
+      `1` = c(10, 9),
+      `2` = c(8, 7),
+      check.names = FALSE,
+      stringsAsFactors = FALSE
+    )
+    s <- spec$new_spec(
+      target = "demand", layout = "wide", id_col = "subject", group_col = "cond",
+      series = list(spec$new_series(c("1", "2"), x = c(1, 2)))
+    )
+    expect_true(spec$validate_spec(s, dat))
+  })
+  it("gives each distinct combination its own key", {
+    expect_equal(length(unique(spec$composite_key(c("a", "a\r"), c("\rb", "b")))), 2)
+  })
+})
+
+describe("preview_summary", {
+  long_preview <- function(group = NULL) {
+    d <- data.frame(
+      id = rep(paste0("s", 1:3), each = 10),
+      x = rep(c(1, 2, 4, 8, 16, 0.25, 0.5, 1.5, 3, 6), 3),
+      y = seq_len(30),
+      stringsAsFactors = FALSE
+    )
+    if (!is.null(group)) d$group <- rep(rep(c("beer", "cigarettes"), each = 5), 3)
+    list(data = d, n_ids = 3, losses = list(n_na_y = 0, n_na_keep = 0))
+  }
+  it("counts curves so the merge is visible without a group", {
+    s <- spec$new_spec(target = "demand", layout = "long", id_col = "id", x_col = "x", y_col = "y")
+    expect_equal(
+      spec$preview_summary(s, long_preview()),
+      "3 participants × 10 responses → 30 rows, 3 curves"
+    )
+  })
+  it("names the groups and recounts the curves when one is chosen", {
+    s <- spec$new_spec(
+      target = "demand", layout = "long", id_col = "id", x_col = "x", y_col = "y",
+      group_col = "commodity"
+    )
+    expect_equal(
+      spec$preview_summary(s, long_preview("commodity")),
+      "3 participants × 2 groups × 5 responses → 30 rows, 6 curves"
+    )
+  })
+  it("gives a range when the curves are not all the same length", {
+    p <- long_preview("commodity")
+    p$data <- p$data[-1, , drop = FALSE]
+    s <- spec$new_spec(
+      target = "demand", layout = "long", id_col = "id", x_col = "x", y_col = "y",
+      group_col = "commodity"
+    )
+    expect_match(spec$preview_summary(s, p), "4–5 responses")
+  })
+  it("still reports what was dropped", {
+    p <- long_preview()
+    p$losses$n_na_y <- 2
+    s <- spec$new_spec(target = "demand", layout = "long", id_col = "id", x_col = "x", y_col = "y")
+    expect_match(spec$preview_summary(s, p), "2 empty responses dropped")
+  })
+  it("leaves the wide wording alone", {
+    s <- spec$new_spec(
+      target = "demand", layout = "wide", id_col = "id",
+      series = list(spec$new_series(c("a", "b"), x = c(1, 2)))
+    )
+    p <- list(data = data.frame(id = c("s1", "s2")), n_ids = 2,
+              losses = list(n_na_y = 0, n_na_keep = 0))
+    expect_equal(
+      spec$preview_summary(s, p), "1 series × 2 participants × 2 response columns → 2 rows"
+    )
+  })
+})
+
+describe("group_choices", {
+  it("leaves the plain case exactly as it was", {
+    expect_equal(
+      spec$group_choices(c("a", "b"), character(0)), c("None" = "", "a" = "a", "b" = "b")
+    )
+  })
+  it("puts a single candidate in its own group without losing its name", {
+    ch <- spec$group_choices(c("commodity", "note"), "commodity")
+    expect_equal(names(ch), c("None", "Splits each participant into complete sets", "Other columns"))
+    expect_equal(ch[["Splits each participant into complete sets"]], list(commodity = "commodity"))
+    expect_equal(ch[["Other columns"]], list(note = "note"))
+  })
+  it("omits the leftover section when every column is a candidate", {
+    ch <- spec$group_choices(c("commodity", "site"), c("commodity", "site"))
+    expect_equal(names(ch), c("None", "Splits each participant into complete sets"))
+  })
+})
+
+describe("partition_note", {
+  it("explains a column it chose", {
+    expect_equal(
+      spec$partition_note("commodity", 2, 5, "demand", selected = TRUE),
+      paste0("“commodity” was chosen as the group: it splits each participant into ",
+             "2 sets of 5 prices. Set it to None if it only labels the price.")
+    )
+  })
+  it("invites the user to choose one it did not", {
+    expect_equal(
+      spec$partition_note("phase", 2, 5, "demand", selected = FALSE),
+      paste0("“phase” splits each participant into 2 sets of 5 prices. Choose it as the ",
+             "group if these are separate conditions or commodities; leave None if it only ",
+             "labels the price.")
+    )
+  })
+  it("calls it the series on the mixed-effects side, matching the selector", {
+    expect_match(
+      spec$partition_note("commodity", 2, 5, "mixed_effects_demand", FALSE),
+      "Choose it as the series"
+    )
+  })
+  it("says delays on the discounting side", {
+    expect_match(spec$partition_note("session", 2, 4, "discounting", FALSE), "4 delays")
+  })
+})

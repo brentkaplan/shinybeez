@@ -232,10 +232,15 @@ describe("detect_long", {
     out <- detect$detect_long(dat, "demand")
     expect_equal(c(out$id_col, out$x_col, out$y_col, out$group_col), c("id", "x", "y", "group"))
   })
-  it("declines a long frame whose x repeats within a participant rather than guessing", {
-    # monkey x drug x dose x price: no single column is a grid shared across participants,
-    # so there is no honest mapping to offer. Two grouping columns are out of scope.
-    expect_null(detect$detect_long(fixture("mixed-effects-minimal.csv"), "mixed_effects_demand"))
+  it("reads a monkey x drug frame as a within-subject design", {
+    # `dose` is perfectly confounded with `drug` here (Alfentanil <-> 0.003, Saline <-> 0),
+    # so this is one two-level factor wearing two column names, not two crossed factors.
+    # The file passes check_data() on the mixed-effects tab, so the mapper only ever sees
+    # it from the demand tab, where the wide guess had nothing to offer.
+    out <- detect$detect_long(fixture("mixed-effects-minimal.csv"), "mixed_effects_demand")
+    expect_equal(
+      c(out$id_col, out$x_col, out$y_col, out$group_col), c("monkey", "x", "y", "drug")
+    )
   })
   it("needs more than one participant before repetition means anything", {
     one <- data.frame(id = rep("s1", 4), x = c(0, 1, 5, 10), y = c(10, 8, 5, 2), stringsAsFactors = FALSE)
@@ -311,5 +316,329 @@ describe("detect_long, responses that are not responses", {
       age = rep(c(30, 40), each = 3), resp = c(9, 6, 3, 8, 5, 2), stringsAsFactors = FALSE
     )
     expect_equal(detect$detect_long(dat, "demand")$y_col, "resp")
+  })
+})
+
+describe("detect_long, within-subject grouped data", {
+  it("detects a file whose price grid repeats inside every condition", {
+    out <- detect$detect_long(fixture("long-within-subject.csv"), "demand")
+    expect_equal(
+      c(out$id_col, out$x_col, out$y_col, out$group_col),
+      c("subject", "price", "consumption", "condition")
+    )
+  })
+  it("does not need the condition column to be recognisably named", {
+    dat <- fixture("long-within-subject.csv")
+    colnames(dat)[colnames(dat) == "condition"] <- "phase"
+    out <- detect$detect_long(dat, "demand")
+    expect_equal(out$group_col, "phase")
+    expect_equal(out$x_col, "price")
+  })
+  it("carries the composite group through guess_spec", {
+    s <- detect$guess_spec(fixture("long-within-subject.csv"), "demand")
+    expect_equal(s$layout, "long")
+    expect_equal(s$group_col, "condition")
+  })
+  it("declines a ragged design where a participant is missing a condition", {
+    dat <- fixture("long-within-subject.csv")
+    dat <- dat[!(dat$subject == "s3" & dat$condition == "stress"), , drop = FALSE]
+    expect_null(detect$detect_long(dat, "demand"))
+  })
+  it("declines when the conditions do not ask the same prices", {
+    # One price differs, so the grids overlap without matching: the plain-id path still
+    # sees x repeat within the participant, and the composite attempt refuses a design
+    # whose levels are not asking the same question.
+    dat <- fixture("long-within-subject.csv")
+    dat$price[dat$condition == "stress" & dat$price == 4] <- 8
+    expect_null(detect$detect_long(dat, "demand"))
+  })
+  it("declines a genuinely crossed two-factor design", {
+    # monkey x drug x dose x price: widening the key by one column still leaves the price
+    # grid repeated inside every cell, so there is no honest single group to offer.
+    expect_null(detect$detect_long(fixture("long-two-factor.csv"), "mixed_effects_demand"))
+    expect_null(detect$detect_long(fixture("long-two-factor.csv"), "demand"))
+  })
+  it("prefers a recognisably named condition when two columns both partition", {
+    dat <- fixture("long-within-subject.csv")
+    dat$aaa_label <- dat$condition
+    out <- detect$detect_long(dat, "demand")
+    expect_equal(out$group_col, "condition")
+  })
+  it("leaves the plain-id path in charge when it already succeeds", {
+    # group is constant within id, so the between-subject path answers first and the
+    # composite attempt never runs.
+    dat <- fixture("long-extra-cols.csv")
+    out <- detect$detect_long(dat, "demand")
+    expect_equal(out$id_col, detect$detect_long(dat, "demand")$id_col)
+    expect_false(is.null(out))
+  })
+  it("never offers a group for a discounting target", {
+    expect_null(detect$detect_long(fixture("long-within-subject.csv"), "discounting")$group_col)
+  })
+})
+
+describe("detect_long, within-subject false positives", {
+  it("declines a condition column with blank levels", {
+    # validate_spec() rejects an empty group value outright (spec.R), so offering one
+    # prefills a mapping that cannot be confirmed.
+    dat <- expand.grid(
+      id = paste0("s", 1:3), condition = c("", "stress"), x = c(1, 2),
+      stringsAsFactors = FALSE
+    )
+    dat$y <- seq_len(nrow(dat))
+    expect_null(detect$detect_long(dat, "demand"))
+  })
+  it("declines a whitespace-only condition level", {
+    dat <- expand.grid(
+      id = paste0("s", 1:3), condition = c("  ", "stress"), x = c(1, 2),
+      stringsAsFactors = FALSE
+    )
+    dat$y <- seq_len(nrow(dat))
+    expect_null(detect$detect_long(dat, "demand"))
+  })
+  it("will not accept a per-condition score as the response, however it is named", {
+    # Flat within the cell means it does not answer the price. The name exception exists
+    # for a non-discounter answering one indifference point at every delay, and discounting
+    # never reaches the composite attempt.
+    dat <- expand.grid(
+      id = paste0("s", 1:3), condition = c("base", "stress"), x = c(1, 2, 4),
+      stringsAsFactors = FALSE
+    )
+    dat$consumption <- ifelse(dat$condition == "base", 100, 50)
+    expect_null(detect$detect_long(dat, "demand"))
+  })
+  it("keeps two participants apart when their names contain the key separator", {
+    dat <- data.frame(
+      id = rep(c("A", "A\r", "C"), each = 4),
+      condition = rep(c("\rB", "\rB", "B", "B"), 3),
+      x = rep(c(1, 2, 1, 2), 3),
+      y = seq_len(12),
+      stringsAsFactors = FALSE
+    )
+    out <- detect$detect_long(dat, "demand")
+    expect_equal(c(out$id_col, out$x_col, out$y_col, out$group_col),
+                 c("id", "x", "y", "condition"))
+  })
+})
+
+describe("partitioning_candidates", {
+  two_commodity <- function(cond_name = "commodity") {
+    d <- rbind(
+      expand.grid(id = paste0("s", 1:3), lvl = "beer", price = c(1, 2, 4, 8, 16),
+                  stringsAsFactors = FALSE),
+      expand.grid(id = paste0("s", 1:3), lvl = "cigarettes", price = c(0.25, 0.5, 1.5, 3, 6),
+                  stringsAsFactors = FALSE)
+    )
+    d$consumption <- round(20 / d$price, 1)
+    names(d)[names(d) == "lvl"] <- cond_name
+    d[order(d$id, d[[cond_name]], d$price), c("id", cond_name, "price", "consumption")]
+  }
+  it("finds a column that splits each participant into complete sets", {
+    expect_equal(
+      detect$partitioning_candidates(two_commodity(), "id", c("price", "consumption")),
+      "commodity"
+    )
+  })
+  it("finds it whatever it is called", {
+    expect_equal(
+      detect$partitioning_candidates(two_commodity("phase"), "id", c("price", "consumption")),
+      "phase"
+    )
+  })
+  it("offers nothing when a column is constant within the participant", {
+    # a between-subject group is guess_group_col()'s job; its (id, level) table has zero cells
+    expect_equal(
+      detect$partitioning_candidates(fixture("long-extra-cols.csv"), "id", c("x", "y")),
+      character(0)
+    )
+  })
+  it("offers a condition that was coded as a number, but does not choose it", {
+    # 0/1 is as common a coding for a condition as a word is, so it belongs in the modal.
+    # It is not chosen unasked: a column of bare codes is indistinguishable from a trial
+    # index, and "session = 1,2,1,2" over four prices partitions just as cleanly.
+    dat <- rbind(
+      expand.grid(id = paste0("s", 1:3), condition = 0L, price = c(1, 2, 4, 8, 16),
+                  stringsAsFactors = FALSE),
+      expand.grid(id = paste0("s", 1:3), condition = 1L, price = c(0.25, 0.5, 1.5, 3, 6),
+                  stringsAsFactors = FALSE)
+    )
+    dat$consumption <- seq_len(nrow(dat))
+    expect_equal(
+      detect$partitioning_candidates(dat, "id", c("price", "consumption")), "condition"
+    )
+    expect_null(detect$detect_long(dat, "demand")$group_col)
+  })
+  it("groups a condition whose levels are short labels, by decision", {
+    # DELIBERATE, not an oversight. A header that says `condition`, levels that interleave on
+    # the price axis, and values that are words: the header is the only declaration of intent
+    # a file carries, and honouring it is the right reading. Merging T1 and T2 into one curve
+    # would be the error. The note and the curve count in the preview make the choice visible
+    # and one click to undo, which is what earns the right to make it.
+    dat <- rbind(
+      expand.grid(id = paste0("s", 1:3), condition = "T1", price = c(1, 2, 4, 8, 16),
+                  stringsAsFactors = FALSE),
+      expand.grid(id = paste0("s", 1:3), condition = "T2", price = c(0.25, 0.5, 1.5, 3, 6),
+                  stringsAsFactors = FALSE)
+    )
+    dat$consumption <- seq_len(nrow(dat))
+    expect_equal(detect$detect_long(dat, "demand")$group_col, "condition")
+  })
+  it("does not silently group on an alternating trial index called a session", {
+    dat <- data.frame(
+      id = rep(paste0("s", 1:4), each = 4), x = rep(1:4, 4), y = seq_len(16),
+      session = rep(c(1, 2, 1, 2), 4)
+    )
+    expect_null(detect$detect_long(dat, "demand")$group_col)
+    expect_equal(detect$partitioning_candidates(dat, "id", c("x", "y")), "session")
+  })
+  it("offers nothing for a plain long file", {
+    expect_equal(
+      detect$partitioning_candidates(fixture("demand-minimal-long.csv"), "id", c("x", "y")),
+      character(0)
+    )
+  })
+})
+
+describe("detect_long, conditions that ask different questions", {
+  two_commodity <- function(cond_name = "commodity") {
+    d <- rbind(
+      expand.grid(id = paste0("s", 1:3), lvl = "beer", price = c(1, 2, 4, 8, 16),
+                  stringsAsFactors = FALSE),
+      expand.grid(id = paste0("s", 1:3), lvl = "cigarettes", price = c(0.25, 0.5, 1.5, 3, 6),
+                  stringsAsFactors = FALSE)
+    )
+    d$consumption <- round(20 / d$price, 1)
+    names(d)[names(d) == "lvl"] <- cond_name
+    d[order(d$id, d[[cond_name]], d$price), c("id", cond_name, "price", "consumption")]
+  }
+  it("no longer merges two commodities into one curve", {
+    out <- detect$detect_long(two_commodity(), "demand")
+    expect_equal(
+      c(out$id_col, out$x_col, out$y_col, out$group_col),
+      c("id", "price", "consumption", "commodity")
+    )
+  })
+  it("leaves a condition it cannot name to the user", {
+    # structural detection cannot tell a real condition from a derived bin of the price, so
+    # an unrecognised name is offered in the modal, never chosen silently.
+    out <- detect$detect_long(two_commodity("phase"), "demand")
+    expect_null(out$group_col)
+    expect_equal(
+      detect$partitioning_candidates(two_commodity("phase"), "id", c("price", "consumption")),
+      "phase"
+    )
+  })
+  it("does not split one curve on a price band that calls itself a condition", {
+    # low/high are contiguous slices of one price grid, not two grids that interleave.
+    dat <- data.frame(
+      id = rep(paste0("s", 1:3), each = 10),
+      condition = rep(rep(c("low", "high"), each = 5), 3),
+      x = rep(c(0.25, 0.5, 1.5, 3, 6, 8, 10, 12, 14, 16), 3),
+      y = seq_len(30),
+      stringsAsFactors = FALSE
+    )
+    expect_null(detect$detect_long(dat, "demand")$group_col)
+  })
+  it("never offers a group for a discounting target", {
+    expect_null(detect$detect_long(two_commodity(), "discounting")$group_col)
+  })
+})
+
+describe("detect_long, a reading that has x and y the wrong way round", {
+  # consumption == 10 / price exactly, so it never repeats inside a participant and is shared
+  # across them; `price` is asked once per condition, so on the participant key alone it is not
+  # an x candidate at all and the response gets read as the price.
+  swapped <- function(id_name = "id", x_name = "price", y_name = "consumption") {
+    d <- expand.grid(id = 1:3, cond = c("A", "B"), x = c(1, 2, 4, 8), stringsAsFactors = FALSE)
+    d$y <- 10 / d$x + ifelse(d$cond == "B", 1, 0)
+    d <- d[order(d$id, d$cond, d$x), c("id", "cond", "x", "y")]
+    stats::setNames(d, c(id_name, "condition", x_name, y_name))
+  }
+  it("puts the price back on the x axis instead of the response", {
+    out <- detect$detect_long(swapped(), "demand")
+    expect_equal(
+      c(out$id_col, out$x_col, out$y_col, out$group_col),
+      c("id", "price", "consumption", "condition")
+    )
+  })
+  it("reads the same file the same way for mixed effects", {
+    expect_equal(detect$detect_long(swapped(), "mixed_effects_demand")$x_col, "price")
+  })
+  it("declines rather than guess when discounting cannot carry the condition", {
+    # Un-swapping needs the condition to separate the repeated delays, and the discounting
+    # mapper has no group column to put it in, so there is no honest long reading to offer.
+    d <- expand.grid(id = 1:3, session = c("A", "B"), delay = c(1, 30, 180, 365),
+                     stringsAsFactors = FALSE)
+    d$indiff <- rep(c(90, 70, 40, 10, 95, 75, 45, 15), each = 3)
+    d <- d[order(d$id, d$session, d$delay), c("id", "session", "delay", "indiff")]
+    expect_null(detect$detect_long(d, "discounting"))
+  })
+  it("does not invent a group just to reach a column that is called a price", {
+    # trial_position is the real x; `price` is a nuisance column cycling 1,2,3 twice and
+    # `batch` merely labels the two cycles. Nothing here is named like a response, so the
+    # plain reading is never second-guessed.
+    dat <- data.frame(
+      id = rep(paste0("s", 1:3), each = 6),
+      trial_position = rep(1:6, 3),
+      price = rep(c(1, 2, 3, 1, 2, 3), 3),
+      batch = rep(rep(c("first", "second"), each = 3), 3),
+      y = c(9, 7, 5, 8, 6, 4, 10, 8, 6, 9, 7, 5, 11, 9, 7, 10, 8, 6),
+      stringsAsFactors = FALSE
+    )
+    out <- detect$detect_long(dat, "demand")
+    expect_equal(out$x_col, "trial_position")
+    expect_equal(out$y_col, "y")
+    expect_null(out$group_col)
+  })
+  it("leaves a well-named reading alone", {
+    expect_equal(detect$detect_long(fixture("long-misnamed.csv"), "demand")$x_col, "price")
+  })
+})
+
+describe("detect_long, the reversed check must not overreach", {
+  it("keeps a mapping whose columns are merely named unhelpfully", {
+    # `response` really is the x here and `cost` really is the y. The vocabulary looks
+    # reversed, but nothing un-swaps it, so the reading it already had stands rather than
+    # the file being thrown back to the wide path.
+    dat <- data.frame(
+      id = rep(1:3, each = 4), response = rep(1:4, 3),
+      cost = c(9, 7, 5, 3, 10, 8, 6, 4, 11, 9, 7, 5)
+    )
+    out <- detect$detect_long(dat, "demand")
+    expect_equal(c(out$id_col, out$x_col, out$y_col), c("id", "response", "cost"))
+  })
+  it("does not abandon the participant search when a reading reads reversed", {
+    # A column literally called `id` outranks `subject`, and keyed on it this frame reads
+    # reversed and cannot be repaired. Detection must not return early on that: the reversed
+    # check may skip a candidate, never end the search.
+    #
+    # The mapping below is the one this frame had before the reversed check existed, and is
+    # asserted to show the check did not change it. It is not a good reading - `id` is not the
+    # participant - but that is the id ranking's doing and predates all of this.
+    dat <- expand.grid(trial = 1:4, id = c("A", "B"), subject = paste0("s", 1:3),
+                       stringsAsFactors = FALSE)
+    dat$response <- match(dat$subject, unique(dat$subject)) * 10 + dat$trial
+    dat$price <- match(dat$id, unique(dat$id)) * 10 + dat$trial
+    dat <- dat[, c("subject", "id", "price", "response")]
+    out <- detect$detect_long(dat, "demand")
+    expect_equal(c(out$id_col, out$x_col, out$y_col), c("id", "response", "price"))
+  })
+  it("keeps a discounting reading the composite cannot prove is reversed", {
+    # `cost` is distinct in every participant, so it can never be an x on any key: there is no
+    # swap here to correct, only two unhelpful column names. The reading stands.
+    dat <- data.frame(
+      id = rep(1:3, each = 4), response = rep(1:4, 3),
+      cost = c(90, 70, 50, 30, 91, 71, 51, 31, 92, 72, 52, 32)
+    )
+    out <- detect$detect_long(dat, "discounting")
+    expect_equal(c(out$id_col, out$x_col, out$y_col), c("id", "response", "cost"))
+  })
+  it("keeps looking for a participant when discounting skips a reversed reading", {
+    # The discounting branch uses `next`, not an early return, so a later candidate is still
+    # reachable. Here none works, and the frame falls through to the wide path.
+    d <- expand.grid(id = 1:3, session = c("A", "B"), delay = c(1, 30, 180, 365),
+                     stringsAsFactors = FALSE)
+    d$indiff <- rep(c(90, 70, 40, 10, 95, 75, 45, 15), each = 3)
+    expect_null(detect$detect_long(d[, c("id", "session", "delay", "indiff")], "discounting"))
   })
 })
