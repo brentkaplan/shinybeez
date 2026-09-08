@@ -297,6 +297,28 @@ composite_group_candidates <- function(dat, ids, numericish, id_col) {
   rank_candidates(cands, group_name_pattern)
 }
 
+# A response column standing where the price should be, and a price column standing where the
+# response should be. Not a mapping - a swap: the real x was rejected only because it repeats
+# once per condition, which is exactly what the composite key exists to see.
+reads_reversed <- function(hit) {
+  grepl(y_name_pattern, tolower(hit$x_col), perl = TRUE) &&
+    grepl(x_name_pattern, tolower(hit$y_col), perl = TRUE)
+}
+
+# The within-subject reading: the same grid asked once per condition, so x is unique only
+# inside (participant, condition). The caller decides what to do with it - a discounting file
+# cannot USE the condition, but knowing one exists is still what proves a reading reversed.
+composite_hit <- function(dat, id_col, ids, parsed, rest, numericish) {
+  for (g in composite_group_candidates(dat, ids, numericish, id_col)) {
+    lev <- as.character(dat[[g]])
+    hit <- long_cols_for_key(parsed, rest, composite_key(ids, lev), allow_flat = FALSE)
+    if (is.null(hit)) next
+    if (!grid_repeats_across_levels(parsed[[hit$x_col]], ids, lev)) next
+    return(list(id_col = id_col, x_col = hit$x_col, y_col = hit$y_col, group_col = g))
+  }
+  NULL
+}
+
 #' Is this frame already one row per observation, and which columns carry it?
 #'
 #' Scored on the rows: an id column whose values repeat, an x column unique within each id
@@ -328,7 +350,10 @@ detect_long <- function(dat, target) {
     id_cands, id_pattern, key = vapply(id_cands, function(nm) n_distinct_chr(dat[[nm]]), numeric(1))
   )
 
+  # Columns a proven-reversed reading put on the x axis: they are responses, not participants.
+  barred <- character(0)
   for (id_col in id_cands) {
+    if (id_col %in% barred) next
     ids <- as.character(dat[[id_col]])
     rest <- setdiff(numericish, id_col)
     parsed <- lapply(rest, function(nm) parse_cells(dat[[nm]]))
@@ -336,6 +361,28 @@ detect_long <- function(dat, target) {
 
     hit <- long_cols_for_key(parsed, rest, ids)
     if (!is.null(hit)) {
+      # A reading is normally taken as it stands. The exception is one that reads reversed:
+      # only then is the composite key consulted, and only to see whether it hands back the
+      # SAME two columns the other way round. The name never picks a mapping here - it flags
+      # a suspect one, and structure decides.
+      # Reversed vocabulary is a suspicion, never a verdict. What settles it is the composite
+      # key handing back the SAME two columns the other way round - that is the frame itself
+      # saying the price was only rejected because it repeats once per condition.
+      if (reads_reversed(hit)) {
+        fixed <- composite_hit(dat, id_col, ids, parsed, rest, numericish)
+        if (!is.null(fixed) &&
+              identical(fixed$x_col, hit$y_col) && identical(fixed$y_col, hit$x_col)) {
+          if (target != "discounting") return(fixed)
+          # Proven reversed, and the correction needs a condition this target has nowhere to
+          # put - the un-swapped columns would merge the conditions into one curve. Skip this
+          # participant candidate, and bar the response column it chose from becoming the next
+          # one. If nothing else fits, the file goes to the user rather than to a curve fitted
+          # on transposed data.
+          barred <- c(barred, hit$x_col)
+          next
+        }
+        # Unproven: the names alone are not enough to throw away a structurally valid reading.
+      }
       used <- c(id_col, hit$x_col, hit$y_col)
       group_col <- guess_group_col(dat, target, ids, numericish, used)
       # A between-subject group is carried by the participant; when there is none, the
@@ -346,18 +393,11 @@ detect_long <- function(dat, target) {
       return(list(id_col = id_col, x_col = hit$x_col, y_col = hit$y_col, group_col = group_col))
     }
 
-    # Within-subject: the same grid asked once per condition, so x is unique only inside
-    # (participant, condition). Tried only after the plain participant key found nothing,
-    # and only for a target that can carry the condition - dropping it would silently
-    # merge two conditions into one curve.
+    # The ordinary within-subject path, and never for discounting: that target has nowhere to
+    # put the condition, and dropping it would merge two curves into one.
     if (target == "discounting") next
-    for (g in composite_group_candidates(dat, ids, numericish, id_col)) {
-      lev <- as.character(dat[[g]])
-      hit <- long_cols_for_key(parsed, rest, composite_key(ids, lev), allow_flat = FALSE)
-      if (is.null(hit)) next
-      if (!grid_repeats_across_levels(parsed[[hit$x_col]], ids, lev)) next
-      return(list(id_col = id_col, x_col = hit$x_col, y_col = hit$y_col, group_col = g))
-    }
+    fixed <- composite_hit(dat, id_col, ids, parsed, rest, numericish)
+    if (!is.null(fixed)) return(fixed)
   }
   NULL
 }

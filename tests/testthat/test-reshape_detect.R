@@ -543,3 +543,102 @@ describe("detect_long, conditions that ask different questions", {
     expect_null(detect$detect_long(two_commodity(), "discounting")$group_col)
   })
 })
+
+describe("detect_long, a reading that has x and y the wrong way round", {
+  # consumption == 10 / price exactly, so it never repeats inside a participant and is shared
+  # across them; `price` is asked once per condition, so on the participant key alone it is not
+  # an x candidate at all and the response gets read as the price.
+  swapped <- function(id_name = "id", x_name = "price", y_name = "consumption") {
+    d <- expand.grid(id = 1:3, cond = c("A", "B"), x = c(1, 2, 4, 8), stringsAsFactors = FALSE)
+    d$y <- 10 / d$x + ifelse(d$cond == "B", 1, 0)
+    d <- d[order(d$id, d$cond, d$x), c("id", "cond", "x", "y")]
+    stats::setNames(d, c(id_name, "condition", x_name, y_name))
+  }
+  it("puts the price back on the x axis instead of the response", {
+    out <- detect$detect_long(swapped(), "demand")
+    expect_equal(
+      c(out$id_col, out$x_col, out$y_col, out$group_col),
+      c("id", "price", "consumption", "condition")
+    )
+  })
+  it("reads the same file the same way for mixed effects", {
+    expect_equal(detect$detect_long(swapped(), "mixed_effects_demand")$x_col, "price")
+  })
+  it("declines rather than guess when discounting cannot carry the condition", {
+    # Un-swapping needs the condition to separate the repeated delays, and the discounting
+    # mapper has no group column to put it in, so there is no honest long reading to offer.
+    d <- expand.grid(id = 1:3, session = c("A", "B"), delay = c(1, 30, 180, 365),
+                     stringsAsFactors = FALSE)
+    d$indiff <- rep(c(90, 70, 40, 10, 95, 75, 45, 15), each = 3)
+    d <- d[order(d$id, d$session, d$delay), c("id", "session", "delay", "indiff")]
+    expect_null(detect$detect_long(d, "discounting"))
+  })
+  it("does not invent a group just to reach a column that is called a price", {
+    # trial_position is the real x; `price` is a nuisance column cycling 1,2,3 twice and
+    # `batch` merely labels the two cycles. Nothing here is named like a response, so the
+    # plain reading is never second-guessed.
+    dat <- data.frame(
+      id = rep(paste0("s", 1:3), each = 6),
+      trial_position = rep(1:6, 3),
+      price = rep(c(1, 2, 3, 1, 2, 3), 3),
+      batch = rep(rep(c("first", "second"), each = 3), 3),
+      y = c(9, 7, 5, 8, 6, 4, 10, 8, 6, 9, 7, 5, 11, 9, 7, 10, 8, 6),
+      stringsAsFactors = FALSE
+    )
+    out <- detect$detect_long(dat, "demand")
+    expect_equal(out$x_col, "trial_position")
+    expect_equal(out$y_col, "y")
+    expect_null(out$group_col)
+  })
+  it("leaves a well-named reading alone", {
+    expect_equal(detect$detect_long(fixture("long-misnamed.csv"), "demand")$x_col, "price")
+  })
+})
+
+describe("detect_long, the reversed check must not overreach", {
+  it("keeps a mapping whose columns are merely named unhelpfully", {
+    # `response` really is the x here and `cost` really is the y. The vocabulary looks
+    # reversed, but nothing un-swaps it, so the reading it already had stands rather than
+    # the file being thrown back to the wide path.
+    dat <- data.frame(
+      id = rep(1:3, each = 4), response = rep(1:4, 3),
+      cost = c(9, 7, 5, 3, 10, 8, 6, 4, 11, 9, 7, 5)
+    )
+    out <- detect$detect_long(dat, "demand")
+    expect_equal(c(out$id_col, out$x_col, out$y_col), c("id", "response", "cost"))
+  })
+  it("does not abandon the participant search when a reading reads reversed", {
+    # A column literally called `id` outranks `subject`, and keyed on it this frame reads
+    # reversed and cannot be repaired. Detection must not return early on that: the reversed
+    # check may skip a candidate, never end the search.
+    #
+    # The mapping below is the one this frame had before the reversed check existed, and is
+    # asserted to show the check did not change it. It is not a good reading - `id` is not the
+    # participant - but that is the id ranking's doing and predates all of this.
+    dat <- expand.grid(trial = 1:4, id = c("A", "B"), subject = paste0("s", 1:3),
+                       stringsAsFactors = FALSE)
+    dat$response <- match(dat$subject, unique(dat$subject)) * 10 + dat$trial
+    dat$price <- match(dat$id, unique(dat$id)) * 10 + dat$trial
+    dat <- dat[, c("subject", "id", "price", "response")]
+    out <- detect$detect_long(dat, "demand")
+    expect_equal(c(out$id_col, out$x_col, out$y_col), c("id", "response", "price"))
+  })
+  it("keeps a discounting reading the composite cannot prove is reversed", {
+    # `cost` is distinct in every participant, so it can never be an x on any key: there is no
+    # swap here to correct, only two unhelpful column names. The reading stands.
+    dat <- data.frame(
+      id = rep(1:3, each = 4), response = rep(1:4, 3),
+      cost = c(90, 70, 50, 30, 91, 71, 51, 31, 92, 72, 52, 32)
+    )
+    out <- detect$detect_long(dat, "discounting")
+    expect_equal(c(out$id_col, out$x_col, out$y_col), c("id", "response", "cost"))
+  })
+  it("keeps looking for a participant when discounting skips a reversed reading", {
+    # The discounting branch uses `next`, not an early return, so a later candidate is still
+    # reachable. Here none works, and the frame falls through to the wide path.
+    d <- expand.grid(id = 1:3, session = c("A", "B"), delay = c(1, 30, 180, 365),
+                     stringsAsFactors = FALSE)
+    d$indiff <- rep(c(90, 70, 40, 10, 95, 75, 45, 15), each = 3)
+    expect_null(detect$detect_long(d[, c("id", "session", "delay", "indiff")], "discounting"))
+  })
+})
