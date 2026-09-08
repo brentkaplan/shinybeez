@@ -84,5 +84,26 @@ describe("Demand - wide-to-long mapper", {
     expect_true(any(grepl("<td", app$get_html(".datatables"), fixed = TRUE)))
   })
 
+  it("shows the note explaining a within-subject condition it chose", {
+    require_app(app)
+    # fourth upload on this tab, so the request token is 4
+    app$upload_file(!!ids$demand$upload := fixture_path("long-two-commodities.csv"))
+    app$wait_for_js("document.querySelector('.modal.show') !== null", timeout = 10000)
+    expect_equal(app$wait_for_value(input = mapper(4, "layout"), timeout = 5000), "long")
+    expect_equal(
+      app$wait_for_value(input = mapper(4, "long_group_col"), timeout = 5000), "commodity"
+    )
+    app$wait_for_js(
+      "document.querySelector('.modal.show .form-text') !== null", timeout = 5000
+    )
+    note <- app$get_text(".modal.show .form-text")
+    expect_match(note, "commodity")
+    expect_match(note, "2 sets of 5 prices")
+    # the summary has to say what that choice did, or the note is the only evidence
+    expect_match(app$get_text(".modal.show .text-muted.small"), "6 curves")
+    app$click(selector = paste0("#", mapper(4, "cancel")))
+    app$wait_for_idle(duration = 500)
+  })
+
   local_app_stop()
 })

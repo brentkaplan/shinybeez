@@ -173,7 +173,62 @@ partitions_cleanly <- function(v, ids) {
   k <- n_distinct_chr(v)
   if (k < 2 || k > 10 || k >= length(unique(ids))) return(FALSE)
   tb <- table(ids, as.character(v))
-  all(tb > 0) && length(unique(as.vector(tb))) == 1
+  # Two rows per cell at the least: a one-row cell is a one-point curve, which
+  # validate_long_spec() refuses anyway.
+  all(tb >= 2) && length(unique(as.vector(tb))) == 1
+}
+
+#' Columns that split each participant's rows into complete, equal sets
+#'
+#' A within-subject condition the plain participant key never had to consult: when its levels
+#' ask DIFFERENT x values, x is already unique within the participant, the long reading
+#' succeeds without it, and dropping it merges two curves into one.
+#'
+#' Structural and name-agnostic on purpose. A derived band of x - `low`/`high` over one price
+#' grid - has exactly this shape, and nothing in the rows tells the two apart. So this is the
+#' list the modal offers the user, not the one it picks for them.
+#' @param exclude Columns already spoken for (the x and y columns)
+#' @export
+partitioning_candidates <- function(dat, id_col, exclude = character(0)) {
+  if (!is.data.frame(dat) || length(id_col) != 1 || !id_col %in% colnames(dat)) {
+    return(character(0))
+  }
+  ids <- as.character(dat[[id_col]])
+  # Numbers are not excluded the way guess_group_col() excludes them: a condition coded 0/1 is
+  # as ordinary as one spelled out, and partitions_cleanly() is strict enough to carry the
+  # weight on its own - a covariate is constant within the participant, so its (id, level)
+  # table has empty cells, and a second response has far more than ten levels.
+  cands <- setdiff(colnames(dat), c(id_col, exclude))
+  cands <- cands[vapply(cands, function(nm) partitions_cleanly(dat[[nm]], ids), logical(1))]
+  rank_candidates(cands, group_name_pattern)
+}
+
+# Two commodities interleave on the price axis - beer at 1..16 and cigarettes at 0.25..6 are
+# asked over the same range. A band of one grid never does: every `low` price sits below every
+# `high` one. Only an interleave is evidence enough to choose a column unasked.
+levels_interleave <- function(x, lev) {
+  lo <- vapply(split(x, lev), min, numeric(1))
+  hi <- vapply(split(x, lev), max, numeric(1))
+  if (length(lo) < 2) return(FALSE)
+  o <- order(lo)
+  any(hi[o][-length(o)] >= lo[o][-1])
+}
+
+# The one within-subject condition safe to choose without asking. Three things have to agree,
+# because none of them is sufficient alone: the header names it a condition, its levels
+# interleave on the x axis, and its VALUES are words rather than codes. The last one matters -
+# `session = 1, 2, 1, 2` over four prices partitions exactly like a real two-session design,
+# and nothing in the rows says which it is. A column of bare numbers is offered in the modal
+# with the note instead; everything else that partitions is offered there too.
+named_partition_col <- function(dat, id_col, used, x, target) {
+  if (target == "discounting") return(NULL)
+  cands <- partitioning_candidates(dat, id_col, exclude = setdiff(used, id_col))
+  cands <- cands[grepl(group_name_pattern, tolower(cands), perl = TRUE)]
+  cands <- cands[vapply(cands, function(nm) numeric_share(dat[[nm]]) < 0.8, logical(1))]
+  for (nm in cands) {
+    if (levels_interleave(x, as.character(dat[[nm]]))) return(nm)
+  }
+  NULL
 }
 
 # The within-subject signature: inside each participant, every level asks the identical set
@@ -281,12 +336,14 @@ detect_long <- function(dat, target) {
 
     hit <- long_cols_for_key(parsed, rest, ids)
     if (!is.null(hit)) {
-      return(list(
-        id_col = id_col, x_col = hit$x_col, y_col = hit$y_col,
-        group_col = guess_group_col(
-          dat, target, ids, numericish, c(id_col, hit$x_col, hit$y_col)
-        )
-      ))
+      used <- c(id_col, hit$x_col, hit$y_col)
+      group_col <- guess_group_col(dat, target, ids, numericish, used)
+      # A between-subject group is carried by the participant; when there is none, the
+      # condition may still be within-subject and simply invisible to the plain key.
+      if (is.null(group_col)) {
+        group_col <- named_partition_col(dat, id_col, used, parsed[[hit$x_col]], target)
+      }
+      return(list(id_col = id_col, x_col = hit$x_col, y_col = hit$y_col, group_col = group_col))
     }
 
     # Within-subject: the same grid asked once per condition, so x is unique only inside

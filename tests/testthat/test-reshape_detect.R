@@ -420,3 +420,126 @@ describe("detect_long, within-subject false positives", {
                  c("id", "x", "y", "condition"))
   })
 })
+
+describe("partitioning_candidates", {
+  two_commodity <- function(cond_name = "commodity") {
+    d <- rbind(
+      expand.grid(id = paste0("s", 1:3), lvl = "beer", price = c(1, 2, 4, 8, 16),
+                  stringsAsFactors = FALSE),
+      expand.grid(id = paste0("s", 1:3), lvl = "cigarettes", price = c(0.25, 0.5, 1.5, 3, 6),
+                  stringsAsFactors = FALSE)
+    )
+    d$consumption <- round(20 / d$price, 1)
+    names(d)[names(d) == "lvl"] <- cond_name
+    d[order(d$id, d[[cond_name]], d$price), c("id", cond_name, "price", "consumption")]
+  }
+  it("finds a column that splits each participant into complete sets", {
+    expect_equal(
+      detect$partitioning_candidates(two_commodity(), "id", c("price", "consumption")),
+      "commodity"
+    )
+  })
+  it("finds it whatever it is called", {
+    expect_equal(
+      detect$partitioning_candidates(two_commodity("phase"), "id", c("price", "consumption")),
+      "phase"
+    )
+  })
+  it("offers nothing when a column is constant within the participant", {
+    # a between-subject group is guess_group_col()'s job; its (id, level) table has zero cells
+    expect_equal(
+      detect$partitioning_candidates(fixture("long-extra-cols.csv"), "id", c("x", "y")),
+      character(0)
+    )
+  })
+  it("offers a condition that was coded as a number, but does not choose it", {
+    # 0/1 is as common a coding for a condition as a word is, so it belongs in the modal.
+    # It is not chosen unasked: a column of bare codes is indistinguishable from a trial
+    # index, and "session = 1,2,1,2" over four prices partitions just as cleanly.
+    dat <- rbind(
+      expand.grid(id = paste0("s", 1:3), condition = 0L, price = c(1, 2, 4, 8, 16),
+                  stringsAsFactors = FALSE),
+      expand.grid(id = paste0("s", 1:3), condition = 1L, price = c(0.25, 0.5, 1.5, 3, 6),
+                  stringsAsFactors = FALSE)
+    )
+    dat$consumption <- seq_len(nrow(dat))
+    expect_equal(
+      detect$partitioning_candidates(dat, "id", c("price", "consumption")), "condition"
+    )
+    expect_null(detect$detect_long(dat, "demand")$group_col)
+  })
+  it("groups a condition whose levels are short labels, by decision", {
+    # DELIBERATE, not an oversight. A header that says `condition`, levels that interleave on
+    # the price axis, and values that are words: the header is the only declaration of intent
+    # a file carries, and honouring it is the right reading. Merging T1 and T2 into one curve
+    # would be the error. The note and the curve count in the preview make the choice visible
+    # and one click to undo, which is what earns the right to make it.
+    dat <- rbind(
+      expand.grid(id = paste0("s", 1:3), condition = "T1", price = c(1, 2, 4, 8, 16),
+                  stringsAsFactors = FALSE),
+      expand.grid(id = paste0("s", 1:3), condition = "T2", price = c(0.25, 0.5, 1.5, 3, 6),
+                  stringsAsFactors = FALSE)
+    )
+    dat$consumption <- seq_len(nrow(dat))
+    expect_equal(detect$detect_long(dat, "demand")$group_col, "condition")
+  })
+  it("does not silently group on an alternating trial index called a session", {
+    dat <- data.frame(
+      id = rep(paste0("s", 1:4), each = 4), x = rep(1:4, 4), y = seq_len(16),
+      session = rep(c(1, 2, 1, 2), 4)
+    )
+    expect_null(detect$detect_long(dat, "demand")$group_col)
+    expect_equal(detect$partitioning_candidates(dat, "id", c("x", "y")), "session")
+  })
+  it("offers nothing for a plain long file", {
+    expect_equal(
+      detect$partitioning_candidates(fixture("demand-minimal-long.csv"), "id", c("x", "y")),
+      character(0)
+    )
+  })
+})
+
+describe("detect_long, conditions that ask different questions", {
+  two_commodity <- function(cond_name = "commodity") {
+    d <- rbind(
+      expand.grid(id = paste0("s", 1:3), lvl = "beer", price = c(1, 2, 4, 8, 16),
+                  stringsAsFactors = FALSE),
+      expand.grid(id = paste0("s", 1:3), lvl = "cigarettes", price = c(0.25, 0.5, 1.5, 3, 6),
+                  stringsAsFactors = FALSE)
+    )
+    d$consumption <- round(20 / d$price, 1)
+    names(d)[names(d) == "lvl"] <- cond_name
+    d[order(d$id, d[[cond_name]], d$price), c("id", cond_name, "price", "consumption")]
+  }
+  it("no longer merges two commodities into one curve", {
+    out <- detect$detect_long(two_commodity(), "demand")
+    expect_equal(
+      c(out$id_col, out$x_col, out$y_col, out$group_col),
+      c("id", "price", "consumption", "commodity")
+    )
+  })
+  it("leaves a condition it cannot name to the user", {
+    # structural detection cannot tell a real condition from a derived bin of the price, so
+    # an unrecognised name is offered in the modal, never chosen silently.
+    out <- detect$detect_long(two_commodity("phase"), "demand")
+    expect_null(out$group_col)
+    expect_equal(
+      detect$partitioning_candidates(two_commodity("phase"), "id", c("price", "consumption")),
+      "phase"
+    )
+  })
+  it("does not split one curve on a price band that calls itself a condition", {
+    # low/high are contiguous slices of one price grid, not two grids that interleave.
+    dat <- data.frame(
+      id = rep(paste0("s", 1:3), each = 10),
+      condition = rep(rep(c("low", "high"), each = 5), 3),
+      x = rep(c(0.25, 0.5, 1.5, 3, 6, 8, 10, 12, 14, 16), 3),
+      y = seq_len(30),
+      stringsAsFactors = FALSE
+    )
+    expect_null(detect$detect_long(dat, "demand")$group_col)
+  })
+  it("never offers a group for a discounting target", {
+    expect_null(detect$detect_long(two_commodity(), "discounting")$group_col)
+  })
+})
