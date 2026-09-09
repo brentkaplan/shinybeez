@@ -63,6 +63,54 @@ init_telemetry <- function() {
   .telemetry_env$telemetry
 }
 
+#' Raise the SQLite busy timeout on a telemetry storage connection
+#'
+#' RSQLite leaves `busy_timeout` at 0, so a write that meets a lock fails immediately with
+#' SQLITE_BUSY and does not retry. `track_event()` catches that error and only logs a warning,
+#' so the event is lost without the user ever seeing anything wrong. Production and staging
+#' containers share one telemetry database file, which makes writer-vs-writer contention
+#' possible; a few seconds of retry removes it.
+#'
+#' shiny.telemetry exposes no hook for connection pragmas, so this reaches the storage object's
+#' private connection deliberately. That is version-fragile by nature, so the call is defensive
+#' and returns FALSE rather than erroring: telemetry must never take the app down.
+#'
+#' Telemetry writes happen synchronously on the R event loop, so this timeout is a latency
+#' ceiling per write, not a free retry: with a lock held continuously, a module that emits
+#' several events in a row multiplies it. The default is therefore kept well above the
+#' milliseconds a single small INSERT holds the lock, but low enough that the pathological
+#' case stays tolerable. The nightly backup takes a read transaction on this file (sub-second
+#' at current size, and it runs at 03:15), which is the other contender this must ride out.
+#'
+#' @param storage A shiny.telemetry data storage object
+#' @param timeout_ms Milliseconds SQLite retries a locked database before giving up.
+#'   Must be a finite positive number; anything else is refused, because a zero or negative
+#'   value silently restores the original fail-instantly behaviour.
+#' @return TRUE if the timeout was applied, otherwise FALSE. Never throws.
+#' @export
+set_sqlite_busy_timeout <- function(storage, timeout_ms = 2000) {
+  tryCatch({
+    if (!is.numeric(timeout_ms) || length(timeout_ms) != 1L ||
+          !is.finite(timeout_ms) || timeout_ms <= 0) {
+      return(FALSE)
+    }
+    enclos <- storage$.__enclos_env__
+    if (is.null(enclos)) {
+      return(FALSE)
+    }
+    con <- enclos$private$db_con
+    if (!inherits(con, "DBIConnection") || !DBI::dbIsValid(con)) {
+      return(FALSE)
+    }
+    DBI::dbExecute(con, sprintf("PRAGMA busy_timeout = %d", as.integer(timeout_ms)))
+    TRUE
+  }, error = function(e) {
+    # The handler must not become the thing that throws.
+    try(log$warn("Could not set SQLite busy timeout: {e$message}"), silent = TRUE)
+    FALSE
+  })
+}
+
 #' Create data storage backend based on configuration
 #'
 #' @param config Telemetry configuration
@@ -79,7 +127,12 @@ create_data_storage <- function(config) {
           dir.create(db_dir, recursive = TRUE)
         }
 
-        shiny.telemetry::DataStorageSQLite$new(db_path = db_path)
+        storage <- shiny.telemetry::DataStorageSQLite$new(db_path = db_path)
+        # Prod and staging write to the same file; without this a contended write is dropped.
+        if (!set_sqlite_busy_timeout(storage)) {
+          log$warn("SQLite busy timeout not applied; contended telemetry writes may be lost")
+        }
+        storage
       },
       "postgresql" = {
         has_driver <- requireNamespace("RPostgres", quietly = TRUE) ||
@@ -233,7 +286,10 @@ track_model_fitting <- function(
 
 #' Track data upload event
 #'
-#' @param file_info Information about uploaded file
+#' @param file_info Information about uploaded file: `size`, `type`, `rows`, `cols`, and an
+#'   optional `reshaped` logical flag marking a file that went through the wide-to-long
+#'   mapper (`app/view/wide_mapper.R`) before it was stored, rather than uploaded already in
+#'   a template shape. Missing or non-`TRUE` values are recorded as `FALSE`.
 #' @param session Shiny session object
 #' @export
 track_data_upload <- function(file_info = list(), session = NULL) {
@@ -242,7 +298,8 @@ track_data_upload <- function(file_info = list(), session = NULL) {
     file_size = file_info$size,
     file_type = file_info$type,
     rows = file_info$rows,
-    cols = file_info$cols
+    cols = file_info$cols,
+    reshaped = isTRUE(file_info$reshaped)
   )
 
   track_event(
@@ -394,6 +451,25 @@ track_error <- function(error_message, error_context = NULL, session = NULL, det
   )
 }
 
+#' Track the wide-to-long mapper lifecycle
+#'
+#' @param target Module name, same vocabulary as track_validation(): "demand",
+#'   "mixed_effects" or "discounting"
+#' @param outcome "opened", "confirmed" or "cancelled"
+#' @param summary Optional list: n_series, x_source, n_cols_in, n_rows_out, n_dropped.
+#'   Never column names or cell values.
+#' @export
+track_reshape <- function(target, outcome, summary = list(), session = NULL) {
+  track_event(
+    event_name = "reshape",
+    event_data = c(
+      list(target = target, outcome = outcome, timestamp = Sys.time()),
+      summary
+    ),
+    session = session
+  )
+}
+
 #' Get telemetry data for analysis
 #'
 #' @param start_date Start date for data retrieval
@@ -455,6 +531,9 @@ create_session_telemetry <- function(session) {
     },
     track_validation = function(module, outcome, check_name = NULL, reason = NULL) {
       track_validation(module, outcome, check_name, reason, session)
+    },
+    track_reshape = function(target, outcome, summary = list()) {
+      track_reshape(target, outcome, summary, session)
     },
     track_configuration = function(module, config = list()) {
       track_configuration(module, config, session)

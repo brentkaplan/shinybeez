@@ -12,6 +12,39 @@
   `600000`), and `SHINYBEEZ_DAEMON_RSS_LIMIT_MB` (default `900`). See
   `deploy-shinyproxy/ASYNC-FITS.md` for the operational runbook.
 
+- **Wide-to-long reshape form** — when an uploaded file does not match a
+  template on the Demand, Mixed-effects demand, or Discounting (indifference
+  point) tab, a form now asks which column identifies the participant and
+  which columns hold the responses, takes the prices or delays (typed, or
+  read from the column names), previews the converted data, and loads it.
+  Several commodities side by side become groups (demand) or a `series`
+  column (mixed effects); extra columns can be carried along on the
+  mixed-effects tab. The converted long file can be downloaded from the form.
+  A file that is already one row per observation but carries the wrong column
+  names (`subject, price, consumption`, extra columns, any column order) is
+  handled by the same form: it opens on the layout it detects and asks which
+  columns hold the id, the price or delay, and the response, rather than asking
+  you to rename them by hand. A radio at the top switches between the two
+  layouts if the guess is wrong.
+
+## Bug Fixes
+
+- **Wide demand headers must be whole numbers** — item-style headers such as
+  `APT_1`, `APT_2` were parsed to prices 1, 2, … and fitted silently. A header
+  now counts as a price only when the whole header is a number (currency symbol
+  allowed); anything else opens the reshape form.
+
+- **Wide discounting template accepted** — the bundled
+  `template_discounting_wide.csv` (`id` plus one column per delay) was rejected
+  by the indifference-point validator. It now loads and is reshaped to
+  `id, x, y` as documented.
+
+- **Wide files on the discounting tab** — because the wide indifference-point
+  template is now accepted, a wide demand file whose price headers are all
+  positive numbers is also accepted there as indifference points. Headers that
+  are not whole numbers (for example `price_1` or `1,000`), which the old
+  parser tolerated, now open the reshape form instead of loading directly.
+
 # shinybeez 1.1.3
 
 Patch release over v1.1.2. Runtime R dependencies are unchanged (`renv.lock` is
