@@ -78,18 +78,31 @@ describe("telemetry_utils", {
     # Enable telemetry against a throwaway SQLite DB, set SHINYBEEZ_ENV, and read back the
     # app_name the constructed Telemetry object carries (it is written onto every event_log row).
     init_with_env <- function(shinybeez_env) {
+      initialised <- NULL
       # Reset the cached telemetry object after the test so it does not leak into siblings
       # (the disabled path in init_telemetry() nulls the cache).
       withr::defer(
-        withr::with_envvar(
-          # R_CONFIG_ACTIVE="default" so the disabled path fires regardless of ambient profile
-          # (the production/development profiles hard-code telemetry enabled, which would re-init the cache).
-          c(R_CONFIG_ACTIVE = "default", TELEMETRY_ENABLED = "FALSE"),
-          telemetry_utils$init_telemetry()
-        ),
+        {
+          # Nulling the cache alone drops the storage object without closing its SQLite
+          # connection, leaking one handle per call. It only ever surfaced as a
+          # "call dbDisconnect()" warning once something else forced a gc.
+          # Close the object this call created. Using get_telemetry() here would
+          # re-initialize telemetry when the cache is NULL, after the temporary env vars
+          # have already been restored -- opening the AMBIENT database from a teardown.
+          try(
+            initialised$data_storage$.__enclos_env__$private$close_connection(),
+            silent = TRUE
+          )
+          withr::with_envvar(
+            # R_CONFIG_ACTIVE="default" so the disabled path fires regardless of ambient profile
+            # (the production/development profiles hard-code telemetry enabled, which would re-init the cache).
+            c(R_CONFIG_ACTIVE = "default", TELEMETRY_ENABLED = "FALSE"),
+            telemetry_utils$init_telemetry()
+          )
+        },
         envir = parent.frame()
       )
-      withr::with_envvar(
+      initialised <- withr::with_envvar(
         c(
           R_CONFIG_ACTIVE = "default",
           TELEMETRY_ENABLED = "TRUE",
@@ -99,6 +112,7 @@ describe("telemetry_utils", {
         ),
         telemetry_utils$init_telemetry()
       )
+      initialised
     }
 
     it("tags app_name with SHINYBEEZ_ENV when set", {
@@ -172,12 +186,15 @@ describe("session lifecycle payloads (shinybeez-analytics#7)", {
       skip_if_not_installed("shiny.telemetry")
       skip_if_not_installed("RSQLite")
       db_path <- tempfile(fileext = ".sqlite")
-      withr::defer(
+      built <- NULL
+      withr::defer({
+        # Same leak as above: close the storage connection before the cache is nulled.
+        try(built$data_storage$.__enclos_env__$private$close_connection(), silent = TRUE)
         withr::with_envvar(
           c(R_CONFIG_ACTIVE = "default", TELEMETRY_ENABLED = "FALSE"),
           telemetry_utils$init_telemetry()
         )
-      )
+      })
       withr::with_envvar(
         c(
           R_CONFIG_ACTIVE = "default",
@@ -187,7 +204,7 @@ describe("session lifecycle payloads (shinybeez-analytics#7)", {
           SHINYBEEZ_ENV = "test"
         ),
         {
-          telemetry_utils$init_telemetry()
+          built <- telemetry_utils$init_telemetry()
           start <- Sys.time() - 30
           # session = NULL: shiny.telemetry only accepts a real ShinySession/session_proxy or NULL
           telemetry_utils$track_event(
@@ -209,6 +226,105 @@ describe("session lifecycle payloads (shinybeez-analytics#7)", {
       expect_type(details$session_duration, "double")
       expect_gte(details$session_duration, 30)
       expect_equal(details$last_tab, "Demand")
+    })
+  })
+
+  describe("telemetry storage wiring", {
+    it("gives the storage built by init_telemetry a non-zero busy timeout", {
+      skip_if_not_installed("shiny.telemetry")
+      skip_if_not_installed("RSQLite")
+      # The unit tests above call the helper directly, so they would all still pass if the
+      # call were dropped from create_data_storage() and production silently went back to
+      # losing contended writes. This asserts the wiring itself.
+      built <- NULL
+      withr::defer({
+        try(built$data_storage$.__enclos_env__$private$close_connection(), silent = TRUE)
+        withr::with_envvar(
+          c(R_CONFIG_ACTIVE = "default", TELEMETRY_ENABLED = "FALSE"),
+          telemetry_utils$init_telemetry()
+        )
+      })
+
+      built <- withr::with_envvar(
+        c(
+          R_CONFIG_ACTIVE = "default",
+          TELEMETRY_ENABLED = "TRUE",
+          TELEMETRY_STORAGE = "sqlite",
+          TELEMETRY_DB_PATH = withr::local_tempfile(fileext = ".sqlite"),
+          SHINYBEEZ_ENV = "test"
+        ),
+        telemetry_utils$init_telemetry()
+      )
+
+      con <- built$data_storage$.__enclos_env__$private$db_con
+      expect_gt(DBI::dbGetQuery(con, "PRAGMA busy_timeout")[[1]], 0)
+    })
+  })
+
+  describe("set_sqlite_busy_timeout", {
+    it("is a function with correct formals", {
+      expect_true(is.function(telemetry_utils$set_sqlite_busy_timeout))
+      fmls <- formals(telemetry_utils$set_sqlite_busy_timeout)
+      expect_equal(names(fmls), c("storage", "timeout_ms"))
+      # 0 is RSQLite's default: a busy write fails instantly with no retry, and the caller
+      # swallows the error, so the row is lost. Any default here must be well above zero.
+      expect_gt(eval(fmls$timeout_ms), 0)
+    })
+
+    it("raises the busy timeout on a real SQLite storage connection", {
+      skip_if_not_installed("shiny.telemetry")
+      db_path <- withr::local_tempfile(fileext = ".sqlite")
+      storage <- shiny.telemetry::DataStorageSQLite$new(db_path = db_path)
+      con <- storage$.__enclos_env__$private$db_con
+      withr::defer(storage$.__enclos_env__$private$close_connection())
+
+      expect_equal(DBI::dbGetQuery(con, "PRAGMA busy_timeout")[[1]], 0)
+      result <- telemetry_utils$set_sqlite_busy_timeout(storage, 5000)
+
+      expect_true(result)
+      expect_equal(DBI::dbGetQuery(con, "PRAGMA busy_timeout")[[1]], 5000)
+    })
+
+    it("persists on the connection the storage keeps reusing", {
+      skip_if_not_installed("shiny.telemetry")
+      db_path <- withr::local_tempfile(fileext = ".sqlite")
+      storage <- shiny.telemetry::DataStorageSQLite$new(db_path = db_path)
+      withr::defer(storage$.__enclos_env__$private$close_connection())
+      telemetry_utils$set_sqlite_busy_timeout(storage, 5000)
+
+      # The storage holds one persistent connection, so a later read sees the same setting.
+      con_later <- storage$.__enclos_env__$private$db_con
+      expect_equal(DBI::dbGetQuery(con_later, "PRAGMA busy_timeout")[[1]], 5000)
+    })
+
+    it("refuses a timeout that would restore fail-instantly behaviour", {
+      skip_if_not_installed("shiny.telemetry")
+      db_path <- withr::local_tempfile(fileext = ".sqlite")
+      storage <- shiny.telemetry::DataStorageSQLite$new(db_path = db_path)
+      withr::defer(storage$.__enclos_env__$private$close_connection())
+      con <- storage$.__enclos_env__$private$db_con
+
+      for (bad in list(0, -1, NA_real_, Inf, "5000", c(1000, 2000), NULL)) {
+        expect_false(telemetry_utils$set_sqlite_busy_timeout(storage, bad))
+      }
+      # None of the refusals may have touched the connection.
+      expect_equal(DBI::dbGetQuery(con, "PRAGMA busy_timeout")[[1]], 0)
+    })
+
+    it("returns FALSE instead of erroring when the connection cannot be reached", {
+      # Guards against a shiny.telemetry version that renames or drops the private field:
+      # telemetry must never take the app down.
+      expect_false(telemetry_utils$set_sqlite_busy_timeout(NULL, 5000))
+      expect_false(telemetry_utils$set_sqlite_busy_timeout(list(), 5000))
+    })
+
+    it("returns FALSE for a closed connection rather than propagating the DBI error", {
+      skip_if_not_installed("shiny.telemetry")
+      db_path <- withr::local_tempfile(fileext = ".sqlite")
+      storage <- shiny.telemetry::DataStorageSQLite$new(db_path = db_path)
+      DBI::dbDisconnect(storage$.__enclos_env__$private$db_con)
+
+      expect_false(telemetry_utils$set_sqlite_busy_timeout(storage, 5000))
     })
   })
 })
