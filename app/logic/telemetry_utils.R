@@ -63,6 +63,54 @@ init_telemetry <- function() {
   .telemetry_env$telemetry
 }
 
+#' Raise the SQLite busy timeout on a telemetry storage connection
+#'
+#' RSQLite leaves `busy_timeout` at 0, so a write that meets a lock fails immediately with
+#' SQLITE_BUSY and does not retry. `track_event()` catches that error and only logs a warning,
+#' so the event is lost without the user ever seeing anything wrong. Production and staging
+#' containers share one telemetry database file, which makes writer-vs-writer contention
+#' possible; a few seconds of retry removes it.
+#'
+#' shiny.telemetry exposes no hook for connection pragmas, so this reaches the storage object's
+#' private connection deliberately. That is version-fragile by nature, so the call is defensive
+#' and returns FALSE rather than erroring: telemetry must never take the app down.
+#'
+#' Telemetry writes happen synchronously on the R event loop, so this timeout is a latency
+#' ceiling per write, not a free retry: with a lock held continuously, a module that emits
+#' several events in a row multiplies it. The default is therefore kept well above the
+#' milliseconds a single small INSERT holds the lock, but low enough that the pathological
+#' case stays tolerable. The nightly backup takes a read transaction on this file (sub-second
+#' at current size, and it runs at 03:15), which is the other contender this must ride out.
+#'
+#' @param storage A shiny.telemetry data storage object
+#' @param timeout_ms Milliseconds SQLite retries a locked database before giving up.
+#'   Must be a finite positive number; anything else is refused, because a zero or negative
+#'   value silently restores the original fail-instantly behaviour.
+#' @return TRUE if the timeout was applied, otherwise FALSE. Never throws.
+#' @export
+set_sqlite_busy_timeout <- function(storage, timeout_ms = 2000) {
+  tryCatch({
+    if (!is.numeric(timeout_ms) || length(timeout_ms) != 1L ||
+          !is.finite(timeout_ms) || timeout_ms <= 0) {
+      return(FALSE)
+    }
+    enclos <- storage$.__enclos_env__
+    if (is.null(enclos)) {
+      return(FALSE)
+    }
+    con <- enclos$private$db_con
+    if (!inherits(con, "DBIConnection") || !DBI::dbIsValid(con)) {
+      return(FALSE)
+    }
+    DBI::dbExecute(con, sprintf("PRAGMA busy_timeout = %d", as.integer(timeout_ms)))
+    TRUE
+  }, error = function(e) {
+    # The handler must not become the thing that throws.
+    try(log$warn("Could not set SQLite busy timeout: {e$message}"), silent = TRUE)
+    FALSE
+  })
+}
+
 #' Create data storage backend based on configuration
 #'
 #' @param config Telemetry configuration
@@ -79,7 +127,12 @@ create_data_storage <- function(config) {
           dir.create(db_dir, recursive = TRUE)
         }
 
-        shiny.telemetry::DataStorageSQLite$new(db_path = db_path)
+        storage <- shiny.telemetry::DataStorageSQLite$new(db_path = db_path)
+        # Prod and staging write to the same file; without this a contended write is dropped.
+        if (!set_sqlite_busy_timeout(storage)) {
+          log$warn("SQLite busy timeout not applied; contended telemetry writes may be lost")
+        }
+        storage
       },
       "postgresql" = {
         has_driver <- requireNamespace("RPostgres", quietly = TRUE) ||
