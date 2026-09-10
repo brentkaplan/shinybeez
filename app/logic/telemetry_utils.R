@@ -430,14 +430,23 @@ track_export <- function(
 #' @param error_context Context where error occurred
 #' @param session Shiny session object
 #' @export
-track_error <- function(error_message, error_context = NULL, session = NULL) {
+#' @param details Optional named list of caller context (for example the fit spec
+#'   and data size) nested under `details` in the event JSON. Counts only, never
+#'   raw data.
+track_error <- function(error_message, error_context = NULL, session = NULL, details = NULL) {
+  event_data <- list(
+    error_message = error_message,
+    context = error_context,
+    timestamp = Sys.time()
+  )
+  # Nested rather than flattened so caller-supplied keys can never collide with
+  # the top-level schema the analytics consumer reads (error_message, context).
+  if (!is.null(details)) {
+    event_data$details <- details
+  }
   track_event(
     event_name = "error",
-    event_data = list(
-      error_message = error_message,
-      context = error_context,
-      timestamp = Sys.time()
-    ),
+    event_data = event_data,
     session = session
   )
 }
@@ -514,8 +523,8 @@ create_session_telemetry <- function(session) {
     track_performance = function(operation_name, duration_ms, additional_metrics = list()) {
       track_performance(operation_name, duration_ms, additional_metrics, session)
     },
-    track_error = function(error_message, error_context = NULL) {
-      track_error(error_message, error_context, session)
+    track_error = function(error_message, error_context = NULL, details = NULL) {
+      track_error(error_message, error_context, session, details)
     },
     track_export = function(export_type, module = NULL, file_format = NULL, row_count = NULL) {
       track_export(export_type, module, file_format, row_count, session)
