@@ -111,6 +111,49 @@ set_sqlite_busy_timeout <- function(storage, timeout_ms = 2000) {
   })
 }
 
+#' Switch a telemetry SQLite storage to write-ahead logging
+#'
+#' Several app containers (the pre-warmed seat, the active seats, staging) share one
+#' `telemetry.sqlite`. In SQLite's default rollback-journal mode a reader's SHARED lock blocks
+#' every writer's COMMIT until `busy_timeout` runs out, and a connection that wants to write
+#' while another holds RESERVED gets SQLITE_BUSY at once, whatever the timeout. Both surfaced
+#' during the 2026-09-15 container storm as "database is locked" and "Failed to create sqlite
+#' storage". WAL lets readers and one writer proceed together and removes the lock-upgrade
+#' deadlock.
+#'
+#' `journal_mode=WAL` is persisted in the database file, so the first container to run this
+#' after a deploy flips it for every later connection; `synchronous=NORMAL` is per connection
+#' and is the WAL-safe level (a power loss can drop the last transactions, never corrupt the
+#' file). Call after `set_sqlite_busy_timeout()`: the mode switch needs a moment with no other
+#' writer and, with a timeout set, waits for one instead of failing.
+#'
+#' @param storage A shiny.telemetry data storage object
+#' @return TRUE if the connection reports WAL afterwards, otherwise FALSE. Never throws.
+#' @export
+set_sqlite_wal <- function(storage) {
+  tryCatch({
+    enclos <- storage$.__enclos_env__
+    if (is.null(enclos)) {
+      return(FALSE)
+    }
+    con <- enclos$private$db_con
+    if (!inherits(con, "DBIConnection") || !DBI::dbIsValid(con)) {
+      return(FALSE)
+    }
+    # This pragma answers with the mode now in force, so read it back rather than trust it.
+    mode <- DBI::dbGetQuery(con, "PRAGMA journal_mode = WAL")[[1]]
+    if (!identical(tolower(as.character(mode)), "wal")) {
+      return(FALSE)
+    }
+    DBI::dbExecute(con, "PRAGMA synchronous = NORMAL")
+    TRUE
+  }, error = function(e) {
+    # The handler must not become the thing that throws.
+    try(log$warn("Could not switch SQLite to WAL: {e$message}"), silent = TRUE)
+    FALSE
+  })
+}
+
 #' Create data storage backend based on configuration
 #'
 #' @param config Telemetry configuration
@@ -131,6 +174,11 @@ create_data_storage <- function(config) {
         # Prod and staging write to the same file; without this a contended write is dropped.
         if (!set_sqlite_busy_timeout(storage)) {
           log$warn("SQLite busy timeout not applied; contended telemetry writes may be lost")
+        }
+        # Several containers hold this file open at once; WAL keeps their reads from blocking
+        # each other's writes. Timeout first so the mode switch waits for a quiet moment.
+        if (!set_sqlite_wal(storage)) {
+          log$warn("SQLite WAL mode not applied; concurrent containers may hit 'database is locked'")
         }
         storage
       },
