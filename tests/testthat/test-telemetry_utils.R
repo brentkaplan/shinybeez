@@ -259,6 +259,35 @@ describe("session lifecycle payloads (shinybeez-analytics#7)", {
       con <- built$data_storage$.__enclos_env__$private$db_con
       expect_gt(DBI::dbGetQuery(con, "PRAGMA busy_timeout")[[1]], 0)
     })
+
+    it("puts the storage built by init_telemetry in WAL mode", {
+      skip_if_not_installed("shiny.telemetry")
+      skip_if_not_installed("RSQLite")
+      # Same wiring assertion as above: the set_sqlite_wal unit tests pass against the helper
+      # alone, so only this test notices if create_data_storage() stops calling it.
+      built <- NULL
+      withr::defer({
+        try(built$data_storage$.__enclos_env__$private$close_connection(), silent = TRUE)
+        withr::with_envvar(
+          c(R_CONFIG_ACTIVE = "default", TELEMETRY_ENABLED = "FALSE"),
+          telemetry_utils$init_telemetry()
+        )
+      })
+
+      built <- withr::with_envvar(
+        c(
+          R_CONFIG_ACTIVE = "default",
+          TELEMETRY_ENABLED = "TRUE",
+          TELEMETRY_STORAGE = "sqlite",
+          TELEMETRY_DB_PATH = withr::local_tempfile(fileext = ".sqlite"),
+          SHINYBEEZ_ENV = "test"
+        ),
+        telemetry_utils$init_telemetry()
+      )
+
+      con <- built$data_storage$.__enclos_env__$private$db_con
+      expect_equal(tolower(DBI::dbGetQuery(con, "PRAGMA journal_mode")[[1]]), "wal")
+    })
   })
 
   describe("set_sqlite_busy_timeout", {
@@ -325,6 +354,60 @@ describe("session lifecycle payloads (shinybeez-analytics#7)", {
       DBI::dbDisconnect(storage$.__enclos_env__$private$db_con)
 
       expect_false(telemetry_utils$set_sqlite_busy_timeout(storage, 5000))
+    })
+  })
+
+  describe("set_sqlite_wal", {
+    it("switches a real SQLite storage connection to WAL and reports TRUE", {
+      skip_if_not_installed("shiny.telemetry")
+      db_path <- withr::local_tempfile(fileext = ".sqlite")
+      storage <- shiny.telemetry::DataStorageSQLite$new(db_path = db_path)
+      con <- storage$.__enclos_env__$private$db_con
+      withr::defer(storage$.__enclos_env__$private$close_connection())
+
+      expect_equal(tolower(DBI::dbGetQuery(con, "PRAGMA journal_mode")[[1]]), "delete")
+      expect_true(telemetry_utils$set_sqlite_wal(storage))
+      expect_equal(tolower(DBI::dbGetQuery(con, "PRAGMA journal_mode")[[1]]), "wal")
+      # synchronous=NORMAL (1) is the WAL-safe durability level; RSQLite's default is FULL (2).
+      expect_equal(DBI::dbGetQuery(con, "PRAGMA synchronous")[[1]], 1L)
+    })
+
+    it("lets a write commit while another connection holds an open read transaction", {
+      # 2026-09-15: several containers share one telemetry.sqlite. In rollback-journal mode a
+      # reader's SHARED lock makes the writer's COMMIT wait out busy_timeout and fail with
+      # "database is locked"; in WAL the write commits at once. Checked by hand 2026-09-17:
+      # delete -> "database is locked" after 0.6 s; wal -> committed in 0.03 s.
+      skip_if_not_installed("shiny.telemetry")
+      db_path <- withr::local_tempfile(fileext = ".sqlite")
+      storage <- shiny.telemetry::DataStorageSQLite$new(db_path = db_path)
+      withr::defer(storage$.__enclos_env__$private$close_connection())
+      telemetry_utils$set_sqlite_busy_timeout(storage, 200)
+      telemetry_utils$set_sqlite_wal(storage)
+
+      reader <- DBI::dbConnect(RSQLite::SQLite(), db_path)
+      withr::defer(DBI::dbDisconnect(reader))
+      DBI::dbExecute(reader, "BEGIN")
+      DBI::dbGetQuery(reader, "SELECT count(*) FROM event_log")   # takes and holds the read lock
+
+      expect_no_error(
+        storage$insert(app_name = "test", type = "input", session = "s1", details = list(id = "x"))
+      )
+      DBI::dbExecute(reader, "COMMIT")
+      expect_equal(DBI::dbGetQuery(reader, "SELECT count(*) FROM event_log")[[1]], 1L)
+    })
+
+    it("returns FALSE instead of erroring when the connection cannot be reached", {
+      expect_false(telemetry_utils$set_sqlite_wal(NULL))
+      expect_false(telemetry_utils$set_sqlite_wal(list()))
+    })
+
+    it("returns FALSE for a closed connection rather than propagating the DBI error", {
+      skip_if_not_installed("shiny.telemetry")
+      db_path <- withr::local_tempfile(fileext = ".sqlite")
+      storage <- shiny.telemetry::DataStorageSQLite$new(db_path = db_path)
+      DBI::dbDisconnect(storage$.__enclos_env__$private$db_con)
+
+      expect_false(telemetry_utils$set_sqlite_wal(storage))
     })
   })
 })
