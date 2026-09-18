@@ -78,5 +78,5 @@ describe("Welcome tab and navigation", {
     expect_true(is.null(modal_html) || !grepl("About shinybeez", modal_html))
   })
 
-  withr::defer(try(app$stop(), silent = TRUE), envir = teardown_env())
+  local_app_stop()
 })

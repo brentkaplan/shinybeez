@@ -145,6 +145,8 @@ and dark mode toggle, _shinybeez_ includes the following features:
 
 - Professional Excel export of all results
 
+- Model fitting runs in a background worker, keeping the app responsive with an elapsed-time indicator and a Cancel option
+
 #### Discounting
 
 - Choose between scoring the 27-Item Monetary Choice Questionnaire (MCQ),

@@ -510,3 +510,35 @@ describe("fit_demand_grouped", {
     expect_true(length(result$output) >= 3)
   })
 })
+
+describe("fit_params", {
+  spec <- list(
+    is_grouped = TRUE, eq = "koff", agg = NULL, k = 1.5, constrainq0 = 10
+  )
+
+  it("describes the fit spec and the data size with counts only", {
+    data <- make_demand_data(3)
+    params <- fitting$fit_params(spec, data)
+    expect_equal(
+      names(params),
+      c("equation", "k", "aggregation", "constrainq0", "grouped", "n_rows", "n_ids")
+    )
+    expect_equal(params$equation, "koff")
+    expect_equal(params$k, 1.5)
+    expect_null(params$aggregation)
+    expect_equal(params$constrainq0, 10)
+    expect_true(params$grouped)
+    expect_equal(params$n_rows, nrow(data))
+    expect_equal(params$n_ids, 3L)
+  })
+
+  it("keeps NULL entries so they serialise as JSON null", {
+    params <- fitting$fit_params(
+      list(is_grouped = FALSE, eq = "hs", agg = "Pooled", k = 2, constrainq0 = NULL),
+      make_demand_data(2)
+    )
+    json <- jsonlite::toJSON(params, auto_unbox = TRUE, null = "null")
+    expect_match(json, '"constrainq0":null', fixed = TRUE)
+    expect_match(json, '"aggregation":"Pooled"', fixed = TRUE)
+  })
+})

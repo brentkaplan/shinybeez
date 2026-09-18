@@ -77,7 +77,7 @@ describe("Mixed Effects - default ko data", {
     expect_results_table(app, fe_id)
   })
 
-  withr::defer(try(app$stop(), silent = TRUE), envir = teardown_env())
+  local_app_stop()
 })
 
 # ==========================================================================
@@ -172,7 +172,7 @@ describe("Mixed Effects - upload minimal fixture", {
     expect_false(any(grepl("params_to_compare", log_messages, fixed = TRUE)))
   })
 
-  withr::defer(try(app$stop(), silent = TRUE), envir = teardown_env())
+  local_app_stop()
 })
 
 # ==========================================================================
@@ -200,8 +200,5 @@ describe("Mixed Effects - full ko dataset with 2 factors", {
     expect_true(any(nchar(html) > 0))
   })
 
-  withr::defer(
-    if (!is.null(app)) try(app$stop(), silent = TRUE),
-    envir = teardown_env()
-  )
+  local_app_stop()
 })

@@ -42,6 +42,29 @@ resolve_k_value <- function(kval, k_values) {
   }
 }
 
+#' Describe a demand fit for telemetry
+#'
+#' Built once per Calculate click and reused for every telemetry event of that
+#' fit (started / completed / failed / timeout / cancelled) and for the error
+#' row, so all of them are joinable on an identical parameter set. Carries the
+#' data size as counts only, never the data itself.
+#'
+#' @param spec List with is_grouped, eq, agg, k, constrainq0 (the worker spec)
+#' @param data Data frame the fit runs on (must have an `id` column)
+#' @return Named list; NULL entries are kept so they serialise as JSON null
+#' @export
+fit_params <- function(spec, data) {
+  list(
+    equation = spec$eq,
+    k = spec$k,
+    aggregation = spec$agg,
+    constrainq0 = spec$constrainq0,
+    grouped = isTRUE(spec$is_grouped),
+    n_rows = nrow(data),
+    n_ids = length(unique(data$id))
+  )
+}
+
 #' Resolve aggregation parameter for fit_demand_fixed
 #'
 #' @param agg_label Character analysis type from UI

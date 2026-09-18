@@ -1,0 +1,635 @@
+box::use(
+  testthat[...],
+  vroom,
+)
+
+box::use(
+  app / logic / reshape / spec,
+  app / logic / validate,
+)
+
+fixture <- function(name) {
+  dat <- vroom$vroom(testthat::test_path("fixtures", name), show_col_types = FALSE)
+  colnames(dat) <- trimws(tolower(colnames(dat)))   # file_input.R normalises before validation
+  as.data.frame(dat)
+}
+
+long_spec <- function(target = "demand", id = "subject", x = "price", y = "consumption",
+                      group = NULL, keep = character(0)) {
+  spec$new_spec(
+    target = target, layout = "long", id_col = id, x_col = x, y_col = y,
+    group_col = group, keep_cols = keep
+  )
+}
+
+# Qualtrics-style purchase task: id not first, item headers, one demographic column.
+apt <- function() {
+  data.frame(
+    age = c(31, 45, 28),
+    responseid = c("R_1", "R_2", "R_3"),
+    apt_1 = c(10, 12, 8),
+    apt_2 = c(8, 9, 7),
+    apt_3 = c("5", "6 drinks", "4"),
+    apt_4 = c(2, 3, 1),
+    stringsAsFactors = FALSE
+  )
+}
+
+apt_spec <- function(...) {
+  spec$new_spec(
+    target = "demand",
+    id_col = "responseid",
+    series = list(spec$new_series(c("apt_1", "apt_2", "apt_3", "apt_4"), x = c(0, 0.5, 1, 5))),
+    x_source = "manual",
+    ...
+  )
+}
+
+describe("parse_x_text", {
+  it("splits on commas, spaces, semicolons and newlines and tolerates $", {
+    expect_equal(spec$parse_x_text("0, $0.50;1\n5  10"), c(0, 0.5, 1, 5, 10))
+  })
+  it("returns numeric(0) for empty input", {
+    expect_equal(spec$parse_x_text(""), numeric(0))
+    expect_equal(spec$parse_x_text(NULL), numeric(0))
+  })
+  it("returns NA for a token that is not a number", {
+    expect_true(is.na(spec$parse_x_text("0 abc 1")[2]))
+  })
+})
+
+describe("validate_spec", {
+  it("accepts a well-formed single-series demand spec", {
+    expect_true(isTRUE(spec$validate_spec(apt_spec(), apt())))
+  })
+
+  it("requires an id column that exists and has no empty values", {
+    s <- apt_spec()
+    s$id_col <- NULL
+    expect_match(spec$validate_spec(s, apt()), "identifies each participant")
+    s$id_col <- "nope"
+    expect_match(spec$validate_spec(s, apt()), "\"nope\" is not in the data")
+    dat <- apt()
+    dat$responseid[2] <- NA
+    expect_match(spec$validate_spec(apt_spec(), dat), "has empty values")
+  })
+
+  it("requires at least two columns per series and no role overlap", {
+    s <- apt_spec()
+    s$series[[1]]$cols <- "apt_1"
+    s$series[[1]]$x <- 0
+    expect_match(spec$validate_spec(s, apt()), "at least two response columns")
+    s <- apt_spec()
+    s$series[[1]]$cols[1] <- "responseid"
+    expect_match(spec$validate_spec(s, apt()), "cannot be a response column and also")
+  })
+
+  it("requires x to match the columns, be numeric, unique, and non-negative", {
+    s <- apt_spec()
+    s$series[[1]]$x <- c(0, 0.5, 1)
+    expect_match(spec$validate_spec(s, apt()), "4 columns selected but 3 prices entered")
+    s$series[[1]]$x <- c(0, 0.5, NA, 5)
+    expect_match(spec$validate_spec(s, apt()), "must be a number")
+    s$series[[1]]$x <- c(0, 0.5, 0.5, 5)
+    expect_match(spec$validate_spec(s, apt()), "must be unique")
+    s$series[[1]]$x <- c(-1, 0.5, 1, 5)
+    expect_match(spec$validate_spec(s, apt()), "cannot be negative")
+  })
+
+  it("requires delays to be positive on the discounting target", {
+    dat <- data.frame(id = 1:2, d_7 = c(0.9, 0.8), d_30 = c(0.5, 0.4))
+    s <- spec$new_spec("discounting", "id", list(spec$new_series(c("d_7", "d_30"), x = c(0, 30))))
+    expect_match(spec$validate_spec(s, dat), "greater than zero")
+    s$series[[1]]$x <- c(7, 30)
+    expect_true(isTRUE(spec$validate_spec(s, dat)))
+  })
+
+  it("requires unique ids unless a group column separates repeats", {
+    dat <- rbind(apt(), apt())
+    expect_match(spec$validate_spec(apt_spec(), dat), "Rows do not have unique ids")
+    dat$cond <- rep(c("a", "b"), each = 3)
+    expect_true(isTRUE(spec$validate_spec(apt_spec(group_col = "cond"), dat)))
+  })
+
+  it("requires named, unique series and forbids a group column with several series", {
+    dat <- apt()
+    dat$cig_1 <- c(20, 15, 10)
+    dat$cig_2 <- c(10, 8, 5)
+    two <- function(label2 = "cig", group_col = NULL) {
+      spec$new_spec(
+        "demand", "responseid",
+        list(
+          spec$new_series(c("apt_1", "apt_2", "apt_3", "apt_4"), x = c(0, 0.5, 1, 5), label = "alc"),
+          spec$new_series(c("cig_1", "cig_2"), x = c(0, 1), label = label2)
+        ),
+        group_col = group_col
+      )
+    }
+    expect_true(isTRUE(spec$validate_spec(two(), dat)))
+    expect_match(spec$validate_spec(two(label2 = ""), dat), "Give every series a name")
+    expect_match(spec$validate_spec(two(label2 = "alc"), dat), "Series names must be unique")
+    dat$cond <- "a"
+    expect_match(spec$validate_spec(two(group_col = "cond"), dat), "separate group column cannot be used")
+  })
+
+  it("allows only one series and no group on discounting", {
+    dat <- data.frame(id = 1:2, d_7 = c(0.9, 0.8), d_30 = c(0.5, 0.4), e_7 = c(1, 1), e_30 = c(0, 0), g = "a")
+    s <- spec$new_spec("discounting", "id", list(
+      spec$new_series(c("d_7", "d_30"), x = c(7, 30), label = "d"),
+      spec$new_series(c("e_7", "e_30"), x = c(7, 30), label = "e")
+    ))
+    expect_match(spec$validate_spec(s, dat), "one set of delay columns")
+    s <- spec$new_spec("discounting", "id", list(spec$new_series(c("d_7", "d_30"), x = c(7, 30))), group_col = "g")
+    expect_match(spec$validate_spec(s, dat), "cannot carry a group column")
+  })
+
+  it("rejects reserved names among carried columns and keep_cols outside ME", {
+    dat <- apt()
+    dat$x <- 1
+    s <- spec$new_spec(
+      "mixed_effects_demand", "responseid",
+      list(spec$new_series(c("apt_1", "apt_2"), x = c(0, 0.5))),
+      keep_cols = c("age", "x")
+    )
+    expect_match(spec$validate_spec(s, dat), "Columns named \"x\" cannot be carried along")
+    s$keep_cols <- "age"
+    expect_true(isTRUE(spec$validate_spec(s, dat)))
+    s$target <- "demand"
+    expect_match(spec$validate_spec(s, dat), "Only the mixed-effects tab can carry")
+    s$keep_cols <- "nope"
+    expect_match(spec$validate_spec(s, dat), "\"nope\"")
+  })
+
+  it("lets a column named group be carried on ME and be the group column on demand", {
+    dat <- apt()
+    dat$group <- c("a", "b", "a")
+    s <- spec$new_spec(
+      "mixed_effects_demand", "responseid",
+      list(spec$new_series(c("apt_1", "apt_2"), x = c(0, 0.5))),
+      keep_cols = "group"
+    )
+    expect_true(isTRUE(spec$validate_spec(s, dat)))
+    expect_equal(colnames(spec$apply_spec(s, dat)$data), c("id", "x", "y", "group"))
+    d <- spec$new_spec(
+      "demand", "responseid",
+      list(spec$new_series(c("apt_1", "apt_2"), x = c(0, 0.5))),
+      group_col = "group"
+    )
+    expect_true(isTRUE(spec$validate_spec(d, dat)))
+    expect_equal(unique(spec$apply_spec(d, dat)$data$group), c("a", "b"))
+  })
+
+  it("rejects keep_cols named after apply_spec's temporary columns", {
+    dat <- apt()
+    dat$.row <- 1:3
+    s <- spec$new_spec(
+      "mixed_effects_demand", "responseid",
+      list(spec$new_series(c("apt_1", "apt_2"), x = c(0, 0.5))),
+      keep_cols = ".row"
+    )
+    expect_match(spec$validate_spec(s, dat), "cannot be carried along")
+  })
+
+  it("rejects a frame with no data rows before any cell check", {
+    expect_equal(spec$validate_spec(apt_spec(), apt()[0, ]), "The file has no data rows.")
+  })
+
+  it("rejects a series with no numeric cells and ids with fewer than two responses", {
+    dat <- apt()
+    dat$apt_1 <- "x"
+    dat$apt_2 <- "y"
+    s <- spec$new_spec("demand", "responseid", list(spec$new_series(c("apt_1", "apt_2"), x = c(0, 1))))
+    expect_match(spec$validate_spec(s, dat), "none of the selected columns contain numbers")
+    dat <- apt()
+    dat$apt_2[1] <- NA
+    dat$apt_3[1] <- NA
+    dat$apt_4[1] <- NA
+    expect_match(spec$validate_spec(apt_spec(), dat), "fewer than two usable responses: \"R_1\"")
+  })
+})
+
+describe("apply_spec", {
+  it("pivots a single series into id, x, y ordered by row then x, parsing text cells", {
+    out <- spec$apply_spec(apt_spec(), apt())
+    expect_equal(colnames(out$data), c("id", "x", "y"))
+    expect_equal(nrow(out$data), 12)
+    expect_equal(out$data$id[1:4], rep("R_1", 4))
+    expect_equal(out$data$x[1:4], c(0, 0.5, 1, 5))
+    expect_equal(out$data$y[1:4], c(10, 8, 5, 2))
+    expect_equal(out$data$y[out$data$id == "R_2" & out$data$x == 1], 6)   # "6 drinks"
+    expect_type(out$data$id, "character")
+    expect_equal(out$losses, list(n_na_y = 0L, n_na_keep = 0L))
+    expect_equal(out$n_ids, 3)
+  })
+
+  it("carries a group column on demand", {
+    dat <- apt()
+    dat$cond <- c("a", "a", "b")
+    out <- spec$apply_spec(apt_spec(group_col = "cond"), dat)
+    expect_equal(colnames(out$data), c("id", "group", "x", "y"))
+    expect_equal(out$data$group[out$data$id == "R_3"], rep("b", 4))
+  })
+
+  it("turns several series into group levels on demand", {
+    dat <- apt()
+    dat$cig_1 <- c(20, 15, 10)
+    dat$cig_2 <- c(10, 8, 5)
+    s <- spec$new_spec("demand", "responseid", list(
+      spec$new_series(c("apt_1", "apt_2", "apt_3", "apt_4"), x = c(0, 0.5, 1, 5), label = "alc"),
+      spec$new_series(c("cig_1", "cig_2"), x = c(0, 1), label = "cig")
+    ))
+    out <- spec$apply_spec(s, dat)
+    expect_equal(colnames(out$data), c("id", "group", "x", "y"))
+    expect_equal(nrow(out$data), 18)
+    expect_equal(sort(unique(out$data$group)), c("alc", "cig"))
+    expect_equal(out$data$y[out$data$id == "R_1" & out$data$group == "cig"], c(20, 10))
+  })
+
+  it("emits id, x, y, series, keep_cols on mixed effects and counts covariate losses", {
+    dat <- apt()
+    dat$age[3] <- NA
+    dat$cig_1 <- c(20, 15, 10)
+    dat$cig_2 <- c(10, 8, 5)
+    s <- spec$new_spec("mixed_effects_demand", "responseid", list(
+      spec$new_series(c("apt_1", "apt_2"), x = c(0, 0.5), label = "alc"),
+      spec$new_series(c("cig_1", "cig_2"), x = c(0, 1), label = "cig")
+    ), keep_cols = "age")
+    out <- spec$apply_spec(s, dat)
+    expect_equal(colnames(out$data), c("id", "x", "y", "series", "age"))
+    expect_equal(nrow(out$data), 12)
+    expect_equal(out$losses$n_na_keep, 4L)
+  })
+
+  it("drops NA responses by default and reports the count", {
+    dat <- apt()
+    dat$apt_2[1] <- NA
+    out <- spec$apply_spec(apt_spec(), dat)
+    expect_equal(nrow(out$data), 11)
+    expect_equal(out$losses$n_na_y, 1L)
+    keep <- spec$apply_spec(apt_spec(drop_na = FALSE), dat)
+    expect_equal(nrow(keep$data), 12)
+  })
+
+  it("emits exactly id, x, y on discounting", {
+    dat <- data.frame(id = c("P1", "P2"), d_7 = c(0.9, 0.8), d_30 = c(0.5, 0.4))
+    s <- spec$new_spec("discounting", "id", list(spec$new_series(c("d_7", "d_30"), x = c(7, 30))))
+    out <- spec$apply_spec(s, dat)
+    expect_equal(colnames(out$data), c("id", "x", "y"))
+    expect_equal(out$data$x, c(7, 30, 7, 30))
+  })
+
+  it("stops with the validation message on an invalid spec", {
+    s <- apt_spec()
+    s$series[[1]]$x <- c(0, 1)
+    expect_error(spec$apply_spec(s, apt()), "4 columns selected but 2 prices entered")
+  })
+})
+
+describe("apply_spec output re-enters the existing validators unchanged", {
+  box::use(app / logic / validate)
+  box::use(app / logic / mixed_effects / data_prep)
+
+  it("demand: check_data passes and rename/reshape/retype leave it long", {
+    long <- spec$apply_spec(apt_spec(), apt())$data
+    expect_true(isTRUE(validate$check_data(long, type = "demand")))
+    expect_equal(validate$demand_format(long), "long")
+    final <- validate$retype_data(validate$reshape_data(validate$rename_cols(long)))
+    expect_equal(colnames(final), c("id", "x", "y"))
+    expect_true(isTRUE(validate$check_demand_sufficiency(long)))
+  })
+
+  it("discounting: check_data passes and prepare_discounting_data keeps id, x, y", {
+    dat <- data.frame(id = c("P1", "P2"), d_7 = c(0.9, 0.8), d_30 = c(0.5, 0.4))
+    s <- spec$new_spec("discounting", "id", list(spec$new_series(c("d_7", "d_30"), x = c(7, 30))))
+    long <- spec$apply_spec(s, dat)$data
+    expect_true(isTRUE(validate$check_data(long, type = "discounting")))
+    expect_equal(colnames(validate$prepare_discounting_data(long)), c("id", "x", "y"))
+  })
+
+  it("mixed effects: check_data passes and the pickers guess id, x, y", {
+    s <- spec$new_spec("mixed_effects_demand", "responseid",
+                       list(spec$new_series(c("apt_1", "apt_2"), x = c(0, 0.5))), keep_cols = "age")
+    long <- spec$apply_spec(s, apt())$data
+    expect_true(isTRUE(validate$check_data(long, type = "mixed_effects_demand")))
+    guessed <- data_prep$guess_variable_columns(long)
+    expect_equal(guessed[c("id", "x", "y")], list(id = "id", x = "x", y = "y"))
+  })
+})
+
+describe("new_spec(layout = 'long')", {
+  it("carries the long columns and neutralises x_source", {
+    s <- long_spec()
+    expect_equal(s$layout, "long")
+    expect_equal(s$x_source, "none")
+    expect_length(s$series, 0)
+  })
+  it("rejects a long spec that also carries series", {
+    expect_error(spec$new_spec("demand", "id", list(spec$new_series(c("a", "b"))), layout = "long"))
+  })
+})
+
+describe("validate_spec, long layout", {
+  dat <- fixture("long-misnamed.csv")
+  it("accepts a well-formed long demand mapping", {
+    expect_true(spec$validate_spec(long_spec(), dat))
+  })
+  it("requires an id, an x and a y", {
+    expect_match(spec$validate_spec(long_spec(id = NULL), dat), "identifies each participant")
+    expect_match(spec$validate_spec(long_spec(x = NULL), dat), "price column")
+    expect_match(spec$validate_spec(long_spec(y = NULL), dat), "consumption column")
+  })
+  it("requires the three columns to be different and present", {
+    expect_match(spec$validate_spec(long_spec(y = "price"), dat), "cannot be used twice")
+    expect_match(spec$validate_spec(long_spec(x = "nope"), dat), "not in the data")
+  })
+  it("requires a number in every x cell and some number in y", {
+    bad <- dat
+    bad$price[2] <- NA
+    expect_match(spec$validate_spec(long_spec(), bad), "needs a number")
+    bad2 <- dat
+    bad2$consumption <- "none"
+    expect_match(spec$validate_spec(long_spec(), bad2), "contain numbers")
+  })
+  it("names the participants who repeat a price", {
+    dup <- dat
+    dup$price[2] <- dup$price[1]
+    expect_match(spec$validate_spec(long_spec(), dup), "s1")
+  })
+  it("allows the repeat when a group column distinguishes it", {
+    dup <- dat
+    dup$price[2] <- dup$price[1]
+    dup$session <- rep(c("a", "b"), length.out = nrow(dup))
+    expect_true(spec$validate_spec(long_spec(group = "session"), dup))
+  })
+  it("requires two usable responses per participant after empty y are dropped", {
+    short <- dat
+    short$consumption[short$subject == "s2"] <- NA
+    expect_match(spec$validate_spec(long_spec(), short), "fewer than two usable responses")
+  })
+  it("keeps the discounting and mixed-effects rules", {
+    ip <- fixture("long-ip-named.csv")
+    expect_true(spec$validate_spec(long_spec("discounting", "id", "delay", "indiff"), ip))
+    zero <- ip
+    zero$delay[1] <- 0
+    expect_match(spec$validate_spec(long_spec("discounting", "id", "delay", "indiff"), zero), "greater than zero")
+    expect_match(
+      spec$validate_spec(long_spec("discounting", "id", "delay", "indiff", group = "id"), ip),
+      "cannot carry a group column"
+    )
+    me <- fixture("long-me-covariates.csv")
+    expect_true(spec$validate_spec(long_spec("mixed_effects_demand", group = "sex", keep = "age"), me))
+    expect_match(spec$validate_spec(long_spec(keep = "age"), me), "Only the mixed-effects tab")
+    reserved <- me
+    reserved$series <- "a"
+    expect_match(
+      spec$validate_spec(long_spec("mixed_effects_demand", keep = "series"), reserved),
+      "cannot be carried along"
+    )
+  })
+})
+
+describe("apply_spec, long layout", {
+  it("renames the three columns and keeps the file's rows", {
+    out <- spec$apply_spec(long_spec(), fixture("long-misnamed.csv"))
+    expect_equal(colnames(out$data), c("id", "x", "y"))
+    expect_equal(nrow(out$data), 12)
+    expect_equal(out$n_ids, 3)
+    expect_equal(out$data$x[1:4], c(0, 0.5, 1, 5))
+    expect_true(is.numeric(out$data$y))
+  })
+  it("adds the group column on demand and a series column on mixed effects", {
+    d <- spec$apply_spec(
+      long_spec(id = "id", x = "x", y = "y", group = "site"), fixture("long-extra-cols.csv")
+    )
+    expect_equal(colnames(d$data), c("id", "group", "x", "y"))
+    m <- spec$apply_spec(
+      long_spec("mixed_effects_demand", group = "sex", keep = "age"), fixture("long-me-covariates.csv")
+    )
+    expect_equal(colnames(m$data), c("id", "x", "y", "series", "age"))
+  })
+  it("drops empty responses and reports the loss", {
+    dat <- fixture("long-misnamed.csv")
+    dat$consumption[1] <- NA
+    out <- spec$apply_spec(long_spec(), dat)
+    expect_equal(out$losses$n_na_y, 1)
+    expect_equal(nrow(out$data), 11)
+  })
+  it("parses currency cells", {
+    dat <- fixture("long-misnamed.csv")
+    dat$price <- paste0("$", dat$price)
+    expect_equal(spec$apply_spec(long_spec(), dat)$data$x[1:2], c(0, 0.5))
+  })
+  it("refuses to apply a spec that does not validate", {
+    expect_error(spec$apply_spec(long_spec(x = "nope"), fixture("long-misnamed.csv")), "not in the data")
+  })
+  it("produces frames that check_data() accepts on all three tabs", {
+    expect_true(validate$check_data(
+      spec$apply_spec(long_spec(), fixture("long-misnamed.csv"))$data, "demand"
+    ))
+    expect_true(validate$check_data(
+      spec$apply_spec(
+        long_spec(id = "id", x = "x", y = "y", group = "site"), fixture("long-extra-cols.csv")
+      )$data, "demand"
+    ))
+    expect_true(validate$check_data(
+      spec$apply_spec(
+        long_spec("mixed_effects_demand", keep = "age"), fixture("long-me-covariates.csv")
+      )$data, "mixed_effects_demand"
+    ))
+    expect_true(validate$check_data(
+      spec$apply_spec(
+        long_spec("discounting", "id", "delay", "indiff"), fixture("long-ip-named.csv")
+      )$data, "discounting"
+    ))
+  })
+})
+
+describe("responses that cannot be fitted", {
+  it("counts responses per curve, not per participant, when a group column is used", {
+    dat <- data.frame(
+      id = c("a", "a", "b", "b"), grp = c("A", "B", "A", "B"),
+      x = c(1, 1, 1, 1), y = c(5, 6, 7, 8), stringsAsFactors = FALSE
+    )
+    s <- spec$new_spec("demand", layout = "long", id_col = "id", x_col = "x", y_col = "y", group_col = "grp")
+    expect_match(spec$validate_spec(s, dat), "fewer than two usable responses")
+  })
+  it("treats non-finite responses as missing in both layouts", {
+    dat <- data.frame(
+      id = rep(c("a", "b"), each = 3), x = rep(1:3, 2), y = c(5, Inf, 7, 8, 9, 10),
+      stringsAsFactors = FALSE
+    )
+    s <- spec$new_spec("demand", layout = "long", id_col = "id", x_col = "x", y_col = "y")
+    out <- spec$apply_spec(s, dat)
+    expect_true(all(is.finite(out$data$y)))
+    expect_equal(out$losses$n_na_y, 1)
+
+    wide <- data.frame(
+      id = c("a", "b"), `0` = c(5, Inf), `1` = c(3, 4), `2` = c(1, 2), check.names = FALSE
+    )
+    sw <- spec$new_spec("demand", "id", list(spec$new_series(c("0", "1", "2"), x = c(0, 1, 2))))
+    out_w <- spec$apply_spec(sw, wide)
+    expect_true(all(is.finite(out_w$data$y)))
+    expect_equal(out_w$losses$n_na_y, 1)
+  })
+  it("rejects an infinite response that would leave a participant with one point", {
+    dat <- data.frame(
+      id = rep(c("a", "b"), each = 3), x = rep(1:3, 2), y = c(5, Inf, Inf, 8, 9, 10),
+      stringsAsFactors = FALSE
+    )
+    s <- spec$new_spec("demand", layout = "long", id_col = "id", x_col = "x", y_col = "y")
+    expect_match(spec$validate_spec(s, dat), "fewer than two usable responses")
+  })
+  it("rejects empty values in the group column, in both layouts", {
+    dat <- data.frame(
+      id = rep(c("a", "b"), each = 3), grp = c("A", "A", NA, "B", "B", "B"),
+      x = rep(1:3, 2), y = c(5, 6, 7, 8, 9, 10), stringsAsFactors = FALSE
+    )
+    s <- spec$new_spec("demand", layout = "long", id_col = "id", x_col = "x", y_col = "y", group_col = "grp")
+    expect_match(spec$validate_spec(s, dat), "has empty values")
+
+    wide <- data.frame(
+      id = c("a", "b"), grp = c("A", NA), `0` = c(5, 6), `1` = c(3, 4), check.names = FALSE
+    )
+    sw <- spec$new_spec(
+      "demand", "id", list(spec$new_series(c("0", "1"), x = c(0, 1))), group_col = "grp"
+    )
+    expect_match(spec$validate_spec(sw, wide), "has empty values")
+  })
+})
+
+describe("keys built from values that contain the separator", {
+  # A key pasted together with a separator merges two distinct combinations when a value
+  # contains that separator: `paste("a", "\rb")` and `paste("a\r", "b")` are the same
+  # string, so two participants become one and validation stops telling the truth.
+  it("does not merge two one-row curves into one that looks fittable", {
+    dat <- data.frame(
+      subject = c("a", "a\r"),
+      cond = c("\rb", "b"),
+      price = c(1, 1),
+      consumption = c(10, 9),
+      stringsAsFactors = FALSE
+    )
+    expect_match(
+      spec$validate_spec(long_spec(group = "cond"), dat), "fewer than two usable responses"
+    )
+  })
+  it("does not call two distinct wide rows a duplicated id", {
+    dat <- data.frame(
+      subject = c("a", "a\r"),
+      cond = c("\rb", "b"),
+      `1` = c(10, 9),
+      `2` = c(8, 7),
+      check.names = FALSE,
+      stringsAsFactors = FALSE
+    )
+    s <- spec$new_spec(
+      target = "demand", layout = "wide", id_col = "subject", group_col = "cond",
+      series = list(spec$new_series(c("1", "2"), x = c(1, 2)))
+    )
+    expect_true(spec$validate_spec(s, dat))
+  })
+  it("gives each distinct combination its own key", {
+    expect_equal(length(unique(spec$composite_key(c("a", "a\r"), c("\rb", "b")))), 2)
+  })
+})
+
+describe("preview_summary", {
+  long_preview <- function(group = NULL) {
+    d <- data.frame(
+      id = rep(paste0("s", 1:3), each = 10),
+      x = rep(c(1, 2, 4, 8, 16, 0.25, 0.5, 1.5, 3, 6), 3),
+      y = seq_len(30),
+      stringsAsFactors = FALSE
+    )
+    if (!is.null(group)) d$group <- rep(rep(c("beer", "cigarettes"), each = 5), 3)
+    list(data = d, n_ids = 3, losses = list(n_na_y = 0, n_na_keep = 0))
+  }
+  it("counts curves so the merge is visible without a group", {
+    s <- spec$new_spec(target = "demand", layout = "long", id_col = "id", x_col = "x", y_col = "y")
+    expect_equal(
+      spec$preview_summary(s, long_preview()),
+      "3 participants × 10 responses → 30 rows, 3 curves"
+    )
+  })
+  it("names the groups and recounts the curves when one is chosen", {
+    s <- spec$new_spec(
+      target = "demand", layout = "long", id_col = "id", x_col = "x", y_col = "y",
+      group_col = "commodity"
+    )
+    expect_equal(
+      spec$preview_summary(s, long_preview("commodity")),
+      "3 participants × 2 groups × 5 responses → 30 rows, 6 curves"
+    )
+  })
+  it("gives a range when the curves are not all the same length", {
+    p <- long_preview("commodity")
+    p$data <- p$data[-1, , drop = FALSE]
+    s <- spec$new_spec(
+      target = "demand", layout = "long", id_col = "id", x_col = "x", y_col = "y",
+      group_col = "commodity"
+    )
+    expect_match(spec$preview_summary(s, p), "4–5 responses")
+  })
+  it("still reports what was dropped", {
+    p <- long_preview()
+    p$losses$n_na_y <- 2
+    s <- spec$new_spec(target = "demand", layout = "long", id_col = "id", x_col = "x", y_col = "y")
+    expect_match(spec$preview_summary(s, p), "2 empty responses dropped")
+  })
+  it("leaves the wide wording alone", {
+    s <- spec$new_spec(
+      target = "demand", layout = "wide", id_col = "id",
+      series = list(spec$new_series(c("a", "b"), x = c(1, 2)))
+    )
+    p <- list(data = data.frame(id = c("s1", "s2")), n_ids = 2,
+              losses = list(n_na_y = 0, n_na_keep = 0))
+    expect_equal(
+      spec$preview_summary(s, p), "1 series × 2 participants × 2 response columns → 2 rows"
+    )
+  })
+})
+
+describe("group_choices", {
+  it("leaves the plain case exactly as it was", {
+    expect_equal(
+      spec$group_choices(c("a", "b"), character(0)), c("None" = "", "a" = "a", "b" = "b")
+    )
+  })
+  it("puts a single candidate in its own group without losing its name", {
+    ch <- spec$group_choices(c("commodity", "note"), "commodity")
+    expect_equal(names(ch), c("None", "Splits each participant into complete sets", "Other columns"))
+    expect_equal(ch[["Splits each participant into complete sets"]], list(commodity = "commodity"))
+    expect_equal(ch[["Other columns"]], list(note = "note"))
+  })
+  it("omits the leftover section when every column is a candidate", {
+    ch <- spec$group_choices(c("commodity", "site"), c("commodity", "site"))
+    expect_equal(names(ch), c("None", "Splits each participant into complete sets"))
+  })
+})
+
+describe("partition_note", {
+  it("explains a column it chose", {
+    expect_equal(
+      spec$partition_note("commodity", 2, 5, "demand", selected = TRUE),
+      paste0("“commodity” was chosen as the group: it splits each participant into ",
+             "2 sets of 5 prices. Set it to None if it only labels the price.")
+    )
+  })
+  it("invites the user to choose one it did not", {
+    expect_equal(
+      spec$partition_note("phase", 2, 5, "demand", selected = FALSE),
+      paste0("“phase” splits each participant into 2 sets of 5 prices. Choose it as the ",
+             "group if these are separate conditions or commodities; leave None if it only ",
+             "labels the price.")
+    )
+  })
+  it("calls it the series on the mixed-effects side, matching the selector", {
+    expect_match(
+      spec$partition_note("commodity", 2, 5, "mixed_effects_demand", FALSE),
+      "Choose it as the series"
+    )
+  })
+  it("says delays on the discounting side", {
+    expect_match(spec$partition_note("session", 2, 4, "discounting", FALSE), "4 delays")
+  })
+})

@@ -334,3 +334,50 @@ describe("validate_factors", {
     expect_true(result$valid)
   })
 })
+
+describe("map_random_effects", {
+  it("maps checkbox values to model parameter names in a fixed order", {
+    expect_identical(model_fitting$map_random_effects(c("alpha", "q0")), c("Q0", "alpha"))
+    expect_identical(model_fitting$map_random_effects("alpha"), "alpha")
+    expect_identical(model_fitting$map_random_effects(character(0)), character(0))
+    expect_identical(model_fitting$map_random_effects(NULL), character(0))
+  })
+})
+
+describe("build_mixed_fit_spec", {
+  ctrl <- list(maxIter = 50, pnlsMaxIter = 7, msMaxIter = 50, tolerance = 1e-6,
+               pnlsTol = 0.001, minScale = 0.001, niterEM = 25)
+  it("encodes the random-effects formula as a string that parses", {
+    spec <- model_fitting$build_mixed_fit_spec(
+      x_var = "x", id_var = "id", equation_form = "zben", random_effects_params = c("Q0", "alpha"),
+      factors = character(0), factor_interaction = FALSE, k = "2", collapse_levels = NULL,
+      covariance_structure = "pdDiag", nlme_control = ctrl, continuous_covariates = character(0)
+    )
+    expect_identical(spec$random_effects, "Q0 + alpha ~ 1")
+    expect_s3_class(stats::as.formula(spec$random_effects), "formula")
+    expect_identical(spec$y_var, "y_for_model")
+    expect_null(spec$factors)
+    expect_null(spec$continuous_covariates)
+    expect_null(spec$k)
+    expect_identical(spec$start_value_method, "pooled_nls")
+  })
+  it("passes k only for the exponentiated equation", {
+    spec <- model_fitting$build_mixed_fit_spec(
+      x_var = "x", id_var = "id", equation_form = "exponentiated", random_effects_params = "Q0",
+      factors = "drug", factor_interaction = TRUE, k = "2.5", collapse_levels = NULL,
+      covariance_structure = "pdSymm", nlme_control = ctrl, continuous_covariates = "age_c"
+    )
+    expect_identical(spec$k, 2.5)
+    expect_identical(spec$factors, "drug")
+    expect_true(spec$factor_interaction)
+    expect_identical(spec$continuous_covariates, "age_c")
+  })
+  it("serialises small (no environments dragged along)", {
+    spec <- model_fitting$build_mixed_fit_spec(
+      x_var = "x", id_var = "id", equation_form = "zben", random_effects_params = c("Q0", "alpha"),
+      factors = NULL, factor_interaction = FALSE, k = NULL, collapse_levels = NULL,
+      covariance_structure = "pdDiag", nlme_control = ctrl, continuous_covariates = NULL
+    )
+    expect_lt(length(serialize(spec, NULL)), 5000)
+  })
+})

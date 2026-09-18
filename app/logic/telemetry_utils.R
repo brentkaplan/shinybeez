@@ -7,7 +7,9 @@ box::use(
   jsonlite[toJSON],
   rhino[log],
   shiny[isolate],
-  glue
+  glue,
+  R6,
+  DBI,
 )
 
 # Global telemetry object
@@ -63,6 +65,151 @@ init_telemetry <- function() {
   .telemetry_env$telemetry
 }
 
+#' Raise the SQLite busy timeout on a telemetry storage connection
+#'
+#' RSQLite leaves `busy_timeout` at 0, so a write that meets a lock fails immediately with
+#' SQLITE_BUSY and does not retry. `track_event()` catches that error and only logs a warning,
+#' so the event is lost without the user ever seeing anything wrong. Production and staging
+#' containers share one telemetry database file, which makes writer-vs-writer contention
+#' possible; a few seconds of retry removes it.
+#'
+#' shiny.telemetry exposes no hook for connection pragmas, so this reaches the storage object's
+#' private connection deliberately. That is version-fragile by nature, so the call is defensive
+#' and returns FALSE rather than erroring: telemetry must never take the app down.
+#'
+#' Telemetry writes happen synchronously on the R event loop, so this timeout is a latency
+#' ceiling per write, not a free retry: with a lock held continuously, a module that emits
+#' several events in a row multiplies it. The default is therefore kept well above the
+#' milliseconds a single small INSERT holds the lock, but low enough that the pathological
+#' case stays tolerable. The nightly backup takes a read transaction on this file (sub-second
+#' at current size, and it runs at 03:15), which is the other contender this must ride out.
+#'
+#' @param storage A shiny.telemetry data storage object
+#' @param timeout_ms Milliseconds SQLite retries a locked database before giving up.
+#'   Must be a finite positive number; anything else is refused, because a zero or negative
+#'   value silently restores the original fail-instantly behaviour.
+#' @return TRUE if the timeout was applied, otherwise FALSE. Never throws.
+#' @export
+set_sqlite_busy_timeout <- function(storage, timeout_ms = 2000) {
+  tryCatch({
+    if (!is.numeric(timeout_ms) || length(timeout_ms) != 1L ||
+          !is.finite(timeout_ms) || timeout_ms <= 0) {
+      return(FALSE)
+    }
+    enclos <- storage$.__enclos_env__
+    if (is.null(enclos)) {
+      return(FALSE)
+    }
+    con <- enclos$private$db_con
+    if (!inherits(con, "DBIConnection") || !DBI::dbIsValid(con)) {
+      return(FALSE)
+    }
+    DBI::dbExecute(con, sprintf("PRAGMA busy_timeout = %d", as.integer(timeout_ms)))
+    TRUE
+  }, error = function(e) {
+    # The handler must not become the thing that throws.
+    try(log$warn("Could not set SQLite busy timeout: {e$message}"), silent = TRUE)
+    FALSE
+  })
+}
+
+#' Switch a telemetry SQLite storage to write-ahead logging
+#'
+#' Several app containers (the pre-warmed seat, the active seats, staging) share one
+#' `telemetry.sqlite`. In SQLite's default rollback-journal mode a reader's SHARED lock blocks
+#' every writer's COMMIT until `busy_timeout` runs out, and a connection that wants to write
+#' while another holds RESERVED gets SQLITE_BUSY at once, whatever the timeout. Both surfaced
+#' during the 2026-09-15 container storm as "database is locked" and "Failed to create sqlite
+#' storage". WAL lets readers and one writer proceed together and removes the lock-upgrade
+#' deadlock.
+#'
+#' `journal_mode=WAL` is persisted in the database file, so the first container to run this
+#' after a deploy flips it for every later connection; `synchronous=NORMAL` is per connection
+#' and is the WAL-safe level (a power loss can drop the last transactions, never corrupt the
+#' file). Call after `set_sqlite_busy_timeout()`: the mode switch needs a moment with no other
+#' writer and, with a timeout set, waits for one instead of failing.
+#'
+#' @param storage A shiny.telemetry data storage object
+#' @return TRUE if the connection reports WAL afterwards, otherwise FALSE. Never throws.
+#' @export
+set_sqlite_wal <- function(storage) {
+  tryCatch({
+    enclos <- storage$.__enclos_env__
+    if (is.null(enclos)) {
+      return(FALSE)
+    }
+    con <- enclos$private$db_con
+    if (!inherits(con, "DBIConnection") || !DBI::dbIsValid(con)) {
+      return(FALSE)
+    }
+    # This pragma answers with the mode now in force, so read it back rather than trust it.
+    mode <- DBI::dbGetQuery(con, "PRAGMA journal_mode = WAL")[[1]]
+    if (!identical(tolower(as.character(mode)), "wal")) {
+      return(FALSE)
+    }
+    DBI::dbExecute(con, "PRAGMA synchronous = NORMAL")
+    TRUE
+  }, error = function(e) {
+    # The handler must not become the thing that throws.
+    try(log$warn("Could not switch SQLite to WAL: {e$message}"), silent = TRUE)
+    FALSE
+  })
+}
+
+#' SQLite telemetry storage whose writes survive other containers' commits
+#'
+#' Several containers share one `telemetry.sqlite`. shiny.telemetry writes through
+#' `RSQLite::dbWriteTable(append = TRUE)`, which opens a *deferred* transaction, reads the
+#' schema, then inserts. In WAL mode a connection that read under one snapshot and then finds
+#' another writer committed in between gets `SQLITE_BUSY_SNAPSHOT` ("database is locked") at
+#' once; SQLite never consults `busy_timeout` for that case. The package's own login write and
+#' input observer (both registered by `Telemetry$start_session()`) let that error escape, and
+#' Shiny ends the user's session. This was the 2026-09-17 load-test failure at 3+ sessions.
+#'
+#' The override takes the write lock up front with `BEGIN IMMEDIATE`, which *does* honour
+#' `busy_timeout`, so the inherited write runs with no snapshot to lose. If the lock cannot be
+#' had within the timeout, or anything else goes wrong, the event is dropped, counted and
+#' logged; it is never raised. A user session must not end because a telemetry row failed.
+#'
+#' `dropped_writes()` reports the count for tests and health checks.
+DataStorageSQLiteResilient <- R6$R6Class( # nolint: object_name_linter.
+  "DataStorageSQLiteResilient",
+  inherit = shiny.telemetry::DataStorageSQLite,
+  public = list(
+    #' @description Number of writes dropped on this connection since it was opened.
+    dropped_writes = function() {
+      private$n_dropped
+    }
+  ),
+  private = list(
+    n_dropped = 0L,
+    write = function(values, bucket) {
+      con <- private$db_con
+      in_txn <- FALSE
+      ok <- tryCatch(
+        {
+          DBI::dbExecute(con, "BEGIN IMMEDIATE")
+          in_txn <- TRUE
+          super$write(values, bucket)
+          DBI::dbExecute(con, "COMMIT")
+          TRUE
+        },
+        error = function(e) {
+          if (in_txn) {
+            try(DBI::dbExecute(con, "ROLLBACK"), silent = TRUE)
+          }
+          private$n_dropped <- private$n_dropped + 1L
+          msg <- conditionMessage(e)
+          # The handler must not become the thing that throws.
+          try(log$warn("telemetry write dropped: {msg}"), silent = TRUE)
+          FALSE
+        }
+      )
+      invisible(ok)
+    }
+  )
+)
+
 #' Create data storage backend based on configuration
 #'
 #' @param config Telemetry configuration
@@ -79,7 +226,17 @@ create_data_storage <- function(config) {
           dir.create(db_dir, recursive = TRUE)
         }
 
-        shiny.telemetry::DataStorageSQLite$new(db_path = db_path)
+        storage <- DataStorageSQLiteResilient$new(db_path = db_path)
+        # Prod and staging write to the same file; without this a contended write is dropped.
+        if (!set_sqlite_busy_timeout(storage)) {
+          log$warn("SQLite busy timeout not applied; contended telemetry writes may be lost")
+        }
+        # Several containers hold this file open at once; WAL keeps their reads from blocking
+        # each other's writes. Timeout first so the mode switch waits for a quiet moment.
+        if (!set_sqlite_wal(storage)) {
+          log$warn("SQLite WAL mode not applied; concurrent containers may hit 'database is locked'")
+        }
+        storage
       },
       "postgresql" = {
         has_driver <- requireNamespace("RPostgres", quietly = TRUE) ||
@@ -233,7 +390,10 @@ track_model_fitting <- function(
 
 #' Track data upload event
 #'
-#' @param file_info Information about uploaded file
+#' @param file_info Information about uploaded file: `size`, `type`, `rows`, `cols`, and an
+#'   optional `reshaped` logical flag marking a file that went through the wide-to-long
+#'   mapper (`app/view/wide_mapper.R`) before it was stored, rather than uploaded already in
+#'   a template shape. Missing or non-`TRUE` values are recorded as `FALSE`.
 #' @param session Shiny session object
 #' @export
 track_data_upload <- function(file_info = list(), session = NULL) {
@@ -242,7 +402,8 @@ track_data_upload <- function(file_info = list(), session = NULL) {
     file_size = file_info$size,
     file_type = file_info$type,
     rows = file_info$rows,
-    cols = file_info$cols
+    cols = file_info$cols,
+    reshaped = isTRUE(file_info$reshaped)
   )
 
   track_event(
@@ -373,13 +534,41 @@ track_export <- function(
 #' @param error_context Context where error occurred
 #' @param session Shiny session object
 #' @export
-track_error <- function(error_message, error_context = NULL, session = NULL) {
+#' @param details Optional named list of caller context (for example the fit spec
+#'   and data size) nested under `details` in the event JSON. Counts only, never
+#'   raw data.
+track_error <- function(error_message, error_context = NULL, session = NULL, details = NULL) {
+  event_data <- list(
+    error_message = error_message,
+    context = error_context,
+    timestamp = Sys.time()
+  )
+  # Nested rather than flattened so caller-supplied keys can never collide with
+  # the top-level schema the analytics consumer reads (error_message, context).
+  if (!is.null(details)) {
+    event_data$details <- details
+  }
   track_event(
     event_name = "error",
-    event_data = list(
-      error_message = error_message,
-      context = error_context,
-      timestamp = Sys.time()
+    event_data = event_data,
+    session = session
+  )
+}
+
+#' Track the wide-to-long mapper lifecycle
+#'
+#' @param target Module name, same vocabulary as track_validation(): "demand",
+#'   "mixed_effects" or "discounting"
+#' @param outcome "opened", "confirmed" or "cancelled"
+#' @param summary Optional list: n_series, x_source, n_cols_in, n_rows_out, n_dropped.
+#'   Never column names or cell values.
+#' @export
+track_reshape <- function(target, outcome, summary = list(), session = NULL) {
+  track_event(
+    event_name = "reshape",
+    event_data = c(
+      list(target = target, outcome = outcome, timestamp = Sys.time()),
+      summary
     ),
     session = session
   )
@@ -438,14 +627,17 @@ create_session_telemetry <- function(session) {
     track_performance = function(operation_name, duration_ms, additional_metrics = list()) {
       track_performance(operation_name, duration_ms, additional_metrics, session)
     },
-    track_error = function(error_message, error_context = NULL) {
-      track_error(error_message, error_context, session)
+    track_error = function(error_message, error_context = NULL, details = NULL) {
+      track_error(error_message, error_context, session, details)
     },
     track_export = function(export_type, module = NULL, file_format = NULL, row_count = NULL) {
       track_export(export_type, module, file_format, row_count, session)
     },
     track_validation = function(module, outcome, check_name = NULL, reason = NULL) {
       track_validation(module, outcome, check_name, reason, session)
+    },
+    track_reshape = function(target, outcome, summary = list()) {
+      track_reshape(target, outcome, summary, session)
     },
     track_configuration = function(module, config = list()) {
       track_configuration(module, config, session)

@@ -299,7 +299,9 @@ log_error_enhanced <- function(
   error_object = NULL,
   session_id = NULL,
   context = NULL,
-  user_action = NULL
+  user_action = NULL,
+  session = NULL,
+  details = NULL
 ) {
   additional_data <- list(
     error_class = if (!is.null(error_object)) class(error_object)[1] else NULL,
@@ -325,11 +327,16 @@ log_error_enhanced <- function(
     additional_data = additional_data
   )
 
-  # Dual-write to telemetry SQLite for durable storage
+  # Dual-write to telemetry SQLite for durable storage. The Shiny session object
+  # (not just its id) must be passed: shiny.telemetry reads `session$token` itself,
+  # and without it every error row has a NULL session and cannot be joined to the
+  # session timeline.
   tryCatch(
     telemetry_utils$track_error(
       error_message = error_message,
-      error_context = context
+      error_context = context,
+      session = session,
+      details = details
     ),
     error = function(e) NULL
   )
@@ -533,14 +540,17 @@ create_session_logger <- function(session) {
       error_message,
       error_object = NULL,
       context = NULL,
-      user_action = NULL
+      user_action = NULL,
+      details = NULL
     ) {
       log_error_enhanced(
         error_message,
         error_object,
         session_id,
         context,
-        user_action
+        user_action,
+        session = session,
+        details = details
       )
     },
     data_processing = function(

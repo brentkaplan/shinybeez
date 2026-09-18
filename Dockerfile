@@ -98,9 +98,21 @@ RUN R -q -e " \
   library(lme4); library(broom.mixed); library(glue); library(htmltools); \
   cat('Warmup complete\n')"
 
+# Smoke-test the mirai daemon pool (async fits) actually works in this image
+RUN R -q -e "library(mirai); daemons(1); stopifnot(mirai(1 + 1)[] == 2); daemons(0); cat('mirai daemon OK\n')"
+
 # Set ownership and switch to non-root user
 RUN chown -R shiny:shiny /home/shiny/shinybeez
 USER shiny
+ENV HOME=/home/shiny
+
+# Warm the sass/bslib cache as the runtime user: compile the theme once and pull the Google fonts
+# (Fraunces, Fira Mono) into tools::R_user_dir("sass", "cache") = /home/shiny/.cache/R/sass, the
+# same directory the container uses at runtime. A cold start then neither compiles the theme nor
+# reaches Google (about 2.6 s and one external dependency per container start, measured 2026-09-17).
+# The test fails the build if the cache came out empty.
+RUN R -q -e "options(box.path = getwd()); box::use(app/logic/theme); invisible(bslib::bs_theme_dependencies(theme\$app_theme()))" \
+ && test -n "$(ls -A /home/shiny/.cache/R/sass)"
 
 EXPOSE 3838
 

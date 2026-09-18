@@ -46,7 +46,7 @@ describe("Discounting - MCQ 27-Item scoring", {
     expect_results_table(app, result_id)
   })
 
-  withr::defer(try(app$stop(), silent = TRUE), envir = teardown_env())
+  local_app_stop()
 })
 
 # ==========================================================================
@@ -107,7 +107,7 @@ describe("Discounting - IP Regression Pooled and Two Stage", {
     expect_results_table(app, result_id, n_rows = 3)
   })
 
-  withr::defer(try(app$stop(), silent = TRUE), envir = teardown_env())
+  local_app_stop()
 })
 
 # ==========================================================================
@@ -151,10 +151,7 @@ describe("Discounting - 5.5-Trial Delay Discounting (full)", {
     expect_true(any(grepl("of 22 entries", results_html, fixed = TRUE)))
   })
 
-  withr::defer(
-    if (!is.null(app)) try(app$stop(), silent = TRUE),
-    envir = teardown_env()
-  )
+  local_app_stop()
 })
 
 describe("Discounting - 5.5-Trial Probability Discounting (full)", {
@@ -192,10 +189,7 @@ describe("Discounting - 5.5-Trial Probability Discounting (full)", {
     expect_true(any(grepl("of 21 entries", results_html, fixed = TRUE)))
   })
 
-  withr::defer(
-    if (!is.null(app)) try(app$stop(), silent = TRUE),
-    envir = teardown_env()
-  )
+  local_app_stop()
 })
 
 describe("Discounting - MCQ with GGM imputation (full)", {
@@ -221,8 +215,5 @@ describe("Discounting - MCQ with GGM imputation (full)", {
     expect_results_table(app, result_id)
   })
 
-  withr::defer(
-    if (!is.null(app)) try(app$stop(), silent = TRUE),
-    envir = teardown_env()
-  )
+  local_app_stop()
 })
