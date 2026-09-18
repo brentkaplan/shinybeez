@@ -7,7 +7,9 @@ box::use(
   jsonlite[toJSON],
   rhino[log],
   shiny[isolate],
-  glue
+  glue,
+  R6,
+  DBI,
 )
 
 # Global telemetry object
@@ -154,6 +156,60 @@ set_sqlite_wal <- function(storage) {
   })
 }
 
+#' SQLite telemetry storage whose writes survive other containers' commits
+#'
+#' Several containers share one `telemetry.sqlite`. shiny.telemetry writes through
+#' `RSQLite::dbWriteTable(append = TRUE)`, which opens a *deferred* transaction, reads the
+#' schema, then inserts. In WAL mode a connection that read under one snapshot and then finds
+#' another writer committed in between gets `SQLITE_BUSY_SNAPSHOT` ("database is locked") at
+#' once; SQLite never consults `busy_timeout` for that case. The package's own login write and
+#' input observer (both registered by `Telemetry$start_session()`) let that error escape, and
+#' Shiny ends the user's session. This was the 2026-09-17 load-test failure at 3+ sessions.
+#'
+#' The override takes the write lock up front with `BEGIN IMMEDIATE`, which *does* honour
+#' `busy_timeout`, so the inherited write runs with no snapshot to lose. If the lock cannot be
+#' had within the timeout, or anything else goes wrong, the event is dropped, counted and
+#' logged; it is never raised. A user session must not end because a telemetry row failed.
+#'
+#' `dropped_writes()` reports the count for tests and health checks.
+DataStorageSQLiteResilient <- R6$R6Class( # nolint: object_name_linter.
+  "DataStorageSQLiteResilient",
+  inherit = shiny.telemetry::DataStorageSQLite,
+  public = list(
+    #' @description Number of writes dropped on this connection since it was opened.
+    dropped_writes = function() {
+      private$n_dropped
+    }
+  ),
+  private = list(
+    n_dropped = 0L,
+    write = function(values, bucket) {
+      con <- private$db_con
+      in_txn <- FALSE
+      ok <- tryCatch(
+        {
+          DBI::dbExecute(con, "BEGIN IMMEDIATE")
+          in_txn <- TRUE
+          super$write(values, bucket)
+          DBI::dbExecute(con, "COMMIT")
+          TRUE
+        },
+        error = function(e) {
+          if (in_txn) {
+            try(DBI::dbExecute(con, "ROLLBACK"), silent = TRUE)
+          }
+          private$n_dropped <- private$n_dropped + 1L
+          msg <- conditionMessage(e)
+          # The handler must not become the thing that throws.
+          try(log$warn("telemetry write dropped: {msg}"), silent = TRUE)
+          FALSE
+        }
+      )
+      invisible(ok)
+    }
+  )
+)
+
 #' Create data storage backend based on configuration
 #'
 #' @param config Telemetry configuration
@@ -170,7 +226,7 @@ create_data_storage <- function(config) {
           dir.create(db_dir, recursive = TRUE)
         }
 
-        storage <- shiny.telemetry::DataStorageSQLite$new(db_path = db_path)
+        storage <- DataStorageSQLiteResilient$new(db_path = db_path)
         # Prod and staging write to the same file; without this a contended write is dropped.
         if (!set_sqlite_busy_timeout(storage)) {
           log$warn("SQLite busy timeout not applied; contended telemetry writes may be lost")
