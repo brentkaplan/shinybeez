@@ -301,6 +301,7 @@ jobs:
             appDir = '.',
             appName = 'shinybeez',
             account = '${{ secrets.SHINYAPPS_NAME }}',
+            server = 'shinyapps.io',
             forceUpdate = TRUE,
             launch.browser = FALSE
           )
