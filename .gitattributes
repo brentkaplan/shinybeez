@@ -1,2 +1,3 @@
 # Encrypt files containing credentials (readable locally, encrypted on GitHub)
 deploy-shinyproxy/** filter=git-crypt diff=git-crypt
+deploy-connect-cloud/** filter=git-crypt diff=git-crypt

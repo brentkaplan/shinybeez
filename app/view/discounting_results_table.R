@@ -35,11 +35,12 @@ ui <- function(id) {
 
 #' @export
 server <- function(
-    id, data_r, eq, agg,
-    type,
-    imputation = "none",
-    trans = "none",
-    calculate_btn) {
+  id, data_r, eq, agg,
+  type,
+  imputation = "none",
+  trans = "none",
+  calculate_btn
+) {
   shiny$moduleServer(id, function(input, output, session) {
     ns <- session$ns
     session_logger <- logging_utils$create_session_logger(session)

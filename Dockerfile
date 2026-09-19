@@ -60,7 +60,7 @@ LABEL maintainer="Brent Kaplan <bkaplan.ku@gmail.com>"
 # Runtime libs only (no compilers); include fonts/graphics + CA certs
 RUN apt-get update -qq && apt-get install -y --no-install-recommends \
     curl libcurl4 libssl3 libcairo2 libxml2 libfontconfig1 libfreetype6 \
-    libharfbuzz0b libfribidi0 libpng16-16 libtiff6 libxt6 libodbc2 ca-certificates \
+    libharfbuzz0b libfribidi0 libpng16-16 libtiff6 libxt6 libodbc2 libuv1 ca-certificates \
     && update-ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 

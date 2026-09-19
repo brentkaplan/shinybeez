@@ -10,6 +10,7 @@ box::use(
   app / logic / async / task,
   app / logic / async / workers,
   app / logic / logging_utils,
+  app / logic / startup_info,
   app / logic / telemetry_utils,
   app / logic / theme,
   app / view / mixed_effects_demand_coordinator,
@@ -23,6 +24,9 @@ if (daemons$async_enabled()) {
   daemons$start_daemons()
   shiny$onStop(daemons$stop_daemons)
 }
+
+# Once per process, before any session: what this process is actually running as.
+rhino$log$info(startup_info$startup_line())
 
 #' @export
 ui <- function(id) {
