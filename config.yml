@@ -109,17 +109,17 @@ production:
 # Configuration for shinyapps.io deployment
 shinyapps:
   rhino_log_level: "INFO"
-  rhino_log_file: NA  # shinyapps.io handles logging
+  rhino_log_file: !expr NA  # shinyapps.io handles logging
 
   google_analytics:
     enabled: TRUE
     measurement_id: "G-Q5TL32WDK3"  # shinyapps.io/brentkaplan
 
   logging:
-    app_log_file: NA  # Use shinyapps.io logging - no persistent files
-    error_log_file: NA
-    performance_log_file: NA
-    activity_log_file: NA
+    app_log_file: !expr NA  # Use shinyapps.io logging - no persistent files
+    error_log_file: !expr NA
+    performance_log_file: !expr NA
+    activity_log_file: !expr NA
     log_to_console: TRUE  # All logs go to console for shinyapps.io capture
     development_log_level: "INFO"
     production_log_level: "INFO"
@@ -142,13 +142,13 @@ shinyapps:
 # block is inherited from default: too, so its TELEMETRY_DB_* variables apply here.
 connectcloud:
   rhino_log_level: "INFO"
-  rhino_log_file: NA  # Connect Cloud captures the console
+  rhino_log_file: !expr NA  # Connect Cloud captures the console
 
   logging:
-    app_log_file: NA  # Console only - no persistent files
-    error_log_file: NA
-    performance_log_file: NA
-    activity_log_file: NA
+    app_log_file: !expr NA  # Console only - no persistent files
+    error_log_file: !expr NA
+    performance_log_file: !expr NA
+    activity_log_file: !expr NA
     log_to_console: TRUE
     development_log_level: "INFO"
     production_log_level: "INFO"

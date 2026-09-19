@@ -9,6 +9,25 @@ get_profile <- function(profile, value = NULL, env = character()) {
   withr::with_envvar(env, config::get(value = value, config = profile, file = config_file))
 }
 
+describe("hosted config profiles", {
+  # YAML has no NA: a bare `NA` is the string "NA", which is.na() does not catch, so rhino and
+  # the app logger both appended to a file called NA instead of logging to the console only.
+  it("turn file logging off with a real NA, not the string", {
+    for (profile in c("connectcloud", "shinyapps")) {
+      config <- get_profile(profile)
+      log_files <- c(
+        list(rhino_log_file = config$rhino_log_file),
+        config$logging[grep("_log_file$", names(config$logging))]
+      )
+      expect_length(log_files, 5L)
+      for (name in names(log_files)) {
+        expect_true(is.na(log_files[[name]]), label = paste(profile, name, "is NA"))
+        expect_false(identical(log_files[[name]], "NA"), label = paste(profile, name, "is the string"))
+      }
+    }
+  })
+})
+
 describe("connectcloud config profile", {
   it("matches the shinyapps profile apart from Google Analytics", {
     env <- c(TELEMETRY_STORAGE = NA, TELEMETRY_ENABLED = NA)
