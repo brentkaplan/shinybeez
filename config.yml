@@ -136,17 +136,13 @@ shinyapps:
     anonymize_sessions: TRUE
 
 # Configuration for Posit Connect Cloud deployment.
-# Same as shinyapps: above (same GA property — the shinyapps.io URL redirects here once the
-# migration is finalized), except storage_type follows TELEMETRY_STORAGE so a durable backend
-# can be switched on from the platform's variables. The postgresql: block is inherited from
-# default:, so its TELEMETRY_DB_* variables apply here too.
+# Same as shinyapps: above, except that nothing identifying is written here: Google Analytics
+# comes from GA_ENABLED / GA_MEASUREMENT_ID (inherited from default:) and storage_type follows
+# TELEMETRY_STORAGE. Both are set as platform variables by the deploy job. The postgresql:
+# block is inherited from default: too, so its TELEMETRY_DB_* variables apply here.
 connectcloud:
   rhino_log_level: "INFO"
   rhino_log_file: NA  # Connect Cloud captures the console
-
-  google_analytics:
-    enabled: TRUE
-    measurement_id: "G-Q5TL32WDK3"  # shinyapps.io/brentkaplan
 
   logging:
     app_log_file: NA  # Console only - no persistent files
