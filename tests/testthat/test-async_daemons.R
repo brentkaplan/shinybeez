@@ -9,7 +9,39 @@ box::use(
 
 describe("daemon_count", {
   it("defaults to 1 when the env var is unset", {
-    with_envvar(c(SHINYBEEZ_DAEMONS = NA), expect_identical(daemons$daemon_count(), 1L))
+    with_envvar(
+      c(SHINYBEEZ_DAEMONS = NA, R_CONFIG_ACTIVE = "default"),
+      expect_identical(daemons$daemon_count(), 1L)
+    )
+  })
+  # Daemons are unvalidated on the shared-process hosts (deploy-shinyproxy/ASYNC-FITS.md), and
+  # shinyapps.io cannot be given environment variables at deploy time. So the hosted profiles
+  # default to synchronous fits; a missing platform variable must not turn daemons on.
+  it("defaults to 0 under the hosted profiles", {
+    for (profile in c("shinyapps", "connectcloud")) {
+      with_envvar(c(SHINYBEEZ_DAEMONS = NA, R_CONFIG_ACTIVE = profile), {
+        expect_identical(daemons$daemon_count(), 0L)
+        expect_false(daemons$async_enabled())
+      })
+      with_envvar(
+        c(SHINYBEEZ_DAEMONS = "many", R_CONFIG_ACTIVE = profile),
+        expect_identical(daemons$daemon_count(), 0L)
+      )
+    }
+  })
+  it("lets an explicit SHINYBEEZ_DAEMONS win under a hosted profile", {
+    with_envvar(
+      c(SHINYBEEZ_DAEMONS = "2", R_CONFIG_ACTIVE = "connectcloud"),
+      expect_identical(daemons$daemon_count(), 2L)
+    )
+  })
+  it("keeps the default of 1 under shinyproxy and production", {
+    for (profile in c("shinyproxy", "production")) {
+      with_envvar(
+        c(SHINYBEEZ_DAEMONS = NA, R_CONFIG_ACTIVE = profile),
+        expect_identical(daemons$daemon_count(), 1L)
+      )
+    }
   })
   it("reads a positive integer from SHINYBEEZ_DAEMONS", {
     with_envvar(c(SHINYBEEZ_DAEMONS = "3"), expect_identical(daemons$daemon_count(), 3L))

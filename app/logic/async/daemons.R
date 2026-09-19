@@ -4,7 +4,8 @@
 #' session, so the default of one daemon is one worker per user; on shared-process
 #' hosts (shinyapps.io, Connect Cloud) the pool is shared and tasks queue.
 #' `SHINYBEEZ_DAEMONS=0` selects the retained synchronous path — and is the required
-#' setting on Connect Cloud until E1's spike validates daemons there (roadmap B4).
+#' setting on Connect Cloud until E1's spike validates daemons there (roadmap B4). Under the
+#' `shinyapps` and `connectcloud` profiles it is also the default when the variable is unset.
 
 box::use(
   mirai,
@@ -17,9 +18,17 @@ read_env_number <- function(name, default, min_value) {
   if (is.na(value) || value < min_value) default else value
 }
 
+# Shared-process hosts where daemons are not validated yet. shinyapps.io cannot be given
+# environment variables at deploy time, so the safe setting has to be the default there.
+hosted_profiles <- c("shinyapps", "connectcloud")
+
+default_daemon_count <- function() {
+  if (Sys.getenv("R_CONFIG_ACTIVE") %in% hosted_profiles) 0 else 1
+}
+
 #' @export
 daemon_count <- function() {
-  as.integer(read_env_number("SHINYBEEZ_DAEMONS", default = 1, min_value = 0))
+  as.integer(read_env_number("SHINYBEEZ_DAEMONS", default = default_daemon_count(), min_value = 0))
 }
 
 #' @export
