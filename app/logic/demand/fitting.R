@@ -94,6 +94,12 @@ results_cols_4dp <- c(
   "alpha_star", "alpha_star_se"
 )
 
+# Multi-start diagnostics beezdemand appends after `converged`. Fitting internals: kept on
+# the raw output, not shown in the results table or its exports.
+results_cols_hidden <- c(
+  "converged_strict", "n_starts_tried", "n_starts_converged", "start_source"
+)
+
 #' Format fit_demand_fixed output into a clean results data frame
 #'
 #' @param output List output from fit_demand_fixed (or synthetic grouped list)
@@ -101,7 +107,7 @@ results_cols_4dp <- c(
 #' @export
 format_demand_results <- function(output) {
   output$results |>
-    dplyr$select(!(Intensity:Pmaxe)) |>
+    dplyr$select(!(Intensity:Pmaxe), -dplyr$any_of(results_cols_hidden)) |>
     dplyr$mutate(
       dplyr$across(dplyr$any_of(results_cols_2dp), \(x) round(x, 2)),
       dplyr$across(dplyr$any_of(results_cols_4dp), \(x) round(x, 4))

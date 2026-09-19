@@ -375,7 +375,8 @@ track_navigation <- function(tab_name, session = NULL) {
 #' @param session Shiny session object
 #' @export
 track_model_fitting <- function(
-    model_type, parameters = list(), status = "started", session = NULL) {
+  model_type, parameters = list(), status = "started", session = NULL
+) {
   track_event(
     event_name = "model_fitting",
     event_data = list(
@@ -421,7 +422,8 @@ track_data_upload <- function(file_info = list(), session = NULL) {
 #' @param session Shiny session object
 #' @export
 track_input_interaction <- function(
-    input_id, input_type = "unknown", module = NULL, session = NULL) {
+  input_id, input_type = "unknown", module = NULL, session = NULL
+) {
   config <- config::get("telemetry")
 
   # Only track input interactions if configured to do so
@@ -449,7 +451,8 @@ track_input_interaction <- function(
 #' @param session Shiny session object
 #' @export
 track_performance <- function(
-    operation_name, duration_ms, additional_metrics = list(), session = NULL) {
+  operation_name, duration_ms, additional_metrics = list(), session = NULL
+) {
   track_event(
     event_name = "performance",
     event_data = c(
@@ -473,7 +476,8 @@ track_performance <- function(
 #' @param session Shiny session object
 #' @export
 track_validation <- function(
-    module, outcome, check_name = NULL, reason = NULL, session = NULL) {
+  module, outcome, check_name = NULL, reason = NULL, session = NULL
+) {
   track_event(
     event_name = "validation_outcome",
     event_data = list(
@@ -513,8 +517,9 @@ track_configuration <- function(module, config = list(), session = NULL) {
 #' @param session Shiny session object
 #' @export
 track_export <- function(
-    export_type, module = NULL, file_format = NULL,
-    row_count = NULL, session = NULL) {
+  export_type, module = NULL, file_format = NULL,
+  row_count = NULL, session = NULL
+) {
   track_event(
     event_name = "result_export",
     event_data = list(

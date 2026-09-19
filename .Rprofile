@@ -13,11 +13,9 @@ if (file.exists("renv")) {
 # Allow absolute module imports (relative to the app root).
 options(box.path = getwd())
 
-# Enable auto reloading via Rhino 1.7 (dev only — no value in Docker containers)
-if (!identical(Sys.getenv("R_CONFIG_ACTIVE"), "shinyproxy") &&
-    !identical(Sys.getenv("R_CONFIG_ACTIVE"), "production")) {
-  options(shiny.autoreload = TRUE)
-}
+# Auto reloading via Rhino 1.7, for the profiles people develop under and nothing else.
+# An allow-list, so a new hosted profile (shinyapps, connectcloud, ...) is off by default.
+options(shiny.autoreload = Sys.getenv("R_CONFIG_ACTIVE") %in% c("", "default", "development"))
 
 options(renv.config.snapshot.preflight = FALSE)
 options(renv.config.snapshot.auto = FALSE)

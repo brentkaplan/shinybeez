@@ -27,12 +27,13 @@ coalesce_default <- function(x, default) {
 #' @return Data frame with systematic criteria results
 #' @export
 compute_systematic <- function(
-    data,
-    deltaq = 0.025,
-    bounce = 0.10,
-    reversals = 0,
-    ncons0 = 2,
-    is_grouped = FALSE) {
+  data,
+  deltaq = 0.025,
+  bounce = 0.10,
+  reversals = 0,
+  ncons0 = 2,
+  is_grouped = FALSE
+) {
   deltaq <- coalesce_default(deltaq, 0.025)
   bounce <- coalesce_default(bounce, 0.10)
   reversals <- coalesce_default(reversals, 0)
