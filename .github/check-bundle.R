@@ -14,7 +14,8 @@ forbidden_patterns <- c(
   "\\.sqlite",
   "^data/",
   "^manuscript/",
-  "^deploy-shinyproxy/"
+  "^deploy-shinyproxy/",
+  "^deploy-connect-cloud/"
 )
 
 required_files <- c(

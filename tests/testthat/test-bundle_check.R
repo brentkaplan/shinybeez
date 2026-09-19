@@ -22,7 +22,8 @@ describe("bundle_problems()", {
   it("rejects forbidden files wherever they sit", {
     forbidden <- c(
       ".env", "app/.env", "telemetry.sqlite", "data/zz.sqlite", "data/notes.txt",
-      "manuscript/manuscript.qmd", "deploy-shinyproxy/application.yml", "x.sqlite-wal"
+      "manuscript/manuscript.qmd", "deploy-shinyproxy/application.yml", "deploy-connect-cloud/RUNBOOK.md",
+      "x.sqlite-wal"
     )
     for (f in forbidden) {
       problems <- bundle_check$bundle_problems(c(good_bundle, f))

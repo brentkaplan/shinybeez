@@ -22,3 +22,4 @@ docker-compose.dev.yml
 docker-compose.production.yml
 docker-compose.shinyproxy.yml
 docker-compose.telemetry.yml
+deploy-connect-cloud

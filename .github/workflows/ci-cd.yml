@@ -19,6 +19,10 @@ on:
         description: 'Deploy this ref to production targets'
         type: boolean
         default: false
+      deploy_connect_cloud:
+        description: 'Deploy this ref to Posit Connect Cloud only'
+        type: boolean
+        default: false
 
 env:
   REGISTRY: docker.io
@@ -312,6 +316,63 @@ jobs:
           )
         "
 
+  # Deploy to Posit Connect Cloud. Its own switch for manual runs; v* tags deploy everything.
+  # The account, the content id, the credentials and the hosted app's variables all come from
+  # the `connect-cloud` environment - this file and the deploy script name none of them.
+  deploy-connect-cloud:
+    if: >-
+      startsWith(github.ref, 'refs/tags/v') ||
+      (github.event_name == 'workflow_dispatch' && inputs.deploy_connect_cloud)
+    needs: test
+    runs-on: ubuntu-latest
+    name: Deploy to Connect Cloud
+    environment: connect-cloud
+    # Two publishes to one content id must never overlap, and a running one is never cancelled.
+    concurrency:
+      group: deploy-connect-cloud
+      cancel-in-progress: false
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v7
+
+    - name: Setup R
+      uses: r-lib/actions/setup-r@v2
+      with:
+        r-version: '4.5.1'
+        use-public-rspm: true
+
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y --no-install-recommends \
+          build-essential \
+          libcurl4-openssl-dev libssl-dev libxml2-dev \
+          libpng-dev libcairo2-dev libicu-dev \
+          cmake pkg-config gfortran unixodbc-dev pandoc
+
+    # rsconnect comes from renv.lock; see the note in deploy-shinyapps.
+    - name: Setup renv
+      uses: r-lib/actions/setup-renv@v2
+
+    - name: Check bundle contents
+      run: Rscript .github/check-bundle.R
+
+    # Secrets reach this step only, as environment variables; nothing is interpolated into R.
+    - name: Deploy to Connect Cloud
+      env:
+        CONNECT_CLOUD_CLIENT_ID: ${{ secrets.CONNECT_CLOUD_CLIENT_ID }}
+        CONNECT_CLOUD_CLIENT_SECRET: ${{ secrets.CONNECT_CLOUD_CLIENT_SECRET }}
+        CONNECT_CLOUD_ACCOUNT: ${{ secrets.CONNECT_CLOUD_ACCOUNT }}
+        CONNECT_CLOUD_CONTENT_ID: ${{ secrets.CONNECT_CLOUD_CONTENT_ID }}
+        SHINYBEEZ_DAEMONS: ${{ vars.SHINYBEEZ_DAEMONS }}
+        R_CONFIG_ACTIVE: ${{ vars.R_CONFIG_ACTIVE }}
+        GA_ENABLED: ${{ vars.GA_ENABLED }}
+        GA_MEASUREMENT_ID: ${{ vars.GA_MEASUREMENT_ID }}
+        TELEMETRY_ENABLED: ${{ vars.TELEMETRY_ENABLED }}
+        TELEMETRY_STORAGE: ${{ vars.TELEMETRY_STORAGE }}
+      run: Rscript .github/deploy-connect-cloud.R
+
   # Security scanning
   security:
     needs: build
@@ -345,13 +406,14 @@ jobs:
 
   # Notify on completion
   notify:
-    needs: [deploy-production, deploy-shinyapps]
+    needs: [deploy-production, deploy-shinyapps, deploy-connect-cloud]
     runs-on: ubuntu-latest
     name: Notify Deployment
     if: >-
       always() &&
       (startsWith(github.ref, 'refs/tags/v') ||
-      (github.event_name == 'workflow_dispatch' && inputs.deploy_production))
+      (github.event_name == 'workflow_dispatch' &&
+      (inputs.deploy_production || inputs.deploy_connect_cloud)))
 
     steps:
     - name: Deployment summary
@@ -362,7 +424,11 @@ jobs:
         echo "|--------|--------|" >> "$GITHUB_STEP_SUMMARY"
         echo "| ShinyProxy | ${{ needs.deploy-production.result }} |" >> "$GITHUB_STEP_SUMMARY"
         echo "| shinyapps.io | ${{ needs.deploy-shinyapps.result }} |" >> "$GITHUB_STEP_SUMMARY"
+        echo "| Connect Cloud | ${{ needs.deploy-connect-cloud.result }} |" >> "$GITHUB_STEP_SUMMARY"
 
     - name: Fail if any deployment failed
-      if: needs.deploy-production.result == 'failure' || needs.deploy-shinyapps.result == 'failure'
+      if: >-
+        needs.deploy-production.result == 'failure' ||
+        needs.deploy-shinyapps.result == 'failure' ||
+        needs.deploy-connect-cloud.result == 'failure'
       run: exit 1

@@ -27,6 +27,7 @@ site/
 troubleshooting/
 other/
 deploy-shinyproxy/
+deploy-connect-cloud/
 *.md
 !README.md
 
