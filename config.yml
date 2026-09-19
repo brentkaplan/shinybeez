@@ -135,6 +135,39 @@ shinyapps:
     track_inputs: FALSE
     anonymize_sessions: TRUE
 
+# Configuration for Posit Connect Cloud deployment.
+# Same as shinyapps: above (same GA property — the shinyapps.io URL redirects here once the
+# migration is finalized), except storage_type follows TELEMETRY_STORAGE so a durable backend
+# can be switched on from the platform's variables. The postgresql: block is inherited from
+# default:, so its TELEMETRY_DB_* variables apply here too.
+connectcloud:
+  rhino_log_level: "INFO"
+  rhino_log_file: NA  # Connect Cloud captures the console
+
+  google_analytics:
+    enabled: TRUE
+    measurement_id: "G-Q5TL32WDK3"  # shinyapps.io/brentkaplan
+
+  logging:
+    app_log_file: NA  # Console only - no persistent files
+    error_log_file: NA
+    performance_log_file: NA
+    activity_log_file: NA
+    log_to_console: TRUE
+    development_log_level: "INFO"
+    production_log_level: "INFO"
+    log_performance: TRUE
+    performance_threshold_ms: 3000  # Higher threshold for shared hosting
+
+  telemetry:
+    enabled: !expr as.logical(Sys.getenv("TELEMETRY_ENABLED", "TRUE"))
+    storage_type: !expr Sys.getenv("TELEMETRY_STORAGE", "sqlite")
+    sqlite:
+      db_path: "telemetry.sqlite"  # Local to app directory; lost when the worker is recycled
+    retention_days: 90
+    track_inputs: FALSE
+    anonymize_sessions: TRUE
+
 # Configuration for ShinyProxy deployment
 shinyproxy:
   rhino_log_level: !expr Sys.getenv("RHINO_LOG_LEVEL", "INFO")
