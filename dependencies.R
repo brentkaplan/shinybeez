@@ -28,3 +28,6 @@ library(vroom)
 # Testing dependencies
 library(testthat)
 library(shinytest2)
+
+# Deployment dependency (CI restores rsconnect from renv.lock; never install it ad hoc)
+library(rsconnect)

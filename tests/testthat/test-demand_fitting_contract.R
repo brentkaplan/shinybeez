@@ -84,7 +84,9 @@ describe("fit_demand_fixed $results column contract", {
     # Snapshot the exact live column vector so any 0.3.0 column add / drop /
     # reorder surfaces as a reviewable diff rather than a silent downstream
     # break. (`converged` is new in 0.3.0; `alpha_star`/`alpha_star_se` are
-    # present in the real output but were missing from the legacy mock.)
+    # present in the real output but were missing from the legacy mock. The four
+    # multi-start diagnostics after `converged` arrived with beezdemand develop
+    # f53caa7a; format_demand_results passes them through to the results table.)
     expect_identical(
       result_names,
       c(
@@ -92,7 +94,8 @@ describe("fit_demand_fixed $results column contract", {
         "Equation", "Q0d", "K", "Alpha", "R2", "Q0se", "Alphase",
         "alpha_star", "alpha_star_se", "N", "AbsSS", "SdRes",
         "Q0Low", "Q0High", "AlphaLow", "AlphaHigh", "EV",
-        "Omaxd", "Pmaxd", "Omaxa", "Pmaxa", "Notes", "converged"
+        "Omaxd", "Pmaxd", "Omaxa", "Pmaxa", "Notes", "converged",
+        "converged_strict", "n_starts_tried", "n_starts_converged", "start_source"
       )
     )
   })
