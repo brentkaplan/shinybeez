@@ -289,6 +289,11 @@ jobs:
     # "parseRenvDependencies(): Library and lockfile are out of sync". `Setup renv` above already restores the
     # pinned rsconnect from renv.lock, which is what deployApp() needs.
 
+    # The hosted app is public. Fail before any credentials are configured if the bundle would
+    # carry a secret, a telemetry database or the manuscript, or lacks a file the app needs.
+    - name: Check bundle contents
+      run: Rscript .github/check-bundle.R
+
     - name: Configure rsconnect
       run: |
         Rscript -e "rsconnect::setAccountInfo(name='${{ secrets.SHINYAPPS_NAME }}', token='${{ secrets.SHINYAPPS_TOKEN }}', secret='${{ secrets.SHINYAPPS_SECRET }}')"
