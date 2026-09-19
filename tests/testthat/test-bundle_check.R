@@ -23,7 +23,8 @@ describe("bundle_problems()", {
     forbidden <- c(
       ".env", "app/.env", "telemetry.sqlite", "data/zz.sqlite", "data/notes.txt",
       "manuscript/manuscript.qmd", "deploy-shinyproxy/application.yml", "deploy-connect-cloud/RUNBOOK.md",
-      "x.sqlite-wal"
+      "x.sqlite-wal", "TELEMETRY.SQLITE", "app/cache.sqlite3", "x.sqlite-journal",
+      ".env.production", "config/.env.local", ".Renviron", "app/.Renviron.local"
     )
     for (f in forbidden) {
       problems <- bundle_check$bundle_problems(c(good_bundle, f))
@@ -33,7 +34,10 @@ describe("bundle_problems()", {
   })
 
   it("does not mistake look-alikes for forbidden files", {
-    allowed <- c(".env.example", "app/static/data/apt.csv", "app/logic/data_prep.R")
+    allowed <- c(
+      ".env.example", "app/static/data/apt.csv", "app/logic/data_prep.R",
+      "app/static/sqlite-guide.pdf", "app/logic/env.R"
+    )
     expect_identical(bundle_check$bundle_problems(c(good_bundle, allowed)), character(0))
   })
 

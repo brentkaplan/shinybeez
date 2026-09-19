@@ -9,9 +9,11 @@
 # .rscignore is the first line of defence, but it has no glob support and fails
 # silently (see logs/README.md), so this check reads the result instead of the rules.
 
+# Matched case-insensitively. .env.example is the one dotenv file that may ship.
 forbidden_patterns <- c(
-  "(^|/)\\.env$",
-  "\\.sqlite",
+  "(^|/)\\.env(\\.(?!example$)[^/]*)?$",
+  "(^|/)\\.Renviron[^/]*$",
+  "\\.sqlite3?(-wal|-shm|-journal)?$",
   "^data/",
   "^manuscript/",
   "^deploy-shinyproxy/",
@@ -28,7 +30,7 @@ required_files <- c(
 )
 
 bundle_problems <- function(files) {
-  forbidden <- files[grepl(paste(forbidden_patterns, collapse = "|"), files)]
+  forbidden <- files[grepl(paste(forbidden_patterns, collapse = "|"), files, perl = TRUE, ignore.case = TRUE)]
   missing <- setdiff(required_files, files)
   c(
     sprintf("forbidden file in bundle: %s", forbidden),

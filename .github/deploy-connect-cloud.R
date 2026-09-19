@@ -13,6 +13,8 @@
 #   CONNECT_CLOUD_CONTENT_ID                               existing content to redeploy;
 #     always redeploy this id - the public URL and the shinyapps.io redirect hang off it
 #   SHINYBEEZ_DAEMONS                                      must be set (see ASYNC-FITS.md)
+#   R_CONFIG_ACTIVE                                        a hosted profile; unset would mean
+#     the default profile on the host: autoreload on and file logging
 # Optional, forwarded to the hosted app when set: see app_env_names.
 
 required_names <- c(
@@ -20,8 +22,11 @@ required_names <- c(
   "CONNECT_CLOUD_CLIENT_SECRET",
   "CONNECT_CLOUD_ACCOUNT",
   "CONNECT_CLOUD_CONTENT_ID",
-  "SHINYBEEZ_DAEMONS"
+  "SHINYBEEZ_DAEMONS",
+  "R_CONFIG_ACTIVE"
 )
+
+hosted_profiles <- c("connectcloud", "shinyapps")
 
 # Variables the hosted app reads. Only names listed here can ever be forwarded, so a
 # deploy credential cannot end up as an app variable by accident.
@@ -43,6 +48,22 @@ missing_required <- function(env = Sys.getenv()) {
   required_names[!is_set(required_names, env)]
 }
 
+# Messages name the variable, never its value: a mis-set value may be a credential.
+invalid_settings <- function(env = Sys.getenv()) {
+  problems <- character(0)
+  if (is_set("R_CONFIG_ACTIVE", env) && !env[["R_CONFIG_ACTIVE"]] %in% hosted_profiles) {
+    problems <- c(problems, paste(
+      "R_CONFIG_ACTIVE must be one of:", paste(hosted_profiles, collapse = ", ")
+    ))
+  }
+  # The postgresql backend needs TELEMETRY_DB_* on the host, and those are deliberately not in
+  # app_env_names yet. Refuse rather than deploy an app pointed at localhost.
+  if (is_set("TELEMETRY_STORAGE", env) && !identical(env[["TELEMETRY_STORAGE"]], "sqlite")) {
+    problems <- c(problems, "TELEMETRY_STORAGE must be sqlite or unset; no other backend is deployable yet")
+  }
+  problems
+}
+
 forwarded_env_names <- function(env = Sys.getenv()) {
   app_env_names[is_set(app_env_names, env)]
 }
@@ -51,6 +72,10 @@ main <- function() {
   missing <- missing_required()
   if (length(missing) > 0L) {
     stop("Not deploying; unset or empty: ", paste(missing, collapse = ", "), call. = FALSE)
+  }
+  invalid <- invalid_settings()
+  if (length(invalid) > 0L) {
+    stop("Not deploying; ", paste(invalid, collapse = "; "), call. = FALSE)
   }
 
   forwarded <- forwarded_env_names()

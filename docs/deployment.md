@@ -51,7 +51,8 @@ bare names.
 
 The Connect Cloud job takes its target, its credentials and the hosted app's variables from
 the `connect-cloud` GitHub environment. The workflow and `.github/deploy-connect-cloud.R` name
-none of them. The deploy refuses to run unless `SHINYBEEZ_DAEMONS` is set in that environment.
+none of them. The deploy refuses to run unless that environment sets `SHINYBEEZ_DAEMONS` and a hosted
+`R_CONFIG_ACTIVE`, or if it selects a telemetry backend other than SQLite.
 Operational detail lives in the encrypted `deploy-connect-cloud/` directory.
 
 Under the `shinyapps` and `connectcloud` profiles fits are synchronous unless
