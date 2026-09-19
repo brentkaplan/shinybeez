@@ -68,6 +68,34 @@ forwarded_env_names <- function(env = Sys.getenv()) {
   app_env_names[is_set(app_env_names, env)]
 }
 
+# deployApp(appId = ) with no deployment record on disk - always the case in CI - looks the
+# content up with client$getApplication(). rsconnect 1.11.0's Connect Cloud client has
+# getContent() and no getApplication(), so the deploy dies with "attempt to apply
+# non-function" before uploading (rstudio/rsconnect#1367). This is the method upstream
+# added (#1375, unreleased): a lookup by id that derives `name` from the existing title. It
+# creates and renames nothing. A client that already has the method is returned untouched,
+# so this stops doing anything once the lockfile reaches a release with the fix.
+with_get_application <- function(client) {
+  if (is.function(client$getApplication)) {
+    return(client)
+  }
+  client$getApplication <- function(applicationId, deploymentRecordVersion) {
+    content <- client$getContent(applicationId)
+    content$name <- rsconnect::generateAppName(content$title, unique = FALSE)
+    content
+  }
+  client
+}
+
+patch_cloud_client <- function() {
+  original <- get("connectCloudClient", envir = asNamespace("rsconnect"))
+  utils::assignInNamespace(
+    "connectCloudClient",
+    function(...) with_get_application(original(...)),
+    ns = "rsconnect"
+  )
+}
+
 main <- function() {
   missing <- missing_required()
   if (length(missing) > 0L) {
@@ -81,6 +109,7 @@ main <- function() {
   forwarded <- forwarded_env_names()
   cat("Forwarding app variables (names only):", paste(forwarded, collapse = ", "), "\n")
 
+  patch_cloud_client()
   rsconnect::connectCloudClientCredentials(
     clientId = Sys.getenv("CONNECT_CLOUD_CLIENT_ID"),
     clientSecret = Sys.getenv("CONNECT_CLOUD_CLIENT_SECRET"),

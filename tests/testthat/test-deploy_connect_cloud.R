@@ -73,3 +73,40 @@ describe("invalid_settings()", {
     expect_no_match(problems, "hunter2", fixed = TRUE)
   })
 })
+
+# rsconnect 1.11.0's Connect Cloud client has getContent() but no getApplication(), so
+# deployApp(appId = ) fails before it uploads anything (rstudio/rsconnect#1367, fixed
+# upstream and unreleased). The script adds the upstream method until a release has it.
+describe("with_get_application()", {
+  fake_client <- function() {
+    list(getContent = function(id) list(id = id, title = "My App Title"))
+  }
+
+  it("adds a getApplication() that looks the content up by id and never renames it", {
+    expect_false("rsconnect" %in% .packages())
+    client <- deploy$with_get_application(fake_client())
+    application <- client$getApplication("abc", "unknown")
+    expect_identical(application$id, "abc")
+    expect_identical(application$title, "My App Title")
+    expect_identical(application$name, rsconnect::generateAppName("My App Title", unique = FALSE))
+  })
+
+  it("leaves a client that already has getApplication() alone", {
+    theirs <- function(...) "theirs"
+    client <- deploy$with_get_application(c(fake_client(), list(getApplication = theirs)))
+    expect_identical(client$getApplication, theirs)
+  })
+})
+
+describe("patch_cloud_client()", {
+  it("makes rsconnect's own Connect Cloud client answer getApplication()", {
+    ns <- asNamespace("rsconnect")
+    original <- get("connectCloudClient", envir = ns)
+    withr::defer(utils::assignInNamespace("connectCloudClient", original, ns = "rsconnect"))
+
+    deploy$patch_cloud_client()
+    client <- get("connectCloudClient", envir = ns)(list(), list())
+    expect_true(is.function(client$getApplication))
+    expect_true(is.function(client$getContent))
+  })
+})
