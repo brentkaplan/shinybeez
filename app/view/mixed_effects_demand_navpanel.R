@@ -1050,7 +1050,16 @@ navpanel_server <- function(id, sidebar_reactives, fit_task) {
                   shiny$tags$dd(class = "col-sm-7", fit_stats$logLik),
                   shiny$tags$dt(class = "col-sm-5", "Residual SE"),
                   shiny$tags$dd(class = "col-sm-7", fit_stats$sigma),
-                  shiny$tags$dt(class = "col-sm-5", "Residual df"),
+                  shiny$tags$dt(
+                    class = "col-sm-5",
+                    shiny$tags$abbr(
+                      title = paste(
+                        "Observations minus the number of",
+                        "fixed-effect parameters (N - p)"
+                      ),
+                      "Residual df"
+                    )
+                  ),
                   shiny$tags$dd(class = "col-sm-7", fit_stats$df_residual)
                 )
               } else {
