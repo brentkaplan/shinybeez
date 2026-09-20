@@ -61,7 +61,8 @@ init_telemetry <- function() {
     data_storage = data_storage
   )
 
-  log$info("Telemetry system initialized with {.telemetry_env$config$storage_type} backend")
+  # The class, not the configured type: a postgresql request falls back to SQLite.
+  log$info("Telemetry system initialized with {class(data_storage)[1]} storage")
   .telemetry_env$telemetry
 }
 
@@ -210,6 +211,30 @@ DataStorageSQLiteResilient <- R6$R6Class( # nolint: object_name_linter.
   )
 )
 
+#' Create the guarded SQLite storage
+#'
+#' @param config Telemetry configuration
+create_sqlite_storage <- function(config) {
+  # Ensure data directory exists
+  db_path <- config$sqlite$db_path
+  db_dir <- dirname(db_path)
+  if (!dir.exists(db_dir)) {
+    dir.create(db_dir, recursive = TRUE)
+  }
+
+  storage <- DataStorageSQLiteResilient$new(db_path = db_path)
+  # Prod and staging write to the same file; without this a contended write is dropped.
+  if (!set_sqlite_busy_timeout(storage)) {
+    log$warn("SQLite busy timeout not applied; contended telemetry writes may be lost")
+  }
+  # Several containers hold this file open at once; WAL keeps their reads from blocking
+  # each other's writes. Timeout first so the mode switch waits for a quiet moment.
+  if (!set_sqlite_wal(storage)) {
+    log$warn("SQLite WAL mode not applied; concurrent containers may hit 'database is locked'")
+  }
+  storage
+}
+
 #' Create data storage backend based on configuration
 #'
 #' @param config Telemetry configuration
@@ -218,43 +243,15 @@ create_data_storage <- function(config) {
 
   tryCatch({
     switch(storage_type,
-      "sqlite" = {
-        # Ensure data directory exists
-        db_path <- config$sqlite$db_path
-        db_dir <- dirname(db_path)
-        if (!dir.exists(db_dir)) {
-          dir.create(db_dir, recursive = TRUE)
-        }
-
-        storage <- DataStorageSQLiteResilient$new(db_path = db_path)
-        # Prod and staging write to the same file; without this a contended write is dropped.
-        if (!set_sqlite_busy_timeout(storage)) {
-          log$warn("SQLite busy timeout not applied; contended telemetry writes may be lost")
-        }
-        # Several containers hold this file open at once; WAL keeps their reads from blocking
-        # each other's writes. Timeout first so the mode switch waits for a quiet moment.
-        if (!set_sqlite_wal(storage)) {
-          log$warn("SQLite WAL mode not applied; concurrent containers may hit 'database is locked'")
-        }
-        storage
-      },
+      "sqlite" = create_sqlite_storage(config),
       "postgresql" = {
-        has_driver <- requireNamespace("RPostgres", quietly = TRUE) ||
-          requireNamespace("RPostgreSQL", quietly = TRUE)
-        if (!has_driver) {
-          log$warn(
-            "PostgreSQL storage requested but no driver package installed ",
-            "(RPostgres or RPostgreSQL). Falling back to NULL."
-          )
-          return(NULL)
-        }
-        shiny.telemetry::DataStoragePostgreSQL$new(
-          host = config$postgresql$host,
-          port = config$postgresql$port,
-          dbname = config$postgresql$dbname,
-          user = config$postgresql$user,
-          password = config$postgresql$password
+        # Fail closed. shiny.telemetry's PostgreSQL storage writes unguarded, so a failed or
+        # slow write would end the user's session, and no database is provisioned.
+        log$warn(
+          "PostgreSQL telemetry storage is not supported (unguarded writes); ",
+          "using SQLite instead."
         )
+        create_sqlite_storage(config)
       },
       {
         log$error("Unknown storage type: {storage_type}")
