@@ -903,7 +903,7 @@ navpanel_server <- function(id, sidebar_reactives, fit_task) {
           duration_ms = 0,
           additional_metrics = list(
             n_rows = nrow(p$df),
-            n_groups = length(unique(p$df$id)),
+            n_groups = length(unique(p$df[[p$id_var]])),
             equation = p$equation_form
           ),
           always_log = TRUE
