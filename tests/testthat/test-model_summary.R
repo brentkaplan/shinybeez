@@ -72,6 +72,19 @@ describe("get_fit_statistics", {
     expect_true(is.numeric(stats$AIC))
     expect_true(is.numeric(stats$BIC))
     expect_true(is.numeric(stats$logLik))
+    expect_equal(stats$df_residual, 30)
+  })
+
+  it("reports residual df for an nlme model as N minus fixed effects", {
+    mdl <- nlme::nlme(
+      height ~ SSasymp(age, Asym, R0, lrc),
+      data = datasets::Loblolly,
+      fixed = Asym + R0 + lrc ~ 1,
+      random = Asym ~ 1,
+      start = c(Asym = 103, R0 = -8.5, lrc = -3.3)
+    )
+    stats <- model_summary$get_fit_statistics(list(model = mdl))
+    expect_equal(stats$df_residual, 84 - 3)
   })
 })
 

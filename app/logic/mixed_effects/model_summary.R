@@ -67,8 +67,22 @@ get_fit_statistics <- function(model_fit) {
     BIC = round(stats$BIC(mdl), 2),
     logLik = round(as.numeric(stats$logLik(mdl)), 2),
     sigma = round(summ$sigma, 4),
-    df_residual = tryCatch(summ$dims$N - summ$dims$p, error = function(e) NA)
+    df_residual = get_df_residual(mdl)
   )
+}
+
+# nlme's summary has no `dims$p`; residual df is N minus the fixed effects,
+# as print.lme reports it. Other models (lm) answer df.residual() directly.
+get_df_residual <- function(mdl) {
+  df <- tryCatch(
+    if (inherits(mdl, "lme")) {
+      stats$nobs(mdl) - length(nlme$fixef(mdl))
+    } else {
+      stats$df.residual(mdl)
+    },
+    error = function(e) NA
+  )
+  if (length(df) == 1) df else NA
 }
 
 #' Extract random effects variance components
