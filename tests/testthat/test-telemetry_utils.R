@@ -288,6 +288,40 @@ describe("session lifecycle payloads (shinybeez-analytics#7)", {
       con <- built$data_storage$.__enclos_env__$private$db_con
       expect_equal(tolower(DBI::dbGetQuery(con, "PRAGMA journal_mode")[[1]]), "wal")
     })
+
+    it("falls back to the guarded SQLite storage when postgresql is requested", {
+      skip_if_not_installed("shiny.telemetry")
+      skip_if_not_installed("RSQLite")
+      # The upstream PostgreSQL storage has unguarded writes (a failed write ends the user's
+      # session) and no database is provisioned. Asking for it must neither switch telemetry
+      # off nor hand back that class.
+      built <- NULL
+      withr::defer({
+        try(built$data_storage$.__enclos_env__$private$close_connection(), silent = TRUE)
+        withr::with_envvar(
+          c(R_CONFIG_ACTIVE = "default", TELEMETRY_ENABLED = "FALSE"),
+          telemetry_utils$init_telemetry()
+        )
+      })
+
+      db_path <- withr::local_tempfile(fileext = ".sqlite")
+      built <- withr::with_envvar(
+        c(
+          R_CONFIG_ACTIVE = "default",
+          TELEMETRY_ENABLED = "TRUE",
+          TELEMETRY_STORAGE = "postgresql",
+          TELEMETRY_DB_PATH = db_path,
+          SHINYBEEZ_ENV = "test"
+        ),
+        telemetry_utils$init_telemetry()
+      )
+
+      expect_false(is.null(built))
+      expect_s3_class(built$data_storage, "DataStorageSQLite")
+      expect_true(file.exists(db_path))
+      con <- built$data_storage$.__enclos_env__$private$db_con
+      expect_gt(DBI::dbGetQuery(con, "PRAGMA busy_timeout")[[1]], 0)
+    })
   })
 
   describe("set_sqlite_busy_timeout", {
