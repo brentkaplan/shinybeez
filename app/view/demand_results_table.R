@@ -5,7 +5,6 @@ box::use(
   DT[DTOutput, renderDT],
   esquisse,
   ggplot2,
-  htmltools[tagList],
   rhino,
   shiny,
   stats[aggregate],
@@ -17,6 +16,7 @@ box::use(
   app / logic / utils,
   app / logic / validate,
   app / logic / logging_utils,
+  app / logic / plot_downloads,
   app / logic / telemetry_utils,
   app / view / shared / data_table[build_datatable],
 )
@@ -79,15 +79,7 @@ ui <- function(id) {
           ),
           esquisse$ggplot_output(
             ns("plot"),
-            downloads = esquisse$downloads_labels(
-              label = esquisse$ph("download-simple"),
-              png = tagList(esquisse$ph("image"), "PNG"),
-              pdf = NULL,
-              svg = tagList(esquisse$ph("browsers"), "SVG"),
-              jpeg = tagList(esquisse$ph("image"), "JPEG"),
-              pptx = NULL,
-              more = tagList(esquisse$ph("gear"), esquisse$i18n("More options"))
-            )
+            downloads = plot_downloads$download_labels()
           )
         )
       )
