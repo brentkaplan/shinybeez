@@ -22,6 +22,7 @@ library(readr)
 library(rhino)
 library(shiny)
 library(shiny.telemetry)
+library(svglite)
 library(tidyr)
 library(vroom)
 

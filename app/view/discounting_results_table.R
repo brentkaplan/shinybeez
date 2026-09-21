@@ -19,6 +19,7 @@ box::use(
   app / logic / discounting / regression,
   app / logic / discounting / scoring,
   app / logic / logging_utils,
+  app / logic / plot_downloads,
   app / logic / telemetry_utils,
   app / logic / utils,
   app / view / shared / data_table[build_datatable],
@@ -56,8 +57,14 @@ server <- function(
           bslib$nav_panel("Summary Statistics", DT$DTOutput(ns("summary_table"))),
           bslib$nav_panel("Correlations", DT$DTOutput(ns("correlation_table"))),
           bslib$nav_panel("Imputed Data", DT$DTOutput(ns("imputed_data_table"))),
-          bslib$nav_panel("Prop SIR/SS", esquisse$ggplot_output(ns("prop_plot"))),
-          bslib$nav_panel("Boxplot", esquisse$ggplot_output(ns("boxplot_plot")))
+          bslib$nav_panel(
+            "Prop SIR/SS",
+            esquisse$ggplot_output(ns("prop_plot"), downloads = plot_downloads$download_labels())
+          ),
+          bslib$nav_panel(
+            "Boxplot",
+            esquisse$ggplot_output(ns("boxplot_plot"), downloads = plot_downloads$download_labels())
+          )
         )
       } else {
         bslib$navset_card_tab(
@@ -77,7 +84,7 @@ server <- function(
                 shiny$checkboxInput(ns("xlog"), "Log X-Axis"),
                 shiny$actionButton(ns("update_plot_btn"), "Update Plot")
               ),
-              esquisse$ggplot_output(ns("regression_plot"))
+              esquisse$ggplot_output(ns("regression_plot"), downloads = plot_downloads$download_labels())
             )
           )
         )

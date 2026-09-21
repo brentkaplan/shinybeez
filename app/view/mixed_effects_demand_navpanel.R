@@ -21,6 +21,7 @@ box::use(
   app / logic / async / daemons,
   app / logic / utils,
   app / logic / logging_utils,
+  app / logic / plot_downloads,
   app / logic / telemetry_utils,
   app / logic / mixed_effects_demand_utils,
   app / logic / mixed_effects / comparisons,
@@ -315,17 +316,7 @@ navpanel_ui <- function(id) {
             ),
             esquisse$ggplot_output(
               ns("mixed_model_plot"),
-              downloads = esquisse$downloads_labels(
-                label = esquisse$ph("download-simple"),
-                png = htmltools$tagList(esquisse$ph("image"), "PNG"),
-                svg = htmltools$tagList(esquisse$ph("browsers"), "SVG"),
-                jpeg = htmltools$tagList(esquisse$ph("image"), "JPEG"),
-                pptx = NULL,
-                more = htmltools$tagList(
-                  esquisse$ph("gear"),
-                  esquisse$i18n("More options")
-                )
-              )
+              downloads = plot_downloads$download_labels()
             )
           )
         )
