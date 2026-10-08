@@ -31,6 +31,7 @@ app/
 │   ├── demand/                     # Demand-specific logic (future)
 │   ├── discounting/                # Discounting-specific logic (future)
 │   ├── logging_utils.R             # Centralized logging
+│   ├── plot_style.R                # Plot style schema, defaults, validation, adapters
 │   ├── telemetry_utils.R           # Telemetry/analytics
 │   ├── utils.R                     # Shared utilities
 │   ├── validate.R                  # Data validation
@@ -39,6 +40,7 @@ app/
 │   ├── shared/                     # Reusable components
 │   │   ├── __init__.R              # Component exports
 │   │   ├── data_table.R            # DT-based data table
+│   │   ├── plot_layers.R           # Plot layer show/hide and prominence controls
 │   │   ├── plot_settings.R         # Plot settings sidebar
 │   │   └── systematic_criteria.R   # Systematic criteria panel
 │   ├── mixed_effects_demand_coordinator.R  # Coordinator (25 lines)
@@ -140,10 +142,21 @@ Plot configuration and aesthetic helpers.
 - `validate_aesthetic()` - Validate aesthetic selection against factors
 - `compute_aesthetic_defaults()` - Compute smart defaults for aesthetics
 - `build_validated_aesthetics()` - Build validated aesthetic mappings
-- `has_plot_content()` - Check if there's content to plot
-- `build_pred_lines_arg()` - Build prediction lines argument
 - `apply_plot_theme()`, `apply_legend_position()`, `apply_color_palette()` - Theme helpers
 - `get_axis_transform()` - Get axis transformation function
+
+### `app/logic/plot_style.R`
+
+Plot style schema shared by every plotting tab (pure functions, no Shiny).
+
+**Exports:**
+- `engines()`, `limits()` - Known plot engines and clamp ranges for the numeric fields
+- `style_defaults()` - Package-default style per engine (pinned, with a contract test against beezdemand)
+- `validate_style()`, `has_content()` - Clamp/validate a style; check at least one layer is shown
+- `prominence_defaults()`, `prominence_to_layer()` - Prominence slider to alpha/width maps
+- `plot_args_from_style()` - Adapter from a style to `plot()` arguments (nlme wired, tmb not yet)
+- `style_telemetry_payload()` - Flatten a style (plus extras) for the configuration snapshot
+- `snapshot_recorder()` - Log one snapshot per distinct rendered plot
 
 ### `app/logic/mixed_effects/export_utils.R`
 
@@ -204,6 +217,22 @@ plot_settings$sidebar_ui(ns("plot_opts"))
 opts <- plot_settings$server("plot_opts")
 opts$settings()  # Get current settings
 opts$update_trigger()  # Trigger for update button
+```
+
+### `app/view/shared/plot_layers.R`
+
+Layers section for a plot sidebar: show/hide plus prominence sliders for the
+population and individual lines, with an Advanced expander for exact values.
+
+```r
+box::use(app/view/shared/plot_layers)
+
+# UI - embed inside the host's plot sidebar
+plot_layers$ui(ns("layers"), engine = "beezdemand_nlme")
+
+# Server - returns the validated style for the same engine
+layers <- plot_layers$server("layers", engine = "beezdemand_nlme")
+layers$style()  # Validated style list, see plot_style$style_defaults()
 ```
 
 ### `app/view/shared/systematic_criteria.R`

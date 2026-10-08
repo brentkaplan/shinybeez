@@ -77,6 +77,37 @@ describe("Mixed Effects - default ko data", {
     expect_results_table(app, fe_id)
   })
 
+  it("changes individual-line prominence and re-renders the plot", {
+    require_app(app)
+    tabs_id <- ns_id("mixed_effects_demand", "results_display_tabs")
+    layer_id <- function(x) ns_id("mixed_effects_demand", "layers", x)
+    plot_id <- ns_id("mixed_effects_demand", "mixed_model_plot", "plot")
+
+    app$set_inputs(!!tabs_id := "Plot")
+    app$set_inputs(!!layer_id("show_individual") := TRUE, !!layer_id("prom_individual") := 100, wait_ = FALSE)
+    app$wait_for_idle(duration = 500, timeout = 30000)
+    # The slider is a one-way macro onto the numeric boxes (p = 1 -> alpha 0.9, width 1.8).
+    expect_equal(app$get_value(input = layer_id("ind_width")), 1.8)
+    expect_equal(app$get_value(input = layer_id("ind_alpha")), 0.9)
+
+    # Opening the Plot tab already rendered once; prove Update Plot produced a NEW image.
+    app$wait_for_js(sprintf("document.querySelector('#%s img') !== null", plot_id), timeout = 30000)
+    src_before <- app$get_js(sprintf("document.querySelector('#%s img').getAttribute('src')", plot_id))
+    app$click(selector = paste0("#", ns_id("mixed_effects_demand", "update_plot_settings")))
+    app$wait_for_js(
+      sprintf(
+        "document.querySelector('#%s img').getAttribute('src') !== %s",
+        plot_id, jsonlite::toJSON(src_before, auto_unbox = TRUE)
+      ),
+      timeout = 30000
+    )
+    app$wait_for_idle(duration = 500, timeout = 30000)
+    html <- app$get_html(paste0("#", plot_id))
+    expect_false(any(grepl("shiny-output-error", html, fixed = TRUE)))
+    err_html <- app$get_html(".shiny-notification-error")
+    expect_true(is.null(err_html) || !grepl("Error", err_html))
+  })
+
   local_app_stop()
 })
 

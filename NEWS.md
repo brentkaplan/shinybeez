@@ -27,6 +27,16 @@
   you to rename them by hand. A radio at the top switches between the two
   layouts if the guess is wrong.
 
+- **Plot layer prominence controls** — the mixed-effects demand plot sidebar
+  gains a Layers section: show/hide plus a prominence slider for population
+  and individual lines (alpha and width), with an Advanced expander for exact
+  values. Defaults reproduce the previous plot exactly.
+
+- **Dark-mode-safe palettes** — in dark mode every palette entry below 3:1
+  contrast against the plot canvas is lightened just enough to reach it, hue
+  preserved, so low-contrast entries (Okabe-Ito black, the brand navy and
+  purple) no longer vanish.
+
 ## Bug Fixes
 
 - **Wide demand headers must be whole numbers** — item-style headers such as
@@ -44,6 +54,16 @@
   positive numbers is also accepted there as indifference points. Headers that
   are not whole numbers (for example `price_1` or `1,000`), which the old
   parser tolerated, now open the reshape form instead of loading directly.
+
+## Internal
+
+- Plot settings are recorded as a `configuration_snapshot` (module
+  `mixed_effects_plot`) once per rendered mixed-effects plot; plot downloads
+  are attributed to the tab that produced them.
+
+- Discounting plot downloads are now named `shinybeez-discounting-prop-ss`,
+  `shinybeez-discounting-boxplot` and `shinybeez-discounting-regression`
+  (previously `export-ggplot`).
 
 # shinybeez 1.1.3
 

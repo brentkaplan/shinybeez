@@ -75,41 +75,6 @@ compute_aesthetic_defaults <- function(
   )
 }
 
-#' Build the show_pred_lines argument for plot()
-#'
-#' @param show_population Logical, show population-level prediction lines
-#' @param show_individual Logical, show individual-level prediction lines
-#' @return Character vector, logical FALSE, or specific values for show_pred_lines
-#' @export
-build_pred_lines_arg <- function(show_population, show_individual) {
-  pred_lines <- c()
-  if (isTRUE(show_population)) {
-    pred_lines <- c(pred_lines, "population")
-  }
-  if (isTRUE(show_individual)) {
-    pred_lines <- c(pred_lines, "individual")
-  }
-
-  if (length(pred_lines) == 0) {
-    return(FALSE)
-  } else if (length(pred_lines) == 2) {
-    return(c("population", "individual"))
-  } else {
-    return(pred_lines)
-  }
-}
-
-#' Check if plot has content to display
-#'
-#' @param show_population Logical, show population lines
-#' @param show_individual Logical, show individual lines
-#' @param show_observed Logical, show observed points
-#' @return Logical, TRUE if something will be displayed
-#' @export
-has_plot_content <- function(show_population, show_individual, show_observed) {
-  isTRUE(show_population) || isTRUE(show_individual) || isTRUE(show_observed)
-}
-
 #' Build facet formula string from selection
 #'
 #' @param facet_var The facet variable name (may be NULL or empty)
@@ -181,7 +146,9 @@ color_levels_in <- function(color_var, df) {
 #' @param color_var The color variable name (may be NULL)
 #' @param fit_data The fitted data containing the color variable
 #' @param palette_name Name of the palette
-#' @param get_palette_fn Function to get palette colors (n_levels -> colors)
+#' @param get_palette_fn Function returning palette colors, called as `function(name, n, dark)`.
+#' @param dark Logical, passed to `get_palette_fn` (TRUE in dark mode). The callback contract
+#'   is `function(name, n, dark)`.
 #' @return Modified ggplot object
 #' @export
 
@@ -190,7 +157,8 @@ apply_color_palette <- function(
   color_var,
   fit_data,
   palette_name,
-  get_palette_fn
+  get_palette_fn,
+  dark = FALSE
 ) {
   if (is.null(color_var)) {
     return(p)
@@ -215,7 +183,7 @@ apply_color_palette <- function(
 
   p +
     ggplot2$scale_color_manual(
-      values = get_palette_fn(palette_name, length(levels_seen))
+      values = get_palette_fn(palette_name, length(levels_seen), dark = dark)
     )
 }
 
