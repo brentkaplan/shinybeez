@@ -156,6 +156,15 @@ describe("validate_style", {
     s$layers$population$alpha <- "0.4"
     expect_equal(plot_style$validate_style(s)$layers$population$alpha, 0.4)
   })
+
+  it("does not partial-match unknown keys onto schema fields", {
+    prefixed_layers <- plot_style$validate_style(list(layers_x = list(population = list(alpha = 0.2))))
+    expect_equal(prefixed_layers$layers$population$alpha, 0.9)
+    prefixed_fields <- list(layers = list(population = list(alpha_extra = 0.2, showing = FALSE)))
+    v <- plot_style$validate_style(prefixed_fields)
+    expect_equal(v$layers$population$alpha, 0.9)
+    expect_true(v$layers$population$show)
+  })
 })
 
 describe("limits and engines", {

@@ -103,8 +103,8 @@ validate_layer <- function(layer, default, size_key) {
     layer <- list()
   }
   out <- list(
-    show = if (is.null(layer$show)) default$show else isTRUE(layer$show),
-    alpha = clamp_num(layer$alpha, default$alpha, LIMITS$alpha)
+    show = if (is.null(layer[["show"]])) default[["show"]] else isTRUE(layer[["show"]]),
+    alpha = clamp_num(layer[["alpha"]], default[["alpha"]], LIMITS[["alpha"]])
   )
   out[[size_key]] <- clamp_num(layer[[size_key]], default[[size_key]], LIMITS[[size_key]])
   out
@@ -118,13 +118,13 @@ validate_layer <- function(layer, default, size_key) {
 #' key order and types, so it is safe as a `bindCache()` key.
 #' @export
 validate_style <- function(style, engine = "beezdemand_nlme") {
-  defaults <- style_defaults(engine)$layers
-  layers <- if (is.list(style) && is.list(style$layers)) style$layers else list()
+  defaults <- style_defaults(engine)[["layers"]]
+  layers <- if (is.list(style) && is.list(style[["layers"]])) style[["layers"]] else list()
   list(
     layers = list(
-      population = validate_layer(layers$population, defaults$population, "width"),
-      individual = validate_layer(layers$individual, defaults$individual, "width"),
-      observed = validate_layer(layers$observed, defaults$observed, "size")
+      population = validate_layer(layers[["population"]], defaults[["population"]], "width"),
+      individual = validate_layer(layers[["individual"]], defaults[["individual"]], "width"),
+      observed = validate_layer(layers[["observed"]], defaults[["observed"]], "size")
     )
   )
 }
