@@ -173,3 +173,104 @@ describe("limits and engines", {
     expect_equal(plot_style$engines(), c("beezdemand_nlme", "beezdemand_tmb"))
   })
 })
+
+describe("plot_args_from_style", {
+  it("maps the nlme defaults onto the plot() argument names", {
+    args <- plot_style$plot_args_from_style(nlme_defaults, "beezdemand_nlme")
+    expect_equal(args, list(
+      show_observed = TRUE,
+      show_pred = "population",
+      observed_point_alpha = 0.6,
+      observed_point_size = 2.0,
+      pop_line_alpha = 0.9,
+      pop_line_size = 1.0,
+      ind_line_alpha = 0.3,
+      ind_line_size = 0.6
+    ))
+  })
+
+  it("only uses argument names the installed plot method accepts (contract)", {
+    skip_if_not_installed("beezdemand")
+    f <- names(nlme_plot_formals())
+    args <- plot_style$plot_args_from_style(nlme_defaults, "beezdemand_nlme")
+    expect_true(all(names(args) %in% f), info = paste(setdiff(names(args), f), collapse = ", "))
+  })
+
+  it("builds show_pred from the two line flags", {
+    s <- nlme_defaults
+    s$layers$population$show <- FALSE
+    s$layers$individual$show <- FALSE
+    expect_false(plot_style$plot_args_from_style(s)$show_pred)
+    s$layers$individual$show <- TRUE
+    expect_equal(plot_style$plot_args_from_style(s)$show_pred, "individual")
+    s$layers$population$show <- TRUE
+    expect_equal(plot_style$plot_args_from_style(s)$show_pred, c("population", "individual"))
+  })
+
+  it("validates before mapping", {
+    s <- nlme_defaults
+    s$layers$population$alpha <- 9
+    expect_equal(plot_style$plot_args_from_style(s)$pop_line_alpha, 1)
+  })
+
+  it("refuses the tmb engine until it is wired", {
+    expect_error(plot_style$plot_args_from_style(nlme_defaults, "beezdemand_tmb"), "not wired")
+  })
+
+  it("errors on an unknown engine", {
+    expect_error(plot_style$plot_args_from_style(nlme_defaults, "lm"), "Unknown plot engine")
+  })
+})
+
+describe("has_content", {
+  it("is FALSE only when every layer is hidden", {
+    s <- nlme_defaults
+    expect_true(plot_style$has_content(s))
+    s$layers$population$show <- FALSE
+    s$layers$observed$show <- FALSE
+    expect_false(plot_style$has_content(s))
+    s$layers$individual$show <- TRUE
+    expect_true(plot_style$has_content(s))
+  })
+})
+
+describe("style_telemetry_payload", {
+  it("flattens to nine fixed names, rounded to 2 dp, with extras appended", {
+    s <- nlme_defaults
+    s$layers$population$alpha <- 0.123456
+    out <- plot_style$style_telemetry_payload(s, extras = list(palette = "Codedbx", dark_mode = FALSE))
+    expect_identical(
+      names(out),
+      c(
+        "pop_show", "pop_alpha", "pop_width", "ind_show", "ind_alpha", "ind_width",
+        "obs_show", "obs_alpha", "obs_size", "palette", "dark_mode"
+      )
+    )
+    expect_equal(out$pop_alpha, 0.12)
+    expect_true(out$pop_show)
+    expect_false(out$ind_show)
+    expect_equal(out$palette, "Codedbx")
+  })
+
+  it("works with no extras", {
+    expect_length(plot_style$style_telemetry_payload(nlme_defaults), 9)
+  })
+})
+
+describe("snapshot_recorder", {
+  it("records once per distinct (payload, generation) and reports whether it recorded", {
+    seen <- list()
+    rec <- plot_style$snapshot_recorder(function(payload) seen[[length(seen) + 1]] <<- payload)
+    p1 <- list(pop_alpha = 0.9, palette = "Codedbx")
+    expect_true(rec(p1, 1L))
+    expect_false(rec(p1, 1L))
+    expect_length(seen, 1)
+    expect_true(rec(p1, 2L))
+    p2 <- p1
+    p2$pop_alpha <- 0.5
+    expect_true(rec(p2, 2L))
+    expect_false(rec(p2, 2L))
+    expect_length(seen, 3)
+    expect_equal(seen[[3]], p2)
+  })
+})

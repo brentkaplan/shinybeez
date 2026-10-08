@@ -5,6 +5,10 @@
 #' once, and hand it to `plot_args_from_style()` to splice package-specific
 #' arguments into `plot()`. Nothing here touches Shiny.
 
+box::use(
+  rlang[hash],
+)
+
 ENGINES <- c("beezdemand_nlme", "beezdemand_tmb") # nolint: object_name_linter
 
 # Package defaults, pinned rather than read from the installed package so app
@@ -127,4 +131,83 @@ validate_style <- function(style, engine = "beezdemand_nlme") {
       observed = validate_layer(layers[["observed"]], defaults[["observed"]], "size")
     )
   )
+}
+
+#' TRUE when at least one layer is shown
+#' @export
+has_content <- function(style) {
+  l <- style[["layers"]]
+  isTRUE(l[["population"]][["show"]]) || isTRUE(l[["individual"]][["show"]]) || isTRUE(l[["observed"]][["show"]])
+}
+
+# The show_pred value beezdemand's plot() expects: FALSE, one name, or both.
+pred_lines_arg <- function(show_population, show_individual) {
+  lines <- c("population", "individual")[c(isTRUE(show_population), isTRUE(show_individual))]
+  if (length(lines) == 0L) {
+    return(FALSE)
+  }
+  lines
+}
+
+#' Arguments to splice into the package plot() call for an engine
+#'
+#' Use as `do.call(plot, c(list(fit), plot_args_from_style(style), other_args))`.
+#' @export
+plot_args_from_style <- function(style, engine = "beezdemand_nlme") {
+  engine <- check_engine(engine)
+  if (engine == "beezdemand_tmb") {
+    stop("plot_args_from_style() is not wired for beezdemand_tmb yet (planned for v1.3)", call. = FALSE)
+  }
+  l <- validate_style(style, engine)[["layers"]]
+  list(
+    show_observed = l[["observed"]][["show"]],
+    show_pred = pred_lines_arg(l[["population"]][["show"]], l[["individual"]][["show"]]),
+    observed_point_alpha = l[["observed"]][["alpha"]],
+    observed_point_size = l[["observed"]][["size"]],
+    pop_line_alpha = l[["population"]][["alpha"]],
+    pop_line_size = l[["population"]][["width"]],
+    ind_line_alpha = l[["individual"]][["alpha"]],
+    ind_line_size = l[["individual"]][["width"]]
+  )
+}
+
+#' Flat, stable-named payload for a configuration_snapshot telemetry event
+#' @export
+style_telemetry_payload <- function(style, extras = list(), engine = "beezdemand_nlme") {
+  l <- validate_style(style, engine)[["layers"]]
+  c(
+    list(
+      pop_show = l[["population"]][["show"]],
+      pop_alpha = round(l[["population"]][["alpha"]], 2),
+      pop_width = round(l[["population"]][["width"]], 2),
+      ind_show = l[["individual"]][["show"]],
+      ind_alpha = round(l[["individual"]][["alpha"]], 2),
+      ind_width = round(l[["individual"]][["width"]], 2),
+      obs_show = l[["observed"]][["show"]],
+      obs_alpha = round(l[["observed"]][["alpha"]], 2),
+      obs_size = round(l[["observed"]][["size"]], 2)
+    ),
+    extras
+  )
+}
+
+#' Build a recorder that forwards a payload only when it (or the generation) changed
+#'
+#' Used to log one telemetry snapshot per distinct rendered plot: renderPlot
+#' re-runs on every resize, so the same configuration would otherwise be logged
+#' repeatedly.
+#' @param record_fn `function(payload)` that performs the logging.
+#' @return `function(payload, generation = 0L)`; returns TRUE when `record_fn` ran.
+#' @export
+snapshot_recorder <- function(record_fn) {
+  state <- new.env(parent = emptyenv())
+  function(payload, generation = 0L) {
+    key <- hash(list(payload, generation))
+    if (identical(key, state[["last_key"]])) {
+      return(FALSE)
+    }
+    state[["last_key"]] <- key
+    record_fn(payload)
+    TRUE
+  }
 }
