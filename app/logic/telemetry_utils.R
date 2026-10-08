@@ -549,10 +549,30 @@ plot_download_module <- function(filename = NULL, id = NULL) {
   "unknown"
 }
 
+# esquisse names its export links `...-export_<format>` (or `export-<format>` in the "More options" modal).
+plot_export_id_pattern <- "export[_-](png|pdf|svg|jpeg|bmp|eps|tiff|pptx)$"
+
+#' Whether a clicked download is a plot export
+#'
+#' The document-level download click handler also fires for non-plot `a[download]`
+#' links (Export All xlsx, long-format CSV). A download counts as a plot export when
+#' its filename carries the `shinybeez-` prefix every render_ggplot() call sets, or
+#' when the clicked link id is an esquisse `export_<format>` / `export-<format>` link.
+#' @param filename Download filename (may be NULL or empty).
+#' @param id Id of the clicked download link (may be NULL or empty).
+#' @return `TRUE` or `FALSE`.
+#' @export
+is_plot_download <- function(filename = NULL, id = NULL) {
+  if (is_nonempty_string(filename) && startsWith(filename, "shinybeez-")) {
+    return(TRUE)
+  }
+  is_nonempty_string(id) && grepl(plot_export_id_pattern, id)
+}
+
 #' File format of a plot download
 #'
 #' Reads the extension from the download filename when there is one, otherwise the
-#' `export_<format>` suffix of the esquisse download link id.
+#' `export_<format>` (or `export-<format>`) suffix of the esquisse download link id.
 #' @param filename Download filename (may be NULL or empty).
 #' @param id Id of the clicked download link (may be NULL or empty).
 #' @return Lower-case format such as `"png"`, or `"unknown"`.
@@ -565,9 +585,9 @@ plot_download_format <- function(filename = NULL, id = NULL) {
     }
   }
   if (is_nonempty_string(id)) {
-    hit <- regmatches(id, regexec("export_(png|pdf|svg|jpeg)$", id))[[1]]
+    hit <- regmatches(id, regexec(plot_export_id_pattern, id))[[1]]
     if (length(hit) == 2L) {
-      return(hit[[2]])
+      return(tolower(hit[[2]]))
     }
   }
   "unknown"

@@ -184,6 +184,30 @@ describe("telemetry_utils", {
     })
   })
 
+  describe("is_plot_download", {
+    it("is TRUE for esquisse export link ids, with or without a filename", {
+      expect_true(telemetry_utils$is_plot_download(NULL, "app-mixed_effects_demand-mixed_model_plot-export_png"))
+      expect_true(telemetry_utils$is_plot_download("", "app-demand-x-plot-export-tiff"))
+      expect_true(telemetry_utils$is_plot_download(id = "app-demand-x-plot-export_pptx"))
+    })
+
+    it("is TRUE for a shinybeez- download filename even without an id", {
+      expect_true(telemetry_utils$is_plot_download("shinybeez-demand.png", NULL))
+      expect_true(telemetry_utils$is_plot_download(filename = "shinybeez-discounting-prop-ss.png"))
+    })
+
+    it("is FALSE for other downloads and empty input", {
+      expect_false(telemetry_utils$is_plot_download(NULL, "app-mixed_effects_demand-export_all_xlsx"))
+      expect_false(telemetry_utils$is_plot_download(NULL, "app-reshape-download_long_csv"))
+      expect_false(telemetry_utils$is_plot_download("shinybeez_mixedeffects_export_20260101.xlsx", NULL))
+      expect_false(telemetry_utils$is_plot_download("", ""))
+      expect_false(telemetry_utils$is_plot_download(NULL, NULL))
+      expect_false(telemetry_utils$is_plot_download())
+      expect_false(telemetry_utils$is_plot_download(NA, NA))
+      expect_false(telemetry_utils$is_plot_download(NA_character_, NA_character_))
+    })
+  })
+
   describe("plot_download_format", {
     it("reads the lower-cased extension from the filename", {
       expect_equal(telemetry_utils$plot_download_format("shinybeez-demand.PNG"), "png")
@@ -198,11 +222,20 @@ describe("telemetry_utils", {
       }
     })
 
+    it("reads the hyphenated export-<fmt> ids and the extra esquisse formats", {
+      expect_equal(telemetry_utils$plot_download_format("", "app-demand-x-plot-export-png"), "png")
+      expect_equal(telemetry_utils$plot_download_format(NULL, "app-demand-x-plot-export-tiff"), "tiff")
+      expect_equal(telemetry_utils$plot_download_format("", "app-demand-x-plot-export_tiff"), "tiff")
+      for (fmt in c("bmp", "eps", "pptx")) {
+        expect_equal(telemetry_utils$plot_download_format("", paste0("app-demand-x-plot-export_", fmt)), fmt)
+      }
+    })
+
     it("falls back to unknown", {
       expect_equal(telemetry_utils$plot_download_format(NULL), "unknown")
       expect_equal(telemetry_utils$plot_download_format(""), "unknown")
       expect_equal(telemetry_utils$plot_download_format("no-extension"), "unknown")
-      expect_equal(telemetry_utils$plot_download_format("", "app-demand-x-plot-export_pptx"), "unknown")
+      expect_equal(telemetry_utils$plot_download_format("", "app-demand-x-plot-export_gif"), "unknown")
       expect_equal(telemetry_utils$plot_download_format("", "app-demand-x-plot"), "unknown")
       expect_equal(telemetry_utils$plot_download_format(NULL, NULL), "unknown")
     })

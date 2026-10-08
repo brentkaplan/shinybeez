@@ -249,6 +249,7 @@ server <- function(id) {
 
     shiny$observeEvent(root_input[["_telemetry_plot_download"]], {
       evt <- root_input[["_telemetry_plot_download"]]
+      shiny$req(telemetry_utils$is_plot_download(evt$filename, evt$id))
       session_telemetry$track_export(
         export_type = "plot",
         module = telemetry_utils$plot_download_module(evt$filename, evt$id),

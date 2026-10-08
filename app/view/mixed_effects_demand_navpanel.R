@@ -1682,6 +1682,7 @@ navpanel_server <- function(id, sidebar_reactives, fit_task) {
         sidebar_reactives$cov_at_natural(),
         cache = "session"
       ) |>
+      # Keep these event expressions identical to the other bindEvent (plot reactive <-> snapshot payload).
       shiny$bindEvent(
         input$update_plot_settings,
         fitted_model_reactive(),
@@ -1717,6 +1718,7 @@ navpanel_server <- function(id, sidebar_reactives, fit_task) {
           shape_by = aes$shape,
           facet_by = facet_var,
           legend_position = input$plot_legend_position,
+          font_size = input$plot_font_size,
           x_trans = input$plot_x_trans,
           y_trans = input$plot_y_trans,
           watermark = isTRUE(input$show_watermark)
@@ -1725,6 +1727,7 @@ navpanel_server <- function(id, sidebar_reactives, fit_task) {
     }
 
     plot_snapshot_payload_r <- shiny$reactive(plot_snapshot_payload()) |>
+      # Keep these event expressions identical to the other bindEvent (plot reactive <-> snapshot payload).
       shiny$bindEvent(
         input$update_plot_settings,
         fitted_model_reactive(),
@@ -1737,8 +1740,12 @@ navpanel_server <- function(id, sidebar_reactives, fit_task) {
       expr = {
         p <- plot_object_reactive()
         # Runs only after the plot built without error; isolate() keeps the payload's
-        # inputs from adding render dependencies beyond the plot itself.
-        shiny$isolate(plot_snapshot(plot_snapshot_payload_r(), fit_generation()))
+        # inputs from adding render dependencies beyond the plot itself. The tryCatch
+        # keeps telemetry from ever replacing the plot with an error.
+        tryCatch(
+          shiny$isolate(plot_snapshot(plot_snapshot_payload_r(), fit_generation())),
+          error = function(e) NULL
+        )
         p
       },
       filename = "shinybeez-mixed-effects-demand-plot",
