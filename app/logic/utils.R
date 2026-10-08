@@ -64,15 +64,51 @@ watermark_tr <- tryCatch(
 # Palette helpers (discrete)
 # -----------------------------------------------------------------------------
 
-#' Get a vector of colors for a named discrete palette
-#'
-#' @param name Character palette name. Supported: "Codedbx" (default, brand),
-#'   "Okabe-Ito" (colorblind-safe), "HCL Light", "HCL Dark". The name is matched
-#'   case-insensitively for the brand palette.
-#' @param n Integer number of colors required.
-#' @return Character vector of hex colors of length n.
+#' Canvas colour painted behind plots in dark mode
 #' @export
-get_palette_colors <- function(name = "Codedbx", n = 2L) {
+DARK_CANVAS <- "#2d2d2d" # nolint: object_name_linter
+
+#' WCAG 2 relative luminance of one colour
+#' @export
+relative_luminance <- function(col) {
+  rgb <- grDevices$col2rgb(col)[, 1] / 255
+  lin <- ifelse(rgb <= 0.03928, rgb / 12.92, ((rgb + 0.055) / 1.055)^2.4)
+  sum(c(0.2126, 0.7152, 0.0722) * lin)
+}
+
+#' WCAG 2 contrast ratio between two colours (symmetric, 1..21)
+#' @export
+contrast_ratio <- function(a, b) {
+  la <- relative_luminance(a)
+  lb <- relative_luminance(b)
+  (max(la, lb) + 0.05) / (min(la, lb) + 0.05)
+}
+
+#' Lighten a colour toward white just enough to reach `target` contrast on `bg`
+#'
+#' Hue is kept (the ramp runs from the colour to white); a colour that already
+#' meets the target is returned unchanged.
+#' @export
+lighten_to_contrast <- function(col, bg = DARK_CANVAS, target = 3) {
+  if (contrast_ratio(col, bg) >= target) {
+    return(col)
+  }
+  ramp <- grDevices$colorRampPalette(c(col, "#FFFFFF"))(101)
+  ok <- vapply(ramp, function(x) contrast_ratio(x, bg) >= target, logical(1))
+  if (!any(ok)) {
+    return("#FFFFFF")
+  }
+  ramp[[which(ok)[1]]]
+}
+
+# Light-mode base palette (internal). Public entry point is get_palette_colors().
+#
+# name: Character palette name. Supported: "Codedbx" (default, brand),
+#   "Okabe-Ito" (colorblind-safe), "HCL Light", "HCL Dark". The name is matched
+#   case-insensitively for the brand palette.
+# n: Integer number of colors required.
+# Returns a character vector of hex colors of length n.
+palette_base <- function(name = "Codedbx", n = 2L) {
   if (is.null(n) || is.na(n) || n <= 0) {
     return(character(0))
   }
@@ -126,6 +162,24 @@ get_palette_colors <- function(name = "Codedbx", n = 2L) {
   }
 }
 
+#' Get a vector of colors for a named discrete palette
+#'
+#' @param name Character palette name. Supported: "Codedbx" (default, brand),
+#'   "Okabe-Ito" (colorblind-safe), "HCL Light", "HCL Dark". The name is matched
+#'   case-insensitively for the brand palette.
+#' @param n Integer number of colors required.
+#' @param dark Logical. When TRUE every entry is lightened (hue preserved) until it
+#'   reaches 3:1 contrast against `DARK_CANVAS`; entries that already pass are untouched.
+#' @return Character vector of hex colors of length n.
+#' @export
+get_palette_colors <- function(name = "Codedbx", n = 2L, dark = FALSE) {
+  cols <- palette_base(name, n)
+  if (!isTRUE(dark) || length(cols) == 0L) {
+    return(cols)
+  }
+  vapply(cols, lighten_to_contrast, character(1), USE.NAMES = FALSE)
+}
+
 #' Build the discrete colour scale for a plot's group levels
 #'
 #' Callers must pass the levels the plot was *actually built with*, never the levels of
@@ -137,16 +191,17 @@ get_palette_colors <- function(name = "Codedbx", n = 2L) {
 #'   NULL when the plot has no colour aesthetic. NA levels are dropped: ggplot2 colours
 #'   NA via `na.value`, not from the manual palette.
 #' @param palette_name Character palette name, passed to [get_palette_colors()].
+#' @param dark Logical, TRUE in dark mode (passed to [get_palette_colors()]).
 #' @return A ggplot2 discrete colour scale, or NULL when there is nothing to colour.
 #'   NULL added to a ggplot is a no-op, so callers can add the result unconditionally.
 #' @export
-resolve_group_scale <- function(levels, palette_name = "Codedbx") {
+resolve_group_scale <- function(levels, palette_name = "Codedbx", dark = FALSE) {
   levels <- unique(levels[!is.na(levels)])
   if (length(levels) == 0L) {
     return(NULL)
   }
   ggplot2$scale_colour_manual(
-    values = get_palette_colors(palette_name, length(levels))
+    values = get_palette_colors(palette_name, length(levels), dark = dark)
   )
 }
 
@@ -224,7 +279,7 @@ apply_dark_mode_theme <- function(p, dark_mode = "light") {
     return(p)
   }
 
-  bg_color <- "#2d2d2d"
+  bg_color <- DARK_CANVAS
   text_color <- "#dee2e6"
   grid_color <- "#495057"
 

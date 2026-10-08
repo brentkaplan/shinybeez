@@ -520,7 +520,11 @@ server <- function(
           ggplot2$guides(
             color = ggplot2$guide_legend(title = input$legend_title)
           ) +
-          utils$resolve_group_scale(res$plot_group_levels, input$palette)
+          utils$resolve_group_scale(
+            res$plot_group_levels,
+            input$palette,
+            dark = identical(session$rootScope()$input$dark_mode, "dark")
+          )
       }
 
       # Same rule as above: the watermark decision belongs to the fit's own data,

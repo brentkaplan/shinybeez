@@ -132,3 +132,76 @@ describe("apply_dark_mode_theme - geom contrast", {
     expect_null(result$layers[[1]]$aes_params$colour)
   })
 })
+
+describe("contrast helpers", {
+  it("computes WCAG relative luminance and contrast", {
+    expect_equal(utils$relative_luminance("#FFFFFF"), 1)
+    expect_equal(utils$relative_luminance("#000000"), 0)
+    expect_equal(utils$contrast_ratio("#FFFFFF", "#000000"), 21)
+    expect_equal(utils$contrast_ratio("#000000", "#FFFFFF"), 21)
+  })
+
+  it("exports the dark canvas colour used by the dark theme", {
+    expect_identical(utils$DARK_CANVAS, "#2d2d2d")
+  })
+
+  it("lightens a colour along a ramp to white until it reaches the target", {
+    expect_identical(utils$lighten_to_contrast("#000000"), "#777777")
+    expect_identical(utils$lighten_to_contrast("#2B4560"), "#66798C")
+    expect_identical(utils$lighten_to_contrast("#534B7A"), "#787297")
+    expect_gte(utils$contrast_ratio(utils$lighten_to_contrast("#000000"), utils$DARK_CANVAS), 3)
+  })
+
+  it("returns a colour unchanged when it already meets the target", {
+    expect_identical(utils$lighten_to_contrast("#5D8AA8"), "#5D8AA8")
+    expect_identical(utils$lighten_to_contrast("#FFFFFF"), "#FFFFFF")
+  })
+})
+
+describe("get_palette_colors - dark mode", {
+  palettes <- c("Codedbx", "Okabe-Ito", "HCL Light", "HCL Dark")
+
+  it("is unchanged when dark = FALSE", {
+    for (p in palettes) {
+      expect_identical(
+        utils$get_palette_colors(p, 8, dark = FALSE),
+        utils$get_palette_colors(p, 8),
+        info = p
+      )
+    }
+  })
+
+  it("lifts every entry to at least 3:1 against the dark canvas when dark = TRUE", {
+    for (p in palettes) {
+      cols <- utils$get_palette_colors(p, 8, dark = TRUE)
+      ratios <- vapply(cols, utils$contrast_ratio, numeric(1), b = utils$DARK_CANVAS)
+      expect_true(all(ratios >= 3), info = paste(p, paste(round(ratios, 2), collapse = " ")))
+      expect_length(cols, 8)
+    }
+  })
+
+  it("keeps entries that already pass byte-identical, so group identity holds across modes", {
+    light <- utils$get_palette_colors("Codedbx", 6)
+    dark <- utils$get_palette_colors("Codedbx", 6, dark = TRUE)
+    passing <- vapply(light, utils$contrast_ratio, numeric(1), b = utils$DARK_CANVAS) >= 3
+    expect_true(any(passing) && any(!passing))
+    expect_identical(dark[passing], light[passing])
+    expect_false(identical(dark[!passing], light[!passing]))
+  })
+
+  it("turns Okabe-Ito black into the lightened grey", {
+    expect_identical(utils$get_palette_colors("Okabe-Ito", 1, dark = TRUE), "#777777")
+  })
+
+  it("lightens after recycling so repeated entries stay identical", {
+    cols <- utils$get_palette_colors("Codedbx", 12, dark = TRUE)
+    expect_identical(cols[1:6], cols[7:12])
+  })
+})
+
+describe("resolve_group_scale - dark mode", {
+  it("uses the dark palette values", {
+    scale <- utils$resolve_group_scale(c("a", "b", "c"), "Okabe-Ito", dark = TRUE)
+    expect_identical(scale$palette(3), utils$get_palette_colors("Okabe-Ito", 3, dark = TRUE))
+  })
+})
