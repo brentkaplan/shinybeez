@@ -102,62 +102,6 @@ describe("compute_aesthetic_defaults", {
   })
 })
 
-# Test build_pred_lines_arg
-describe("build_pred_lines_arg", {
-  it("returns FALSE when both are FALSE", {
-    result <- plotting$build_pred_lines_arg(FALSE, FALSE)
-    expect_false(result)
-  })
-
-  it("returns 'population' when only population is TRUE", {
-    result <- plotting$build_pred_lines_arg(TRUE, FALSE)
-    expect_equal(result, "population")
-  })
-
-  it("returns 'individual' when only individual is TRUE", {
-    result <- plotting$build_pred_lines_arg(FALSE, TRUE)
-    expect_equal(result, "individual")
-  })
-
-  it("returns both when both are TRUE", {
-    result <- plotting$build_pred_lines_arg(TRUE, TRUE)
-    expect_equal(result, c("population", "individual"))
-  })
-
-  it("handles NULL as FALSE", {
-    result <- plotting$build_pred_lines_arg(NULL, NULL)
-    expect_false(result)
-  })
-})
-
-# Test has_plot_content
-describe("has_plot_content", {
-  it("returns FALSE when all are FALSE", {
-    result <- plotting$has_plot_content(FALSE, FALSE, FALSE)
-    expect_false(result)
-  })
-
-  it("returns TRUE when population is TRUE", {
-    result <- plotting$has_plot_content(TRUE, FALSE, FALSE)
-    expect_true(result)
-  })
-
-  it("returns TRUE when individual is TRUE", {
-    result <- plotting$has_plot_content(FALSE, TRUE, FALSE)
-    expect_true(result)
-  })
-
-  it("returns TRUE when observed is TRUE", {
-    result <- plotting$has_plot_content(FALSE, FALSE, TRUE)
-    expect_true(result)
-  })
-
-  it("returns TRUE when all are TRUE", {
-    result <- plotting$has_plot_content(TRUE, TRUE, TRUE)
-    expect_true(result)
-  })
-})
-
 # Test build_facet_formula
 describe("build_facet_formula", {
   it("returns NULL for NULL facet_var", {

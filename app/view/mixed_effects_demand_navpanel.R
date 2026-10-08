@@ -22,6 +22,7 @@ box::use(
   app / logic / utils,
   app / logic / logging_utils,
   app / logic / plot_downloads,
+  app / logic / plot_style,
   app / logic / telemetry_utils,
   app / logic / mixed_effects_demand_utils,
   app / logic / mixed_effects / comparisons,
@@ -34,7 +35,8 @@ box::use(
   app / logic / mixed_effects / model_summary,
   app / logic / mixed_effects / plotting,
   app / logic / mixed_effects / systematic_utils,
-  app / logic / mixed_effects / validation_utils
+  app / logic / mixed_effects / validation_utils,
+  app / view / shared / plot_layers
 )
 
 #' @export
@@ -292,21 +294,7 @@ navpanel_ui <- function(id) {
                 ),
                 selected = "log10"
               ),
-              shiny$checkboxInput(
-                ns("show_population_lines"),
-                "Show Population Lines",
-                value = TRUE
-              ),
-              shiny$checkboxInput(
-                ns("show_individual_lines"),
-                "Show Individual Lines",
-                value = FALSE
-              ),
-              shiny$checkboxInput(
-                ns("show_observed_points_plot"),
-                "Show Observed Points",
-                value = TRUE
-              ),
+              plot_layers$ui(ns("layers"), engine = "beezdemand_nlme"),
               shiny$checkboxInput(
                 ns("show_watermark"),
                 "Show shinybeez Watermark",
@@ -340,6 +328,9 @@ navpanel_server <- function(id, sidebar_reactives, fit_task) {
 
     # Create session-specific logger for navpanel
     session_logger <- logging_utils$create_session_logger(session)
+
+    # Shared Layers section (population / individual / observed show + prominence)
+    layers <- plot_layers$server("layers", engine = "beezdemand_nlme")
 
     # Guard flag to suppress notifications during initial reactive cascade
     initialized <- shiny$reactiveVal(FALSE)
@@ -1556,30 +1547,27 @@ navpanel_server <- function(id, sidebar_reactives, fit_task) {
     }) |>
       shiny$bindEvent(fitted_model_reactive())
 
-    plot_object_reactive <- shiny$reactive({
+    # Validated aesthetics, shared by the plot reactive and the telemetry snapshot.
+    aesthetics_r <- shiny$reactive({
       model_fit <- fitted_model_reactive()
       shiny$req(model_fit, model_fit$model)
-
-      # Get valid factors from the fitted model
       valid_factors <- model_fit$param_info$factors %||% character(0)
-
-      # Validate aesthetics using plotting module
-      aesthetics <- plotting$build_validated_aesthetics(
+      plotting$build_validated_aesthetics(
         color_input = input$plot_color_by,
         linetype_input = input$plot_linetype_by,
         facet_input = input$plot_facet_by,
         valid_factors = valid_factors,
         shape_input = input$plot_shape_by
       )
+    })
 
-      # Check if there's content to plot
-      if (
-        !plotting$has_plot_content(
-          input$show_population_lines,
-          input$show_individual_lines,
-          input$show_observed_points_plot
-        )
-      ) {
+    plot_object_reactive <- shiny$reactive({
+      model_fit <- fitted_model_reactive()
+      shiny$req(model_fit, model_fit$model)
+      aesthetics <- aesthetics_r()
+      style <- layers$style()
+
+      if (!plot_style$has_content(style)) {
         shiny$showNotification(
           "Nothing to plot. Select observed points or prediction lines.",
           type = "warning"
@@ -1587,11 +1575,7 @@ navpanel_server <- function(id, sidebar_reactives, fit_task) {
         return(ggplot2$ggplot() + ggplot2$theme_void())
       }
 
-      # Build plot arguments using plotting module helpers
-      show_lines_arg <- plotting$build_pred_lines_arg(
-        input$show_population_lines,
-        input$show_individual_lines
-      )
+      layer_args <- plot_style$plot_args_from_style(style, "beezdemand_nlme")
 
       y_is_ll4 <- isTRUE(model_fit$param_info$y_is_ll4)
       inv_transform_fun <- if (y_is_ll4) beezdemand$ll4_inv else identity
@@ -1607,23 +1591,27 @@ navpanel_server <- function(id, sidebar_reactives, fit_task) {
         session_logger$with_performance(
           "mixed_effects_plot",
           function() {
-            plot(
-              model_fit,
-              inv_fun = inv_transform_fun,
-              x_trans = input$plot_x_trans,
-              y_trans = input$plot_y_trans,
-              style = input$plot_style,
-              at = cov_info$at_list,
-              facet = aesthetics$facet_formula,
-              color_by = aesthetics$color,
-              linetype_by = aesthetics$linetype,
-              shape_by = aesthetics$shape,
-              show_observed = input$show_observed_points_plot,
-              show_pred = show_lines_arg,
-              title = input$plot_title,
-              subtitle = if (nzchar(input$plot_subtitle)) input$plot_subtitle else NULL,
-              x_lab = input$plot_xlab,
-              y_lab = input$plot_ylab
+            do.call(
+              plot,
+              c(
+                list(model_fit),
+                layer_args,
+                list(
+                  inv_fun = inv_transform_fun,
+                  x_trans = input$plot_x_trans,
+                  y_trans = input$plot_y_trans,
+                  style = input$plot_style,
+                  at = cov_info$at_list,
+                  facet = aesthetics$facet_formula,
+                  color_by = aesthetics$color,
+                  linetype_by = aesthetics$linetype,
+                  shape_by = aesthetics$shape,
+                  title = input$plot_title,
+                  subtitle = if (nzchar(input$plot_subtitle)) input$plot_subtitle else NULL,
+                  x_lab = input$plot_xlab,
+                  y_lab = input$plot_ylab
+                )
+              )
             )
           },
           always_log = TRUE
@@ -1649,12 +1637,14 @@ navpanel_server <- function(id, sidebar_reactives, fit_task) {
       }
 
       # Apply palette if coloring by a discrete factor
+      dark <- identical(session$rootScope()$input$dark_mode, "dark")
       p <- plotting$apply_color_palette(
         p,
         color_var = aesthetics$color,
         fit_data = model_fit$data,
         palette_name = input$plot_palette,
-        get_palette_fn = utils$get_palette_colors
+        get_palette_fn = utils$get_palette_colors,
+        dark = dark
       )
 
       # Match the plot to the active color mode
@@ -1679,9 +1669,7 @@ navpanel_server <- function(id, sidebar_reactives, fit_task) {
         input$plot_palette,
         input$plot_x_trans,
         input$plot_y_trans,
-        input$show_population_lines,
-        input$show_individual_lines,
-        input$show_observed_points_plot,
+        layers$style(),
         input$show_watermark,
         input$plot_title,
         input$plot_subtitle,
