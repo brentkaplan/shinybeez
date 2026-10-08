@@ -81,6 +81,8 @@ prominence_defaults <- function(engine = "beezdemand_nlme") {
 #'
 #' Population: alpha = 0.3 + 0.8p (capped at 1), width = 0.4 + 0.8p.
 #' Individual: alpha = 0.1 + 0.8p, width = 0.2 + 1.6p.
+#' Both are rounded to 2 dp: the raw doubles (0.9000000000000001 at p = 0.75) would otherwise be
+#' pushed verbatim into the numeric boxes through Shiny's JSON serializer.
 #' @export
 prominence_to_layer <- function(p, layer = c("population", "individual")) {
   layer <- match.arg(layer)
@@ -89,9 +91,9 @@ prominence_to_layer <- function(p, layer = c("population", "individual")) {
   }
   p <- min(max(p, 0), 1)
   if (layer == "population") {
-    return(list(alpha = min(0.3 + 0.8 * p, 1), width = 0.4 + 0.8 * p))
+    return(list(alpha = round(min(0.3 + 0.8 * p, 1), 2), width = round(0.4 + 0.8 * p, 2)))
   }
-  list(alpha = 0.1 + 0.8 * p, width = 0.2 + 1.6 * p)
+  list(alpha = round(0.1 + 0.8 * p, 2), width = round(0.2 + 1.6 * p, 2))
 }
 
 clamp_num <- function(x, default, range) {

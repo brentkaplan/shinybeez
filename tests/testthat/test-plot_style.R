@@ -115,6 +115,19 @@ describe("prominence_to_layer", {
     expect_error(plot_style$prominence_to_layer(NA_real_, "population"), "single number")
     expect_error(plot_style$prominence_to_layer("a", "population"), "single number")
   })
+
+  it("returns 2 dp values at every slider position, so Shiny serializes them without float noise", {
+    # 0.3 + 0.8 * 0.75 is 0.9000000000000001 in double arithmetic; the observer pushes the
+    # raw value into the Advanced boxes, where it would be displayed verbatim.
+    expect_identical(plot_style$prominence_to_layer(0.75, "population")$alpha, 0.9)
+    for (p in seq(0, 100, by = 5)) {
+      for (layer in c("population", "individual")) {
+        v <- plot_style$prominence_to_layer(p / 100, layer)
+        expect_identical(v$alpha, round(v$alpha, 2), info = paste(layer, p, "alpha"))
+        expect_identical(v$width, round(v$width, 2), info = paste(layer, p, "width"))
+      }
+    }
+  })
 })
 
 describe("validate_style", {
