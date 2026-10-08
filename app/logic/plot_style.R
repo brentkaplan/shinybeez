@@ -193,9 +193,10 @@ style_telemetry_payload <- function(style, extras = list(), engine = "beezdemand
 
 #' Build a recorder that forwards a payload only when it (or the generation) changed
 #'
-#' Used to log one telemetry snapshot per distinct rendered plot: renderPlot
-#' re-runs on every resize, so the same configuration would otherwise be logged
-#' repeatedly.
+#' Used to log one telemetry snapshot per distinct rendered plot: the render
+#' expression can run again without a new plot (the export downloads call it, and
+#' a pixel-ratio change re-draws), so the same configuration would otherwise be
+#' logged repeatedly.
 #' @param record_fn `function(payload)` that performs the logging.
 #' @return `function(payload, generation = 0L)`; returns TRUE when `record_fn` ran.
 #' @export

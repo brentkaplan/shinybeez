@@ -1691,8 +1691,11 @@ navpanel_server <- function(id, sidebar_reactives, fit_task) {
     # inside the render expression below, which Shiny evaluates only while the Plot
     # tab is visible: a fit completed on another tab builds no plot and logs nothing
     # until the user looks, and a req() failure or plot error aborts the expression
-    # before the snapshot line. renderPlot re-runs on every resize, so the recorder
-    # dedupes on (payload, fit generation).
+    # before the snapshot line. The expression also re-runs for reasons other than a new
+    # plot (the export downloads call it, and a pixel-ratio change re-draws), so the
+    # recorder dedupes on (payload, fit generation). The payload is read through a
+    # reactive gated on the plot's own events, so a pending, un-applied control change
+    # is never reported as a plot that was not rendered.
     plot_snapshot <- plot_style$snapshot_recorder(function(payload) {
       telemetry_utils$track_configuration("mixed_effects_plot", config = payload, session = session)
     })
@@ -1719,13 +1722,21 @@ navpanel_server <- function(id, sidebar_reactives, fit_task) {
       )
     }
 
+    plot_snapshot_payload_r <- shiny$reactive(plot_snapshot_payload()) |>
+      shiny$bindEvent(
+        input$update_plot_settings,
+        fitted_model_reactive(),
+        session$rootScope()$input$dark_mode,
+        ignoreNULL = FALSE
+      )
+
     esquisse$render_ggplot(
       id = "mixed_model_plot",
       expr = {
         p <- plot_object_reactive()
         # Runs only after the plot built without error; isolate() keeps the payload's
         # inputs from adding render dependencies beyond the plot itself.
-        shiny$isolate(plot_snapshot(plot_snapshot_payload(), fit_generation()))
+        shiny$isolate(plot_snapshot(plot_snapshot_payload_r(), fit_generation()))
         p
       },
       filename = "shinybeez-mixed-effects-demand-plot",
