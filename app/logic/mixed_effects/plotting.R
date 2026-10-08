@@ -182,6 +182,8 @@ color_levels_in <- function(color_var, df) {
 #' @param fit_data The fitted data containing the color variable
 #' @param palette_name Name of the palette
 #' @param get_palette_fn Function to get palette colors (n_levels -> colors)
+#' @param dark Logical, passed to `get_palette_fn` (TRUE in dark mode). The callback contract
+#'   is `function(name, n, dark)`.
 #' @return Modified ggplot object
 #' @export
 
@@ -190,7 +192,8 @@ apply_color_palette <- function(
   color_var,
   fit_data,
   palette_name,
-  get_palette_fn
+  get_palette_fn,
+  dark = FALSE
 ) {
   if (is.null(color_var)) {
     return(p)
@@ -215,7 +218,7 @@ apply_color_palette <- function(
 
   p +
     ggplot2$scale_color_manual(
-      values = get_palette_fn(palette_name, length(levels_seen))
+      values = get_palette_fn(palette_name, length(levels_seen), dark = dark)
     )
 }
 

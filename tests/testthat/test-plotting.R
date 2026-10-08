@@ -292,7 +292,7 @@ describe("apply_color_palette", {
       color_var = NULL,
       fit_data = data.frame(A = c(1, 2, 3)),
       palette_name = "default",
-      get_palette_fn = function(name, n) rep("blue", n)
+      get_palette_fn = function(name, n, dark = FALSE) rep("blue", n)
     )
     expect_s3_class(result, "gg")
   })
@@ -305,7 +305,7 @@ describe("apply_color_palette", {
       color_var = "group",
       fit_data = data.frame(group = c("A", "B", "A", "B")),
       palette_name = "default",
-      get_palette_fn = function(name, n) rep("blue", n)
+      get_palette_fn = function(name, n, dark = FALSE) rep("blue", n)
     )
     expect_s3_class(result, "gg")
   })
