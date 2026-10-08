@@ -1687,9 +1687,47 @@ navpanel_server <- function(id, sidebar_reactives, fit_task) {
         ignoreNULL = FALSE
       )
 
+    # One configuration_snapshot per DISTINCT rendered plot. The snapshot line lives
+    # inside the render expression below, which Shiny evaluates only while the Plot
+    # tab is visible: a fit completed on another tab builds no plot and logs nothing
+    # until the user looks, and a req() failure or plot error aborts the expression
+    # before the snapshot line. renderPlot re-runs on every resize, so the recorder
+    # dedupes on (payload, fit generation).
+    plot_snapshot <- plot_style$snapshot_recorder(function(payload) {
+      telemetry_utils$track_configuration("mixed_effects_plot", config = payload, session = session)
+    })
+
+    plot_snapshot_payload <- function() {
+      aes <- aesthetics_r()
+      facet_var <- if (is.null(aes$facet_formula)) NULL else all.vars(aes$facet_formula)[1]
+      plot_style$style_telemetry_payload(
+        layers$style(),
+        extras = list(
+          palette = input$plot_palette,
+          theme = input$plot_theme,
+          style = input$plot_style,
+          dark_mode = identical(session$rootScope()$input$dark_mode, "dark"),
+          color_by = aes$color,
+          linetype_by = aes$linetype,
+          shape_by = aes$shape,
+          facet_by = facet_var,
+          legend_position = input$plot_legend_position,
+          x_trans = input$plot_x_trans,
+          y_trans = input$plot_y_trans,
+          watermark = isTRUE(input$show_watermark)
+        )
+      )
+    }
+
     esquisse$render_ggplot(
       id = "mixed_model_plot",
-      expr = plot_object_reactive(),
+      expr = {
+        p <- plot_object_reactive()
+        # Runs only after the plot built without error; isolate() keeps the payload's
+        # inputs from adding render dependencies beyond the plot itself.
+        shiny$isolate(plot_snapshot(plot_snapshot_payload(), fit_generation()))
+        p
+      },
       filename = "shinybeez-mixed-effects-demand-plot",
       width = shiny$reactive(
         if (is.null(input$esquisse_width_plot)) {

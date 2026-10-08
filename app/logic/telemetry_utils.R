@@ -505,6 +505,30 @@ track_configuration <- function(module, config = list(), session = NULL) {
   )
 }
 
+#' Module that owns a plot download, from the download filename
+#'
+#' Plot downloads are reported by a document-level JS click handler that knows
+#' only the filename, so the module is recovered from the filename prefix each
+#' render_ggplot() call sets.
+#' @export
+plot_download_module <- function(filename) {
+  if (is.null(filename) || length(filename) != 1L || is.na(filename)) {
+    return("unknown")
+  }
+  filename <- as.character(filename)
+  prefixes <- c(
+    "shinybeez-mixed-effects" = "mixed_effects",
+    "shinybeez-discounting" = "discounting",
+    "shinybeez-demand" = "demand"
+  )
+  for (prefix in names(prefixes)) {
+    if (startsWith(filename, prefix)) {
+      return(prefixes[[prefix]])
+    }
+  }
+  "unknown"
+}
+
 #' Track export/download event
 #'
 #' @param export_type Type of export (e.g., "csv", "excel", "xlsx", "png", "svg")

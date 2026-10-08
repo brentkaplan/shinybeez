@@ -401,6 +401,7 @@ server <- function(
 
     esquisse$render_ggplot(
       id = "prop_plot",
+      filename = "shinybeez-discounting-prop-ss",
       expr = utils$apply_dark_mode_theme(
         main_calc_reactive()$propplot,
         session$rootScope()$input$dark_mode
@@ -408,6 +409,7 @@ server <- function(
     )
     esquisse$render_ggplot(
       id = "boxplot_plot",
+      filename = "shinybeez-discounting-boxplot",
       expr = utils$apply_dark_mode_theme(
         main_calc_reactive()$boxplot,
         session$rootScope()$input$dark_mode
@@ -428,6 +430,7 @@ server <- function(
 
     esquisse$render_ggplot(
       id = "regression_plot",
+      filename = "shinybeez-discounting-regression",
       expr = utils$apply_dark_mode_theme(
         plot_object_reactive(),
         session$rootScope()$input$dark_mode

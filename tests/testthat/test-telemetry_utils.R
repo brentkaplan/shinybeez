@@ -131,6 +131,23 @@ describe("telemetry_utils", {
       expect_equal(tel$app_name, "production")
     })
   })
+
+  describe("plot_download_module", {
+    it("maps a download filename prefix to the owning module", {
+      expect_equal(telemetry_utils$plot_download_module("shinybeez-demand.png"), "demand")
+      expect_equal(
+        telemetry_utils$plot_download_module("shinybeez-mixed-effects-demand-plot.svg"),
+        "mixed_effects"
+      )
+      expect_equal(telemetry_utils$plot_download_module("shinybeez-discounting-prop-ss.pdf"), "discounting")
+    })
+
+    it("falls back to unknown", {
+      expect_equal(telemetry_utils$plot_download_module("export-ggplot.png"), "unknown")
+      expect_equal(telemetry_utils$plot_download_module(""), "unknown")
+      expect_equal(telemetry_utils$plot_download_module(NULL), "unknown")
+    })
+  })
 })
 
 # Regression tests for shinybeez-analytics#7: the session_start / session_end payloads built in
