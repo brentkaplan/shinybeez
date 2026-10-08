@@ -161,13 +161,19 @@ describe("contrast helpers", {
 describe("get_palette_colors - dark mode", {
   palettes <- c("Codedbx", "Okabe-Ito", "HCL Light", "HCL Dark")
 
-  it("is unchanged when dark = FALSE", {
+  # Baselines were computed from develop's pre-branch get_palette_colors (b58ecf2), so they pin the
+  # historical light-mode output rather than comparing the function with itself.
+  light_baseline <- list(
+    "Codedbx" = rep(codedbx_hex, length.out = 8),
+    "Okabe-Ito" = c("#000000", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7"),
+    "HCL Light" = c("#FFC4C0", "#EFD09E", "#C4DD9D", "#93E5BE", "#83E4E7", "#AED9FF", "#E5C9FF", "#FFC0EA"),
+    "HCL Dark" = c("#BC3F33", "#956300", "#497A00", "#00882D", "#008C91", "#0078CD", "#973CD2", "#C80099")
+  )
+
+  it("keeps the light-mode output identical to the pre-dark-mode palettes (n = 8)", {
     for (p in palettes) {
-      expect_identical(
-        utils$get_palette_colors(p, 8, dark = FALSE),
-        utils$get_palette_colors(p, 8),
-        info = p
-      )
+      expect_identical(utils$get_palette_colors(p, 8), light_baseline[[p]], info = p)
+      expect_identical(utils$get_palette_colors(p, 8, dark = FALSE), light_baseline[[p]], info = p)
     }
   })
 

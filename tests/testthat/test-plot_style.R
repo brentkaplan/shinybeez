@@ -20,6 +20,10 @@ nlme_plot_formals <- function() {
   formals(getS3method("plot", "beezdemand_nlme", envir = asNamespace("beezdemand")))
 }
 
+tmb_plot_formals <- function() {
+  formals(getS3method("plot", "beezdemand_tmb", envir = asNamespace("beezdemand")))
+}
+
 describe("style_defaults", {
   it("returns the nlme package defaults", {
     expect_equal(plot_style$style_defaults("beezdemand_nlme"), nlme_defaults)
@@ -36,6 +40,20 @@ describe("style_defaults", {
     expect_equal(d$individual$width, f$ind_line_size)
     expect_equal(d$observed$alpha, f$observed_point_alpha)
     expect_equal(d$observed$size, f$observed_point_size)
+  })
+
+  it("matches the installed beezdemand tmb plot method (contract)", {
+    skip_if_not_installed("beezdemand")
+    f <- tmb_plot_formals()
+    d <- plot_style$style_defaults("beezdemand_tmb")$layers
+    expect_equal(d$population$alpha, f$pop_line_alpha)
+    expect_equal(d$population$width, f$pop_line_size)
+    expect_equal(d$individual$alpha, f$ind_line_alpha)
+    expect_equal(d$individual$width, f$ind_line_size)
+    expect_equal(d$observed$alpha, f$observed_point_alpha)
+    expect_equal(d$observed$size, f$observed_point_size)
+    expect_equal(d$population$show, f$show_population)
+    expect_equal(d$observed$show, f$show_observed)
   })
 
   it("knows the tmb engine defaults", {
@@ -230,6 +248,14 @@ describe("has_content", {
     s$layers$observed$show <- FALSE
     expect_false(plot_style$has_content(s))
     s$layers$individual$show <- TRUE
+    expect_true(plot_style$has_content(s))
+  })
+
+  it("is TRUE when only the observed layer is shown", {
+    s <- nlme_defaults
+    s$layers$population$show <- FALSE
+    s$layers$individual$show <- FALSE
+    s$layers$observed$show <- TRUE
     expect_true(plot_style$has_content(s))
   })
 })
