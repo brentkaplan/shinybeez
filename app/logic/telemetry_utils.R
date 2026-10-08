@@ -505,25 +505,69 @@ track_configuration <- function(module, config = list(), session = NULL) {
   )
 }
 
-#' Module that owns a plot download, from the download filename
+# TRUE for a single, non-NA, non-empty string.
+is_nonempty_string <- function(x) {
+  is.character(x) && length(x) == 1L && !is.na(x) && nzchar(x)
+}
+
+#' Module that owns a plot download
 #'
-#' Plot downloads are reported by a document-level JS click handler that knows
-#' only the filename, so the module is recovered from the filename prefix each
-#' render_ggplot() call sets.
+#' Plot downloads are reported by a document-level JS click handler. The module is
+#' recovered from the filename prefix each render_ggplot() call sets. esquisse
+#' renders its download links without a filename in the `download` attribute, so
+#' when the filename gives no answer the namespaced id of the clicked link (for
+#' example `app-mixed_effects_demand-mixed_model_plot-export_png`) is used instead.
+#' @param filename Download filename (may be NULL or empty).
+#' @param id Id of the clicked download link (may be NULL or empty).
+#' @return One of `"demand"`, `"mixed_effects"`, `"discounting"`, `"unknown"`.
 #' @export
-plot_download_module <- function(filename) {
-  if (is.null(filename) || length(filename) != 1L || is.na(filename)) {
-    return("unknown")
-  }
-  filename <- as.character(filename)
+plot_download_module <- function(filename = NULL, id = NULL) {
   prefixes <- c(
     "shinybeez-mixed-effects" = "mixed_effects",
     "shinybeez-discounting" = "discounting",
     "shinybeez-demand" = "demand"
   )
-  for (prefix in names(prefixes)) {
-    if (startsWith(filename, prefix)) {
-      return(prefixes[[prefix]])
+  if (is_nonempty_string(filename)) {
+    for (prefix in names(prefixes)) {
+      if (startsWith(filename, prefix)) {
+        return(prefixes[[prefix]])
+      }
+    }
+  }
+  if (is_nonempty_string(id)) {
+    # Alternation order matters: mixed_effects_demand must be tried before demand.
+    hit <- regmatches(id, regexpr("(^|-)(mixed_effects_demand|discounting|demand)-", id))
+    if (length(hit) == 1L) {
+      segments <- c(
+        mixed_effects_demand = "mixed_effects",
+        discounting = "discounting",
+        demand = "demand"
+      )
+      return(segments[[gsub("^-|-$", "", hit)]])
+    }
+  }
+  "unknown"
+}
+
+#' File format of a plot download
+#'
+#' Reads the extension from the download filename when there is one, otherwise the
+#' `export_<format>` suffix of the esquisse download link id.
+#' @param filename Download filename (may be NULL or empty).
+#' @param id Id of the clicked download link (may be NULL or empty).
+#' @return Lower-case format such as `"png"`, or `"unknown"`.
+#' @export
+plot_download_format <- function(filename = NULL, id = NULL) {
+  if (is_nonempty_string(filename) && grepl(".", filename, fixed = TRUE)) {
+    ext <- tolower(sub("^.*\\.", "", filename))
+    if (nzchar(ext)) {
+      return(ext)
+    }
+  }
+  if (is_nonempty_string(id)) {
+    hit <- regmatches(id, regexec("export_(png|pdf|svg|jpeg)$", id))[[1]]
+    if (length(hit) == 2L) {
+      return(hit[[2]])
     }
   }
   "unknown"

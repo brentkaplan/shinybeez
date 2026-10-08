@@ -80,6 +80,7 @@ document.addEventListener('click', (event) => {
   Shiny.setInputValue('_telemetry_plot_download', {
     filename,
     format: filename.split('.').pop() || 'unknown',
+    id: link.id || '',
     ts: Date.now(),
   }, { priority: 'event' });
 });

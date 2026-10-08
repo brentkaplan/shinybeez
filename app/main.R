@@ -251,8 +251,8 @@ server <- function(id) {
       evt <- root_input[["_telemetry_plot_download"]]
       session_telemetry$track_export(
         export_type = "plot",
-        module = telemetry_utils$plot_download_module(evt$filename),
-        file_format = evt$format
+        module = telemetry_utils$plot_download_module(evt$filename, evt$id),
+        file_format = telemetry_utils$plot_download_format(evt$filename, evt$id)
       )
     })
 

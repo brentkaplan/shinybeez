@@ -147,6 +147,65 @@ describe("telemetry_utils", {
       expect_equal(telemetry_utils$plot_download_module(""), "unknown")
       expect_equal(telemetry_utils$plot_download_module(NULL), "unknown")
     })
+
+    # esquisse renders downloadLink() anchors with a bare `download` attribute, so the
+    # click handler's filename is empty and the namespaced link id is the only signal.
+    it("attributes a download by its namespaced link id when the filename is empty", {
+      expect_equal(
+        telemetry_utils$plot_download_module("", "app-mixed_effects_demand-mixed_model_plot-export_png"),
+        "mixed_effects"
+      )
+      expect_equal(
+        telemetry_utils$plot_download_module("", "app-discounting-results-boxplot_plot-export_svg"),
+        "discounting"
+      )
+      expect_equal(
+        telemetry_utils$plot_download_module(NULL, "app-demand-results-plot-export_pdf"),
+        "demand"
+      )
+    })
+
+    it("lets the filename win over the id when both are given", {
+      expect_equal(
+        telemetry_utils$plot_download_module(
+          "shinybeez-discounting-prop-ss.png",
+          "app-demand-results-plot-export_png"
+        ),
+        "discounting"
+      )
+    })
+
+    it("falls back to unknown when neither the filename nor the id identifies a module", {
+      expect_equal(telemetry_utils$plot_download_module("", ""), "unknown")
+      expect_equal(telemetry_utils$plot_download_module(NULL, NULL), "unknown")
+      expect_equal(telemetry_utils$plot_download_module(), "unknown")
+      expect_equal(telemetry_utils$plot_download_module("", "app-welcome-logo-export_png"), "unknown")
+      expect_equal(telemetry_utils$plot_download_module("", NA_character_), "unknown")
+    })
+  })
+
+  describe("plot_download_format", {
+    it("reads the lower-cased extension from the filename", {
+      expect_equal(telemetry_utils$plot_download_format("shinybeez-demand.PNG"), "png")
+      expect_equal(telemetry_utils$plot_download_format("plot.v2.svg", "app-demand-x-plot-export_pdf"), "svg")
+    })
+
+    it("reads the format from the export_<fmt> id suffix when there is no filename", {
+      for (fmt in c("png", "pdf", "svg", "jpeg")) {
+        id <- paste0("app-mixed_effects_demand-mixed_model_plot-export_", fmt)
+        expect_equal(telemetry_utils$plot_download_format("", id), fmt)
+        expect_equal(telemetry_utils$plot_download_format(NULL, id), fmt)
+      }
+    })
+
+    it("falls back to unknown", {
+      expect_equal(telemetry_utils$plot_download_format(NULL), "unknown")
+      expect_equal(telemetry_utils$plot_download_format(""), "unknown")
+      expect_equal(telemetry_utils$plot_download_format("no-extension"), "unknown")
+      expect_equal(telemetry_utils$plot_download_format("", "app-demand-x-plot-export_pptx"), "unknown")
+      expect_equal(telemetry_utils$plot_download_format("", "app-demand-x-plot"), "unknown")
+      expect_equal(telemetry_utils$plot_download_format(NULL, NULL), "unknown")
+    })
   })
 })
 
