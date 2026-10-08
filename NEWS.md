@@ -32,9 +32,10 @@
   and individual lines (alpha and width), with an Advanced expander for exact
   values. Defaults reproduce the previous plot exactly.
 
-- **Dark-mode-safe palettes** — in dark mode every palette colour is lightened
-  just enough to reach 3:1 contrast against the plot canvas, so low-contrast
-  entries (Okabe-Ito black, the brand navy and purple) no longer vanish.
+- **Dark-mode-safe palettes** — in dark mode every palette entry below 3:1
+  contrast against the plot canvas is lightened just enough to reach it, hue
+  preserved, so low-contrast entries (Okabe-Ito black, the brand navy and
+  purple) no longer vanish.
 
 ## Bug Fixes
 
@@ -59,6 +60,10 @@
 - Plot settings are recorded as a `configuration_snapshot` (module
   `mixed_effects_plot`) once per rendered mixed-effects plot; plot downloads
   are attributed to the tab that produced them.
+
+- Discounting plot downloads are now named `shinybeez-discounting-prop-ss`,
+  `shinybeez-discounting-boxplot` and `shinybeez-discounting-regression`
+  (previously `export-ggplot`).
 
 # shinybeez 1.1.3
 
