@@ -1386,7 +1386,8 @@ navpanel_server <- function(id, sidebar_reactives, fit_task) {
         sidebar_reactives$covariate(),
         sidebar_reactives$cov_center(),
         sidebar_reactives$cov_scale(),
-        sidebar_reactives$cov_at_natural()
+        sidebar_reactives$cov_at_natural(),
+        cache = "session"
       )
 
     output$comparisons_q0_table <- DT$renderDT({
@@ -1678,7 +1679,8 @@ navpanel_server <- function(id, sidebar_reactives, fit_task) {
         sidebar_reactives$covariate(),
         sidebar_reactives$cov_center(),
         sidebar_reactives$cov_scale(),
-        sidebar_reactives$cov_at_natural()
+        sidebar_reactives$cov_at_natural(),
+        cache = "session"
       ) |>
       shiny$bindEvent(
         input$update_plot_settings,
