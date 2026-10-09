@@ -34,13 +34,15 @@ validate_aesthetic <- function(selection, valid_factors) {
 #' @param current_linetype Current linetype selection (may be "" for None)
 #' @param current_facet Current facet selection (may be "" for None)
 #' @param factors_in_model Character vector of factors in the fitted model
-#' @return List with color, linetype, and facet selections
+#' @param current_shape Current shape selection (may be "" for None)
+#' @return List with color, linetype, facet, and shape selections
 #' @export
 compute_aesthetic_defaults <- function(
   current_color,
   current_linetype,
   current_facet,
-  factors_in_model
+  factors_in_model,
+  current_shape = ""
 ) {
   # Validate current selections - reset if not valid
   if (!current_color %in% factors_in_model) {
@@ -51,6 +53,9 @@ compute_aesthetic_defaults <- function(
   }
   if (!current_facet %in% factors_in_model) {
     current_facet <- ""
+  }
+  if (!current_shape %in% factors_in_model) {
+    current_shape <- ""
   }
 
   # Set smart defaults if model has factors and selections are empty
@@ -71,8 +76,23 @@ compute_aesthetic_defaults <- function(
   list(
     color = current_color,
     linetype = current_linetype,
-    facet = current_facet
+    facet = current_facet,
+    shape = current_shape
   )
+}
+
+#' Whether the browser's aesthetic selections match the ones the server pushed
+#'
+#' @param expected List with color, linetype, facet, shape (the pushed selections)
+#' @param current List with the same names (the live inputs)
+#' @return TRUE when all four match; NULL, NA and empty all mean None
+#' @export
+aesthetics_in_sync <- function(expected, current) {
+  norm <- function(x) {
+    if (is.null(x) || length(x) != 1L || is.na(x)) "" else as.character(x)
+  }
+  fields <- c("color", "linetype", "facet", "shape")
+  all(vapply(fields, function(f) identical(norm(expected[[f]]), norm(current[[f]])), logical(1)))
 }
 
 #' Build facet formula string from selection
