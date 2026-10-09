@@ -63,6 +63,9 @@ ui <- function(id, engine = "beezdemand_nlme") {
 server <- function(id, engine = "beezdemand_nlme") {
   shiny$moduleServer(id, function(input, output, session) {
     # Slider -> numeric boxes only. Nothing writes back to a slider, so no loop.
+    # Known limitation (Tier 1 spec §12, measured on staging 2026-10-08): Shiny's slider binding
+    # debounces 250 ms, so an Update Plot click within ~0.4 s of a slider move renders the
+    # pre-slider values; the next click re-renders. A full fix needs client JS plus a server hold.
     shiny$observeEvent(input$prom_population, {
       v <- plot_style$prominence_to_layer(input$prom_population / 100, "population")
       shiny$updateNumericInput(session, "pop_alpha", value = v$alpha)

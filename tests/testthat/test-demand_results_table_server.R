@@ -290,3 +290,51 @@ describe("demand results table cancelled fit", {
     )
   })
 })
+
+# ==============================================================================
+# Palette preflight note
+# ==============================================================================
+# The note depends only on the palette, the colour mode and the level count, so it is
+# driven by setting res$plot_group_levels directly; the fit cases above already prove
+# where that value comes from.
+describe("demand results table palette note", {
+  it("renders nothing before the Plots tab has initialised its inputs", {
+    data_r <- shiny$reactiveValues(data_d = grouped_demand_data())
+    calc <- shiny$reactiveVal(0)
+    shiny$testServer(demand_results_table$server, args = module_args(data_r, calc), {
+      session$flushReact()
+      expect_null(output$palette_note)
+    })
+  })
+
+  it("warns only when the fitted groups outnumber the palette", {
+    data_r <- shiny$reactiveValues(data_d = grouped_demand_data())
+    calc <- shiny$reactiveVal(0)
+    shiny$testServer(demand_results_table$server, args = module_args(data_r, calc), {
+      set_plot_inputs(session)
+      session$setInputs(palette = "Dark2")
+      expect_null(output$palette_note)
+
+      res$plot_group_levels <- paste0("g", 1:10)
+      session$flushReact()
+      expect_match(output$palette_note$html, "10 levels, Dark2 has 8: 2 colours repeat", fixed = TRUE)
+      expect_match(output$palette_note$html, 'class="palette-note text-warning"', fixed = TRUE)
+
+      session$setInputs(palette = "Paired")
+      expect_null(output$palette_note)
+    })
+  })
+
+  it("drops NA group levels before counting them", {
+    data_r <- shiny$reactiveValues(data_d = grouped_demand_data())
+    calc <- shiny$reactiveVal(0)
+    shiny$testServer(demand_results_table$server, args = module_args(data_r, calc), {
+      set_plot_inputs(session)
+      session$setInputs(palette = "Dark2")
+      # Nine real levels plus NA: still nine, so Dark2 (8) recycles by exactly one.
+      res$plot_group_levels <- c(paste0("g", 1:9), NA)
+      session$flushReact()
+      expect_match(output$palette_note$html, "9 levels, Dark2 has 8: 1 colour repeats", fixed = TRUE)
+    })
+  })
+})

@@ -40,6 +40,7 @@ app/
 │   ├── shared/                     # Reusable components
 │   │   ├── __init__.R              # Component exports
 │   │   ├── data_table.R            # DT-based data table
+│   │   ├── palette_picker.R        # Palette picker with swatch previews + preflight note
 │   │   ├── plot_layers.R           # Plot layer show/hide and prominence controls
 │   │   ├── plot_settings.R         # Plot settings sidebar
 │   │   └── systematic_criteria.R   # Systematic criteria panel

@@ -211,3 +211,240 @@ describe("resolve_group_scale - dark mode", {
     expect_identical(scale$palette(3), utils$get_palette_colors("Okabe-Ito", 3, dark = TRUE))
   })
 })
+
+describe("palette registry", {
+  # Light-mode baselines at n = 8, computed once from the source packages in this renv
+  # (RColorBrewer 1.1-3, ggprism 1.0.7, viridisLite 0.4.3, grDevices) and pasted in, so a
+  # package bump that changes a colour fails here instead of silently changing plots.
+  new_baseline <- list(
+    "Dark2" = c("#1B9E77", "#D95F02", "#7570B3", "#E7298A", "#66A61E", "#E6AB02", "#A6761D", "#666666"),
+    "Set2" = c("#66C2A5", "#FC8D62", "#8DA0CB", "#E78AC3", "#A6D854", "#FFD92F", "#E5C494", "#B3B3B3"),
+    "Paired" = c("#A6CEE3", "#1F78B4", "#B2DF8A", "#33A02C", "#FB9A99", "#E31A1C", "#FDBF6F", "#FF7F00"),
+    "prism_light" = c("#2C1453", "#114CE8", "#0E6F7C", "#FB4F06", "#FB0005", "#A48AD3", "#1CC5FE", "#6FC7CF"),
+    "prism_dark" = c("#A48AD3", "#1CC5FE", "#6FC7CF", "#FBA27D", "#FB7D80", "#2C1453", "#114CE8", "#0E6F7C"),
+    "floral" = c("#285291", "#4F2B8E", "#91188E", "#539027", "#0D405B", "#34274D", "#91181D", "#2C3324"),
+    "winter_bright" = c("#077E97", "#800080", "#000080", "#8D8DFF", "#C000C0", "#056943", "#077E97", "#800080"),
+    "candy_bright" = c("#F71480", "#FF8000", "#808000", "#008000", "#0000FF", "#76069A", "#F71480", "#FF8000"),
+    "pastels" = c("#CCCCFF", "#99CCFF", "#6699CC", "#666699", "#9370DB", "#996699", "#CC6699", "#CCCCFF"),
+    "viridis" = c("#440154", "#46337E", "#365C8D", "#277F8E", "#1FA187", "#4AC16D", "#9FDA3A", "#FDE725"),
+    "cividis" = c("#00204D", "#16396D", "#4B546C", "#6C6E72", "#8E8A79", "#B3A772", "#DBC761", "#FFEA46"),
+    "Grayscale" = c("#333333", "#5A5A5A", "#737373", "#868686", "#979797", "#A6A6A6", "#B3B3B3", "#BFBFBF")
+  )
+
+  it("pins the light-mode output of every new palette at n = 8", {
+    for (p in names(new_baseline)) {
+      expect_identical(utils$get_palette_colors(p, 8), new_baseline[[p]], info = p)
+      expect_identical(utils$get_palette_colors(p, 8, dark = FALSE), new_baseline[[p]], info = p)
+    }
+  })
+
+  it("lists the sixteen palettes in picker order", {
+    expect_identical(
+      utils$palette_names(),
+      c(
+        "Codedbx", "Okabe-Ito", "Dark2", "Set2", "Paired",
+        "prism_light", "prism_dark", "floral", "winter_bright", "candy_bright", "pastels",
+        "viridis", "cividis", "HCL Light", "HCL Dark", "Grayscale"
+      )
+    )
+  })
+
+  it("reports the distinct size of fixed sets and NA for generators and unknown names", {
+    sizes <- c(
+      "Codedbx" = 6L, "Okabe-Ito" = 8L, "Dark2" = 8L, "Set2" = 8L, "Paired" = 12L,
+      "prism_light" = 10L, "prism_dark" = 10L, "floral" = 12L,
+      "winter_bright" = 6L, "candy_bright" = 6L, "pastels" = 7L
+    )
+    for (p in names(sizes)) {
+      expect_identical(utils$palette_size(p), sizes[[p]], info = p)
+    }
+    for (p in c("viridis", "cividis", "HCL Light", "HCL Dark", "Grayscale", "nope")) {
+      expect_identical(utils$palette_size(p), NA_integer_, info = p)
+    }
+  })
+
+  it("stores only distinct colours for the padded ggprism sets", {
+    # ggprism pads winter_bright/candy_bright (9 entries, 6 distinct) and pastels (9, 7) by repeating
+    # colours; the registry keeps the distinct ones so recycling starts where the repeats really start.
+    for (p in c("prism_light", "prism_dark", "floral", "winter_bright", "candy_bright", "pastels")) {
+      cols <- utils$get_palette_colors(p, utils$palette_size(p))
+      expect_identical(anyDuplicated(cols), 0L, info = p)
+      expect_null(names(cols), info = p)
+    }
+    expect_identical(utils$get_palette_colors("winter_bright", 7)[7], utils$get_palette_colors("winter_bright", 1))
+    expect_identical(utils$get_palette_colors("pastels", 8)[8], utils$get_palette_colors("pastels", 1))
+  })
+
+  it("groups every palette", {
+    expect_identical(utils$palette_group("Codedbx"), "Brand")
+    expect_identical(utils$palette_group("Okabe-Ito"), "Colourblind-safe")
+    expect_identical(utils$palette_group("Paired"), "Colourblind-safe")
+    expect_identical(utils$palette_group("floral"), "Prism")
+    expect_identical(utils$palette_group("viridis"), "Generated")
+    expect_identical(utils$palette_group("HCL Dark"), "Generated")
+    expect_identical(utils$palette_group("Grayscale"), "Print")
+    expect_identical(utils$palette_group("nope"), NA_character_)
+  })
+
+  it("matches any palette name case-insensitively and still falls back to HCL Light", {
+    expect_identical(utils$get_palette_colors("VIRIDIS", 3), utils$get_palette_colors("viridis", 3))
+    expect_identical(utils$get_palette_colors("hcl dark", 3), utils$get_palette_colors("HCL Dark", 3))
+    expect_identical(utils$get_palette_colors("nope", 5), utils$get_palette_colors("HCL Light", 5))
+    expect_identical(utils$palette_group("codedbx"), "Brand")
+  })
+
+  it("strips the alpha suffix from viridisLite output", {
+    expect_true(all(nchar(utils$get_palette_colors("viridis", 8)) == 7L))
+    expect_true(all(nchar(utils$get_palette_colors("cividis", 8)) == 7L))
+  })
+
+  it("draws up to eight swatch colours per palette", {
+    expect_identical(utils$palette_swatch("Codedbx"), codedbx_hex)
+    expect_length(utils$palette_swatch("Paired"), 8)
+    expect_length(utils$palette_swatch("viridis"), 8)
+    expect_identical(utils$palette_swatch("winter_bright"), utils$get_palette_colors("winter_bright", 6))
+    expect_length(utils$palette_swatch("nope"), 8)
+  })
+
+  it("lifts every registry palette to at least 3:1 against the dark canvas", {
+    for (p in utils$palette_names()) {
+      cols <- utils$get_palette_colors(p, 8, dark = TRUE)
+      ratios <- vapply(cols, utils$contrast_ratio, numeric(1), b = utils$DARK_CANVAS)
+      expect_true(all(ratios >= 3), info = paste(p, paste(round(ratios, 2), collapse = " ")))
+      expect_length(cols, 8)
+    }
+  })
+
+  it("accepts a factor or non-finite input without erroring", {
+    expect_identical(utils$get_palette_colors(factor("Dark2"), 3), utils$get_palette_colors("Dark2", 3))
+    expect_identical(utils$palette_group(factor("viridis")), "Generated")
+    expect_identical(utils$palette_group(NA_character_), NA_character_)
+    expect_identical(utils$get_palette_colors(NA_character_, 2), utils$get_palette_colors("Codedbx", 2))
+  })
+})
+
+describe("palette_preflight", {
+  it("exports the two thresholds", {
+    expect_identical(utils$PREFLIGHT_MIN_CONTRAST, 1.5)
+    expect_identical(utils$PREFLIGHT_MIN_GREY_RATIO, 1.2)
+  })
+
+  it("flags recycling when the levels outnumber a fixed set", {
+    res <- utils$palette_preflight("Dark2", n_levels = 10)
+    expect_identical(res$flags, "recycled")
+    expect_identical(res$n, 10L)
+    expect_identical(res$message, "10 levels, Dark2 has 8: 2 colours repeat")
+    # Qualitative palettes get no greyscale check, so recycling is the only flag here.
+    expect_identical(utils$palette_preflight("Codedbx", n_levels = 12)$flags, "recycled")
+    # Distinct size, not ggprism's padded length.
+    expect_identical(
+      utils$palette_preflight("winter_bright", n_levels = 7)$message,
+      "7 levels, winter_bright has 6: 1 colour repeats"
+    )
+  })
+
+  it("flags entries that are faint on white in light mode", {
+    res <- utils$palette_preflight("Okabe-Ito", n_levels = 8)
+    expect_identical(res$flags, "low_contrast")
+    expect_identical(res$message, "Okabe-Ito colour 5 (#F0E442) is 1.3:1 against white: faint")
+    res <- utils$palette_preflight("viridis", n_levels = 8)
+    expect_identical(res$flags, "low_contrast")
+    expect_identical(res$message, "viridis colour 8 (#FDE725) is 1.3:1 against white: faint")
+    expect_match(utils$palette_preflight("HCL Light", n_levels = 8)$message, "(and 5 more)", fixed = TRUE)
+  })
+
+  it("flags adjacent steps of a sequential ramp that are too close in luminance", {
+    res <- utils$palette_preflight("Grayscale", n_levels = 8)
+    expect_identical(res$flags, "grayscale_collision")
+    expect_match(
+      res$message,
+      "levels 7 and 8 differ by 14% luminance: hard to tell apart in greyscale",
+      fixed = TRUE
+    )
+    # In dark mode the 3:1 lift pins the dark end of the ramp to one luminance.
+    res <- utils$palette_preflight("Grayscale", n_levels = 8, dark = TRUE)
+    expect_identical(res$flags, "grayscale_collision")
+    expect_match(res$message, "differ by 0% luminance", fixed = TRUE)
+    expect_identical(utils$palette_preflight("viridis", n_levels = 3, dark = TRUE)$flags, "grayscale_collision")
+  })
+
+  it("raises both notes for viridis at twelve levels and only the contrast note below", {
+    res <- utils$palette_preflight("viridis", n_levels = 12)
+    expect_setequal(res$flags, c("low_contrast", "grayscale_collision"))
+    expect_match(res$message, "; levels ", fixed = TRUE)
+    expect_identical(utils$palette_preflight("viridis", n_levels = 11)$flags, "low_contrast")
+  })
+
+  it("is silent for the clean cases", {
+    cases <- list(
+      list("Codedbx", 3, FALSE), list("Codedbx", 6, FALSE), list("Codedbx", 6, TRUE),
+      list("Dark2", 8, FALSE), list("Dark2", 8, TRUE), list("Grayscale", 6, FALSE)
+    )
+    for (case in cases) {
+      res <- utils$palette_preflight(case[[1]], n_levels = case[[2]], dark = case[[3]])
+      expect_identical(res$flags, character(0), info = paste(case[[1]], case[[2]], case[[3]]))
+      expect_null(res$message)
+    }
+  })
+
+  it("skips the recycling check and uses the palette size when the level count is unknown", {
+    res <- utils$palette_preflight("Dark2")
+    expect_identical(res$n, 8L)
+    expect_false("recycled" %in% res$flags)
+    expect_identical(utils$palette_preflight("viridis")$n, 8L)
+    expect_identical(utils$palette_preflight("Paired")$n, 12L)
+  })
+
+  it("never reports low contrast in dark mode, because the lift already guarantees 3:1", {
+    for (p in utils$palette_names()) {
+      expect_false("low_contrast" %in% utils$palette_preflight(p, n_levels = 8, dark = TRUE)$flags, info = p)
+    }
+  })
+
+  it("never runs the greyscale check on a qualitative palette", {
+    qualitative <- setdiff(utils$palette_names(), c("viridis", "cividis", "Grayscale"))
+    for (p in qualitative) {
+      size <- utils$palette_size(p)
+      n <- if (is.na(size)) 8L else size
+      for (dark in c(FALSE, TRUE)) {
+        flags <- utils$palette_preflight(p, n_levels = n, dark = dark)$flags
+        expect_false("grayscale_collision" %in% flags, info = paste(p, dark))
+      }
+    }
+  })
+
+  it("copes with one level, zero levels and a missing palette name", {
+    expect_identical(utils$palette_preflight("Grayscale", n_levels = 1)$flags, character(0))
+    expect_identical(utils$palette_preflight("Grayscale", n_levels = 0)$flags, character(0))
+    expect_identical(utils$palette_preflight(NULL)$flags, character(0))
+    expect_identical(utils$palette_preflight("")$n, 6L)
+    # An unknown name renders as HCL Light, so the note says so.
+    expect_match(utils$palette_preflight("nope", n_levels = 8)$message, "HCL Light colour", fixed = TRUE)
+  })
+
+  it("treats a non-finite level count as unknown", {
+    res <- utils$palette_preflight("Dark2", n_levels = Inf)
+    expect_identical(res$n, 8L)
+    expect_false("recycled" %in% res$flags)
+    expect_identical(utils$palette_preflight("Dark2", n_levels = NaN)$n, 8L)
+  })
+
+  it("pins the remaining spec cases: Set2 and Paired yellows, cividis onsets, one and two-level ramps", {
+    # Light mode, each fixed set at its own size: exactly one faint yellow.
+    set2 <- utils$palette_preflight("Set2", n_levels = 8)
+    expect_identical(set2$flags, "low_contrast")
+    expect_identical(set2$message, "Set2 colour 6 (#FFD92F) is 1.4:1 against white: faint")
+    paired <- utils$palette_preflight("Paired", n_levels = 12)
+    expect_identical(paired$flags, "low_contrast")
+    expect_identical(paired$message, "Paired colour 11 (#FFFF99) is 1.0:1 against white: faint")
+    # cividis is sequential: in dark mode the lift pins the dark end, so the collision starts at three levels.
+    expect_identical(utils$palette_preflight("cividis", n_levels = 2, dark = TRUE)$flags, character(0))
+    expect_identical(utils$palette_preflight("cividis", n_levels = 3, dark = TRUE)$flags, "grayscale_collision")
+    # A one-colour ramp is its dark end (clean); two colours end in the yellow (faint on white, no pair to collide).
+    for (p in c("viridis", "cividis")) {
+      expect_identical(utils$palette_preflight(p, n_levels = 1)$flags, character(0), info = p)
+      expect_identical(utils$palette_preflight(p, n_levels = 2)$flags, "low_contrast", info = p)
+      expect_match(utils$palette_preflight(p, n_levels = 2)$message, "colour 2 (", fixed = TRUE, info = p)
+    }
+  })
+})

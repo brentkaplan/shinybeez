@@ -36,6 +36,7 @@ box::use(
   app / logic / mixed_effects / plotting,
   app / logic / mixed_effects / systematic_utils,
   app / logic / mixed_effects / validation_utils,
+  app / view / shared / palette_picker[palette_note, palette_picker],
   app / view / shared / plot_layers
 )
 
@@ -240,12 +241,8 @@ navpanel_ui <- function(id) {
                 ),
                 selected = "right"
               ),
-              shiny$selectInput(
-                ns("plot_palette"),
-                "Color Palette",
-                choices = c("Codedbx", "Okabe-Ito", "HCL Light", "HCL Dark"),
-                selected = "Codedbx"
-              ),
+              palette_picker(ns("plot_palette")),
+              shiny$uiOutput(ns("palette_note")),
               shiny$selectInput(
                 ns("plot_color_by"),
                 "Color lines/points by:",
@@ -1561,6 +1558,34 @@ navpanel_server <- function(id, sidebar_reactives, fit_task) {
         shape_input = input$plot_shape_by
       )
     })
+
+    # Accessibility note under the palette picker. Live on the palette, the colour mode and
+    # the colour-by level count; deliberately not gated on Update Plot so it describes what
+    # the next render will do. Before a fit, or with no colour-by, the level count is unknown
+    # and the preflight runs at the palette's own size.
+    output$palette_note <- shiny$renderUI({
+      model_fit <- fitted_model_reactive()
+      n_levels <- NULL
+      if (!is.null(model_fit) && !is.null(model_fit$model)) {
+        color_var <- aesthetics_r()$color
+        if (!is.null(color_var) && nzchar(color_var) && color_var %in% names(model_fit$data)) {
+          levels_seen <- plotting$color_levels_in(color_var, model_fit$data)
+          # A column with no usable levels is "unknown", not zero: keep the palette-size checks.
+          if (length(levels_seen) > 0L) {
+            n_levels <- length(levels_seen)
+          }
+        }
+      }
+      palette_note(utils$palette_preflight(
+        input$plot_palette,
+        n_levels = n_levels,
+        dark = identical(session$rootScope()$input$dark_mode, "dark")
+      ))
+    })
+    # The picker sits in the Plot Settings sidebar, which is collapsed by default
+    # (open = FALSE -> display: none). Keep the note computed while hidden so it is
+    # already right the moment the sidebar opens; it is a handful of contrast ratios.
+    shiny$outputOptions(output, "palette_note", suspendWhenHidden = FALSE)
 
     plot_object_reactive <- shiny$reactive({
       model_fit <- fitted_model_reactive()

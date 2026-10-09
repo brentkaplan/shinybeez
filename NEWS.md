@@ -37,6 +37,14 @@
   preserved, so low-contrast entries (Okabe-Ito black, the brand navy and
   purple) no longer vanish.
 
+- **Sixteen plot palettes with swatch previews** — the Color Palette picker on
+  the mixed-effects and demand plots now offers Codedbx, Okabe-Ito, Brewer
+  Dark2/Set2/Paired, six ggprism palettes, viridis, cividis, the two HCL
+  palettes and a print Grayscale, each option drawn with its colours. A note
+  under the picker warns when the groups outnumber the palette, when an entry
+  is faint on the current canvas, or when a sequential ramp's steps are too
+  close to tell apart in greyscale. It never blocks the plot.
+
 ## Bug Fixes
 
 - **Wide demand headers must be whole numbers** — item-style headers such as
