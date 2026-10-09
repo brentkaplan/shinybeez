@@ -46,18 +46,18 @@ ui <- function(id) {
             shiny$textInput(
               inputId = ns("title"),
               label = "Title Text",
-              value = "title"
+              value = "Demand Curve"
             ),
             shiny$uiOutput(ns("group_name")),
             shiny$textInput(
               inputId = ns("xtext"),
               label = "X-Axis Text",
-              value = "x"
+              value = "Price"
             ),
             shiny$textInput(
               inputId = ns("ytext"),
               label = "Y-Axis Text",
-              value = "y"
+              value = "Consumption"
             ),
             palette_picker(ns("palette")),
             shiny$uiOutput(ns("palette_note")),

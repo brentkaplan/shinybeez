@@ -58,9 +58,9 @@ ungrouped_demand_data <- function() {
 # observer runs the same code path it does in the browser.
 set_plot_inputs <- function(session) {
   session$setInputs(
-    xtext = "x",
-    ytext = "y",
-    title = "",
+    xtext = "Price",
+    ytext = "Consumption",
+    title = "Demand Curve",
     palette = "Codedbx",
     legend_title = "group",
     xlog = FALSE,

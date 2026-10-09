@@ -78,9 +78,9 @@ server <- function(
               sidebar = bslib$sidebar(
                 title = "Plot Settings",
                 open = FALSE,
-                shiny$textInput(ns("title"), "Title Text", "title"),
-                shiny$textInput(ns("xtext"), "X-Axis Text", "x"),
-                shiny$textInput(ns("ytext"), "Y-Axis Text", "y"),
+                shiny$textInput(ns("title"), "Title Text", ""),
+                shiny$textInput(ns("xtext"), "X-Axis Text", "Delay"),
+                shiny$textInput(ns("ytext"), "Y-Axis Text", "Indifference Point"),
                 shiny$checkboxInput(ns("xlog"), "Log X-Axis"),
                 shiny$actionButton(ns("update_plot_btn"), "Update Plot")
               ),
