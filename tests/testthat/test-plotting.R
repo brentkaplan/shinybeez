@@ -109,6 +109,19 @@ describe("compute_aesthetic_defaults", {
     default <- plotting$compute_aesthetic_defaults("", "", "", character(0))
     expect_equal(default$shape, "")
   })
+
+  it("treats NULL, NA and zero-length current selections as None", {
+    for (empty in list(NULL, NA, NA_character_, character(0))) {
+      shape <- plotting$compute_aesthetic_defaults("", "", "", c("A", "B"), current_shape = empty)
+      expect_equal(shape$shape, "")
+      color <- plotting$compute_aesthetic_defaults(empty, "", "", c("A", "B"))
+      expect_equal(color$color, "A")
+      linetype <- plotting$compute_aesthetic_defaults("", empty, "", c("A", "B"))
+      expect_equal(linetype$linetype, "B")
+      facet <- plotting$compute_aesthetic_defaults("", "", empty, c("A", "B"))
+      expect_equal(facet$facet, "")
+    }
+  })
 })
 
 describe("aesthetics_in_sync", {

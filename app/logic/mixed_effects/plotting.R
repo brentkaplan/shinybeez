@@ -26,15 +26,20 @@ validate_aesthetic <- function(selection, valid_factors) {
   selection
 }
 
+# NULL, NA and zero-length all mean None ("").
+as_selection <- function(x) {
+  if (is.null(x) || length(x) != 1L || is.na(x)) "" else as.character(x)
+}
+
 #' Compute smart defaults for plot aesthetics
 #'
 #' When a model has factors, sets sensible defaults for color and linetype.
 #'
-#' @param current_color Current color selection (may be "" for None)
-#' @param current_linetype Current linetype selection (may be "" for None)
-#' @param current_facet Current facet selection (may be "" for None)
+#' @param current_color Current color selection ("", NULL or NA mean None)
+#' @param current_linetype Current linetype selection (same convention)
+#' @param current_facet Current facet selection (same convention)
 #' @param factors_in_model Character vector of factors in the fitted model
-#' @param current_shape Current shape selection (may be "" for None)
+#' @param current_shape Current shape selection (same convention)
 #' @return List with color, linetype, facet, and shape selections
 #' @export
 compute_aesthetic_defaults <- function(
@@ -44,6 +49,12 @@ compute_aesthetic_defaults <- function(
   factors_in_model,
   current_shape = ""
 ) {
+  # Inputs are NULL before the browser reports them.
+  current_color <- as_selection(current_color)
+  current_linetype <- as_selection(current_linetype)
+  current_facet <- as_selection(current_facet)
+  current_shape <- as_selection(current_shape)
+
   # Validate current selections - reset if not valid
   if (!current_color %in% factors_in_model) {
     current_color <- ""
@@ -88,11 +99,8 @@ compute_aesthetic_defaults <- function(
 #' @return TRUE when all four match; NULL, NA and empty all mean None
 #' @export
 aesthetics_in_sync <- function(expected, current) {
-  norm <- function(x) {
-    if (is.null(x) || length(x) != 1L || is.na(x)) "" else as.character(x)
-  }
   fields <- c("color", "linetype", "facet", "shape")
-  all(vapply(fields, function(f) identical(norm(expected[[f]]), norm(current[[f]])), logical(1)))
+  all(vapply(fields, function(f) identical(as_selection(expected[[f]]), as_selection(current[[f]])), logical(1)))
 }
 
 #' Build facet formula string from selection
