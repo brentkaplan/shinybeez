@@ -116,3 +116,86 @@ describe("Mixed Effects - palette picker", {
 
   local_app_stop()
 })
+
+# ==========================================================================
+# Demand: minimal grouped fixture (groups A and B), pooled fit
+# ==========================================================================
+describe("Demand - palette picker", {
+  app <- NULL
+  result_id <- ns_id("demand", "results_table_demand", "model_results_table")
+  palette_id <- ns_id("demand", "results_table_demand", "palette")
+  note_id <- ns_id("demand", "results_table_demand", "palette_note")
+  plot_id <- ns_id("demand", "results_table_demand", "plot", "plot")
+  update_id <- ns_id("demand", "results_table_demand", "update_plot_btn")
+
+  it("runs a grouped pooled fit", {
+    app <<- create_app_driver()
+    require_app(app)
+    navigate_to_tab(app, "Demand")
+    upload_and_wait(app, ids$demand$upload, fixture_path("demand-minimal-grouped.csv"))
+    app$set_inputs(!!ids$demand$group := TRUE)
+    app$wait_for_idle(duration = 500)
+    app$set_inputs(!!ids$demand$k := "2", wait_ = FALSE)
+    app$wait_for_idle(duration = 500)
+    app$click(selector = paste0("#", ids$demand$calculate))
+    wait_for_output(app, result_id, timeout_ms = 60000)
+    expect_true(app$get_js(sprintf("document.getElementById('%s') !== null", result_id)))
+  })
+
+  it("switches to Set2 on the Plots tab and re-renders with no note", {
+    require_app(app)
+    # The results navset has no input id; click its Plots tab from inside the results card
+    # (the discounting page has a Plots tab too, so the selector is scoped).
+    app$run_js(sprintf(
+      "document.getElementById('%s').closest('.card').querySelector(\"a.nav-link[data-value='Plots']\").click()",
+      result_id
+    ))
+    app$wait_for_js(sprintf("document.querySelector('#%s img') !== null", plot_id), timeout = 30000)
+    open_sidebar_of(app, palette_id)
+    expect_equal(app$get_value(input = palette_id), "Codedbx")
+    n_swatches <- app$get_js(sprintf(
+      "document.querySelectorAll('#%s + .selectize-control .item .palette-swatch').length", palette_id
+    ))
+    expect_equal(n_swatches, 6)
+
+    # The app boots dark; the note messages below are the light-mode ones (in dark mode
+    # viridis is lifted and its yellow is not faint). Switch to light the way a user does:
+    # click the toggle inside the dark-mode element's shadow root. The plot re-renders on
+    # the toggle, so take src_before only after it settles.
+    app$run_js("document.querySelector('bslib-input-dark-mode').shadowRoot.querySelector('button').click()")
+    app$wait_for_js("document.documentElement.getAttribute('data-bs-theme') === 'light'", timeout = 10000)
+    app$wait_for_idle(duration = 500, timeout = 30000)
+    expect_equal(app$get_value(input = "dark_mode"), "light")
+    src_before <- app$get_js(sprintf("document.querySelector('#%s img').getAttribute('src')", plot_id))
+
+    # Prove the note output renders at all before asserting it is empty: viridis always ends
+    # in the yellow, so two groups -> viridis(2) -> colour 2 is faint on white.
+    app$set_inputs(!!palette_id := "viridis")
+    app$wait_for_idle(duration = 500, timeout = 30000)
+    expect_match(
+      app$get_html(paste0("#", note_id)),
+      "viridis colour 2 (#FDE725) is 1.3:1 against white: faint",
+      fixed = TRUE
+    )
+
+    app$set_inputs(!!palette_id := "Set2")
+    app$wait_for_idle(duration = 500, timeout = 30000)
+    expect_equal(app$get_value(input = palette_id), "Set2")
+    # Two groups -> Set2's first two entries, both above 1.5:1 on white: nothing to say.
+    expect_false(grepl("palette-note", app$get_html(paste0("#", note_id)), fixed = TRUE))
+
+    app$click(selector = paste0("#", update_id))
+    app$wait_for_js(
+      sprintf(
+        "document.querySelector('#%s img').getAttribute('src') !== %s",
+        plot_id, jsonlite::toJSON(src_before, auto_unbox = TRUE)
+      ),
+      timeout = 30000
+    )
+    app$wait_for_idle(duration = 500, timeout = 30000)
+    html <- app$get_html(paste0("#", plot_id))
+    expect_false(any(grepl("shiny-output-error", html, fixed = TRUE)))
+  })
+
+  local_app_stop()
+})

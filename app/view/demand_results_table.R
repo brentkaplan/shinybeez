@@ -19,6 +19,7 @@ box::use(
   app / logic / plot_downloads,
   app / logic / telemetry_utils,
   app / view / shared / data_table[build_datatable],
+  app / view / shared / palette_picker[palette_note, palette_picker],
 )
 
 #' @export
@@ -58,12 +59,8 @@ ui <- function(id) {
               label = "Y-Axis Text",
               value = "y"
             ),
-            shiny$selectInput(
-              inputId = ns("palette"),
-              label = "Color Palette",
-              choices = c("Codedbx", "Okabe-Ito", "HCL Light", "HCL Dark"),
-              selected = "Codedbx"
-            ),
+            palette_picker(ns("palette")),
+            shiny$uiOutput(ns("palette_note")),
             shiny$checkboxInput(
               inputId = ns("xlog"),
               label = "Log X-Axis"
@@ -124,6 +121,22 @@ server <- function(
       # see resolve_group_scale() and production error bce0bb1d.
       plot_group_levels = NULL
     )
+
+    # Accessibility note under the palette picker: live on the palette, the colour mode and
+    # the group count of the fit the plot was built with (NULL before a fit, so the preflight
+    # then runs at the palette's own size). Warn only; never gates the plot.
+    output$palette_note <- shiny$renderUI({
+      levels <- res$plot_group_levels
+      n_levels <- if (is.null(levels)) NULL else length(unique(levels[!is.na(levels)]))
+      palette_note(utils$palette_preflight(
+        input$palette,
+        n_levels = n_levels,
+        dark = identical(session$rootScope()$input$dark_mode, "dark")
+      ))
+    })
+    # The Plot Settings sidebar is collapsed by default (open = FALSE -> display: none);
+    # keep the note computed while hidden so it is right the moment the sidebar opens.
+    shiny$outputOptions(output, "palette_note", suspendWhenHidden = FALSE)
 
     # Metadata for the fit currently on the task; NULL when nothing is pending.
     pending_fit <- shiny$reactiveVal(NULL)
