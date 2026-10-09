@@ -211,3 +211,107 @@ describe("resolve_group_scale - dark mode", {
     expect_identical(scale$palette(3), utils$get_palette_colors("Okabe-Ito", 3, dark = TRUE))
   })
 })
+
+describe("palette registry", {
+  # Light-mode baselines at n = 8, computed once from the source packages in this renv
+  # (RColorBrewer 1.1-3, ggprism 1.0.7, viridisLite 0.4.3, grDevices) and pasted in, so a
+  # package bump that changes a colour fails here instead of silently changing plots.
+  new_baseline <- list(
+    "Dark2" = c("#1B9E77", "#D95F02", "#7570B3", "#E7298A", "#66A61E", "#E6AB02", "#A6761D", "#666666"),
+    "Set2" = c("#66C2A5", "#FC8D62", "#8DA0CB", "#E78AC3", "#A6D854", "#FFD92F", "#E5C494", "#B3B3B3"),
+    "Paired" = c("#A6CEE3", "#1F78B4", "#B2DF8A", "#33A02C", "#FB9A99", "#E31A1C", "#FDBF6F", "#FF7F00"),
+    "prism_light" = c("#2C1453", "#114CE8", "#0E6F7C", "#FB4F06", "#FB0005", "#A48AD3", "#1CC5FE", "#6FC7CF"),
+    "prism_dark" = c("#A48AD3", "#1CC5FE", "#6FC7CF", "#FBA27D", "#FB7D80", "#2C1453", "#114CE8", "#0E6F7C"),
+    "floral" = c("#285291", "#4F2B8E", "#91188E", "#539027", "#0D405B", "#34274D", "#91181D", "#2C3324"),
+    "winter_bright" = c("#077E97", "#800080", "#000080", "#8D8DFF", "#C000C0", "#056943", "#077E97", "#800080"),
+    "candy_bright" = c("#F71480", "#FF8000", "#808000", "#008000", "#0000FF", "#76069A", "#F71480", "#FF8000"),
+    "pastels" = c("#CCCCFF", "#99CCFF", "#6699CC", "#666699", "#9370DB", "#996699", "#CC6699", "#CCCCFF"),
+    "viridis" = c("#440154", "#46337E", "#365C8D", "#277F8E", "#1FA187", "#4AC16D", "#9FDA3A", "#FDE725"),
+    "cividis" = c("#00204D", "#16396D", "#4B546C", "#6C6E72", "#8E8A79", "#B3A772", "#DBC761", "#FFEA46"),
+    "Grayscale" = c("#333333", "#5A5A5A", "#737373", "#868686", "#979797", "#A6A6A6", "#B3B3B3", "#BFBFBF")
+  )
+
+  it("pins the light-mode output of every new palette at n = 8", {
+    for (p in names(new_baseline)) {
+      expect_identical(utils$get_palette_colors(p, 8), new_baseline[[p]], info = p)
+      expect_identical(utils$get_palette_colors(p, 8, dark = FALSE), new_baseline[[p]], info = p)
+    }
+  })
+
+  it("lists the sixteen palettes in picker order", {
+    expect_identical(
+      utils$palette_names(),
+      c(
+        "Codedbx", "Okabe-Ito", "Dark2", "Set2", "Paired",
+        "prism_light", "prism_dark", "floral", "winter_bright", "candy_bright", "pastels",
+        "viridis", "cividis", "HCL Light", "HCL Dark", "Grayscale"
+      )
+    )
+  })
+
+  it("reports the distinct size of fixed sets and NA for generators and unknown names", {
+    sizes <- c(
+      "Codedbx" = 6L, "Okabe-Ito" = 8L, "Dark2" = 8L, "Set2" = 8L, "Paired" = 12L,
+      "prism_light" = 10L, "prism_dark" = 10L, "floral" = 12L,
+      "winter_bright" = 6L, "candy_bright" = 6L, "pastels" = 7L
+    )
+    for (p in names(sizes)) {
+      expect_identical(utils$palette_size(p), sizes[[p]], info = p)
+    }
+    for (p in c("viridis", "cividis", "HCL Light", "HCL Dark", "Grayscale", "nope")) {
+      expect_identical(utils$palette_size(p), NA_integer_, info = p)
+    }
+  })
+
+  it("stores only distinct colours for the padded ggprism sets", {
+    # ggprism pads winter_bright/candy_bright (9 entries, 6 distinct) and pastels (9, 7) by repeating
+    # colours; the registry keeps the distinct ones so recycling starts where the repeats really start.
+    for (p in c("prism_light", "prism_dark", "floral", "winter_bright", "candy_bright", "pastels")) {
+      cols <- utils$get_palette_colors(p, utils$palette_size(p))
+      expect_identical(anyDuplicated(cols), 0L, info = p)
+      expect_null(names(cols), info = p)
+    }
+    expect_identical(utils$get_palette_colors("winter_bright", 7)[7], utils$get_palette_colors("winter_bright", 1))
+    expect_identical(utils$get_palette_colors("pastels", 8)[8], utils$get_palette_colors("pastels", 1))
+  })
+
+  it("groups every palette", {
+    expect_identical(utils$palette_group("Codedbx"), "Brand")
+    expect_identical(utils$palette_group("Okabe-Ito"), "Colourblind-safe")
+    expect_identical(utils$palette_group("Paired"), "Colourblind-safe")
+    expect_identical(utils$palette_group("floral"), "Prism")
+    expect_identical(utils$palette_group("viridis"), "Generated")
+    expect_identical(utils$palette_group("HCL Dark"), "Generated")
+    expect_identical(utils$palette_group("Grayscale"), "Print")
+    expect_identical(utils$palette_group("nope"), NA_character_)
+  })
+
+  it("matches any palette name case-insensitively and still falls back to HCL Light", {
+    expect_identical(utils$get_palette_colors("VIRIDIS", 3), utils$get_palette_colors("viridis", 3))
+    expect_identical(utils$get_palette_colors("hcl dark", 3), utils$get_palette_colors("HCL Dark", 3))
+    expect_identical(utils$get_palette_colors("nope", 5), utils$get_palette_colors("HCL Light", 5))
+    expect_identical(utils$palette_group("codedbx"), "Brand")
+  })
+
+  it("strips the alpha suffix from viridisLite output", {
+    expect_true(all(nchar(utils$get_palette_colors("viridis", 8)) == 7L))
+    expect_true(all(nchar(utils$get_palette_colors("cividis", 8)) == 7L))
+  })
+
+  it("draws up to eight swatch colours per palette", {
+    expect_identical(utils$palette_swatch("Codedbx"), codedbx_hex)
+    expect_length(utils$palette_swatch("Paired"), 8)
+    expect_length(utils$palette_swatch("viridis"), 8)
+    expect_identical(utils$palette_swatch("winter_bright"), utils$get_palette_colors("winter_bright", 6))
+    expect_length(utils$palette_swatch("nope"), 8)
+  })
+
+  it("lifts every registry palette to at least 3:1 against the dark canvas", {
+    for (p in utils$palette_names()) {
+      cols <- utils$get_palette_colors(p, 8, dark = TRUE)
+      ratios <- vapply(cols, utils$contrast_ratio, numeric(1), b = utils$DARK_CANVAS)
+      expect_true(all(ratios >= 3), info = paste(p, paste(round(ratios, 2), collapse = " ")))
+      expect_length(cols, 8)
+    }
+  })
+})
