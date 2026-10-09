@@ -1,0 +1,28 @@
+// Palette picker (app/view/shared/palette_picker.R). Selectize options and the
+// selected item draw the palette's colours as a row of small squares before the
+// name; the accessibility note sits directly under the select.
+.palette-option {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.palette-swatches {
+  display: inline-flex;
+  gap: 2px;
+}
+
+// A faint border so white and pastel swatches stay visible on both canvases.
+.palette-swatch {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border: 1px solid rgb(0 0 0 / 15%);
+  border-radius: 2px;
+}
+
+.palette-note {
+  display: block;
+  margin-top: -0.5rem;
+  margin-bottom: 0.75rem;
+}
