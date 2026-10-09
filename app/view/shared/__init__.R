@@ -6,9 +6,8 @@ box::use(
   . / data_table,
   . / palette_picker,
   . / plot_layers,
-  . / plot_settings,
   . / systematic_criteria
 )
 
 #' @export
-box::export(data_table, palette_picker, plot_layers, plot_settings, systematic_criteria)
+box::export(data_table, palette_picker, plot_layers, systematic_criteria)
