@@ -428,4 +428,23 @@ describe("palette_preflight", {
     expect_false("recycled" %in% res$flags)
     expect_identical(utils$palette_preflight("Dark2", n_levels = NaN)$n, 8L)
   })
+
+  it("pins the remaining spec cases: Set2 and Paired yellows, cividis onsets, one and two-level ramps", {
+    # Light mode, each fixed set at its own size: exactly one faint yellow.
+    set2 <- utils$palette_preflight("Set2", n_levels = 8)
+    expect_identical(set2$flags, "low_contrast")
+    expect_identical(set2$message, "Set2 colour 6 (#FFD92F) is 1.4:1 against white: faint")
+    paired <- utils$palette_preflight("Paired", n_levels = 12)
+    expect_identical(paired$flags, "low_contrast")
+    expect_identical(paired$message, "Paired colour 11 (#FFFF99) is 1.0:1 against white: faint")
+    # cividis is sequential: in dark mode the lift pins the dark end, so the collision starts at three levels.
+    expect_identical(utils$palette_preflight("cividis", n_levels = 2, dark = TRUE)$flags, character(0))
+    expect_identical(utils$palette_preflight("cividis", n_levels = 3, dark = TRUE)$flags, "grayscale_collision")
+    # A one-colour ramp is its dark end (clean); two colours end in the yellow (faint on white, no pair to collide).
+    for (p in c("viridis", "cividis")) {
+      expect_identical(utils$palette_preflight(p, n_levels = 1)$flags, character(0), info = p)
+      expect_identical(utils$palette_preflight(p, n_levels = 2)$flags, "low_contrast", info = p)
+      expect_match(utils$palette_preflight(p, n_levels = 2)$message, "colour 2 (", fixed = TRUE, info = p)
+    }
+  })
 })
