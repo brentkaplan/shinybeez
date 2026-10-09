@@ -285,6 +285,100 @@ resolve_group_scale <- function(levels, palette_name = "Codedbx", dark = FALSE) 
   )
 }
 
+# -----------------------------------------------------------------------------
+# Accessibility preflight
+# -----------------------------------------------------------------------------
+
+#' Contrast ratio against the canvas below which a palette entry is reported as faint.
+#' Deliberately lower than the 3:1 the dark lift enforces: light mode never lifts (the
+#' classic palettes must stay byte-identical), and at 3:1 thirteen of the sixteen
+#' palettes would carry the note. At 1.5 it names exactly the yellows and the pale HCL set.
+#' @export
+PREFLIGHT_MIN_CONTRAST <- 1.5 # nolint: object_name_linter
+
+#' Luminance ratio below which two adjacent steps of a sequential ramp do not separate
+#' in a black-and-white print.
+#' @export
+PREFLIGHT_MIN_GREY_RATIO <- 1.2 # nolint: object_name_linter
+
+#' Warn about a palette choice before the plot renders
+#'
+#' Pure. Three checks, each adding one flag and one clause to a single-line message:
+#' `recycled` (fixed sets only, when the level count is known and exceeds the set),
+#' `low_contrast` (any entry under `PREFLIGHT_MIN_CONTRAST` against the current canvas,
+#' after the dark lift when `dark`), and `grayscale_collision` (sequential ramps only:
+#' adjacent entries whose luminance ratio is under `PREFLIGHT_MIN_GREY_RATIO`).
+#' Qualitative palettes are exempt from the last check: they separate levels by hue and
+#' every one of them has near-equal-luminance pairs by design.
+#'
+#' @param name Palette name (resolved like [get_palette_colors()]).
+#' @param n_levels Number of groups to colour, or NULL when not yet known (before a fit,
+#'   or with no colour-by). Then the checks run at the fixed set's size, or 8 for a generator.
+#' @param dark TRUE in dark mode.
+#' @return `list(flags = character(), message = NULL or one string, n = integer)`.
+#' @export
+palette_preflight <- function(name, n_levels = NULL, dark = FALSE) {
+  display <- resolve_palette_name(name)
+  size <- palette_size(display)
+  known_n <- !is.null(n_levels) && length(n_levels) == 1L && !is.na(n_levels)
+  n <- if (known_n) as.integer(n_levels) else if (is.na(size)) 8L else size
+  flags <- character(0)
+  clauses <- character(0)
+  if (n < 1L) {
+    return(list(flags = flags, message = NULL, n = n))
+  }
+
+  if (!is.na(size) && known_n && n > size) {
+    extra <- n - size
+    flags <- c(flags, "recycled")
+    clauses <- c(clauses, sprintf(
+      "%d levels, %s has %d: %s",
+      n, display, size,
+      if (extra == 1L) "1 colour repeats" else sprintf("%d colours repeat", extra)
+    ))
+  }
+
+  canvas <- if (isTRUE(dark)) DARK_CANVAS else "#FFFFFF"
+  cols <- get_palette_colors(display, n, dark = dark)
+  ratios <- vapply(cols, contrast_ratio, numeric(1), b = canvas, USE.NAMES = FALSE)
+  faint <- which(ratios < PREFLIGHT_MIN_CONTRAST)
+  if (length(faint) > 0L) {
+    first <- faint[[1]]
+    more <- length(faint) - 1L
+    flags <- c(flags, "low_contrast")
+    clauses <- c(clauses, sprintf(
+      "%s colour %d (%s) is %.1f:1 against %s: faint%s",
+      display, first, cols[[first]], ratios[[first]],
+      if (isTRUE(dark)) "the dark canvas" else "white",
+      if (more > 0L) sprintf(" (and %d more)", more) else ""
+    ))
+  }
+
+  if (palette_is_sequential(display) && n >= 2L) {
+    lum <- vapply(cols, relative_luminance, numeric(1), USE.NAMES = FALSE)
+    hi <- pmax(lum[-1], lum[-n])
+    lo <- pmin(lum[-1], lum[-n])
+    adjacent <- (hi + 0.05) / (lo + 0.05)
+    close <- which(adjacent < PREFLIGHT_MIN_GREY_RATIO)
+    if (length(close) > 0L) {
+      worst <- close[[which.min(adjacent[close])]]
+      more <- length(close) - 1L
+      flags <- c(flags, "grayscale_collision")
+      clauses <- c(clauses, sprintf(
+        "levels %d and %d differ by %d%% luminance: hard to tell apart in greyscale%s",
+        worst, worst + 1L, as.integer(round((adjacent[[worst]] - 1) * 100)),
+        if (more > 0L) sprintf(" (and %d more pair%s)", more, if (more == 1L) "" else "s") else ""
+      ))
+    }
+  }
+
+  list(
+    flags = flags,
+    message = if (length(clauses) > 0L) paste(clauses, collapse = "; ") else NULL,
+    n = n
+  )
+}
+
 # TRUE when a colour is missing (NULL -> the geom default, which is black for
 # lines/points/paths) or a dark, near-neutral tone that would vanish on the
 # dark canvas. Saturated hues (the brand palette, a red fit line, a blue
