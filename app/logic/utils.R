@@ -168,31 +168,41 @@ PALETTES <- list( # nolint: object_name_linter
   )
 )
 
-# Registry entry for a name: exact match first, then case-insensitive; NULL when unknown.
-palette_entry <- function(name) {
-  if (is.null(name) || length(name) != 1L || is.na(name) || !nzchar(name)) {
-    return(NULL)
+# Canonical registry name for a user-supplied one, or NA when nothing matches. Exact
+# match first, then case-insensitive. NULL, NA, empty and non-length-1 input give NA.
+match_palette_name <- function(name) {
+  if (is.null(name) || length(name) != 1L) {
+    return(NA_character_)
   }
   name <- as.character(name)
+  if (is.na(name) || !nzchar(name)) {
+    return(NA_character_)
+  }
   if (!is.null(PALETTES[[name]])) {
-    return(PALETTES[[name]])
+    return(name)
   }
   hit <- match(tolower(name), tolower(names(PALETTES)))
-  if (is.na(hit)) NULL else PALETTES[[hit]]
+  if (is.na(hit)) NA_character_ else names(PALETTES)[[hit]]
+}
+
+# Registry entry for a name: exact match first, then case-insensitive; NULL when unknown.
+palette_entry <- function(name) {
+  canonical <- match_palette_name(name)
+  if (is.na(canonical)) NULL else PALETTES[[canonical]]
 }
 
 # Canonical registry name for a user-supplied one. Empty or NULL means the brand palette
 # (the app default); an unknown name falls back to HCL Light, as it always has.
 resolve_palette_name <- function(name) {
-  if (is.null(name) || length(name) != 1L || is.na(name) || !nzchar(name)) {
+  if (is.null(name) || length(name) != 1L) {
     return("Codedbx")
   }
   name <- as.character(name)
-  if (!is.null(PALETTES[[name]])) {
-    return(name)
+  if (is.na(name) || !nzchar(name)) {
+    return("Codedbx")
   }
-  hit <- match(tolower(name), tolower(names(PALETTES)))
-  if (is.na(hit)) "HCL Light" else names(PALETTES)[[hit]]
+  canonical <- match_palette_name(name)
+  if (is.na(canonical)) "HCL Light" else canonical
 }
 
 #' Palette names in picker order
@@ -320,7 +330,7 @@ PREFLIGHT_MIN_GREY_RATIO <- 1.2 # nolint: object_name_linter
 palette_preflight <- function(name, n_levels = NULL, dark = FALSE) {
   display <- resolve_palette_name(name)
   size <- palette_size(display)
-  known_n <- !is.null(n_levels) && length(n_levels) == 1L && !is.na(n_levels)
+  known_n <- !is.null(n_levels) && length(n_levels) == 1L && !is.na(n_levels) && is.finite(n_levels)
   n <- if (known_n) as.integer(n_levels) else if (is.na(size)) 8L else size
   flags <- character(0)
   clauses <- character(0)

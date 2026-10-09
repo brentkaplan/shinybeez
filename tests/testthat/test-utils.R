@@ -314,6 +314,13 @@ describe("palette registry", {
       expect_length(cols, 8)
     }
   })
+
+  it("accepts a factor or non-finite input without erroring", {
+    expect_identical(utils$get_palette_colors(factor("Dark2"), 3), utils$get_palette_colors("Dark2", 3))
+    expect_identical(utils$palette_group(factor("viridis")), "Generated")
+    expect_identical(utils$palette_group(NA_character_), NA_character_)
+    expect_identical(utils$get_palette_colors(NA_character_, 2), utils$get_palette_colors("Codedbx", 2))
+  })
 })
 
 describe("palette_preflight", {
@@ -413,5 +420,12 @@ describe("palette_preflight", {
     expect_identical(utils$palette_preflight("")$n, 6L)
     # An unknown name renders as HCL Light, so the note says so.
     expect_match(utils$palette_preflight("nope", n_levels = 8)$message, "HCL Light colour", fixed = TRUE)
+  })
+
+  it("treats a non-finite level count as unknown", {
+    res <- utils$palette_preflight("Dark2", n_levels = Inf)
+    expect_identical(res$n, 8L)
+    expect_false("recycled" %in% res$flags)
+    expect_identical(utils$palette_preflight("Dark2", n_levels = NaN)$n, 8L)
   })
 })

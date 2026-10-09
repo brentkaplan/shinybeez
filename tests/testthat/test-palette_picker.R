@@ -69,6 +69,11 @@ describe("palette_picker", {
     expect_false(grepl(" selected>", stale, fixed = TRUE))
     expect_identical(option_values(stale), utils$palette_names())
   })
+
+  it("relies on registry names that are safe to embed in the page script unescaped", {
+    expect_true(all(grepl("^[A-Za-z0-9 _-]+$", utils$palette_names())))
+    expect_true(all(grepl("^#[0-9A-Fa-f]{6}$", unlist(lapply(utils$palette_names(), utils$palette_swatch)))))
+  })
 })
 
 describe("palette_note", {

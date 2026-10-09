@@ -31,7 +31,8 @@ swatch_script <- function() {
   js <- paste0(
     "window.shinybeezPalettes = {", paste(entries, collapse = ", "), "};\n",
     "window.shinybeezPaletteOption = function(value, escape, kind) {\n",
-    "  var hex = window.shinybeezPalettes[value] || [];\n",
+    "  var hex = Object.prototype.hasOwnProperty.call(window.shinybeezPalettes, value) ?\n",
+    "    window.shinybeezPalettes[value] : [];\n",
     "  var swatches = hex.map(function(h) {\n",
     "    return '<span class=\"palette-swatch\" style=\"background:' + h + '\"></span>';\n",
     "  }).join('');\n",
@@ -57,11 +58,11 @@ render_option_js <- paste0(
 #' @return An `htmltools::tagList` (the singleton script plus the input).
 #' @export
 palette_picker <- function(input_id, label = "Color Palette", selected = "Codedbx", width = NULL) {
-  names <- utils$palette_names()
-  groups <- vapply(names, utils$palette_group, character(1), USE.NAMES = FALSE)
+  palette_names <- utils$palette_names()
+  groups <- vapply(palette_names, utils$palette_group, character(1), USE.NAMES = FALSE)
   # Each group as a list, never a character vector: Shiny renders a one-member character
   # group (Brand, Print) as a single option labelled with the group name.
-  choices <- lapply(split(names, factor(groups, levels = unique(groups))), as.list)
+  choices <- lapply(split(palette_names, factor(groups, levels = unique(groups))), as.list)
   htmltools$tagList(
     swatch_script(),
     shiny$selectizeInput(
