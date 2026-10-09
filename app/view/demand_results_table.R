@@ -501,9 +501,7 @@ server <- function(
       res$plot <- res$base_plot +
         ggplot2$xlab(input$xtext) +
         ggplot2$ylab(input$ytext) +
-        ggplot2$ggtitle(
-          if (!is.null(input$title) && nzchar(input$title)) input$title else NULL
-        )
+        ggplot2$ggtitle(utils$plot_title_or_null(input$title))
 
       if (input$xlog) {
         res$plot <- res$plot +

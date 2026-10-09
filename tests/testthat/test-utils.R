@@ -477,3 +477,16 @@ describe("palette_preflight", {
     }
   })
 })
+
+describe("plot_title_or_null", {
+  it("returns NULL for NULL, NA, zero-length, empty and whitespace-only titles", {
+    for (empty in list(NULL, NA, NA_character_, character(0), "", " ", "   ", "\t\n")) {
+      expect_null(utils$plot_title_or_null(empty))
+    }
+  })
+
+  it("returns a real title unchanged, keeping its own spacing", {
+    expect_identical(utils$plot_title_or_null("Demand"), "Demand")
+    expect_identical(utils$plot_title_or_null("  Demand curve "), "  Demand curve ")
+  })
+})

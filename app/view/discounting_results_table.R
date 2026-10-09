@@ -424,9 +424,7 @@ server <- function(
         ylabel = input$ytext,
         logx = input$xlog
       ) +
-        ggplot2$ggtitle(
-          if (!is.null(input$title) && nzchar(input$title)) input$title else NULL
-        ) +
+        ggplot2$ggtitle(utils$plot_title_or_null(input$title)) +
         utils$add_shiny_logo(utils$watermark_tr)
     })
 
