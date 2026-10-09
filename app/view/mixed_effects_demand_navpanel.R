@@ -36,6 +36,7 @@ box::use(
   app / logic / mixed_effects / plotting,
   app / logic / mixed_effects / systematic_utils,
   app / logic / mixed_effects / validation_utils,
+  app / view / shared / aesthetic_gate,
   app / view / shared / palette_picker[palette_note, palette_picker],
   app / view / shared / plot_layers
 )
@@ -1500,12 +1501,16 @@ navpanel_server <- function(id, sidebar_reactives, fit_task) {
     })
 
     # Plotting Logic
-    # Selections just pushed to the browser by the defaults observer below, or NULL once the
-    # browser has applied them. The plot render must not read selections the browser has not
-    # applied yet (it would draw with the old colour mapping and nothing re-triggers it), so
-    # the render expression waits on this. The gate is NOT inside plot_object_reactive:
-    # bindCache caches req() errors, which would poison the stale-input cache key.
-    aes_pending <- shiny$reactiveVal(NULL)
+    # Holds the plot render until the browser applies the selections the defaults observer below
+    # pushes on a refit (see app/view/shared/aesthetic_gate.R). The render expression waits on it.
+    aes_gate <- aesthetic_gate$new(function() {
+      list(
+        color = input$plot_color_by,
+        linetype = input$plot_linetype_by,
+        facet = input$plot_facet_by,
+        shape = input$plot_shape_by
+      )
+    })
 
     # Populate plot aesthetic choices
     shiny$observe({
@@ -1526,14 +1531,8 @@ navpanel_server <- function(id, sidebar_reactives, fit_task) {
         factors_in_model = factors_in_model,
         current_shape = shiny$isolate(input$plot_shape_by) %||% ""
       )
-      current <- list(
-        color = shiny$isolate(input$plot_color_by),
-        linetype = shiny$isolate(input$plot_linetype_by),
-        facet = shiny$isolate(input$plot_facet_by),
-        shape = shiny$isolate(input$plot_shape_by)
-      )
-      # Set before the updates below so the render in this flush sees the gate.
-      aes_pending(if (plotting$aesthetics_in_sync(defaults, current)) NULL else defaults)
+      # Shut the gate before the updates below so the render in this flush sees it.
+      aes_gate$push(defaults)
 
       shiny$updateSelectInput(
         session,
@@ -1561,22 +1560,6 @@ navpanel_server <- function(id, sidebar_reactives, fit_task) {
       )
     }, priority = 10) |>
       shiny$bindEvent(fitted_model_reactive())
-
-    # Clear the gate once the browser has applied every pushed selection.
-    shiny$observe({
-      pending <- aes_pending()
-      shiny$req(pending)
-      current <- list(
-        color = input$plot_color_by,
-        linetype = input$plot_linetype_by,
-        facet = input$plot_facet_by,
-        shape = input$plot_shape_by
-      )
-      if (plotting$aesthetics_in_sync(pending, current)) aes_pending(NULL)
-    })
-    # Update Plot always renders, so a selection the browser never echoes cannot leave the plot blank.
-    shiny$observe(aes_pending(NULL), priority = 10) |>
-      shiny$bindEvent(input$update_plot_settings)
 
     # Validated aesthetics, shared by the plot reactive and the telemetry snapshot.
     aesthetics_r <- shiny$reactive({
@@ -1796,8 +1779,8 @@ navpanel_server <- function(id, sidebar_reactives, fit_task) {
     esquisse$render_ggplot(
       id = "mixed_model_plot",
       expr = {
-        # Wait for the browser to apply the defaults pushed on a refit (see aes_pending).
-        shiny$req(is.null(aes_pending()))
+        # Wait for the browser to apply the defaults pushed on a refit (see aes_gate).
+        shiny$req(aes_gate$open())
         p <- plot_object_reactive()
         # Runs only after the plot built without error; isolate() keeps the payload's
         # inputs from adding render dependencies beyond the plot itself. The tryCatch
@@ -2028,7 +2011,7 @@ navpanel_server <- function(id, sidebar_reactives, fit_task) {
         if (has_model) {
           # Skip while pushed defaults are in flight: computing the bindEvent'd plot now
           # would memoise it with stale inputs and the render would later show that.
-          plot_obj <- if (is.null(shiny$isolate(aes_pending()))) {
+          plot_obj <- if (shiny$isolate(aes_gate$open())) {
             tryCatch(plot_object_reactive(), error = function(e) NULL)
           }
           if (!is.null(plot_obj)) {
