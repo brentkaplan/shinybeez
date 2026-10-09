@@ -125,6 +125,7 @@ apply_legend_position <- function(p, position = "right") {
 
 # The colour levels present in one frame. A factor whose observed values are all NA still
 # declares its levels, so fall back to those rather than reporting none.
+#' @export
 color_levels_in <- function(color_var, df) {
   if (is.null(df) || !color_var %in% names(df)) {
     return(character(0))
