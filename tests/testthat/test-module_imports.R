@@ -118,12 +118,6 @@ describe("shared view components", {
     expect_true(is.function(data_table$server))
   })
 
-  it("can import plot_settings component", {
-    box::use(app / view / shared / plot_settings)
-    expect_true(is.function(plot_settings$sidebar_ui))
-    expect_true(is.function(plot_settings$server))
-  })
-
   it("can import systematic_criteria component", {
     box::use(app / view / shared / systematic_criteria)
     expect_true(is.function(systematic_criteria$sidebar_ui))

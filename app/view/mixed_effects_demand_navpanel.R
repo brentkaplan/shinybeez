@@ -36,6 +36,7 @@ box::use(
   app / logic / mixed_effects / plotting,
   app / logic / mixed_effects / systematic_utils,
   app / logic / mixed_effects / validation_utils,
+  app / view / shared / aesthetic_gate,
   app / view / shared / palette_picker[palette_note, palette_picker],
   app / view / shared / plot_layers
 )
@@ -1500,6 +1501,17 @@ navpanel_server <- function(id, sidebar_reactives, fit_task) {
     })
 
     # Plotting Logic
+    # Holds the plot render until the browser applies the selections the defaults observer below
+    # pushes on a refit (see app/view/shared/aesthetic_gate.R). The render expression waits on it.
+    aes_gate <- aesthetic_gate$new(function() {
+      list(
+        color = input$plot_color_by,
+        linetype = input$plot_linetype_by,
+        facet = input$plot_facet_by,
+        shape = input$plot_shape_by
+      )
+    })
+
     # Populate plot aesthetic choices
     shiny$observe({
       model_fit <- fitted_model_reactive()
@@ -1516,8 +1528,11 @@ navpanel_server <- function(id, sidebar_reactives, fit_task) {
         current_color = shiny$isolate(input$plot_color_by) %||% "",
         current_linetype = shiny$isolate(input$plot_linetype_by) %||% "",
         current_facet = shiny$isolate(input$plot_facet_by) %||% "",
-        factors_in_model = factors_in_model
+        factors_in_model = factors_in_model,
+        current_shape = shiny$isolate(input$plot_shape_by) %||% ""
       )
+      # Shut the gate before the updates below so the render in this flush sees it.
+      aes_gate$push(defaults)
 
       shiny$updateSelectInput(
         session,
@@ -1540,9 +1555,10 @@ navpanel_server <- function(id, sidebar_reactives, fit_task) {
       shiny$updateSelectInput(
         session,
         "plot_shape_by",
-        choices = choices_with_none
+        choices = choices_with_none,
+        selected = defaults$shape
       )
-    }) |>
+    }, priority = 10) |>
       shiny$bindEvent(fitted_model_reactive())
 
     # Validated aesthetics, shared by the plot reactive and the telemetry snapshot.
@@ -1763,6 +1779,8 @@ navpanel_server <- function(id, sidebar_reactives, fit_task) {
     esquisse$render_ggplot(
       id = "mixed_model_plot",
       expr = {
+        # Wait for the browser to apply the defaults pushed on a refit (see aes_gate).
+        shiny$req(aes_gate$open())
         p <- plot_object_reactive()
         # Runs only after the plot built without error; isolate() keeps the payload's
         # inputs from adding render dependencies beyond the plot itself. The tryCatch
@@ -1991,7 +2009,11 @@ navpanel_server <- function(id, sidebar_reactives, fit_task) {
 
         # --- Plot Sheet (requires model) ---
         if (has_model) {
-          plot_obj <- tryCatch(plot_object_reactive(), error = function(e) NULL)
+          # Skip while pushed defaults are in flight: computing the bindEvent'd plot now
+          # would memoise it with stale inputs and the render would later show that.
+          plot_obj <- if (shiny$isolate(aes_gate$open())) {
+            tryCatch(plot_object_reactive(), error = function(e) NULL)
+          }
           if (!is.null(plot_obj)) {
             openxlsx$addWorksheet(
               wb, "Plot",

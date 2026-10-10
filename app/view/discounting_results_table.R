@@ -78,9 +78,9 @@ server <- function(
               sidebar = bslib$sidebar(
                 title = "Plot Settings",
                 open = FALSE,
-                shiny$textInput(ns("title"), "Title Text", "title"),
-                shiny$textInput(ns("xtext"), "X-Axis Text", "x"),
-                shiny$textInput(ns("ytext"), "Y-Axis Text", "y"),
+                shiny$textInput(ns("title"), "Title Text", ""),
+                shiny$textInput(ns("xtext"), "X-Axis Text", "Delay"),
+                shiny$textInput(ns("ytext"), "Y-Axis Text", "Indifference Point"),
                 shiny$checkboxInput(ns("xlog"), "Log X-Axis"),
                 shiny$actionButton(ns("update_plot_btn"), "Update Plot")
               ),
@@ -424,7 +424,7 @@ server <- function(
         ylabel = input$ytext,
         logx = input$xlog
       ) +
-        ggplot2$ggtitle(input$title) +
+        ggplot2$ggtitle(utils$plot_title_or_null(input$title)) +
         utils$add_shiny_logo(utils$watermark_tr)
     })
 

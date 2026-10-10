@@ -58,9 +58,9 @@ ungrouped_demand_data <- function() {
 # observer runs the same code path it does in the browser.
 set_plot_inputs <- function(session) {
   session$setInputs(
-    xtext = "x",
-    ytext = "y",
-    title = "",
+    xtext = "Price",
+    ytext = "Consumption",
+    title = "Demand Curve",
     palette = "Codedbx",
     legend_title = "group",
     xlog = FALSE,
@@ -138,6 +138,26 @@ describe("demand results table plot state", {
 
       expect_identical(res$fit_inputs$data, grouped_demand_data())
       expect_setequal(res$plot_group_levels, c("a", "b", "c"))
+    })
+  })
+
+  it("only sets a plot title when the title text is non-empty", {
+    data_r <- shiny$reactiveValues(data_d = grouped_demand_data())
+    calc <- shiny$reactiveVal(0)
+
+    shiny$testServer(demand_results_table$server, args = module_args(data_r, calc), {
+      set_plot_inputs(session)
+      calc(1)
+      session$flushReact()
+      settle(session)
+      expect_identical(res$plot$labels$title, "Demand Curve")
+
+      # ggtitle("") would still reserve a blank title strip above the panel. The plot is
+      # redecorated on Update Plot, not on every keystroke.
+      session$setInputs(title = "", update_plot_btn = 1)
+      session$flushReact()
+      settle(session)
+      expect_null(res$plot$labels$title)
     })
   })
 

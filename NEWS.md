@@ -63,6 +63,23 @@
   are not whole numbers (for example `price_1` or `1,000`), which the old
   parser tolerated, now open the reshape form instead of loading directly.
 
+- **Mixed-effects plot colour after a refit** — refitting with different
+  factors while the Plot tab was open drew the first plot without the new
+  colour and linetype mapping; only a later Update Plot applied it. The plot
+  now waits for the new selections and draws them on the first render. A shape
+  selection that is still a factor of the new model is kept across refits.
+
+- **Plot title and axis defaults** — the demand plot's settings started with
+  the placeholder text `title`, `x` and `y`, and the discounting regression
+  plot's with `title`, `x` and `y` as well. They now start as "Demand Curve",
+  "Price" and "Consumption" (demand) and a blank title, "Delay" and
+  "Indifference Point" (discounting). An empty title no longer leaves a blank
+  band above the plot.
+
+- **Palette picker layout** — long palette names such as "Okabe-Ito" and
+  "winter_bright" no longer wrap beside their swatches in the Plot Settings
+  sidebar, and the swatch borders are visible on the dark dropdown.
+
 ## Internal
 
 - Plot settings are recorded as a `configuration_snapshot` (module
@@ -72,6 +89,9 @@
 - Discounting plot downloads are now named `shinybeez-discounting-prop-ss`,
   `shinybeez-discounting-boxplot` and `shinybeez-discounting-regression`
   (previously `export-ggplot`).
+
+- Removed the unused `app/view/shared/plot_settings.R` module (no caller; its
+  four-palette select predated the palette picker).
 
 # shinybeez 1.1.3
 
