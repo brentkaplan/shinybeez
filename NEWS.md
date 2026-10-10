@@ -78,7 +78,7 @@
 
 - **Palette picker layout** — each dropdown entry shows the palette name on its
   own line above its swatches, so long names such as "prism_light" and
-  "winter_bright" are never cut off or wrapped in the Plot Settings sidebar; the
+  "winter_bright" display in full at the standard Plot Settings sidebar width; the
   selected palette stays on one line with smaller swatches, and the swatch
   borders are visible on the dark dropdown.
 

@@ -71,6 +71,8 @@ describe("Mixed Effects - palette picker", {
     # event, so Shiny never sees it and the plot does not re-render.
     n_palettes <- app$get_js("Object.keys(window.shinybeezPalettes).length")
     sel_js <- sprintf("$('#%s')[0].selectize", palette_id)
+    # Close the picker even if the wait below times out, so the later tests start from a closed control.
+    withr::defer(app$run_js(sprintf("var s = %s; s.close(); s.blur();", sel_js)))
     # Selectize draws the dropdown rows asynchronously after open().
     app$run_js(sprintf("var s = %s; s.focus(); s.open();", sel_js))
     app$wait_for_js(sprintf(
@@ -93,7 +95,7 @@ describe("Mixed Effects - palette picker", {
             row: Math.abs((sw.top + sw.bottom) / 2 - (nb.top + nb.bottom) / 2) < 4});
         });
       } finally {
-        s.setValue(before, true); s.close(); s.blur();
+        s.setValue(before, true);
       }
       return out;
     })()", sel_js))
