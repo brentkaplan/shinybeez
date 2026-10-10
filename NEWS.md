@@ -76,9 +76,11 @@
   "Indifference Point" (discounting). An empty title no longer leaves a blank
   band above the plot.
 
-- **Palette picker layout** — long palette names such as "Okabe-Ito" and
-  "winter_bright" no longer wrap beside their swatches in the Plot Settings
-  sidebar, and the swatch borders are visible on the dark dropdown.
+- **Palette picker layout** — each dropdown entry shows the palette name on its
+  own line above its swatches, so long names such as "prism_light" and
+  "winter_bright" are never cut off or wrapped in the Plot Settings sidebar; the
+  selected palette stays on one line with smaller swatches, and the swatch
+  borders are visible on the dark dropdown.
 
 ## Internal
 
