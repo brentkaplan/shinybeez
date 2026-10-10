@@ -82,6 +82,11 @@
   selected palette stays on one line with smaller swatches, and the swatch
   borders are visible on the dark dropdown.
 
+- **Demand plot blank after a fit** — in a longer session, a fit that followed
+  an Update Plot click or a dark-mode switch could leave the Plots tab empty,
+  with no error message, until Update Plot was clicked again. The plot now
+  draws after every successful fit.
+
 ## Internal
 
 - Plot settings are recorded as a `configuration_snapshot` (module
