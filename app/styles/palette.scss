@@ -1,6 +1,9 @@
 // Palette picker (app/view/shared/palette_picker.R). Selectize options and the
-// selected item draw the palette's colours as a row of small squares before the
-// name; the accessibility note sits directly under the select.
+// selected item draw the palette's colours as a row of small squares; the
+// accessibility note sits directly under the select. In the 250px Plot Settings
+// sidebar a dropdown row has no room for eight squares and a name side by side,
+// so options put the name on its own line above the squares; the selected item
+// stays one row with smaller squares.
 .palette-option {
   display: flex;
   align-items: center;
@@ -25,6 +28,21 @@
 
 [data-bs-theme="dark"] .palette-swatch {
   border-color: rgb(255 255 255 / 30%);
+}
+
+.option.palette-option {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 2px;
+
+  .palette-name {
+    order: -1;
+  }
+}
+
+.item.palette-option .palette-swatch {
+  width: 8px;
+  height: 8px;
 }
 
 .palette-name {
