@@ -221,6 +221,90 @@ describe("demand results table plot state", {
 })
 
 # ==============================================================================
+# Observer order
+# ==============================================================================
+# The plot is made by two observers that both fire on a completed fit: one builds
+# res$base_plot, the other decorates it into res$plot and renders it. The decorator also
+# fires alone on Update Plot and on the dark-mode toggle. Shiny hands every reactive context
+# an id from one process-wide counter and invalidates a reactive's dependents in the
+# STRING-sorted order of those ids, so an observer that last ran at id "10004" goes before one
+# that last ran at "8123". After enough activity for the counter to gain a digit, an Update
+# Plot click therefore put the decorator in front of the builder: on the next fit the builder
+# cleared res$plot after the decorator had set it, and the Plots tab stayed blank until Update
+# Plot was clicked again.
+#
+# The counter has no exported accessor, so these helpers reach into Shiny. Moving it forward
+# only skips ids; it is never moved back.
+skip_context_ids_to_next_power_of_ten <- function() {
+  env <- shiny:::.getReactiveEnvironment()
+  id <- env$.nextId
+  whole_number <- is.numeric(id) && length(id) == 1 && is.finite(id) && id == trunc(id)
+  if (!whole_number || id >= 1e7) {
+    skip("cannot move Shiny's reactive context counter")
+  }
+  target <- 10^nchar(format(id, scientific = FALSE))
+  storage.mode(target) <- storage.mode(id)
+  env$.nextId <- target
+}
+
+# TRUE when this Shiny still runs observers of one reactive in id-string order. If that ever
+# changes, the test below could no longer provoke the bug and must say so instead of passing.
+observers_run_in_id_string_order <- function() {
+  ran <- character()
+  empty_module <- function(id) shiny$moduleServer(id, function(input, output, session) NULL)
+  shiny$testServer(empty_module, {
+    fit <- shiny$reactiveVal(0)
+    click <- shiny$reactiveVal(0)
+    shiny$observe(ran <<- c(ran, "builder")) |>
+      shiny$bindEvent(fit(), ignoreInit = TRUE)
+    shiny$observe(ran <<- c(ran, "decorator")) |>
+      shiny$bindEvent(c(fit(), click()), ignoreInit = TRUE)
+    session$flushReact()
+    skip_context_ids_to_next_power_of_ten()
+    click(1)
+    session$flushReact()
+    ran <<- character()
+    fit(1)
+    session$flushReact()
+  })
+  identical(ran, c("decorator", "builder"))
+}
+
+describe("demand results table observer order", {
+  it("still has a plot after a refit that follows a late Update Plot click", {
+    skip_if_not(
+      observers_run_in_id_string_order(),
+      "Shiny no longer orders observers by context id string"
+    )
+    data_r <- shiny$reactiveValues(data_d = grouped_demand_data())
+    calc <- shiny$reactiveVal(0)
+
+    shiny$testServer(demand_results_table$server, args = module_args(data_r, calc), {
+      set_plot_inputs(session)
+      calc(1)
+      session$flushReact()
+      settle(session)
+      expect_setequal(res$plot_group_levels, c("a", "b", "c"))
+
+      # The decorator re-runs alone, at an id one digit longer than the builder's.
+      skip_context_ids_to_next_power_of_ten()
+      session$setInputs(update_plot_btn = 1)
+      session$flushReact()
+
+      two_groups <- grouped_demand_data()
+      data_r$data_d <- two_groups[two_groups$group != "c", ]
+      calc(2)
+      session$flushReact()
+      settle(session)
+
+      expect_setequal(res$plot_group_levels, c("a", "b"))
+      expect_false(is.null(res$base_plot))
+      expect_false(is.null(res$plot))
+    })
+  })
+})
+
+# ==============================================================================
 # Cancelled fit
 # ==============================================================================
 # The cancel path is unreachable from the fast fixtures the integration journey

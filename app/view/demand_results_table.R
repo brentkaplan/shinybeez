@@ -358,6 +358,12 @@ server <- function(
       res$plot_group_levels <- NULL
     }
 
+    # Builds res$base_plot. The decorating observer below needs it in the same flush, so this one
+    # runs first by priority: Shiny orders observers of one reactive by the string sort of their
+    # context ids, not by creation, and the decorator also fires alone on Update Plot and the
+    # dark-mode toggle. Without the priority a late Update Plot click put the decorator first
+    # on the next fit, clear_plot_state() then dropped the plot it had just made, and the Plots
+    # tab stayed blank.
     shiny$observe({
       # Everything here describes the fit that just finished, so it reads the
       # snapshot captured at invoke (res$fit_inputs) rather than the live
@@ -493,7 +499,7 @@ server <- function(
             theme_apa()
         }
       }
-    }) |>
+    }, priority = 10) |>
       shiny$bindEvent(fit_generation(), ignoreInit = TRUE)
 
     shiny$observe({
