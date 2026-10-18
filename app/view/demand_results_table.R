@@ -150,6 +150,17 @@ server <- function(
     fit_generation <- shiny$reactiveVal(0L)
 
     shiny$observe({
+      # The equation input reports "" before it has initialised, and Calculate is
+      # reachable in that window; resolve_equation("") would stop() inside this
+      # observer and end the session.
+      if (!shiny$isTruthy(eq())) {
+        shiny$showNotification(
+          "Choose an equation before fitting.",
+          type = "warning",
+          duration = 5
+        )
+        return(NULL)
+      }
       eq_code <- fitting$resolve_equation(eq())
       k <- fitting$resolve_k_value(kval(), validate$k_values)
       agg_val <- fitting$resolve_aggregation(agg())
