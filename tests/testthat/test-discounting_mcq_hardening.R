@@ -179,3 +179,27 @@ describe("check_mcq_item_counts - subject identifier validation", {
     expect_no_error(scoring$score_and_format_mcq(mcq_long(2)))
   })
 })
+
+describe("check_mcq_item_counts - shape guards", {
+  # 2026-09-30 (mcq_scoring :: argument is of length zero) and 2026-10-07
+  # (8fa1311a, replacement has 1 row, data has 0): MCQ was run on data left over
+  # from another analysis type. The guard skipped data with no subjectid column
+  # and passed a 0-row frame, so score_mcq27() aborted with a raw base-R error.
+
+  it("rejects data without the MCQ columns", {
+    idp <- data.frame(id = rep(1:2, each = 3), x = rep(c(1, 10, 100), 2), y = 0.5)
+
+    err <- expect_error(scoring$score_and_format_mcq(idp))
+    expect_match(conditionMessage(err), "subjectid, questionid, response", fixed = TRUE)
+  })
+
+  it("rejects an empty data frame", {
+    err <- expect_error(scoring$score_and_format_mcq(mcq_long(1)[0, ]))
+    expect_match(conditionMessage(err), "no rows", fixed = TRUE)
+  })
+
+  it("translates a residual empty-data abort", {
+    msg <- scoring$friendly_discounting_error("replacement has 1 row, data has 0")
+    expect_false(grepl("An error occurred during scoring", msg, fixed = TRUE))
+  })
+})
