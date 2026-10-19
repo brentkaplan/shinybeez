@@ -36,8 +36,9 @@ ui <- function(id) {
   logging_utils$init_logging()
   rhino$log$info("Starting Shinybeez UI initialization")
 
-  # Initialize telemetry system
-  telemetry_utils$init_telemetry()
+  # Initialize telemetry once per process. ui() runs on every page load, and
+  # re-initialising here opened a new SQLite connection each time.
+  telemetry_utils$get_telemetry()
 
   # Log UI initialization
   logging_utils$log_structured(

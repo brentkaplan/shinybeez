@@ -170,8 +170,8 @@ server <- function(id, data_r, type = NULL) {
               always_log = TRUE
             ),
             error = function(e) {
-              session_logger$error_enhanced(e$message, e, context = "discounting_systematic_check")
-              shiny$showNotification(e$message, type = "error", duration = 10)
+              session_logger$error_enhanced(conditionMessage(e), e, context = "discounting_systematic_check")
+              shiny$showNotification(conditionMessage(e), type = "error", duration = 10)
               NULL
             }
           )

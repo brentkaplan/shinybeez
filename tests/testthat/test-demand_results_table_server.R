@@ -442,3 +442,21 @@ describe("demand results table palette note", {
     })
   })
 })
+
+describe("demand results table equation guard", {
+  # 2026-09-30 (global :: unknown equation label:): Calculate was pressed while the
+  # equation input was still "", and resolve_equation()'s stop() escaped the observer.
+  it("refuses to fit, without erroring, when no equation is selected", {
+    data_r <- shiny$reactiveValues(data_d = ungrouped_demand_data())
+    calc <- shiny$reactiveVal(0)
+    args <- module_args(data_r, calc)
+    args$eq <- shiny$reactive("")
+    args$groupcol <- shiny$reactive(FALSE)
+
+    shiny$testServer(demand_results_table$server, args = args, {
+      calc(1)
+      expect_no_error(session$flushReact())
+      expect_null(pending_fit())
+    })
+  })
+})
