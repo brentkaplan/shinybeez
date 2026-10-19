@@ -22,6 +22,7 @@ box::use(
 #' Sets up telemetry tracking with appropriate storage backend based on configuration
 #' @export
 init_telemetry <- function() {
+  close_telemetry()
   .telemetry_env$config <- config::get("telemetry")
 
   if (!.telemetry_env$config$enabled) {
@@ -264,7 +265,25 @@ create_data_storage <- function(config) {
   })
 }
 
+#' Close the cached telemetry storage connection, if any
+#'
+#' Replacing or nulling the cached Telemetry object without this leaves its SQLite
+#' connection open until R garbage-collects it, which RSQLite reports as
+#' "call dbDisconnect() when finished working with a connection".
+#'
+#' @return Invisibly NULL. Never throws.
+close_telemetry <- function() {
+  if (!is.null(.telemetry_env$telemetry)) {
+    try(.telemetry_env$telemetry$data_storage$close(), silent = TRUE)
+  }
+  .telemetry_env$telemetry <- NULL
+  invisible(NULL)
+}
+
 #' Get telemetry object
+#'
+#' Initialises telemetry on first use, then returns the cached object, so callers
+#' that run per page load (main$ui) share one storage connection per process.
 #'
 #' @export
 get_telemetry <- function() {
