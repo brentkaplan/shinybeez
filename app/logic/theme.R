@@ -13,6 +13,12 @@ box::use(
 #' (Spacelab's base font) is kept for UI body text; Fira Mono drives code and
 #' tabular numerals.
 #'
+#' The Google fonts use `local = FALSE`: the browser fetches them from Google. With the
+#' default (`local = TRUE`) the server downloads them during the first UI render after
+#' every cold start (Connect Cloud starts with an empty sass cache), and a slow Google
+#' response blocked the single R process until the proxy gave up (2026-10-19). If the
+#' browser cannot reach Google, the fallbacks below apply.
+#'
 #' Because bs_theme() now supplies Bootstrap + Bootswatch, the bundled copy in
 #' app/styles/main.scss was removed (main.scss carries only custom rules).
 #'
@@ -29,13 +35,13 @@ app_theme <- function() {
     secondary = "#6c757d",
     # Fraunces serif headings (scholarly/journal feel); body stays Open Sans.
     heading_font = bslib$font_collection(
-      bslib$font_google("Fraunces"),
+      bslib$font_google("Fraunces", local = FALSE),
       "Georgia",
       "Times New Roman",
       "serif"
     ),
     code_font = bslib$font_collection(
-      bslib$font_google("Fira Mono"),
+      bslib$font_google("Fira Mono", local = FALSE),
       "SFMono-Regular",
       "Menlo",
       "Consolas",
