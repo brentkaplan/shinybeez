@@ -22,6 +22,7 @@ box::use(
 #' Sets up telemetry tracking with appropriate storage backend based on configuration
 #' @export
 init_telemetry <- function() {
+  close_telemetry()
   .telemetry_env$config <- config::get("telemetry")
 
   if (!.telemetry_env$config$enabled) {
@@ -264,7 +265,25 @@ create_data_storage <- function(config) {
   })
 }
 
+#' Close the cached telemetry storage connection, if any
+#'
+#' Replacing or nulling the cached Telemetry object without this leaves its SQLite
+#' connection open until R garbage-collects it, which RSQLite reports as
+#' "call dbDisconnect() when finished working with a connection".
+#'
+#' @return Invisibly NULL. Never throws.
+close_telemetry <- function() {
+  if (!is.null(.telemetry_env$telemetry)) {
+    try(.telemetry_env$telemetry$data_storage$close(), silent = TRUE)
+  }
+  .telemetry_env$telemetry <- NULL
+  invisible(NULL)
+}
+
 #' Get telemetry object
+#'
+#' Initialises telemetry on first use, then returns the cached object, so callers
+#' that run per page load (main$ui) share one storage connection per process.
 #'
 #' @export
 get_telemetry <- function() {
@@ -503,6 +522,94 @@ track_configuration <- function(module, config = list(), session = NULL) {
     ),
     session = session
   )
+}
+
+# TRUE for a single, non-NA, non-empty string.
+is_nonempty_string <- function(x) {
+  is.character(x) && length(x) == 1L && !is.na(x) && nzchar(x)
+}
+
+#' Module that owns a plot download
+#'
+#' Plot downloads are reported by a document-level JS click handler. The module is
+#' recovered from the filename prefix each render_ggplot() call sets. esquisse
+#' renders its download links without a filename in the `download` attribute, so
+#' when the filename gives no answer the namespaced id of the clicked link (for
+#' example `app-mixed_effects_demand-mixed_model_plot-export_png`) is used instead.
+#' @param filename Download filename (may be NULL or empty).
+#' @param id Id of the clicked download link (may be NULL or empty).
+#' @return One of `"demand"`, `"mixed_effects"`, `"discounting"`, `"unknown"`.
+#' @export
+plot_download_module <- function(filename = NULL, id = NULL) {
+  prefixes <- c(
+    "shinybeez-mixed-effects" = "mixed_effects",
+    "shinybeez-discounting" = "discounting",
+    "shinybeez-demand" = "demand"
+  )
+  if (is_nonempty_string(filename)) {
+    for (prefix in names(prefixes)) {
+      if (startsWith(filename, prefix)) {
+        return(prefixes[[prefix]])
+      }
+    }
+  }
+  if (is_nonempty_string(id)) {
+    # Alternation order matters: mixed_effects_demand must be tried before demand.
+    hit <- regmatches(id, regexpr("(^|-)(mixed_effects_demand|discounting|demand)-", id))
+    if (length(hit) == 1L) {
+      segments <- c(
+        mixed_effects_demand = "mixed_effects",
+        discounting = "discounting",
+        demand = "demand"
+      )
+      return(segments[[gsub("^-|-$", "", hit)]])
+    }
+  }
+  "unknown"
+}
+
+# esquisse names its export links `...-export_<format>` (or `export-<format>` in the "More options" modal).
+plot_export_id_pattern <- "export[_-](png|pdf|svg|jpeg|bmp|eps|tiff|pptx)$"
+
+#' Whether a clicked download is a plot export
+#'
+#' The document-level download click handler also fires for non-plot `a[download]`
+#' links (Export All xlsx, long-format CSV). A download counts as a plot export when
+#' its filename carries the `shinybeez-` prefix every render_ggplot() call sets, or
+#' when the clicked link id is an esquisse `export_<format>` / `export-<format>` link.
+#' @param filename Download filename (may be NULL or empty).
+#' @param id Id of the clicked download link (may be NULL or empty).
+#' @return `TRUE` or `FALSE`.
+#' @export
+is_plot_download <- function(filename = NULL, id = NULL) {
+  if (is_nonempty_string(filename) && startsWith(filename, "shinybeez-")) {
+    return(TRUE)
+  }
+  is_nonempty_string(id) && grepl(plot_export_id_pattern, id)
+}
+
+#' File format of a plot download
+#'
+#' Reads the extension from the download filename when there is one, otherwise the
+#' `export_<format>` (or `export-<format>`) suffix of the esquisse download link id.
+#' @param filename Download filename (may be NULL or empty).
+#' @param id Id of the clicked download link (may be NULL or empty).
+#' @return Lower-case format such as `"png"`, or `"unknown"`.
+#' @export
+plot_download_format <- function(filename = NULL, id = NULL) {
+  if (is_nonempty_string(filename) && grepl(".", filename, fixed = TRUE)) {
+    ext <- tolower(sub("^.*\\.", "", filename))
+    if (nzchar(ext)) {
+      return(ext)
+    }
+  }
+  if (is_nonempty_string(id)) {
+    hit <- regmatches(id, regexec(plot_export_id_pattern, id))[[1]]
+    if (length(hit) == 2L) {
+      return(tolower(hit[[2]]))
+    }
+  }
+  "unknown"
 }
 
 #' Track export/download event

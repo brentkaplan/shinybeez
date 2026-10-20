@@ -3,10 +3,12 @@
 #' Reusable UI components shared across demand, discounting, and mixed effects modules.
 
 box::use(
+  . / aesthetic_gate,
   . / data_table,
-  . / plot_settings,
+  . / palette_picker,
+  . / plot_layers,
   . / systematic_criteria
 )
 
 #' @export
-box::export(data_table, plot_settings, systematic_criteria)
+box::export(aesthetic_gate, data_table, palette_picker, plot_layers, systematic_criteria)

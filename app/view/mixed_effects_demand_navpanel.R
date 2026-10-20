@@ -21,6 +21,8 @@ box::use(
   app / logic / async / daemons,
   app / logic / utils,
   app / logic / logging_utils,
+  app / logic / plot_downloads,
+  app / logic / plot_style,
   app / logic / telemetry_utils,
   app / logic / mixed_effects_demand_utils,
   app / logic / mixed_effects / comparisons,
@@ -33,7 +35,10 @@ box::use(
   app / logic / mixed_effects / model_summary,
   app / logic / mixed_effects / plotting,
   app / logic / mixed_effects / systematic_utils,
-  app / logic / mixed_effects / validation_utils
+  app / logic / mixed_effects / validation_utils,
+  app / view / shared / aesthetic_gate,
+  app / view / shared / palette_picker[palette_note, palette_picker],
+  app / view / shared / plot_layers
 )
 
 #' @export
@@ -237,12 +242,8 @@ navpanel_ui <- function(id) {
                 ),
                 selected = "right"
               ),
-              shiny$selectInput(
-                ns("plot_palette"),
-                "Color Palette",
-                choices = c("Codedbx", "Okabe-Ito", "HCL Light", "HCL Dark"),
-                selected = "Codedbx"
-              ),
+              palette_picker(ns("plot_palette")),
+              shiny$uiOutput(ns("palette_note")),
               shiny$selectInput(
                 ns("plot_color_by"),
                 "Color lines/points by:",
@@ -291,21 +292,7 @@ navpanel_ui <- function(id) {
                 ),
                 selected = "log10"
               ),
-              shiny$checkboxInput(
-                ns("show_population_lines"),
-                "Show Population Lines",
-                value = TRUE
-              ),
-              shiny$checkboxInput(
-                ns("show_individual_lines"),
-                "Show Individual Lines",
-                value = FALSE
-              ),
-              shiny$checkboxInput(
-                ns("show_observed_points_plot"),
-                "Show Observed Points",
-                value = TRUE
-              ),
+              plot_layers$ui(ns("layers"), engine = "beezdemand_nlme"),
               shiny$checkboxInput(
                 ns("show_watermark"),
                 "Show shinybeez Watermark",
@@ -315,17 +302,7 @@ navpanel_ui <- function(id) {
             ),
             esquisse$ggplot_output(
               ns("mixed_model_plot"),
-              downloads = esquisse$downloads_labels(
-                label = esquisse$ph("download-simple"),
-                png = htmltools$tagList(esquisse$ph("image"), "PNG"),
-                svg = htmltools$tagList(esquisse$ph("browsers"), "SVG"),
-                jpeg = htmltools$tagList(esquisse$ph("image"), "JPEG"),
-                pptx = NULL,
-                more = htmltools$tagList(
-                  esquisse$ph("gear"),
-                  esquisse$i18n("More options")
-                )
-              )
+              downloads = plot_downloads$download_labels()
             )
           )
         )
@@ -349,6 +326,9 @@ navpanel_server <- function(id, sidebar_reactives, fit_task) {
 
     # Create session-specific logger for navpanel
     session_logger <- logging_utils$create_session_logger(session)
+
+    # Shared Layers section (population / individual / observed show + prominence)
+    layers <- plot_layers$server("layers", engine = "beezdemand_nlme")
 
     # Guard flag to suppress notifications during initial reactive cascade
     initialized <- shiny$reactiveVal(FALSE)
@@ -1404,7 +1384,8 @@ navpanel_server <- function(id, sidebar_reactives, fit_task) {
         sidebar_reactives$covariate(),
         sidebar_reactives$cov_center(),
         sidebar_reactives$cov_scale(),
-        sidebar_reactives$cov_at_natural()
+        sidebar_reactives$cov_at_natural(),
+        cache = "session"
       )
 
     output$comparisons_q0_table <- DT$renderDT({
@@ -1520,6 +1501,17 @@ navpanel_server <- function(id, sidebar_reactives, fit_task) {
     })
 
     # Plotting Logic
+    # Holds the plot render until the browser applies the selections the defaults observer below
+    # pushes on a refit (see app/view/shared/aesthetic_gate.R). The render expression waits on it.
+    aes_gate <- aesthetic_gate$new(function() {
+      list(
+        color = input$plot_color_by,
+        linetype = input$plot_linetype_by,
+        facet = input$plot_facet_by,
+        shape = input$plot_shape_by
+      )
+    })
+
     # Populate plot aesthetic choices
     shiny$observe({
       model_fit <- fitted_model_reactive()
@@ -1536,8 +1528,11 @@ navpanel_server <- function(id, sidebar_reactives, fit_task) {
         current_color = shiny$isolate(input$plot_color_by) %||% "",
         current_linetype = shiny$isolate(input$plot_linetype_by) %||% "",
         current_facet = shiny$isolate(input$plot_facet_by) %||% "",
-        factors_in_model = factors_in_model
+        factors_in_model = factors_in_model,
+        current_shape = shiny$isolate(input$plot_shape_by) %||% ""
       )
+      # Shut the gate before the updates below so the render in this flush sees it.
+      aes_gate$push(defaults)
 
       shiny$updateSelectInput(
         session,
@@ -1560,35 +1555,61 @@ navpanel_server <- function(id, sidebar_reactives, fit_task) {
       shiny$updateSelectInput(
         session,
         "plot_shape_by",
-        choices = choices_with_none
+        choices = choices_with_none,
+        selected = defaults$shape
       )
-    }) |>
+    }, priority = 10) |>
       shiny$bindEvent(fitted_model_reactive())
 
-    plot_object_reactive <- shiny$reactive({
+    # Validated aesthetics, shared by the plot reactive and the telemetry snapshot.
+    aesthetics_r <- shiny$reactive({
       model_fit <- fitted_model_reactive()
       shiny$req(model_fit, model_fit$model)
-
-      # Get valid factors from the fitted model
       valid_factors <- model_fit$param_info$factors %||% character(0)
-
-      # Validate aesthetics using plotting module
-      aesthetics <- plotting$build_validated_aesthetics(
+      plotting$build_validated_aesthetics(
         color_input = input$plot_color_by,
         linetype_input = input$plot_linetype_by,
         facet_input = input$plot_facet_by,
         valid_factors = valid_factors,
         shape_input = input$plot_shape_by
       )
+    })
 
-      # Check if there's content to plot
-      if (
-        !plotting$has_plot_content(
-          input$show_population_lines,
-          input$show_individual_lines,
-          input$show_observed_points_plot
-        )
-      ) {
+    # Accessibility note under the palette picker. Live on the palette, the colour mode and
+    # the colour-by level count; deliberately not gated on Update Plot so it describes what
+    # the next render will do. Before a fit, or with no colour-by, the level count is unknown
+    # and the preflight runs at the palette's own size.
+    output$palette_note <- shiny$renderUI({
+      model_fit <- fitted_model_reactive()
+      n_levels <- NULL
+      if (!is.null(model_fit) && !is.null(model_fit$model)) {
+        color_var <- aesthetics_r()$color
+        if (!is.null(color_var) && nzchar(color_var) && color_var %in% names(model_fit$data)) {
+          levels_seen <- plotting$color_levels_in(color_var, model_fit$data)
+          # A column with no usable levels is "unknown", not zero: keep the palette-size checks.
+          if (length(levels_seen) > 0L) {
+            n_levels <- length(levels_seen)
+          }
+        }
+      }
+      palette_note(utils$palette_preflight(
+        input$plot_palette,
+        n_levels = n_levels,
+        dark = identical(session$rootScope()$input$dark_mode, "dark")
+      ))
+    })
+    # The picker sits in the Plot Settings sidebar, which is collapsed by default
+    # (open = FALSE -> display: none). Keep the note computed while hidden so it is
+    # already right the moment the sidebar opens; it is a handful of contrast ratios.
+    shiny$outputOptions(output, "palette_note", suspendWhenHidden = FALSE)
+
+    plot_object_reactive <- shiny$reactive({
+      model_fit <- fitted_model_reactive()
+      shiny$req(model_fit, model_fit$model)
+      aesthetics <- aesthetics_r()
+      style <- layers$style()
+
+      if (!plot_style$has_content(style)) {
         shiny$showNotification(
           "Nothing to plot. Select observed points or prediction lines.",
           type = "warning"
@@ -1596,11 +1617,7 @@ navpanel_server <- function(id, sidebar_reactives, fit_task) {
         return(ggplot2$ggplot() + ggplot2$theme_void())
       }
 
-      # Build plot arguments using plotting module helpers
-      show_lines_arg <- plotting$build_pred_lines_arg(
-        input$show_population_lines,
-        input$show_individual_lines
-      )
+      layer_args <- plot_style$plot_args_from_style(style, "beezdemand_nlme")
 
       y_is_ll4 <- isTRUE(model_fit$param_info$y_is_ll4)
       inv_transform_fun <- if (y_is_ll4) beezdemand$ll4_inv else identity
@@ -1616,23 +1633,27 @@ navpanel_server <- function(id, sidebar_reactives, fit_task) {
         session_logger$with_performance(
           "mixed_effects_plot",
           function() {
-            plot(
-              model_fit,
-              inv_fun = inv_transform_fun,
-              x_trans = input$plot_x_trans,
-              y_trans = input$plot_y_trans,
-              style = input$plot_style,
-              at = cov_info$at_list,
-              facet = aesthetics$facet_formula,
-              color_by = aesthetics$color,
-              linetype_by = aesthetics$linetype,
-              shape_by = aesthetics$shape,
-              show_observed = input$show_observed_points_plot,
-              show_pred = show_lines_arg,
-              title = input$plot_title,
-              subtitle = if (nzchar(input$plot_subtitle)) input$plot_subtitle else NULL,
-              x_lab = input$plot_xlab,
-              y_lab = input$plot_ylab
+            do.call(
+              plot,
+              c(
+                list(model_fit),
+                layer_args,
+                list(
+                  inv_fun = inv_transform_fun,
+                  x_trans = input$plot_x_trans,
+                  y_trans = input$plot_y_trans,
+                  style = input$plot_style,
+                  at = cov_info$at_list,
+                  facet = aesthetics$facet_formula,
+                  color_by = aesthetics$color,
+                  linetype_by = aesthetics$linetype,
+                  shape_by = aesthetics$shape,
+                  title = input$plot_title,
+                  subtitle = if (nzchar(input$plot_subtitle)) input$plot_subtitle else NULL,
+                  x_lab = input$plot_xlab,
+                  y_lab = input$plot_ylab
+                )
+              )
             )
           },
           always_log = TRUE
@@ -1658,12 +1679,14 @@ navpanel_server <- function(id, sidebar_reactives, fit_task) {
       }
 
       # Apply palette if coloring by a discrete factor
+      dark <- identical(session$rootScope()$input$dark_mode, "dark")
       p <- plotting$apply_color_palette(
         p,
         color_var = aesthetics$color,
         fit_data = model_fit$data,
         palette_name = input$plot_palette,
-        get_palette_fn = utils$get_palette_colors
+        get_palette_fn = utils$get_palette_colors,
+        dark = dark
       )
 
       # Match the plot to the active color mode
@@ -1688,9 +1711,7 @@ navpanel_server <- function(id, sidebar_reactives, fit_task) {
         input$plot_palette,
         input$plot_x_trans,
         input$plot_y_trans,
-        input$show_population_lines,
-        input$show_individual_lines,
-        input$show_observed_points_plot,
+        layers$style(),
         input$show_watermark,
         input$plot_title,
         input$plot_subtitle,
@@ -1699,8 +1720,55 @@ navpanel_server <- function(id, sidebar_reactives, fit_task) {
         sidebar_reactives$covariate(),
         sidebar_reactives$cov_center(),
         sidebar_reactives$cov_scale(),
-        sidebar_reactives$cov_at_natural()
+        sidebar_reactives$cov_at_natural(),
+        cache = "session"
       ) |>
+      # Keep these event expressions identical to the other bindEvent (plot reactive <-> snapshot payload).
+      shiny$bindEvent(
+        input$update_plot_settings,
+        fitted_model_reactive(),
+        session$rootScope()$input$dark_mode,
+        ignoreNULL = FALSE
+      )
+
+    # One configuration_snapshot per DISTINCT rendered plot. The snapshot line lives
+    # inside the render expression below, which Shiny evaluates only while the Plot
+    # tab is visible: a fit completed on another tab builds no plot and logs nothing
+    # until the user looks, and a req() failure or plot error aborts the expression
+    # before the snapshot line. The expression also re-runs for reasons other than a new
+    # plot (the export downloads call it, and a pixel-ratio change re-draws), so the
+    # recorder dedupes on (payload, fit generation). The payload is read through a
+    # reactive gated on the plot's own events, so a pending, un-applied control change
+    # is never reported as a plot that was not rendered.
+    plot_snapshot <- plot_style$snapshot_recorder(function(payload) {
+      telemetry_utils$track_configuration("mixed_effects_plot", config = payload, session = session)
+    })
+
+    plot_snapshot_payload <- function() {
+      aes <- aesthetics_r()
+      facet_var <- if (is.null(aes$facet_formula)) NULL else all.vars(aes$facet_formula)[1]
+      plot_style$style_telemetry_payload(
+        layers$style(),
+        extras = list(
+          palette = input$plot_palette,
+          theme = input$plot_theme,
+          style = input$plot_style,
+          dark_mode = identical(session$rootScope()$input$dark_mode, "dark"),
+          color_by = aes$color,
+          linetype_by = aes$linetype,
+          shape_by = aes$shape,
+          facet_by = facet_var,
+          legend_position = input$plot_legend_position,
+          font_size = input$plot_font_size,
+          x_trans = input$plot_x_trans,
+          y_trans = input$plot_y_trans,
+          watermark = isTRUE(input$show_watermark)
+        )
+      )
+    }
+
+    plot_snapshot_payload_r <- shiny$reactive(plot_snapshot_payload()) |>
+      # Keep these event expressions identical to the other bindEvent (plot reactive <-> snapshot payload).
       shiny$bindEvent(
         input$update_plot_settings,
         fitted_model_reactive(),
@@ -1710,7 +1778,19 @@ navpanel_server <- function(id, sidebar_reactives, fit_task) {
 
     esquisse$render_ggplot(
       id = "mixed_model_plot",
-      expr = plot_object_reactive(),
+      expr = {
+        # Wait for the browser to apply the defaults pushed on a refit (see aes_gate).
+        shiny$req(aes_gate$open())
+        p <- plot_object_reactive()
+        # Runs only after the plot built without error; isolate() keeps the payload's
+        # inputs from adding render dependencies beyond the plot itself. The tryCatch
+        # keeps telemetry from ever replacing the plot with an error.
+        tryCatch(
+          shiny$isolate(plot_snapshot(plot_snapshot_payload_r(), fit_generation())),
+          error = function(e) NULL
+        )
+        p
+      },
       filename = "shinybeez-mixed-effects-demand-plot",
       width = shiny$reactive(
         if (is.null(input$esquisse_width_plot)) {
@@ -1929,7 +2009,11 @@ navpanel_server <- function(id, sidebar_reactives, fit_task) {
 
         # --- Plot Sheet (requires model) ---
         if (has_model) {
-          plot_obj <- tryCatch(plot_object_reactive(), error = function(e) NULL)
+          # Skip while pushed defaults are in flight: computing the bindEvent'd plot now
+          # would memoise it with stale inputs and the render would later show that.
+          plot_obj <- if (shiny$isolate(aes_gate$open())) {
+            tryCatch(plot_object_reactive(), error = function(e) NULL)
+          }
           if (!is.null(plot_obj)) {
             openxlsx$addWorksheet(
               wb, "Plot",

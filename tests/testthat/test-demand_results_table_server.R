@@ -58,9 +58,9 @@ ungrouped_demand_data <- function() {
 # observer runs the same code path it does in the browser.
 set_plot_inputs <- function(session) {
   session$setInputs(
-    xtext = "x",
-    ytext = "y",
-    title = "",
+    xtext = "Price",
+    ytext = "Consumption",
+    title = "Demand Curve",
     palette = "Codedbx",
     legend_title = "group",
     xlog = FALSE,
@@ -141,6 +141,26 @@ describe("demand results table plot state", {
     })
   })
 
+  it("only sets a plot title when the title text is non-empty", {
+    data_r <- shiny$reactiveValues(data_d = grouped_demand_data())
+    calc <- shiny$reactiveVal(0)
+
+    shiny$testServer(demand_results_table$server, args = module_args(data_r, calc), {
+      set_plot_inputs(session)
+      calc(1)
+      session$flushReact()
+      settle(session)
+      expect_identical(res$plot$labels$title, "Demand Curve")
+
+      # ggtitle("") would still reserve a blank title strip above the panel. The plot is
+      # redecorated on Update Plot, not on every keystroke.
+      session$setInputs(title = "", update_plot_btn = 1)
+      session$flushReact()
+      settle(session)
+      expect_null(res$plot$labels$title)
+    })
+  })
+
   # The regression. Pre-fix, the base-plot observer returned early (no `group` column while
   # the checkbox is ticked) BEFORE resetting res$base_plot, so a stale three-group plot
   # survived, satisfied the decorator's req(), and was then handed a zero-length palette.
@@ -197,6 +217,90 @@ describe("demand results table plot state", {
         }
       )
     )
+  })
+})
+
+# ==============================================================================
+# Observer order
+# ==============================================================================
+# The plot is made by two observers that both fire on a completed fit: one builds
+# res$base_plot, the other decorates it into res$plot and renders it. The decorator also
+# fires alone on Update Plot and on the dark-mode toggle. Shiny hands every reactive context
+# an id from one process-wide counter and invalidates a reactive's dependents in the
+# STRING-sorted order of those ids, so an observer that last ran at id "10004" goes before one
+# that last ran at "8123". After enough activity for the counter to gain a digit, an Update
+# Plot click therefore put the decorator in front of the builder: on the next fit the builder
+# cleared res$plot after the decorator had set it, and the Plots tab stayed blank until Update
+# Plot was clicked again.
+#
+# The counter has no exported accessor, so these helpers reach into Shiny. Moving it forward
+# only skips ids; it is never moved back.
+skip_context_ids_to_next_power_of_ten <- function() {
+  env <- shiny:::.getReactiveEnvironment()
+  id <- env$.nextId
+  whole_number <- is.numeric(id) && length(id) == 1 && is.finite(id) && id == trunc(id)
+  if (!whole_number || id >= 1e7) {
+    skip("cannot move Shiny's reactive context counter")
+  }
+  target <- 10^nchar(format(id, scientific = FALSE))
+  storage.mode(target) <- storage.mode(id)
+  env$.nextId <- target
+}
+
+# TRUE when this Shiny still runs observers of one reactive in id-string order. If that ever
+# changes, the test below could no longer provoke the bug and must say so instead of passing.
+observers_run_in_id_string_order <- function() {
+  ran <- character()
+  empty_module <- function(id) shiny$moduleServer(id, function(input, output, session) NULL)
+  shiny$testServer(empty_module, {
+    fit <- shiny$reactiveVal(0)
+    click <- shiny$reactiveVal(0)
+    shiny$observe(ran <<- c(ran, "builder")) |>
+      shiny$bindEvent(fit(), ignoreInit = TRUE)
+    shiny$observe(ran <<- c(ran, "decorator")) |>
+      shiny$bindEvent(c(fit(), click()), ignoreInit = TRUE)
+    session$flushReact()
+    skip_context_ids_to_next_power_of_ten()
+    click(1)
+    session$flushReact()
+    ran <<- character()
+    fit(1)
+    session$flushReact()
+  })
+  identical(ran, c("decorator", "builder"))
+}
+
+describe("demand results table observer order", {
+  it("still has a plot after a refit that follows a late Update Plot click", {
+    skip_if_not(
+      observers_run_in_id_string_order(),
+      "Shiny no longer orders observers by context id string"
+    )
+    data_r <- shiny$reactiveValues(data_d = grouped_demand_data())
+    calc <- shiny$reactiveVal(0)
+
+    shiny$testServer(demand_results_table$server, args = module_args(data_r, calc), {
+      set_plot_inputs(session)
+      calc(1)
+      session$flushReact()
+      settle(session)
+      expect_setequal(res$plot_group_levels, c("a", "b", "c"))
+
+      # The decorator re-runs alone, at an id one digit longer than the builder's.
+      skip_context_ids_to_next_power_of_ten()
+      session$setInputs(update_plot_btn = 1)
+      session$flushReact()
+
+      two_groups <- grouped_demand_data()
+      data_r$data_d <- two_groups[two_groups$group != "c", ]
+      calc(2)
+      session$flushReact()
+      settle(session)
+
+      expect_setequal(res$plot_group_levels, c("a", "b"))
+      expect_false(is.null(res$base_plot))
+      expect_false(is.null(res$plot))
+    })
   })
 })
 
@@ -288,5 +392,71 @@ describe("demand results table cancelled fit", {
         expect_equal(fit_generation(), seeded_generation + 1L)
       }
     )
+  })
+})
+
+# ==============================================================================
+# Palette preflight note
+# ==============================================================================
+# The note depends only on the palette, the colour mode and the level count, so it is
+# driven by setting res$plot_group_levels directly; the fit cases above already prove
+# where that value comes from.
+describe("demand results table palette note", {
+  it("renders nothing before the Plots tab has initialised its inputs", {
+    data_r <- shiny$reactiveValues(data_d = grouped_demand_data())
+    calc <- shiny$reactiveVal(0)
+    shiny$testServer(demand_results_table$server, args = module_args(data_r, calc), {
+      session$flushReact()
+      expect_null(output$palette_note)
+    })
+  })
+
+  it("warns only when the fitted groups outnumber the palette", {
+    data_r <- shiny$reactiveValues(data_d = grouped_demand_data())
+    calc <- shiny$reactiveVal(0)
+    shiny$testServer(demand_results_table$server, args = module_args(data_r, calc), {
+      set_plot_inputs(session)
+      session$setInputs(palette = "Dark2")
+      expect_null(output$palette_note)
+
+      res$plot_group_levels <- paste0("g", 1:10)
+      session$flushReact()
+      expect_match(output$palette_note$html, "10 levels, Dark2 has 8: 2 colours repeat", fixed = TRUE)
+      expect_match(output$palette_note$html, 'class="palette-note text-warning"', fixed = TRUE)
+
+      session$setInputs(palette = "Paired")
+      expect_null(output$palette_note)
+    })
+  })
+
+  it("drops NA group levels before counting them", {
+    data_r <- shiny$reactiveValues(data_d = grouped_demand_data())
+    calc <- shiny$reactiveVal(0)
+    shiny$testServer(demand_results_table$server, args = module_args(data_r, calc), {
+      set_plot_inputs(session)
+      session$setInputs(palette = "Dark2")
+      # Nine real levels plus NA: still nine, so Dark2 (8) recycles by exactly one.
+      res$plot_group_levels <- c(paste0("g", 1:9), NA)
+      session$flushReact()
+      expect_match(output$palette_note$html, "9 levels, Dark2 has 8: 1 colour repeats", fixed = TRUE)
+    })
+  })
+})
+
+describe("demand results table equation guard", {
+  # 2026-09-30 (global :: unknown equation label:): Calculate was pressed while the
+  # equation input was still "", and resolve_equation()'s stop() escaped the observer.
+  it("refuses to fit, without erroring, when no equation is selected", {
+    data_r <- shiny$reactiveValues(data_d = ungrouped_demand_data())
+    calc <- shiny$reactiveVal(0)
+    args <- module_args(data_r, calc)
+    args$eq <- shiny$reactive("")
+    args$groupcol <- shiny$reactive(FALSE)
+
+    shiny$testServer(demand_results_table$server, args = args, {
+      calc(1)
+      expect_no_error(session$flushReact())
+      expect_null(pending_fit())
+    })
   })
 })

@@ -5,7 +5,6 @@ box::use(
   DT[DTOutput, renderDT],
   esquisse,
   ggplot2,
-  htmltools[tagList],
   rhino,
   shiny,
   stats[aggregate],
@@ -17,8 +16,10 @@ box::use(
   app / logic / utils,
   app / logic / validate,
   app / logic / logging_utils,
+  app / logic / plot_downloads,
   app / logic / telemetry_utils,
   app / view / shared / data_table[build_datatable],
+  app / view / shared / palette_picker[palette_note, palette_picker],
 )
 
 #' @export
@@ -45,25 +46,21 @@ ui <- function(id) {
             shiny$textInput(
               inputId = ns("title"),
               label = "Title Text",
-              value = "title"
+              value = "Demand Curve"
             ),
             shiny$uiOutput(ns("group_name")),
             shiny$textInput(
               inputId = ns("xtext"),
               label = "X-Axis Text",
-              value = "x"
+              value = "Price"
             ),
             shiny$textInput(
               inputId = ns("ytext"),
               label = "Y-Axis Text",
-              value = "y"
+              value = "Consumption"
             ),
-            shiny$selectInput(
-              inputId = ns("palette"),
-              label = "Color Palette",
-              choices = c("Codedbx", "Okabe-Ito", "HCL Light", "HCL Dark"),
-              selected = "Codedbx"
-            ),
+            palette_picker(ns("palette")),
+            shiny$uiOutput(ns("palette_note")),
             shiny$checkboxInput(
               inputId = ns("xlog"),
               label = "Log X-Axis"
@@ -79,15 +76,7 @@ ui <- function(id) {
           ),
           esquisse$ggplot_output(
             ns("plot"),
-            downloads = esquisse$downloads_labels(
-              label = esquisse$ph("download-simple"),
-              png = tagList(esquisse$ph("image"), "PNG"),
-              pdf = NULL,
-              svg = tagList(esquisse$ph("browsers"), "SVG"),
-              jpeg = tagList(esquisse$ph("image"), "JPEG"),
-              pptx = NULL,
-              more = tagList(esquisse$ph("gear"), esquisse$i18n("More options"))
-            )
+            downloads = plot_downloads$download_labels()
           )
         )
       )
@@ -133,6 +122,22 @@ server <- function(
       plot_group_levels = NULL
     )
 
+    # Accessibility note under the palette picker: live on the palette, the colour mode and
+    # the group count of the fit the plot was built with (NULL before a fit, so the preflight
+    # then runs at the palette's own size). Warn only; never gates the plot.
+    output$palette_note <- shiny$renderUI({
+      levels <- res$plot_group_levels
+      n_levels <- if (is.null(levels)) NULL else length(unique(levels[!is.na(levels)]))
+      palette_note(utils$palette_preflight(
+        input$palette,
+        n_levels = n_levels,
+        dark = identical(session$rootScope()$input$dark_mode, "dark")
+      ))
+    })
+    # The Plot Settings sidebar is collapsed by default (open = FALSE -> display: none);
+    # keep the note computed while hidden so it is right the moment the sidebar opens.
+    shiny$outputOptions(output, "palette_note", suspendWhenHidden = FALSE)
+
     # Metadata for the fit currently on the task; NULL when nothing is pending.
     pending_fit <- shiny$reactiveVal(NULL)
 
@@ -145,6 +150,17 @@ server <- function(
     fit_generation <- shiny$reactiveVal(0L)
 
     shiny$observe({
+      # The equation input reports "" before it has initialised, and Calculate is
+      # reachable in that window; resolve_equation("") would stop() inside this
+      # observer and end the session.
+      if (!shiny$isTruthy(eq())) {
+        shiny$showNotification(
+          "Choose an equation before fitting.",
+          type = "warning",
+          duration = 5
+        )
+        return(NULL)
+      }
       eq_code <- fitting$resolve_equation(eq())
       k <- fitting$resolve_k_value(kval(), validate$k_values)
       agg_val <- fitting$resolve_aggregation(agg())
@@ -353,6 +369,12 @@ server <- function(
       res$plot_group_levels <- NULL
     }
 
+    # Builds res$base_plot. The decorating observer below needs it in the same flush, so this one
+    # runs first by priority: Shiny orders observers of one reactive by the string sort of their
+    # context ids, not by creation, and the decorator also fires alone on Update Plot and the
+    # dark-mode toggle. Without the priority a late Update Plot click put the decorator first
+    # on the next fit, clear_plot_state() then dropped the plot it had just made, and the Plots
+    # tab stayed blank.
     shiny$observe({
       # Everything here describes the fit that just finished, so it reads the
       # snapshot captured at invoke (res$fit_inputs) rather than the live
@@ -488,7 +510,7 @@ server <- function(
             theme_apa()
         }
       }
-    }) |>
+    }, priority = 10) |>
       shiny$bindEvent(fit_generation(), ignoreInit = TRUE)
 
     shiny$observe({
@@ -496,7 +518,7 @@ server <- function(
       res$plot <- res$base_plot +
         ggplot2$xlab(input$xtext) +
         ggplot2$ylab(input$ytext) +
-        ggplot2$ggtitle(input$title)
+        ggplot2$ggtitle(utils$plot_title_or_null(input$title))
 
       if (input$xlog) {
         res$plot <- res$plot +
@@ -528,7 +550,11 @@ server <- function(
           ggplot2$guides(
             color = ggplot2$guide_legend(title = input$legend_title)
           ) +
-          utils$resolve_group_scale(res$plot_group_levels, input$palette)
+          utils$resolve_group_scale(
+            res$plot_group_levels,
+            input$palette,
+            dark = identical(session$rootScope()$input$dark_mode, "dark")
+          )
       }
 
       # Same rule as above: the watermark decision belongs to the fit's own data,

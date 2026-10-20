@@ -19,6 +19,7 @@ box::use(
   app / logic / discounting / regression,
   app / logic / discounting / scoring,
   app / logic / logging_utils,
+  app / logic / plot_downloads,
   app / logic / telemetry_utils,
   app / logic / utils,
   app / view / shared / data_table[build_datatable],
@@ -56,8 +57,14 @@ server <- function(
           bslib$nav_panel("Summary Statistics", DT$DTOutput(ns("summary_table"))),
           bslib$nav_panel("Correlations", DT$DTOutput(ns("correlation_table"))),
           bslib$nav_panel("Imputed Data", DT$DTOutput(ns("imputed_data_table"))),
-          bslib$nav_panel("Prop SIR/SS", esquisse$ggplot_output(ns("prop_plot"))),
-          bslib$nav_panel("Boxplot", esquisse$ggplot_output(ns("boxplot_plot")))
+          bslib$nav_panel(
+            "Prop SIR/SS",
+            esquisse$ggplot_output(ns("prop_plot"), downloads = plot_downloads$download_labels())
+          ),
+          bslib$nav_panel(
+            "Boxplot",
+            esquisse$ggplot_output(ns("boxplot_plot"), downloads = plot_downloads$download_labels())
+          )
         )
       } else {
         bslib$navset_card_tab(
@@ -71,13 +78,13 @@ server <- function(
               sidebar = bslib$sidebar(
                 title = "Plot Settings",
                 open = FALSE,
-                shiny$textInput(ns("title"), "Title Text", "title"),
-                shiny$textInput(ns("xtext"), "X-Axis Text", "x"),
-                shiny$textInput(ns("ytext"), "Y-Axis Text", "y"),
+                shiny$textInput(ns("title"), "Title Text", ""),
+                shiny$textInput(ns("xtext"), "X-Axis Text", "Delay"),
+                shiny$textInput(ns("ytext"), "Y-Axis Text", "Indifference Point"),
                 shiny$checkboxInput(ns("xlog"), "Log X-Axis"),
                 shiny$actionButton(ns("update_plot_btn"), "Update Plot")
               ),
-              esquisse$ggplot_output(ns("regression_plot"))
+              esquisse$ggplot_output(ns("regression_plot"), downloads = plot_downloads$download_labels())
             )
           )
         )
@@ -394,6 +401,7 @@ server <- function(
 
     esquisse$render_ggplot(
       id = "prop_plot",
+      filename = "shinybeez-discounting-prop-ss",
       expr = utils$apply_dark_mode_theme(
         main_calc_reactive()$propplot,
         session$rootScope()$input$dark_mode
@@ -401,6 +409,7 @@ server <- function(
     )
     esquisse$render_ggplot(
       id = "boxplot_plot",
+      filename = "shinybeez-discounting-boxplot",
       expr = utils$apply_dark_mode_theme(
         main_calc_reactive()$boxplot,
         session$rootScope()$input$dark_mode
@@ -415,12 +424,13 @@ server <- function(
         ylabel = input$ytext,
         logx = input$xlog
       ) +
-        ggplot2$ggtitle(input$title) +
+        ggplot2$ggtitle(utils$plot_title_or_null(input$title)) +
         utils$add_shiny_logo(utils$watermark_tr)
     })
 
     esquisse$render_ggplot(
       id = "regression_plot",
+      filename = "shinybeez-discounting-regression",
       expr = utils$apply_dark_mode_theme(
         plot_object_reactive(),
         session$rootScope()$input$dark_mode

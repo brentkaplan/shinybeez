@@ -36,8 +36,9 @@ ui <- function(id) {
   logging_utils$init_logging()
   rhino$log$info("Starting Shinybeez UI initialization")
 
-  # Initialize telemetry system
-  telemetry_utils$init_telemetry()
+  # Initialize telemetry once per process. ui() runs on every page load, and
+  # re-initialising here opened a new SQLite connection each time.
+  telemetry_utils$get_telemetry()
 
   # Log UI initialization
   logging_utils$log_structured(
@@ -249,10 +250,11 @@ server <- function(id) {
 
     shiny$observeEvent(root_input[["_telemetry_plot_download"]], {
       evt <- root_input[["_telemetry_plot_download"]]
+      shiny$req(telemetry_utils$is_plot_download(evt$filename, evt$id))
       session_telemetry$track_export(
         export_type = "plot",
-        module = "demand",
-        file_format = evt$format
+        module = telemetry_utils$plot_download_module(evt$filename, evt$id),
+        file_format = telemetry_utils$plot_download_format(evt$filename, evt$id)
       )
     })
 

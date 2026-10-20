@@ -27,6 +27,24 @@
   you to rename them by hand. A radio at the top switches between the two
   layouts if the guess is wrong.
 
+- **Plot layer prominence controls** — the mixed-effects demand plot sidebar
+  gains a Layers section: show/hide plus a prominence slider for population
+  and individual lines (alpha and width), with an Advanced expander for exact
+  values. Defaults reproduce the previous plot exactly.
+
+- **Dark-mode-safe palettes** — in dark mode every palette entry below 3:1
+  contrast against the plot canvas is lightened just enough to reach it, hue
+  preserved, so low-contrast entries (Okabe-Ito black, the brand navy and
+  purple) no longer vanish.
+
+- **Sixteen plot palettes with swatch previews** — the Color Palette picker on
+  the mixed-effects and demand plots now offers Codedbx, Okabe-Ito, Brewer
+  Dark2/Set2/Paired, six ggprism palettes, viridis, cividis, the two HCL
+  palettes and a print Grayscale, each option drawn with its colours. A note
+  under the picker warns when the groups outnumber the palette, when an entry
+  is faint on the current canvas, or when a sequential ramp's steps are too
+  close to tell apart in greyscale. It never blocks the plot.
+
 ## Bug Fixes
 
 - **Wide demand headers must be whole numbers** — item-style headers such as
@@ -44,6 +62,43 @@
   positive numbers is also accepted there as indifference points. Headers that
   are not whole numbers (for example `price_1` or `1,000`), which the old
   parser tolerated, now open the reshape form instead of loading directly.
+
+- **Mixed-effects plot colour after a refit** — refitting with different
+  factors while the Plot tab was open drew the first plot without the new
+  colour and linetype mapping; only a later Update Plot applied it. The plot
+  now waits for the new selections and draws them on the first render. A shape
+  selection that is still a factor of the new model is kept across refits.
+
+- **Plot title and axis defaults** — the demand plot's settings started with
+  the placeholder text `title`, `x` and `y`, and the discounting regression
+  plot's with `title`, `x` and `y` as well. They now start as "Demand Curve",
+  "Price" and "Consumption" (demand) and a blank title, "Delay" and
+  "Indifference Point" (discounting). An empty title no longer leaves a blank
+  band above the plot.
+
+- **Palette picker layout** — each dropdown entry shows the palette name on its
+  own line above its swatches, so long names such as "prism_light" and
+  "winter_bright" display in full at the standard Plot Settings sidebar width; the
+  selected palette stays on one line with smaller swatches, and the swatch
+  borders are visible on the dark dropdown.
+
+- **Demand plot blank after a fit** — in a longer session, a fit that followed
+  an Update Plot click or a dark-mode switch could leave the Plots tab empty,
+  with no error message, until Update Plot was clicked again. The plot now
+  draws after every successful fit.
+
+## Internal
+
+- Plot settings are recorded as a `configuration_snapshot` (module
+  `mixed_effects_plot`) once per rendered mixed-effects plot; plot downloads
+  are attributed to the tab that produced them.
+
+- Discounting plot downloads are now named `shinybeez-discounting-prop-ss`,
+  `shinybeez-discounting-boxplot` and `shinybeez-discounting-regression`
+  (previously `export-ggplot`).
+
+- Removed the unused `app/view/shared/plot_settings.R` module (no caller; its
+  four-palette select predated the palette picker).
 
 # shinybeez 1.1.3
 

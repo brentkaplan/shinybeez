@@ -26,22 +26,35 @@ validate_aesthetic <- function(selection, valid_factors) {
   selection
 }
 
+# NULL, NA and zero-length all mean None ("").
+as_selection <- function(x) {
+  if (is.null(x) || length(x) != 1L || is.na(x)) "" else as.character(x)
+}
+
 #' Compute smart defaults for plot aesthetics
 #'
 #' When a model has factors, sets sensible defaults for color and linetype.
 #'
-#' @param current_color Current color selection (may be "" for None)
-#' @param current_linetype Current linetype selection (may be "" for None)
-#' @param current_facet Current facet selection (may be "" for None)
+#' @param current_color Current color selection ("", NULL or NA mean None)
+#' @param current_linetype Current linetype selection (same convention)
+#' @param current_facet Current facet selection (same convention)
 #' @param factors_in_model Character vector of factors in the fitted model
-#' @return List with color, linetype, and facet selections
+#' @param current_shape Current shape selection (same convention)
+#' @return List with color, linetype, facet, and shape selections
 #' @export
 compute_aesthetic_defaults <- function(
   current_color,
   current_linetype,
   current_facet,
-  factors_in_model
+  factors_in_model,
+  current_shape = ""
 ) {
+  # Inputs are NULL before the browser reports them.
+  current_color <- as_selection(current_color)
+  current_linetype <- as_selection(current_linetype)
+  current_facet <- as_selection(current_facet)
+  current_shape <- as_selection(current_shape)
+
   # Validate current selections - reset if not valid
   if (!current_color %in% factors_in_model) {
     current_color <- ""
@@ -51,6 +64,9 @@ compute_aesthetic_defaults <- function(
   }
   if (!current_facet %in% factors_in_model) {
     current_facet <- ""
+  }
+  if (!current_shape %in% factors_in_model) {
+    current_shape <- ""
   }
 
   # Set smart defaults if model has factors and selections are empty
@@ -71,43 +87,20 @@ compute_aesthetic_defaults <- function(
   list(
     color = current_color,
     linetype = current_linetype,
-    facet = current_facet
+    facet = current_facet,
+    shape = current_shape
   )
 }
 
-#' Build the show_pred_lines argument for plot()
+#' Whether the browser's aesthetic selections match the ones the server pushed
 #'
-#' @param show_population Logical, show population-level prediction lines
-#' @param show_individual Logical, show individual-level prediction lines
-#' @return Character vector, logical FALSE, or specific values for show_pred_lines
+#' @param expected List with color, linetype, facet, shape (the pushed selections)
+#' @param current List with the same names (the live inputs)
+#' @return TRUE when all four match; NULL, NA and empty all mean None
 #' @export
-build_pred_lines_arg <- function(show_population, show_individual) {
-  pred_lines <- c()
-  if (isTRUE(show_population)) {
-    pred_lines <- c(pred_lines, "population")
-  }
-  if (isTRUE(show_individual)) {
-    pred_lines <- c(pred_lines, "individual")
-  }
-
-  if (length(pred_lines) == 0) {
-    return(FALSE)
-  } else if (length(pred_lines) == 2) {
-    return(c("population", "individual"))
-  } else {
-    return(pred_lines)
-  }
-}
-
-#' Check if plot has content to display
-#'
-#' @param show_population Logical, show population lines
-#' @param show_individual Logical, show individual lines
-#' @param show_observed Logical, show observed points
-#' @return Logical, TRUE if something will be displayed
-#' @export
-has_plot_content <- function(show_population, show_individual, show_observed) {
-  isTRUE(show_population) || isTRUE(show_individual) || isTRUE(show_observed)
+aesthetics_in_sync <- function(expected, current) {
+  fields <- c("color", "linetype", "facet", "shape")
+  all(vapply(fields, function(f) identical(as_selection(expected[[f]]), as_selection(current[[f]])), logical(1)))
 }
 
 #' Build facet formula string from selection
@@ -158,8 +151,9 @@ apply_legend_position <- function(p, position = "right") {
   p + ggplot2$theme(legend.position = position)
 }
 
-# The colour levels present in one frame. A factor whose observed values are all NA still
-# declares its levels, so fall back to those rather than reporting none.
+#' The colour levels present in one frame. A factor whose observed values are all NA still
+#' declares its levels, so fall back to those rather than reporting none.
+#' @export
 color_levels_in <- function(color_var, df) {
   if (is.null(df) || !color_var %in% names(df)) {
     return(character(0))
@@ -181,7 +175,9 @@ color_levels_in <- function(color_var, df) {
 #' @param color_var The color variable name (may be NULL)
 #' @param fit_data The fitted data containing the color variable
 #' @param palette_name Name of the palette
-#' @param get_palette_fn Function to get palette colors (n_levels -> colors)
+#' @param get_palette_fn Function returning palette colors, called as `function(name, n, dark)`.
+#' @param dark Logical, passed to `get_palette_fn` (TRUE in dark mode). The callback contract
+#'   is `function(name, n, dark)`.
 #' @return Modified ggplot object
 #' @export
 
@@ -190,7 +186,8 @@ apply_color_palette <- function(
   color_var,
   fit_data,
   palette_name,
-  get_palette_fn
+  get_palette_fn,
+  dark = FALSE
 ) {
   if (is.null(color_var)) {
     return(p)
@@ -215,7 +212,7 @@ apply_color_palette <- function(
 
   p +
     ggplot2$scale_color_manual(
-      values = get_palette_fn(palette_name, length(levels_seen))
+      values = get_palette_fn(palette_name, length(levels_seen), dark = dark)
     )
 }
 

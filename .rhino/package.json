@@ -4,7 +4,7 @@
     "build-js": "webpack",
     "build-sass": "sass --no-source-map --style=compressed ../app/styles/main.scss:../app/static/css/app.min.css",
     "lint-js": "eslint --config .eslintrc.json ../app/js",
-    "lint-sass": "stylelint ../app/styles/sidebar.scss ../app/styles/welcome.scss ../app/styles/overrides.scss ../app/styles/tables.scss",
+    "lint-sass": "stylelint ../app/styles/sidebar.scss ../app/styles/welcome.scss ../app/styles/overrides.scss ../app/styles/tables.scss ../app/styles/palette.scss",
     "run-app": "cd .. && Rscript -e \"shiny::runApp(port = 3333)\""
   },
   "devDependencies": {

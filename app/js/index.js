@@ -80,12 +80,16 @@ document.addEventListener('click', (event) => {
   Shiny.setInputValue('_telemetry_plot_download', {
     filename,
     format: filename.split('.').pop() || 'unknown',
+    id: link.id || '',
     ts: Date.now(),
   }, { priority: 'event' });
 });
 
 // Capture uncaught JS errors
 window.addEventListener('error', (event) => {
+  // Chromium's benign ResizeObserver loop warning (fired by the plot export
+  // dropdown) is not an app error; keep it out of the error table.
+  if (/^ResizeObserver loop/.test(event.message || '')) return;
   if (window.Shiny && window.Shiny.shinyapp && window.Shiny.shinyapp.isConnected()) {
     // eslint-disable-next-line no-undef
     Shiny.setInputValue('_telemetry_client_error', {

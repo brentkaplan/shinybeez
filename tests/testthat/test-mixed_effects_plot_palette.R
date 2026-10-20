@@ -40,7 +40,7 @@ three_level_plot <- function() {
     ggplot2$geom_line()
 }
 
-palette_fn <- function(name, n) utils$get_palette_colors(name, n)
+palette_fn <- function(name, n, dark = FALSE) utils$get_palette_colors(name, n, dark = dark)
 
 describe("apply_color_palette", {
   it("survives a colour column that is entirely NA (bce0bb1d)", {
@@ -110,5 +110,18 @@ describe("apply_color_palette", {
       plain, "missing_col", data.frame(x = 1:3), "Codedbx", palette_fn
     )
     expect_s3_class(ggplot2$ggplot_build(p), "ggplot_built")
+  })
+
+  it("passes dark through to the palette callback", {
+    seen <- NULL
+    spy <- function(name, n, dark = FALSE) {
+      seen <<- dark
+      rep("#777777", n)
+    }
+    p <- three_level_plot()
+    p2 <- plotting$apply_color_palette(p, "dose", p$data, "Okabe-Ito", spy, dark = TRUE)
+    expect_true(seen)
+    # The callback's dark values are what the manual scale actually carries.
+    expect_identical(p2$scales$get_scales("colour")$palette(3), rep("#777777", 3))
   })
 })

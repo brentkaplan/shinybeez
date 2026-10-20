@@ -100,61 +100,44 @@ describe("compute_aesthetic_defaults", {
     expect_equal(result$color, "") # Not A, since linetype has it
     expect_equal(result$linetype, "A")
   })
-})
 
-# Test build_pred_lines_arg
-describe("build_pred_lines_arg", {
-  it("returns FALSE when both are FALSE", {
-    result <- plotting$build_pred_lines_arg(FALSE, FALSE)
-    expect_false(result)
+  it("keeps a valid shape and resets an invalid one", {
+    keep <- plotting$compute_aesthetic_defaults("", "", "", c("A", "B"), current_shape = "B")
+    expect_equal(keep$shape, "B")
+    drop <- plotting$compute_aesthetic_defaults("", "", "", c("A", "B"), current_shape = "gone")
+    expect_equal(drop$shape, "")
+    default <- plotting$compute_aesthetic_defaults("", "", "", character(0))
+    expect_equal(default$shape, "")
   })
 
-  it("returns 'population' when only population is TRUE", {
-    result <- plotting$build_pred_lines_arg(TRUE, FALSE)
-    expect_equal(result, "population")
-  })
-
-  it("returns 'individual' when only individual is TRUE", {
-    result <- plotting$build_pred_lines_arg(FALSE, TRUE)
-    expect_equal(result, "individual")
-  })
-
-  it("returns both when both are TRUE", {
-    result <- plotting$build_pred_lines_arg(TRUE, TRUE)
-    expect_equal(result, c("population", "individual"))
-  })
-
-  it("handles NULL as FALSE", {
-    result <- plotting$build_pred_lines_arg(NULL, NULL)
-    expect_false(result)
+  it("treats NULL, NA and zero-length current selections as None", {
+    for (empty in list(NULL, NA, NA_character_, character(0))) {
+      shape <- plotting$compute_aesthetic_defaults("", "", "", c("A", "B"), current_shape = empty)
+      expect_equal(shape$shape, "")
+      color <- plotting$compute_aesthetic_defaults(empty, "", "", c("A", "B"))
+      expect_equal(color$color, "A")
+      linetype <- plotting$compute_aesthetic_defaults("", empty, "", c("A", "B"))
+      expect_equal(linetype$linetype, "B")
+      facet <- plotting$compute_aesthetic_defaults("", "", empty, c("A", "B"))
+      expect_equal(facet$facet, "")
+    }
   })
 })
 
-# Test has_plot_content
-describe("has_plot_content", {
-  it("returns FALSE when all are FALSE", {
-    result <- plotting$has_plot_content(FALSE, FALSE, FALSE)
-    expect_false(result)
+describe("aesthetics_in_sync", {
+  sel <- function(color = "", linetype = "", facet = "", shape = "") {
+    list(color = color, linetype = linetype, facet = facet, shape = shape)
+  }
+  it("is TRUE when every selection matches", {
+    expect_true(plotting$aesthetics_in_sync(sel("drug", "dose"), sel("drug", "dose")))
   })
-
-  it("returns TRUE when population is TRUE", {
-    result <- plotting$has_plot_content(TRUE, FALSE, FALSE)
-    expect_true(result)
+  it("is FALSE when one selection still lags", {
+    expect_false(plotting$aesthetics_in_sync(sel("dose"), sel("drug")))
+    expect_false(plotting$aesthetics_in_sync(sel(shape = "drug"), sel()))
   })
-
-  it("returns TRUE when individual is TRUE", {
-    result <- plotting$has_plot_content(FALSE, TRUE, FALSE)
-    expect_true(result)
-  })
-
-  it("returns TRUE when observed is TRUE", {
-    result <- plotting$has_plot_content(FALSE, FALSE, TRUE)
-    expect_true(result)
-  })
-
-  it("returns TRUE when all are TRUE", {
-    result <- plotting$has_plot_content(TRUE, TRUE, TRUE)
-    expect_true(result)
+  it("treats NULL, NA and empty as None", {
+    current <- list(color = NULL, linetype = NA_character_, facet = character(0), shape = "")
+    expect_true(plotting$aesthetics_in_sync(sel(), current))
   })
 })
 
@@ -292,7 +275,7 @@ describe("apply_color_palette", {
       color_var = NULL,
       fit_data = data.frame(A = c(1, 2, 3)),
       palette_name = "default",
-      get_palette_fn = function(name, n) rep("blue", n)
+      get_palette_fn = function(name, n, dark = FALSE) rep("blue", n)
     )
     expect_s3_class(result, "gg")
   })
@@ -305,7 +288,7 @@ describe("apply_color_palette", {
       color_var = "group",
       fit_data = data.frame(group = c("A", "B", "A", "B")),
       palette_name = "default",
-      get_palette_fn = function(name, n) rep("blue", n)
+      get_palette_fn = function(name, n, dark = FALSE) rep("blue", n)
     )
     expect_s3_class(result, "gg")
   })
