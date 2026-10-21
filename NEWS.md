@@ -47,6 +47,18 @@
 
 ## Bug Fixes
 
+- **Semicolon CSVs and decimal commas** — Excel in Portuguese, Spanish and most
+  European locales saves CSV files with `;` between fields and a decimal comma.
+  These were read as a single column, so every tab rejected them ("The first
+  column is not `id`", "Unrecognised discounting data format") and the reshape
+  form had nothing to split. The delimiter is now detected from the file, and
+  both `0,5` and `0.5` read as numbers. A comma file whose lines end in a run
+  of semicolons is read as if they were not there.
+
+- **More currency symbols in price headers** — wide demand headers such as
+  `R$0.50`, `US$1`, `A$2`, `0.50€`, `¥100` and `₹20` now count as prices.
+  Headers that only contain a symbol and digits, like `Q$1`, still do not.
+
 - **Wide demand headers must be whole numbers** — item-style headers such as
   `APT_1`, `APT_2` were parsed to prices 1, 2, … and fitted silently. A header
   now counts as a price only when the whole header is a number (currency symbol
