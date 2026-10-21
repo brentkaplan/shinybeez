@@ -11,7 +11,7 @@ describe("telemetry_utils", {
     it("is a function with correct formals", {
       expect_true(is.function(telemetry_utils$track_validation))
       fmls <- names(formals(telemetry_utils$track_validation))
-      expect_equal(fmls, c("module", "outcome", "check_name", "reason", "session"))
+      expect_equal(fmls, c("module", "outcome", "check_name", "reason", "session", "shape"))
     })
 
     it("returns invisibly when telemetry is disabled", {

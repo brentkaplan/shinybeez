@@ -490,18 +490,22 @@ track_performance <- function(
 #' @param check_name Which check triggered the outcome (e.g., "check_data", "file_size", "file_read")
 #' @param reason Error message or reason for failure (NULL on success)
 #' @param session Shiny session object
+#' @param shape Optional list from upload_shape(): counts and flags, never names or values
 #' @export
 track_validation <- function(
-  module, outcome, check_name = NULL, reason = NULL, session = NULL
+  module, outcome, check_name = NULL, reason = NULL, session = NULL, shape = list()
 ) {
   track_event(
     event_name = "validation_outcome",
-    event_data = list(
-      module = module,
-      outcome = outcome,
-      check_name = check_name,
-      reason = reason,
-      timestamp = Sys.time()
+    event_data = c(
+      list(
+        module = module,
+        outcome = outcome,
+        check_name = check_name,
+        reason = reason,
+        timestamp = Sys.time()
+      ),
+      shape
     ),
     session = session
   )
@@ -742,8 +746,8 @@ create_session_telemetry <- function(session) {
     track_export = function(export_type, module = NULL, file_format = NULL, row_count = NULL) {
       track_export(export_type, module, file_format, row_count, session)
     },
-    track_validation = function(module, outcome, check_name = NULL, reason = NULL) {
-      track_validation(module, outcome, check_name, reason, session)
+    track_validation = function(module, outcome, check_name = NULL, reason = NULL, shape = list()) {
+      track_validation(module, outcome, check_name, reason, session, shape)
     },
     track_reshape = function(target, outcome, summary = list()) {
       track_reshape(target, outcome, summary, session)
