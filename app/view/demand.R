@@ -112,7 +112,8 @@ sidebar_server <- function(id, fit_task) {
             "Currently an experimental feature. Selecting Yes will only work
         with a fixed k value."
           ),
-          value = 0,
+          # Empty, not 0: a Q0 of 0 is invalid and used to be fitted unnoticed.
+          value = "",
           min = 0,
           max = 100
         )

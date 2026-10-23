@@ -480,7 +480,11 @@ navpanel_server <- function(id, sidebar_reactives, fit_task) {
         df_display,
         rownames = FALSE,
         extensions = c("Buttons", "Scroller"),
+        fillContainer = FALSE,
         options = list(
+          # Scroller needs a fixed viewport: without scrollY the scroll body
+          # grew to the full virtual height and the info line read "1 to 0".
+          scrollY = 300,
           scrollX = TRUE,
           pageLength = 5,
           autoWidth = TRUE,

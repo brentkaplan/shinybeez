@@ -234,6 +234,26 @@ expect_results_table <- function(app, result_id, n_rows = NULL, min_rows = 1L,
   invisible(actual)
 }
 
+# Assert the DataTables info line under `#result_id` counts every row of a small
+# table. Scroller derives the "to" number from the viewport height it measured
+# at init, so a table drawn into a zero-height viewport reports
+# "Showing 1 to 0 of 3 entries" while all three rows are on screen.
+expect_results_info <- function(app, result_id, n_rows) {
+  wait_for_result_rows(app, result_id, paste0("of ", n_rows, " entries"))
+  js <- sprintf(
+    paste0(
+      "(function(){var c=document.getElementById('%s');",
+      "var e=c&&c.querySelector('.dataTables_info');",
+      "return e?e.innerText:'';})()"
+    ),
+    result_id
+  )
+  testthat::expect_equal(
+    app$get_js(js),
+    sprintf("Showing 1 to %d of %d entries", n_rows, n_rows)
+  )
+}
+
 # Demand results additionally carry the fitted demand parameters. Exact header
 # membership keeps this meaningful: a table that rendered but lost a parameter
 # column is a failure worth catching.

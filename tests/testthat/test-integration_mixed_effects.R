@@ -34,6 +34,30 @@ describe("Mixed Effects - default ko data", {
     expect_true(any(grepl("<td", html, fixed = TRUE)))
   })
 
+  it("sizes the data table viewport so Scroller counts visible rows", {
+    require_app(app)
+    table_id <- ns_id("mixed_effects_demand", "input_data_table")
+    app$wait_for_js(
+      sprintf(
+        "!!document.querySelector('#%s .dataTables_info')", table_id
+      ),
+      timeout = 15000
+    )
+    # Without scrollY, Scroller sized the scroll body to the full virtual
+    # height (thousands of px of blank page) and reported "Showing 1 to 0".
+    state <- app$get_js(sprintf(
+      paste0(
+        "(function(){var c=document.getElementById('%s');",
+        "return {info:c.querySelector('.dataTables_info').innerText,",
+        "body:c.querySelector('.dataTables_scrollBody')",
+        ".getBoundingClientRect().height};})()"
+      ),
+      table_id
+    ))
+    expect_match(state$info, "^Showing 1 to [1-9][0-9]* of [0-9]+ entries$")
+    expect_lte(state$body, 400)
+  })
+
   it("selects drug as Factor 1", {
     require_app(app)
     app$set_inputs(!!ids$mixed$factor1 := "drug", wait_ = FALSE)
