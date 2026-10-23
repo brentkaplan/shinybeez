@@ -460,3 +460,43 @@ describe("demand results table equation guard", {
     })
   })
 })
+
+describe("demand results table Q0 guard", {
+  # 2026-10-06 production: Calculate ran an Individual koff fit with Q0 fixed at 0, the
+  # numeric input's old default. A Q0 of 0 is not a demand intensity: the fit must not start.
+  q0_args <- function(q0) {
+    data_r <- shiny$reactiveValues(data_d = ungrouped_demand_data())
+    args <- module_args(data_r, shiny$reactiveVal(0))
+    args$agg <- shiny$reactive("Ind")
+    args$groupcol <- shiny$reactive(FALSE)
+    args$fix_q0 <- shiny$reactive(TRUE)
+    args$q0_val <- shiny$reactive(q0)
+    args
+  }
+
+  for (bad in list(NULL, NA, 0, -1)) {
+    it(paste("refuses to fit when the constrained Q0 is", deparse(bad)), {
+      args <- q0_args(bad)
+      shiny$testServer(demand_results_table$server, args = args, {
+        set_plot_inputs(session)
+        args$calculate_btn(1)
+        expect_no_error(session$flushReact())
+        settle(session)
+        expect_null(pending_fit())
+        expect_null(res$results)
+      })
+    })
+  }
+
+  it("fits when the constrained Q0 is positive", {
+    args <- q0_args(10)
+    shiny$testServer(demand_results_table$server, args = args, {
+      set_plot_inputs(session)
+      args$calculate_btn(1)
+      session$flushReact()
+      settle(session)
+      expect_false(is.null(res$results))
+      expect_equal(nrow(res$results), 3)
+    })
+  })
+})
