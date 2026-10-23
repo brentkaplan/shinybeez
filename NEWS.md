@@ -1,4 +1,4 @@
-# shinybeez 1.3.0 (development)
+# shinybeez 1.3.0
 
 ## New Features
 
