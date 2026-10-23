@@ -21,7 +21,6 @@ box::use(
 #' @param page_length Rows per page (NULL for no paging)
 #' @param round_digits Number of digits to round numeric columns (NULL to skip)
 #' @param auto_width Enable auto column width
-#' @param fill_container Fill parent container
 #' @return A DT::datatable object
 #' @export
 build_datatable <- function(
@@ -32,8 +31,7 @@ build_datatable <- function(
   fixed_columns = 0L,
   page_length = NULL,
   round_digits = NULL,
-  auto_width = TRUE,
-  fill_container = FALSE
+  auto_width = TRUE
 ) {
   # Round numeric columns if requested
   if (!is.null(round_digits) && is.numeric(round_digits)) {
@@ -88,11 +86,14 @@ build_datatable <- function(
     opts$fixedColumns <- list(leftColumns = fixed_columns)
   }
 
+  # fillContainer stays FALSE: Scroller measures its viewport at init, and inside
+  # a fill container that height is still 0, so the info line read
+  # "Showing 1 to 0 of 3 entries" with all three rows on screen.
   DT$datatable(
     data,
     rownames = FALSE,
     extensions = extensions,
-    fillContainer = fill_container,
+    fillContainer = FALSE,
     options = opts
   )
 }

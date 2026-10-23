@@ -1,4 +1,4 @@
-# shinybeez 1.3.0 (development)
+# shinybeez 1.3.0
 
 ## New Features
 
@@ -47,6 +47,18 @@
 
 ## Bug Fixes
 
+- **Semicolon CSVs and decimal commas** — Excel in Portuguese, Spanish and most
+  European locales saves CSV files with `;` between fields and a decimal comma.
+  These were read as a single column, so every tab rejected them ("The first
+  column is not `id`", "Unrecognised discounting data format") and the reshape
+  form had nothing to split. The delimiter is now detected from the file, and
+  both `0,5` and `0.5` read as numbers. A comma file whose lines end in a run
+  of semicolons is read as if they were not there.
+
+- **More currency symbols in price headers** — wide demand headers such as
+  `R$0.50`, `US$1`, `A$2`, `0.50€`, `¥100` and `₹20` now count as prices.
+  Headers that only contain a symbol and digits, like `Q$1`, still do not.
+
 - **Wide demand headers must be whole numbers** — item-style headers such as
   `APT_1`, `APT_2` were parsed to prices 1, 2, … and fitted silently. A header
   now counts as a price only when the whole header is a number (currency symbol
@@ -86,6 +98,19 @@
   an Update Plot click or a dark-mode switch could leave the Plots tab empty,
   with no error message, until Update Plot was clicked again. The plot now
   draws after every successful fit.
+
+- **Table row counts** — the demand Model Results table said "Showing 1 to 0
+  of 3 entries" with all three rows on screen, and the mixed-effects Data
+  table said "Showing 1 to 0 of 135 entries" above several thousand pixels of
+  blank space. Both now count the rows you can see, and the mixed-effects
+  Data table scrolls inside a fixed height like the other tables.
+
+- **Constrained Q0 must be above 0** — ticking "constrain Q0" filled the box
+  with 0, and a fit with Q0 fixed at 0 ran without warning (in koff, zero
+  predicted consumption at every price). The box now starts empty, and
+  Calculate asks for a Q0 greater than 0 instead of fitting. Fits with a
+  constrained Q0 and one subject that cannot be fitted no longer stop with
+  "subscript out of bounds"; that subject is reported as not converged.
 
 ## Internal
 

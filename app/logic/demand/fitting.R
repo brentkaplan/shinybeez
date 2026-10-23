@@ -84,6 +84,24 @@ resolve_q0_constraint <- function(q0_val, fix_q0) {
   if (is.null(q0_val) || !fix_q0) NULL else q0_val
 }
 
+#' Check a constrained Q0 before fitting
+#'
+#' Q0 is consumption at zero price, so a constraint must be a positive number. A Q0
+#' of 0 (the input's old default) makes koff predict zero everywhere and hs take
+#' log10(0); production ran such a fit on 2026-10-06.
+#'
+#' @param q0_val Numeric Q0 value from UI (NULL or NA when the box is empty)
+#' @param fix_q0 Logical whether to constrain Q0
+#' @return NULL when the fit can run, otherwise a message for the user
+#' @export
+q0_constraint_problem <- function(q0_val, fix_q0) {
+  if (!isTRUE(fix_q0)) {
+    return(NULL)
+  }
+  ok <- is.numeric(q0_val) && length(q0_val) == 1 && is.finite(q0_val) && q0_val > 0
+  if (ok) NULL else "Enter a Q0 greater than 0 to constrain Q0, or untick the Q0 option."
+}
+
 # Column names for rounding in results
 results_cols_2dp <- c(
   "Q0d", "K", "R2", "Q0se", "AbsSS", "SdRes",

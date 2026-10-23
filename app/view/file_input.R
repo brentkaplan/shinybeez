@@ -3,31 +3,15 @@ box::use(
   bslib,
   shiny,
   tools,
-  vroom,
 )
 
 box::use(
   app / logic / logging_utils,
   app / logic / telemetry_utils,
+  app / logic / upload_read,
   app / logic / validate,
   app / view / wide_mapper,
 )
-
-#' Read an uploaded CSV or TSV file
-#'
-#' @param path File path to read
-#' @param ext File extension ("csv" or "tsv")
-#' @return Data frame, or NULL if reading fails
-read_upload <- function(path, ext) {
-  tryCatch(
-    switch(
-      ext,
-      csv = vroom$vroom(path, delim = ",", show_col_types = FALSE),
-      tsv = vroom$vroom(path, delim = "\t", show_col_types = FALSE)
-    ),
-    error = function(e) NULL
-  )
-}
 
 #' Size of an uploaded file in MB, or NA when nothing has been uploaded
 #'
@@ -212,7 +196,10 @@ server <- function(id, type = "demand") {
 
     # A rejected frame opens the mapper unless it carries a fixed-schema marker.
     reject_or_map <- function(tmp, reason, meta) {
-      telemetry_utils$track_validation(module_label, "failure", "check_data", reason, session)
+      telemetry_utils$track_validation(
+        module_label, "failure", "check_data", reason, session,
+        shape = upload_read$upload_shape(tmp)
+      )
       if (is_fixed_schema(tmp)) {
         notify_error(rejection_message(reason))
         return(invisible(FALSE))
@@ -258,7 +245,7 @@ server <- function(id, type = "demand") {
         paste0("Reading ", read_label, " file: ", meta$name),
         category = "data_processing"
       )
-      tmp <- read_upload(input$upload$datapath, meta$ext)
+      tmp <- upload_read$read_upload(input$upload$datapath, meta$ext)
       if (is.null(tmp)) {
         telemetry_utils$track_validation(
           module_label, "failure", "file_read",

@@ -29,6 +29,20 @@ describe("parse_header_number", {
     )
   })
 
+  it("parses currency prefixes like R$ and US$ and a trailing symbol", {
+    # 44 sessions on 2026-10-06..08 uploaded R$-priced headers (lowercased to r$).
+    expect_equal(
+      validate$parse_header_number(c("r$0.02", "R$ 1", "us$5", "a$2.50", "nz$3", "0.50€", "¥100", "₹20")),
+      c(0.02, 1, 5, 2.5, 3, 0.5, 100, 20)
+    )
+  })
+
+  it("does not take item identifiers or bare currency codes as prices", {
+    expect_true(all(is.na(
+      validate$parse_header_number(c("q$1", "x$2", "usd 1", "brl5", "r1", "$", "r$", "1$2", "r$1€", "$2£", "¥100$"))
+    )))
+  })
+
   it("returns NA for headers that merely contain digits", {
     expect_true(all(is.na(
       validate$parse_header_number(c("apt_1", "q5_3", "price_0.5", "x", "1 day", ""))

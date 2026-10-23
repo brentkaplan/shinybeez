@@ -161,6 +161,11 @@ server <- function(
         )
         return(NULL)
       }
+      q0_problem <- fitting$q0_constraint_problem(q0_val(), fix_q0())
+      if (!is.null(q0_problem)) {
+        shiny$showNotification(q0_problem, type = "warning", duration = 5)
+        return(NULL)
+      }
       eq_code <- fitting$resolve_equation(eq())
       k <- fitting$resolve_k_value(kval(), validate$k_values)
       agg_val <- fitting$resolve_aggregation(agg())
@@ -355,8 +360,7 @@ server <- function(
         res$results,
         filename_prefix = "shinybeez_Demand_ModelResults",
         fixed_columns = 1L,
-        page_length = 20,
-        fill_container = TRUE
+        page_length = 20
       )
     })
 

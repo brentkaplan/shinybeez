@@ -25,11 +25,20 @@ validate_condition <- function(condition, msg) {
 #' accepts embedded digits, so `APT_1`/`APT_2` parsed to 1/2 and a Qualtrics item
 #' export fitted curves at invented prices (found 2026-09-06).
 #'
+#' The symbol may carry a known dollar prefix (`R$`, `US$`, `A$`, `C$`, `NZ$`, `HK$`,
+#' `MX$`) or follow the number (`0.50€`). The prefixes are listed, not any letters,
+#' so an item id like `Q$1` is still not a price.
+#'
 #' @param headers Character vector
 #' @return Numeric vector, NA where a header is not a whole-header number
 #' @export
 parse_header_number <- function(headers) {
-  pattern <- "^\\s*[$€£]?\\s*[0-9]+(\\.[0-9]+)?\\s*$"
+  symbol <- "(?:(?:r|us|a|c|nz|hk|mx)?\\$|[€£¥₹₩₽])"
+  number <- "[0-9]+(\\.[0-9]+)?"
+  # One currency marker, before or after the number, never both ("R$1€" is not a price).
+  pattern <- paste0(
+    "(?i)^\\s*(?:", symbol, "\\s*", number, "|", number, "\\s*", symbol, "?)\\s*$"
+  )
   out <- rep(NA_real_, length(headers))
   ok <- !is.na(headers) & grepl(pattern, headers, perl = TRUE)
   out[ok] <- as.numeric(gsub("[^0-9.]", "", headers[ok]))
