@@ -99,6 +99,19 @@
   with no error message, until Update Plot was clicked again. The plot now
   draws after every successful fit.
 
+- **Table row counts** — the demand Model Results table said "Showing 1 to 0
+  of 3 entries" with all three rows on screen, and the mixed-effects Data
+  table said "Showing 1 to 0 of 135 entries" above several thousand pixels of
+  blank space. Both now count the rows you can see, and the mixed-effects
+  Data table scrolls inside a fixed height like the other tables.
+
+- **Constrained Q0 must be above 0** — ticking "constrain Q0" filled the box
+  with 0, and a fit with Q0 fixed at 0 ran without warning (in koff, zero
+  predicted consumption at every price). The box now starts empty, and
+  Calculate asks for a Q0 greater than 0 instead of fitting. Fits with a
+  constrained Q0 and one subject that cannot be fitted no longer stop with
+  "subscript out of bounds"; that subject is reported as not converged.
+
 ## Internal
 
 - Plot settings are recorded as a `configuration_snapshot` (module

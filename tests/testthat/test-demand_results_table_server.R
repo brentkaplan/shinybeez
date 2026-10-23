@@ -464,13 +464,30 @@ describe("demand results table equation guard", {
 describe("demand results table Q0 guard", {
   # 2026-10-06 production: Calculate ran an Individual koff fit with Q0 fixed at 0, the
   # numeric input's old default. A Q0 of 0 is not a demand intensity: the fit must not start.
+  # Counts invoke() calls: pending_fit() is cleared once a fit settles, so only the
+  # count proves the guard stopped the fit rather than the fit failing afterwards.
+  counting_task <- function() {
+    fit_task <- task$make_fit_task(workers$fit_demand_fixed_worker, async = FALSE)
+    invoke <- fit_task$invoke
+    calls <- new.env()
+    calls$n <- 0L
+    fit_task$calls <- calls
+    fit_task$invoke <- function(...) {
+      calls$n <- calls$n + 1L
+      invoke(...)
+    }
+    fit_task
+  }
+
   q0_args <- function(q0) {
     data_r <- shiny$reactiveValues(data_d = ungrouped_demand_data())
-    args <- module_args(data_r, shiny$reactiveVal(0))
+    # NULL, like an unclicked button: bindEvent() would treat a plain 0 as a click.
+    args <- module_args(data_r, shiny$reactiveVal(NULL))
     args$agg <- shiny$reactive("Ind")
     args$groupcol <- shiny$reactive(FALSE)
     args$fix_q0 <- shiny$reactive(TRUE)
     args$q0_val <- shiny$reactive(q0)
+    args$fit_task <- counting_task()
     args
   }
 
@@ -484,6 +501,7 @@ describe("demand results table Q0 guard", {
         settle(session)
         expect_null(pending_fit())
         expect_null(res$results)
+        expect_equal(args$fit_task$calls$n, 0L)
       })
     })
   }
@@ -497,6 +515,7 @@ describe("demand results table Q0 guard", {
       settle(session)
       expect_false(is.null(res$results))
       expect_equal(nrow(res$results), 3)
+      expect_equal(args$fit_task$calls$n, 1L)
     })
   })
 })
