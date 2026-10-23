@@ -355,8 +355,7 @@ server <- function(
         res$results,
         filename_prefix = "shinybeez_Demand_ModelResults",
         fixed_columns = 1L,
-        page_length = 20,
-        fill_container = TRUE
+        page_length = 20
       )
     })
 

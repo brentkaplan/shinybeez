@@ -53,6 +53,7 @@ describe("Demand - pooled, two-stage, and mean analysis", {
     wait_for_output(app, result_id, timeout_ms = 15000)
     # Pooled fits a single aggregate curve -> exactly 1 row.
     expect_demand_results(app, result_id, n_rows = 1)
+    expect_results_info(app, result_id, 1)
   })
 
   it("switches to Two Stage and runs calculation", {
@@ -65,6 +66,7 @@ describe("Demand - pooled, two-stage, and mean analysis", {
     # Two Stage fits per participant -> 3 rows for this fixture. The differing
     # count also proves the table refreshed rather than showing pooled results.
     expect_demand_results(app, result_id, n_rows = 3)
+    expect_results_info(app, result_id, 3)
   })
 
   it("switches to Mean and runs calculation", {
