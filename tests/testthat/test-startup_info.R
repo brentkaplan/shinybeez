@@ -56,3 +56,31 @@ describe("startup_line()", {
     }
   })
 })
+
+# The version string travels in every session_start row; the first NEWS.md heading is the
+# release process's source of truth, so the constant must match it or a release bump was missed.
+describe("app_version()", {
+  it("matches the first NEWS.md heading so a release bump cannot be forgotten", {
+    news <- readLines(file.path(project_root, "NEWS.md"), n = 1)
+    expected <- sub(" \\(development\\)$", "", sub("^# shinybeez ", "", news))
+    expect_identical(startup_info$app_version(), expected)
+  })
+})
+
+describe("platform()", {
+  it("is web on the default profile", {
+    withr::with_envvar(
+      c(R_CONFIG_ACTIVE = "default"),
+      expect_identical(startup_info$platform(), "web")
+    )
+  })
+
+  it("falls back to web for an unknown value", {
+    expect_identical(startup_info$platform(value = "toaster"), "web")
+    expect_identical(startup_info$platform(value = NULL), "web")
+  })
+
+  it("is desktop only when the config says so", {
+    expect_identical(startup_info$platform(value = "desktop"), "desktop")
+  })
+})

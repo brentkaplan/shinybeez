@@ -15,6 +15,24 @@ box::use(
 known_profiles <- c("default", "development", "production", "shinyapps", "connectcloud", "shinyproxy")
 known_backends <- c("sqlite", "postgresql")
 
+# Release version, recorded on every telemetry session_start row. NEWS.md is not shipped in
+# the Docker image or the desktop bundle, so the value lives here; a test pins it to the
+# first NEWS.md heading so a release bump cannot skip it.
+APP_VERSION <- "1.3.0" # nolint: object_name_linter.
+
+#' @export
+app_version <- function() APP_VERSION
+
+#' Which build this process is: the hosted web app or the packaged desktop app
+#'
+#' Read from `platform` in config.yml (the default profile says `web`; only the desktop
+#' profile says `desktop`). Anything else is treated as web, the safer of the two for
+#' telemetry: desktop-only fields are never attached to a hosted session.
+#' @export
+platform <- function(value = config::get("platform")) {
+  if (identical(value, "desktop")) "desktop" else "web"
+}
+
 from_vocabulary <- function(value, vocabulary) {
   if (is.character(value) && length(value) == 1L && value %in% vocabulary) value else "(unrecognised)"
 }
