@@ -218,7 +218,7 @@ describe("code fields and the nested string allowlist", {
 
   it("turns a non-token value under a nested code key into other", {
     out <- telemetry_schema$sanitize_event(
-      "model_fitting", list(model_type = "demand", parameters = list(equation = "my equation"))
+      "model_fitting", list(model_type = "demand", parameters = list(equation = "my equation!"))
     )
     expect_identical(out$data$parameters$equation, "other")
   })
@@ -253,5 +253,19 @@ describe("vocabularies the call sites actually use", {
   it("scrubs single-quoted and backticked substrings as well as double-quoted ones", {
     out <- telemetry_schema$scrub_user_strings("bad 'age', `sex` and \"id\" columns")
     expect_identical(out, "bad '…', `…` and \"…\" columns")
+  })
+})
+
+describe("scrub and code edge cases from review", {
+  it("leaves apostrophes in contractions alone while scrubbing single-quoted spans", {
+    out <- telemetry_schema$scrub_user_strings("Can't parse user's 'age' value")
+    expect_identical(out, "Can't parse user's '…' value")
+  })
+
+  it("normalises a spaced code label under a nested code key", {
+    out <- telemetry_schema$sanitize_event(
+      "configuration_snapshot", list(module = "discounting", method = "Two Stage")
+    )
+    expect_identical(out$data$method, "Two_Stage")
   })
 })

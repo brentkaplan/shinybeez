@@ -97,3 +97,18 @@ describe("mapper validation messages", {
     expect_false(grepl("qzx", telemetry_schema$scrub_user_strings(msg)))
   })
 })
+
+describe("mapper cell validation messages", {
+  it("quote the series label in the cell checks too", {
+    box::use(app / logic / reshape / spec, app / logic / telemetry_schema)
+    dat <- data.frame(responseid = c("r1", "r2"), a = c("x", "y"), b = c("x", "y"))
+    s <- spec$new_spec(
+      "demand", "responseid",
+      list(spec$new_series(c("a", "b"), x = c(1, 2), label = "patientqzx")),
+      x_source = "manual"
+    )
+    msg <- tryCatch(spec$apply_spec(s, dat), error = function(e) conditionMessage(e))
+    expect_match(msg, '^"patientqzx": none')
+    expect_false(grepl("qzx", telemetry_schema$scrub_user_strings(msg)))
+  })
+})

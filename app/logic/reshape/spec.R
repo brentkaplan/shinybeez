@@ -485,7 +485,7 @@ validate_wide_spec <- function(spec, dat) {
   # cells: numbers present, and every id keeps >= 2 responses per series
   for (i in seq_along(spec$series)) {
     s <- spec$series[[i]]
-    nm <- series_name(s, i)
+    nm <- quote_names(series_name(s, i))
     ymat <- matrix(series_cells(s, dat), nrow = nrow(dat))
     if (all(is.na(ymat))) {
       return(paste0(nm, ": none of the selected columns contain numbers."))

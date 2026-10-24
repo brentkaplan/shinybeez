@@ -98,7 +98,9 @@ scrub_user_strings <- function(x, max_chars = 500L) {
     return(x)
   }
   out <- gsub('"[^"]*"', '"…"', x)
-  out <- gsub("'[^']*'", "'…'", out)
+  # A single-quoted span opens only where the quote does not follow a letter, so the
+  # apostrophes in "can't" and "user's" are left alone.
+  out <- gsub("(?<![[:alpha:]])'[^']*'", "'…'", out, perl = TRUE)
   out <- gsub("`[^`]*`", "`…`", out)
   if (nchar(out) > max_chars) {
     out <- substr(out, 1L, max_chars)
@@ -256,7 +258,9 @@ nested_value <- function(key, value) {
       return(list(keep = TRUE, value = scrub_user_strings(value, 200L)))
     }
     if (key %in% nested_code_keys) {
-      kept <- if (grepl(nested_token_pattern, value)) value else "other"
+      # UI labels such as "Two Stage" are codes with a space; normalise rather than lose them.
+      token <- gsub(" ", "_", trimws(value))
+      kept <- if (grepl(nested_token_pattern, token)) token else "other"
       return(list(keep = TRUE, value = kept))
     }
   }
