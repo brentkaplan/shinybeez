@@ -418,7 +418,8 @@ validate_wide_spec <- function(spec, dat) {
   seen <- character(0)
   for (i in seq_along(spec$series)) {
     s <- spec$series[[i]]
-    nm <- series_name(s, i)
+    # Quoted: the label is the user's text, and telemetry scrubs quoted substrings from messages.
+    nm <- quote_names(series_name(s, i))
     if (length(s$cols) < 2) {
       return(paste0(nm, ": choose at least two response columns."))
     }

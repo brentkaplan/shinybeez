@@ -111,7 +111,11 @@ settings_modal <- function(ns, current) {
     ),
     footer = shiny$tagList(
       shiny$modalButton("Cancel"),
-      shiny$actionButton(ns("save"), "Save", class = "btn-primary")
+      # data-consent-radio lets the browser persist the chosen level at click time, before
+      # the server round trip (app/js/index.js), the same way the banner buttons do.
+      shiny$actionButton(
+        ns("save"), "Save", class = "btn-primary", `data-consent-radio` = ns("level")
+      )
     ),
     easyClose = TRUE
   )
@@ -160,6 +164,12 @@ server <- function(
       }
       if (identical(source, "stored") && (length(ts) != 1L || is.na(ts) || ts < applied_ts())) {
         return()
+      }
+      # A choice stored under an older policy (a page left open across a deployment that
+      # bumped CURRENT_POLICY) is no longer a choice: apply it as a default and re-ask.
+      policy <- suppressWarnings(as.integer(msg$policy))
+      if (identical(source, "stored") && (length(policy) != 1L || is.na(policy) || policy < CURRENT_POLICY)) {
+        source <- "default"
       }
       session_telemetry$set_consent(level, source)
       if (source %in% c("default", "default_eu")) {

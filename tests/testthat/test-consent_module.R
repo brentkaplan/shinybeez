@@ -184,3 +184,35 @@ describe("consent UI", {
     expect_identical(consent$CURRENT_POLICY, 1L)
   })
 })
+
+describe("consent$server policy and settings persistence", {
+  it("treats a stored choice from an older policy as a default and re-shows the banner", {
+    tracker <- fake_tracker()
+    shiny$testServer(consent$server, args = list(session_telemetry = tracker, client = fake_client()), {
+      session$rootScope()$setInputs(
+        consent_level = list(level = "usage", source = "stored", policy = consent$CURRENT_POLICY - 1L, ts = 5)
+      )
+      expect_identical(tracker$calls()[[1]], list(level = "usage", source = "default"))
+      expect_true(show_banner())
+    })
+  })
+
+  it("marks the Save button with the radio it reads, so the browser can persist at click time", {
+    tracker <- fake_tracker()
+    captured <- NULL
+    shiny$testServer(
+      consent$server,
+      args = list(
+        session_telemetry = tracker, client = fake_client(),
+        show_modal = function(ui) captured <<- as.character(ui)
+      ),
+      {
+        handshake(session, "usage", "stored")
+        session$setInputs(open = 1)
+        # testServer namespaces the module ids itself; only the suffixes are stable.
+        expect_match(captured, 'data-consent-radio="[^"]*level"')
+        expect_match(captured, 'id="[^"]*save"')
+      }
+    )
+  })
+})

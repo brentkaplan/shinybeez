@@ -143,11 +143,16 @@ function loadGA() {
   const { gaId } = config();
   if (!gaId) return;
   window[gaDisableKey()] = false;
-  if (gaLoaded) return;
+  if (gaLoaded) {
+    // Re-enabled after a downgrade in this page: lift the consent denial disableGA() set.
+    window.gtag('consent', 'update', { analytics_storage: 'granted' });
+    return;
+  }
   window.dataLayer = window.dataLayer || [];
   window.gtag = window.gtag || function gtag() {
     window.dataLayer.push(arguments); // eslint-disable-line prefer-rest-params
   };
+  window.gtag('consent', 'default', { analytics_storage: 'granted', ad_storage: 'denied' });
   window.gtag('js', new Date());
   window.gtag('config', gaId, { send_page_view: false });
   const script = document.createElement('script');
@@ -220,6 +225,15 @@ document.addEventListener('click', (event) => {
   if (!btn) return;
   const level = btn.getAttribute('data-consent-level');
   if (LEVELS.includes(level)) applyLocally(level);
+});
+
+// Settings modal Save: persist the checked level at click time too.
+document.addEventListener('click', (event) => {
+  const btn = event.target.closest('[data-consent-radio]');
+  if (!btn) return;
+  const name = btn.getAttribute('data-consent-radio');
+  const checked = document.querySelector(`input[name="${name}"]:checked`);
+  if (checked && LEVELS.includes(checked.value)) applyLocally(checked.value);
 });
 
 // "Change your choice" on the Welcome page opens the settings modal.

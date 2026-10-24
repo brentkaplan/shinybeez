@@ -82,3 +82,18 @@ describe("telemetry payloads built from a user's upload", {
     expect_identical(details$reason, 'The column names are not numeric. Could not parse these price headers: "…", "…".')
   })
 })
+
+describe("mapper validation messages", {
+  it("quote the series label so the scrub removes it", {
+    box::use(app / logic / reshape / spec, app / logic / telemetry_schema)
+    dat <- data.frame(responseid = c("r1", "r2"), a = c(1, 2), b = c(3, 4))
+    s <- spec$new_spec(
+      "demand", "responseid",
+      list(spec$new_series("a", x = 1, label = "patientqzx")),
+      x_source = "manual"
+    )
+    msg <- tryCatch(spec$apply_spec(s, dat), error = function(e) conditionMessage(e))
+    expect_match(msg, '^"patientqzx": ')
+    expect_false(grepl("qzx", telemetry_schema$scrub_user_strings(msg)))
+  })
+})

@@ -228,3 +228,30 @@ describe("code fields and the nested string allowlist", {
     expect_identical(out$data$x_source, "other")
   })
 })
+
+describe("vocabularies the call sites actually use", {
+  it("accepts the demand_fixed model type and the partial status", {
+    out <- telemetry_schema$sanitize_event(
+      "model_fitting", list(model_type = "demand_fixed", status = "partial")
+    )
+    expect_identical(out$data$model_type, "demand_fixed")
+    expect_identical(out$data$status, "partial")
+  })
+
+  it("keeps the discounting configuration codes", {
+    out <- telemetry_schema$sanitize_event(
+      "configuration_snapshot",
+      list(module = "discounting", type = "MCQ", imputation = "GGM", transformation = "log", method = "x")
+    )
+    expect_identical(out$data$type, "MCQ")
+    expect_identical(out$data$imputation, "GGM")
+    expect_identical(out$data$transformation, "log")
+    expect_identical(out$data$method, "x")
+    expect_identical(out$dropped, character())
+  })
+
+  it("scrubs single-quoted and backticked substrings as well as double-quoted ones", {
+    out <- telemetry_schema$scrub_user_strings("bad 'age', `sex` and \"id\" columns")
+    expect_identical(out, "bad '…', `…` and \"…\" columns")
+  })
+})

@@ -98,6 +98,8 @@ scrub_user_strings <- function(x, max_chars = 500L) {
     return(x)
   }
   out <- gsub('"[^"]*"', '"…"', x)
+  out <- gsub("'[^']*'", "'…'", out)
+  out <- gsub("`[^`]*`", "`…`", out)
   if (nchar(out) > max_chars) {
     out <- substr(out, 1L, max_chars)
   }
@@ -156,9 +158,10 @@ event_schema <- list(
     operation = code, duration_ms = number, status = enum(c("success", "error")),
     worker_rss_mb = number, timestamp = time
   ),
+  # model_type: the demand tab reports "demand_fixed" (fixed-effects fit), the others their module.
   model_fitting = list(
-    model_type = enum(module_values),
-    status = enum(c("started", "completed", "failed", "cancelled", "timeout")),
+    model_type = enum(c(module_values, "demand_fixed")),
+    status = enum(c("started", "completed", "partial", "failed", "cancelled", "timeout")),
     parameters = nested, timestamp = time
   ),
   configuration_snapshot = list(module = enum(module_values), timestamp = time),
@@ -199,7 +202,7 @@ open_types <- "configuration_snapshot"
 nested_code_keys <- c(
   "equation", "equation_form", "aggregation", "covariance_structure", "random_effects",
   "status", "x_source", "layout", "module", "model_type", "delim", "outcome", "analysis_type",
-  "type", "format", "source"
+  "type", "format", "source", "imputation", "transformation", "method"
 )
 nested_text_keys <- c("error", "message", "reason")
 nested_token_pattern <- "^[A-Za-z0-9_.-]{1,40}$"
