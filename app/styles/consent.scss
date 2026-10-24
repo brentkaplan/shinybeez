@@ -1,0 +1,28 @@
+// Consent banner (app/view/consent.R). It renders inside the fixed .app-footer, above the
+// credit line, so it never overlaps content and inherits the footer's theme-aware
+// background and border in both color modes.
+.app-footer .consent-banner {
+  margin-bottom: 0.4rem;
+  padding: 0.5rem 0 0.6rem;
+  border-bottom: 1px solid var(--bs-border-color);
+  font-size: 0.9rem;
+  color: var(--bs-body-color);
+  text-align: left;
+}
+
+.consent-copy {
+  max-width: 70rem;
+}
+
+.consent-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  margin-top: 0.5rem;
+}
+
+.consent-details {
+  margin-left: 0.25rem;
+  font-size: 0.85rem;
+}
