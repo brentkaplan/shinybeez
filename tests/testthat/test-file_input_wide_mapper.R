@@ -61,7 +61,7 @@ describe("file_input rejection opens a mapper request", {
   it("records reshape events under the same module name as validation events", {
     db <- with_sqlite_telemetry()
     shiny$testServer(file_input$server, args = list(type = "mixed_effects_demand"), {
-      as_telemetry_session(session)
+      as_consented_session(session)
       session$setInputs(upload = upload_input("wide-me-with-covariates.csv"))
       expect_equal(mapper_request()$target, "mixed_effects_demand")
     })
@@ -98,7 +98,7 @@ describe("file_input rejection opens a mapper request", {
   it("rejects a header-only file before the mapper, with an empty-data reason", {
     db <- with_sqlite_telemetry()
     shiny$testServer(file_input$server, args = list(type = "demand"), {
-      as_telemetry_session(session)
+      as_consented_session(session)
       session$setInputs(upload = upload_input("wide-header-only.csv"))
       expect_null(mapper_request())
       expect_null(session$userData$data$demand)
@@ -127,7 +127,7 @@ describe("file_input mapper confirm and cancel", {
   it("stores the long frame and fires upload telemetry exactly once", {
     db <- with_sqlite_telemetry()
     shiny$testServer(file_input$server, args = list(type = "demand"), {
-      as_telemetry_session(session)
+      as_consented_session(session)
       session$setInputs(upload = upload_input("wide-qualtrics-apt.csv"))
       req <- mapper_request()
       mapper$result(apt_result(req$token, req$dat))
@@ -183,7 +183,7 @@ describe("file_input mapper confirm and cancel", {
   it("cancel leaves nothing stored and records the outcome", {
     db <- with_sqlite_telemetry()
     shiny$testServer(file_input$server, args = list(type = "demand"), {
-      as_telemetry_session(session)
+      as_consented_session(session)
       session$setInputs(upload = upload_input("wide-qualtrics-apt.csv"))
       req <- mapper_request()
       mapper$cancelled(list(token = req$token, reason = req$reason))
@@ -197,7 +197,7 @@ describe("file_input mapper confirm and cancel", {
   it("a mapper error is recorded and nothing is stored", {
     db <- with_sqlite_telemetry()
     shiny$testServer(file_input$server, args = list(type = "demand"), {
-      as_telemetry_session(session)
+      as_consented_session(session)
       session$setInputs(upload = upload_input("wide-qualtrics-apt.csv"))
       mapper$result(list(error = "boom", token = mapper_request()$token))
       session$flushReact()
@@ -245,7 +245,7 @@ describe("file_input stores a long mapping", {
   it("records layout = long in the reshape telemetry summary", {
     db <- with_sqlite_telemetry()
     shiny$testServer(file_input$server, args = list(type = "demand"), {
-      as_telemetry_session(session)
+      as_consented_session(session)
       session$setInputs(upload = upload_input("long-misnamed.csv"))
       req <- mapper_request()
       mapper$result(long_result(req$token, req$dat))
@@ -261,7 +261,7 @@ describe("file_input stores a long mapping", {
   it("records layout = wide for a pivoted file", {
     db <- with_sqlite_telemetry()
     shiny$testServer(file_input$server, args = list(type = "demand"), {
-      as_telemetry_session(session)
+      as_consented_session(session)
       session$setInputs(upload = upload_input("wide-qualtrics-apt.csv"))
       req <- mapper_request()
       mapper$result(apt_result(req$token, req$dat))

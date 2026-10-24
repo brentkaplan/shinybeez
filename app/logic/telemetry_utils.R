@@ -692,9 +692,12 @@ track_performance <- function(
 #' @param reason Error message or reason for failure (NULL on success)
 #' @param session Shiny session object
 #' @param shape Optional list from upload_shape(): counts and flags, never names or values
+#' @param reason_code Stable code for the failing check (`validate$reason_code()`); the
+#'   `reason` text is scrubbed of the user's strings, the code is what analytics groups by.
 #' @export
 track_validation <- function(
-  module, outcome, check_name = NULL, reason = NULL, session = NULL, shape = list()
+  module, outcome, check_name = NULL, reason = NULL, session = NULL, shape = list(),
+  reason_code = NULL
 ) {
   track_event(
     event_name = "validation_outcome",
@@ -703,7 +706,8 @@ track_validation <- function(
         module = module,
         outcome = outcome,
         check_name = check_name,
-        reason = reason,
+        reason = if (is.null(reason)) NULL else as.character(reason),
+        reason_code = reason_code,
         timestamp = Sys.time()
       ),
       shape
@@ -947,8 +951,10 @@ create_session_telemetry <- function(session) {
     track_export = function(export_type, module = NULL, file_format = NULL, row_count = NULL) {
       track_export(export_type, module, file_format, row_count, session)
     },
-    track_validation = function(module, outcome, check_name = NULL, reason = NULL, shape = list()) {
-      track_validation(module, outcome, check_name, reason, session, shape)
+    track_validation = function(
+      module, outcome, check_name = NULL, reason = NULL, shape = list(), reason_code = NULL
+    ) {
+      track_validation(module, outcome, check_name, reason, session, shape, reason_code)
     },
     track_reshape = function(target, outcome, summary = list()) {
       track_reshape(target, outcome, summary, session)

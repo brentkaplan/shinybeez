@@ -111,7 +111,16 @@ scrub_user_strings <- function(x, max_chars = 500L) {
 nav_values <- c("Welcome", "Demand", "Discounting", "MixedEffectsDemand")
 module_values <- c("demand", "discounting", "mixed_effects")
 
+# Kinds of value a key may hold:
+# - enum: one of a closed set, anything else becomes "other";
+# - code: a single code-shaped token (letters, digits, `_ . -`, max 40 chars) such as an
+#   equation name, a check name or a version string; anything else becomes "other". Free
+#   text can never hide in a code field;
+# - text: free text that may quote the user's strings; scrubbed and truncated;
+# - number, flag, time: scalars of that type, else dropped;
+# - nested: a list checked key by key with the nested rule below.
 enum <- function(values) list(kind = "enum", values = values)
+code <- list(kind = "code")
 text <- function(max_chars) list(kind = "text", max_chars = max_chars)
 number <- list(kind = "number")
 flag <- list(kind = "flag")
@@ -120,11 +129,11 @@ nested <- list(kind = "nested")
 
 event_schema <- list(
   session_start = list(
-    url_search = text(200L), url = text(100L),
+    url_search = text(200L), url = code,
     consent = enum(LEVELS),
     consent_source = enum(c("stored", "default", "default_eu", "changed")),
-    app_version = text(20L), platform = enum(c("web", "desktop")),
-    r_version = text(20L), os = text(40L)
+    app_version = code, platform = enum(c("web", "desktop")),
+    r_version = code, os = code
   ),
   session_end = list(
     session_duration = number, last_tab = enum(nav_values), consent = enum(LEVELS)
@@ -138,14 +147,14 @@ event_schema <- list(
   ),
   validation_outcome = list(
     module = enum(module_values), outcome = enum(c("success", "failure")),
-    check_name = text(40L), reason = text(500L), reason_code = text(40L), timestamp = time,
+    check_name = code, reason = text(500L), reason_code = code, timestamp = time,
     n_cols = number, n_rows = number, n_numeric_cols = number,
     delim = enum(c("comma", "semicolon", "tab", "unknown")),
     first_col_id_like = flag, any_id_like = flag, has_qualtrics_meta = flag
   ),
   performance = list(
-    operation = text(80L), duration_ms = number, status = enum(c("success", "error")),
-    timestamp = time
+    operation = code, duration_ms = number, status = enum(c("success", "error")),
+    worker_rss_mb = number, timestamp = time
   ),
   model_fitting = list(
     model_type = enum(module_values),
@@ -157,18 +166,24 @@ event_schema <- list(
     file_size = number, rows = number, cols = number,
     file_type = enum(c("csv", "tsv", "txt", "xlsx", "xls", "other")), reshaped = flag
   ),
+  # DT button labels (copy/csv/excel/pdf/print), the plot download relay, Export All.
   result_export = list(
-    export_type = text(20L), module = enum(c(module_values, "unknown")),
-    file_format = text(10L), row_count = number, timestamp = time
+    export_type = enum(c("copy", "csv", "excel", "pdf", "print", "plot", "xlsx_all", "unknown")),
+    module = enum(c(module_values, "unknown")),
+    file_format = enum(c(
+      "copy", "csv", "tsv", "excel", "xlsx", "xls", "pdf", "print",
+      "png", "svg", "jpeg", "jpg", "bmp", "eps", "tiff", "pptx", "unknown"
+    )),
+    row_count = number, timestamp = time
   ),
   reshape = list(
     target = enum(module_values), outcome = enum(c("opened", "confirmed", "cancelled")),
     layout = enum(c("wide", "long")),
     n_series = number, n_cols_in = number, n_rows_out = number, n_dropped = number,
-    x_source = text(20L), timestamp = time
+    x_source = enum(c("header", "manual", "none")), timestamp = time
   ),
   input_interaction = list(
-    input_id = text(80L), input_type = text(40L), module = text(40L), timestamp = time
+    input_id = code, input_type = code, module = code, timestamp = time
   )
 )
 
@@ -176,6 +191,16 @@ event_schema <- list(
 # (their payload is a caller-supplied settings list with module-specific keys).
 open_types <- "configuration_snapshot"
 
+# The nested rule for strings. Only these keys may hold a string at all: the code keys hold
+# fixed-vocabulary codes (equation names, aggregation, covariance structure, model parameter
+# names), the text keys hold messages that are scrubbed. Any other string key is dropped,
+# whatever its value looks like: `factors`, `covariates`, `col` and the like are the user's
+# column names, which are often code-shaped themselves.
+nested_code_keys <- c(
+  "equation", "equation_form", "aggregation", "covariance_structure", "random_effects",
+  "status", "x_source", "layout", "module", "model_type", "delim", "outcome", "analysis_type",
+  "type", "format", "source"
+)
 nested_text_keys <- c("error", "message", "reason")
 nested_token_pattern <- "^[A-Za-z0-9_.-]{1,40}$"
 
@@ -187,6 +212,11 @@ coerce_value <- function(value, rule) {
     number = if (is.numeric(value) && length(value) == 1L) value else NULL,
     flag = if (is.logical(value) && length(value) == 1L && !is.na(value)) value else NULL,
     enum = if (is_scalar(value) && as.character(value) %in% rule$values) {
+      as.character(value)
+    } else {
+      "other"
+    },
+    code = if (is_scalar(value) && grepl(nested_token_pattern, as.character(value))) {
       as.character(value)
     } else {
       "other"
@@ -205,8 +235,9 @@ coerce_value <- function(value, rule) {
   )
 }
 
-# The nested rule: numbers, flags and NULLs pass; a string passes when it is a code-shaped
-# token, or (under a text key) when scrubbed; everything else is dropped.
+# The nested rule: numbers, flags and NULLs pass; a string passes only under a known code key
+# (and then only as a code-shaped token, else "other") or a known text key (scrubbed);
+# everything else is dropped.
 nested_value <- function(key, value) {
   if (is.null(value)) {
     return(list(keep = TRUE, value = NULL))
@@ -221,8 +252,9 @@ nested_value <- function(key, value) {
     if (key %in% nested_text_keys) {
       return(list(keep = TRUE, value = scrub_user_strings(value, 200L)))
     }
-    if (grepl(nested_token_pattern, value)) {
-      return(list(keep = TRUE, value = value))
+    if (key %in% nested_code_keys) {
+      kept <- if (grepl(nested_token_pattern, value)) value else "other"
+      return(list(keep = TRUE, value = kept))
     }
   }
   list(keep = FALSE, value = NULL)

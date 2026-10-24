@@ -759,15 +759,19 @@ navpanel_server <- function(id, sidebar_reactives, fit_task) {
       cov_info <- build_covariate_modeling_info(df)
       cont_covars_to_pass <- cov_info$model_covariate_name
 
+      # Counts and fixed-vocabulary codes only: factor and covariate names are the user's
+      # column names and must never reach telemetry. random_params_for_formula holds model
+      # parameter names (Q0, alpha, k), not columns.
       telemetry_utils$track_configuration(
         "mixed_effects",
         config = list(
           equation_form = sidebar_reactives$equation_form(),
-          factors = paste(sel_factors, collapse = ","),
+          n_factors = length(sel_factors),
           factor_interaction = sidebar_reactives$factor_interaction(),
-          random_effects = random_formula_str,
+          random_effects = paste(random_params_for_formula, collapse = "_"),
+          n_random_effects = length(random_params_for_formula),
           covariance_structure = sidebar_reactives$covariance_structure(),
-          covariates = paste(cont_covars_to_pass, collapse = ","),
+          n_covariates = length(cont_covars_to_pass),
           n_rows = nrow(df),
           n_groups = length(unique(df[[sidebar_reactives$id_var()]]))
         ),
@@ -777,7 +781,7 @@ navpanel_server <- function(id, sidebar_reactives, fit_task) {
         "mixed_effects",
         parameters = list(
           equation = sidebar_reactives$equation_form(),
-          factors = paste(sel_factors, collapse = ",")
+          n_factors = length(sel_factors)
         ),
         status = "started",
         session = session
@@ -818,9 +822,11 @@ navpanel_server <- function(id, sidebar_reactives, fit_task) {
       }
       shiny$removeNotification(p$notif_id)
       on.exit(pending_fit(NULL), add = TRUE)
+      # Telemetry parameters: the equation code and a factor COUNT (factor names are the
+      # user's column names).
       fit_params <- list(
         equation = p$equation_form,
-        factors = paste(p$sel_factors, collapse = ",")
+        n_factors = length(p$sel_factors)
       )
 
       if (identical(st, "success")) {

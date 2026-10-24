@@ -8,13 +8,39 @@ box::use(
   stats
 )
 
+#' A rejection message with a stable machine-readable code
+#'
+#' Messages quote the user's headers and are scrubbed before telemetry records them; the
+#' code survives the scrub, so analytics can group failures by cause. The code rides along
+#' as an attribute: callers that only test `is.character()` and print the message are unchanged.
+#' @param code A snake_case identifier for the failing check.
+#' @param ... Pieces of the message, pasted with `paste0()`.
+#' @return A character scalar with attribute `code`.
+coded <- function(code, ...) {
+  structure(paste0(...), code = code)
+}
+
+#' The code behind a rejection message
+#' @param msg Whatever `check_data()` and friends returned.
+#' @return `NULL` when `msg` is not a message (the check passed), the code when it carries one,
+#'   otherwise `"unspecified"`.
+#' @export
+reason_code <- function(msg) {
+  if (!is.character(msg)) {
+    return(NULL)
+  }
+  code <- attr(msg, "code", exact = TRUE)
+  if (is.null(code)) "unspecified" else code
+}
+
 #' Validate a single assertion, returning error message or TRUE
 #' @param condition Logical condition
 #' @param msg Error message if condition fails
+#' @param code Reason code attached to the message (see `coded()`)
 #' @return TRUE if valid, or character error message
-validate_condition <- function(condition, msg) {
+validate_condition <- function(condition, msg, code = "unspecified") {
   result <- assertthat$validate_that(condition, msg = msg)
-  if (is.character(result)) return(result)
+  if (is.character(result)) return(coded(code, result))
   TRUE
 }
 
@@ -88,7 +114,7 @@ price_col_index <- function(dat) {
 check_price_headers <- function(dat) {
   idx <- price_col_index(dat)
   if (length(idx) == 0) {
-    return("There are no price columns in the data.")
+    return(coded("no_price_columns", "There are no price columns in the data."))
   }
 
   headers <- colnames(dat)[idx]
@@ -97,7 +123,8 @@ check_price_headers <- function(dat) {
 
   bad <- headers[is.na(parsed)]
   if (length(bad) > 0) {
-    return(paste0(
+    return(coded(
+      "unparsable_price_headers",
       "The column names are not numeric. Could not parse these price headers: ",
       paste0("\"", bad, "\"", collapse = ", "), "."
     ))
@@ -105,7 +132,8 @@ check_price_headers <- function(dat) {
 
   dupes <- unique(parsed[duplicated(parsed)])
   if (length(dupes) > 0) {
-    return(paste0(
+    return(coded(
+      "duplicate_price_headers",
       "Duplicate price columns. These headers all resolve to the same price: ",
       paste0("\"", headers[parsed %in% dupes], "\"", collapse = ", "),
       ". Please give each price a single column."
@@ -123,14 +151,16 @@ check_demand_data <- function(dat) {
     if ("group" %in% colnames(dat)) {
       chk <- validate_condition(
         all(colnames(dat)[1:2] == c("id", "group")),
-        "The first two columns do not match `id`, `group`"
+        "The first two columns do not match `id`, `group`",
+        code = "first_columns_not_id_group"
       )
       if (is.character(chk)) return(chk)
       dat <- dplyr$relocate(dat, group, .after = id)
     } else {
       chk <- validate_condition(
         colnames(dat)[1] == "id",
-        "The first column is not `id`"
+        "The first column is not `id`",
+        code = "first_column_not_id"
       )
       if (is.character(chk)) return(chk)
     }
@@ -154,7 +184,8 @@ check_demand_sufficiency <- function(dat) {
   if (demand_format(dat) == "wide") {
     # One price column gives every participant a single point once reshaped.
     if (length(price_col_index(dat)) < 2) {
-      return(paste0(
+      return(coded(
+        "too_few_price_columns",
         "The data have fewer than two price columns. Each participant needs at ",
         "least two price points to fit a demand curve."
       ))
@@ -173,7 +204,8 @@ check_demand_sufficiency <- function(dat) {
   )
   short <- names(distinct_prices)[distinct_prices < 2]
   if (length(short) > 0) {
-    return(paste0(
+    return(coded(
+      "insufficient_price_points",
       "After removing missing values these ids have fewer than two distinct ",
       "price points: ", paste0("\"", short, "\"", collapse = ", "),
       ". Each participant needs at least two price points to fit a demand curve."
@@ -188,19 +220,22 @@ check_demand_sufficiency <- function(dat) {
 check_mixed_effects_data <- function(dat) {
   chk <- validate_condition(
     any(c("monkey", "id") %in% colnames(dat)),
-    "ID column ('monkey' or 'id') not found."
+    "ID column ('monkey' or 'id') not found.",
+    code = "me_missing_id"
   )
   if (is.character(chk)) return(chk)
 
   chk <- validate_condition(
     "x" %in% colnames(dat),
-    "Price/X column ('x') not found."
+    "Price/X column ('x') not found.",
+    code = "me_missing_x"
   )
   if (is.character(chk)) return(chk)
 
   chk <- validate_condition(
     any(c("y", "y_ll4") %in% colnames(dat)),
-    "Consumption column ('y' or 'y_ll4') not found."
+    "Consumption column ('y' or 'y_ll4') not found.",
+    code = "me_missing_y"
   )
   if (is.character(chk)) return(chk)
 
@@ -213,29 +248,37 @@ check_mixed_effects_data <- function(dat) {
 check_wide_discounting <- function(dat) {
   delay_headers <- colnames(dat)[-1]
   if (length(delay_headers) < 2) {
-    return("Wide indifference point data need `id` plus at least two delay columns.")
+    return(coded(
+      "wide_ip_needs_delays",
+      "Wide indifference point data need `id` plus at least two delay columns."
+    ))
   }
   parsed <- parse_header_number(delay_headers)
   bad <- delay_headers[is.na(parsed)]
   if (length(bad) > 0) {
-    return(paste0(
+    return(coded(
+      "unparsable_delay_headers",
       "Wide indifference point data must have one numeric delay per column header. ",
       "Could not parse: ", paste0("\"", bad, "\"", collapse = ", "), "."
     ))
   }
   dupes <- unique(parsed[duplicated(parsed)])
   if (length(dupes) > 0) {
-    return(paste0(
+    return(coded(
+      "duplicate_delay_headers",
       "Duplicate delay columns. These headers all resolve to the same delay: ",
       paste0("\"", delay_headers[parsed %in% dupes], "\"", collapse = ", "),
       ". Please give each delay a single column."
     ))
   }
   if (any(parsed <= 0)) {
-    return("Wide indifference point data must have delays greater than zero in every column header.")
+    return(coded(
+      "nonpositive_delays",
+      "Wide indifference point data must have delays greater than zero in every column header."
+    ))
   }
   if (anyDuplicated(dat$id) > 0) {
-    return("Wide indifference point data must have one row per id.")
+    return(coded("wide_ip_one_row_per_id", "Wide indifference point data must have one row per id."))
   }
   TRUE
 }
@@ -262,7 +305,8 @@ check_discounting_data <- function(dat) {
     #     NA-row dropping defeats MCQ imputation.
     if (ncol(dat) == 28 && identical(cols[1], "subjectid")) return(TRUE)
     if (identical(cols, c("subjectid", "questionid", "response"))) return(TRUE)
-    return(paste0(
+    return(coded(
+      "mcq_shape",
       "27-Item MCQ data must be either 28 columns wide with subjectid first ",
       "(subjectid + 27 items) or exactly subjectid, questionid, response ",
       "(long, in that order)."
@@ -273,7 +317,8 @@ check_discounting_data <- function(dat) {
     i_cols <- grep("^i[0-9]+$", cols, value = TRUE)
     return(validate_condition(
       length(i_cols) >= 1,
-      "Check to make sure you are using the correct Qualtrics template."
+      "Check to make sure you are using the correct Qualtrics template.",
+      code = "qualtrics_template"
     ))
   }
 
@@ -285,10 +330,11 @@ check_discounting_data <- function(dat) {
     if (identical(cols[1], "id") && !any(c("x", "y") %in% cols)) {
       return(check_wide_discounting(dat))
     }
-    return("Indifference point data must have exactly three columns: id, x, y")
+    return(coded("ip_three_columns", "Indifference point data must have exactly three columns: id, x, y"))
   }
 
-  paste0(
+  coded(
+    "unrecognised_discounting_format",
     "Unrecognised discounting data format. Expected 27-Item MCQ data ",
     "(subjectid), 5.5-Trial data (ResponseId), or Indifference Point ",
     "data (id, x, y)."
@@ -304,7 +350,10 @@ check_data <- function(dat, type = "demand") {
     error = function(e) NULL
   )
   if (is.null(normalized)) {
-    return("Column names contain invalid characters. Is this a valid data file?")
+    return(coded(
+      "invalid_column_names",
+      "Column names contain invalid characters. Is this a valid data file?"
+    ))
   }
   colnames(dat) <- normalized
 

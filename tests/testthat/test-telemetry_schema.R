@@ -196,3 +196,35 @@ describe("sanitize_event()", {
     expect_identical(out$dropped, character())
   })
 })
+
+describe("code fields and the nested string allowlist", {
+  it("turns free text in a code field into other", {
+    out <- telemetry_schema$sanitize_event(
+      "result_export", list(export_type = "csv", file_format = "my data.csv")
+    )
+    expect_identical(out$data$export_type, "csv")
+    expect_identical(out$data$file_format, "other")
+  })
+
+  it("drops a nested string under a key that is not a known code or text key", {
+    out <- telemetry_schema$sanitize_event(
+      "error", list(error_message = "x", details = list(col = "age", n = 2L, equation = "hs"))
+    )
+    expect_false("col" %in% names(out$data$details))
+    expect_identical(out$data$details$n, 2L)
+    expect_identical(out$data$details$equation, "hs")
+    expect_identical(out$dropped, "details.col")
+  })
+
+  it("turns a non-token value under a nested code key into other", {
+    out <- telemetry_schema$sanitize_event(
+      "model_fitting", list(model_type = "demand", parameters = list(equation = "my equation"))
+    )
+    expect_identical(out$data$parameters$equation, "other")
+  })
+
+  it("maps reshape x_source outside its vocabulary to other", {
+    out <- telemetry_schema$sanitize_event("reshape", list(target = "demand", x_source = "age"))
+    expect_identical(out$data$x_source, "other")
+  })
+})

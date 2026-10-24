@@ -55,3 +55,12 @@ consented_session <- function(level = "usage") {
   telemetry_utils$set_session_consent(s, level, "stored")
   s
 }
+
+# For shiny::testServer bodies: give the mock session the class shiny.telemetry needs AND a
+# known consent level, so the module's telemetry rows reach the database.
+as_consented_session <- function(session, level = "usage") {
+  box::use(app / logic / telemetry_utils)
+  as_telemetry_session(session)
+  telemetry_utils$set_session_consent(session, level, "stored")
+  session
+}
