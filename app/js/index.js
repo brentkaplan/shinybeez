@@ -194,8 +194,10 @@ function applyLocally(level) {
   applyGA(level);
 }
 
-// Handshake: tell R the session's level as soon as the connection is up.
-document.addEventListener('shiny:connected', () => {
+// Handshake: tell R the session's level as soon as the connection is up. Shiny fires its
+// lifecycle events through jQuery, so they must be bound with jQuery: a native
+// addEventListener never sees them.
+$(document).on('shiny:connected', () => {
   const stored = readStoredConsent();
   const payload = stored
     ? { level: stored.level, source: 'stored', ts: stored.ts }
@@ -226,7 +228,7 @@ document.addEventListener('click', (event) => {
   Shiny.setInputValue('consent_open', Date.now(), { priority: 'event' });
 });
 
-document.addEventListener('shiny:inputchanged', (event) => {
+$(document).on('shiny:inputchanged', (event) => {
   if (event.name === 'nav') {
     trackPage(event.value);
   }

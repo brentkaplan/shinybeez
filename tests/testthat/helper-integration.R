@@ -362,7 +362,11 @@ upload_and_wait <- function(app, input_id, file_path, timeout_ms = 15000) {
 # AppDriver factory
 # ---------------------------------------------------------------------------
 
-create_app_driver <- function(...) {
+# `env`: named character vector of environment variables for the app subprocess, applied
+# over the telemetry/GA-off defaults below (the consent tests turn both on against a
+# throwaway SQLite file). `port`: pin it to reuse an origin (and its localStorage) across
+# two drivers in the same Chrome.
+create_app_driver <- function(..., env = character(), port = httpuv::randomPort()) {
   skip_if_not_integration()
 
   # Disable telemetry and GA in the subprocess
@@ -377,22 +381,25 @@ create_app_driver <- function(...) {
   options(chromote.timeout = 30)
 
   tryCatch(
-    shinytest2::AppDriver$new(
-      app_dir = find_project_root(),
-      name = "shinybeez",
-      height = 900,
-      width = 1200,
-      load_timeout = 30000,
-      timeout = 15000,
-      seed = 12345,
-      check_names = FALSE,
-      # Override .Rprofile's shiny.port=3838 with a random port
-      options = list(
-        shiny.testmode = TRUE,
-        shiny.port = httpuv::randomPort(),
-        shiny.host = "127.0.0.1"
-      ),
-      ...
+    withr::with_envvar(
+      env,
+      shinytest2::AppDriver$new(
+        app_dir = find_project_root(),
+        name = "shinybeez",
+        height = 900,
+        width = 1200,
+        load_timeout = 30000,
+        timeout = 15000,
+        seed = 12345,
+        check_names = FALSE,
+        # Override .Rprofile's shiny.port=3838 with a random port
+        options = list(
+          shiny.testmode = TRUE,
+          shiny.port = port,
+          shiny.host = "127.0.0.1"
+        ),
+        ...
+      )
     ),
     error = function(e) {
       testthat::skip(paste(
