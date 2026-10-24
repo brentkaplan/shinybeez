@@ -168,6 +168,31 @@ ui <- function(id) {
   )
 }
 
+#' Handler for errors Shiny could not recover from
+#'
+#' Replaces shiny.telemetry's own `track_errors` handler, whose rows carried the raw
+#' condition message under a key the analytics consumer never reads. This one goes through
+#' `track_error()`, so the message is scrubbed and lands as a normal `error` row with
+#' `context = "unhandled"`. It must never throw: it runs while the session is already dying.
+#' @param session_telemetry The tracker from `telemetry_utils$create_session_telemetry()`.
+#' @return A function of one condition, for `shiny::onUnhandledError()`.
+#' @export
+unhandled_error_handler <- function(session_telemetry) {
+  function(e) {
+    tryCatch(
+      {
+        message <- tryCatch(conditionMessage(e), error = function(err) NULL)
+        if (is.null(message) || !nzchar(message)) {
+          message <- paste("unhandled", class(e)[1])
+        }
+        session_telemetry$track_error(message, error_context = "unhandled")
+      },
+      error = function(err) NULL
+    )
+    invisible(NULL)
+  }
+}
+
 #' @export
 server <- function(id) {
   shiny$moduleServer(id, function(input, output, session) {
@@ -178,30 +203,13 @@ server <- function(id) {
     session_telemetry <- telemetry_utils$create_session_telemetry(session)
     session$userData$.start_time <- Sys.time()
 
-    # Initialize telemetry session tracking
-    if (telemetry_utils$is_telemetry_enabled()) {
-      tryCatch(
-        {
-          telemetry <- telemetry_utils$get_telemetry()
-          if (!is.null(telemetry)) {
-            telemetry$start_session(session = session, track_values = FALSE)
-          }
-        },
-        error = function(e) {
-          session_logger$warn("Failed to start telemetry session: {e$message}")
-        }
-      )
-    }
+    # shiny.telemetry's session (input/login/logout observers) and the session_start row are
+    # started by the consent module once the browser has sent the session's consent level.
+    shiny$onUnhandledError(unhandled_error_handler(session_telemetry), session = session)
 
     # Log session start
     session_logger$info("New user session started", "session_lifecycle")
     session_logger$user_activity("Session initialized", module = "main")
-
-    # Track session start in telemetry
-    session_telemetry$track_event(
-      "session_start",
-      telemetry_utils$session_start_data(session)
-    )
 
     # Initialize reactive data storage
     session$userData$data <- shiny$reactiveValues()
