@@ -12,6 +12,12 @@ box::use(
   DBI,
 )
 
+box::use(
+  app / logic / consent_registry,
+  app / logic / startup_info,
+  app / logic / telemetry_schema,
+)
+
 # Global telemetry object
 .telemetry_env <- new.env(parent = emptyenv())
 .telemetry_env$telemetry <- NULL
@@ -158,6 +164,63 @@ set_sqlite_wal <- function(storage) {
   })
 }
 
+# ---------------------------------------------------------------------------------------
+# Consent gate, shared by every storage class
+# ---------------------------------------------------------------------------------------
+
+drop_reasons <- c("error", "consent", "expired", "no_token", "closed")
+
+new_counters <- function() {
+  env <- new.env(parent = emptyenv())
+  for (reason in drop_reasons) assign(reason, 0L, envir = env)
+  env
+}
+
+bump <- function(counters, reason, by = 1L) {
+  assign(reason, get(reason, envir = counters) + as.integer(by), envir = counters)
+}
+
+counters_vector <- function(counters) {
+  vapply(drop_reasons, function(r) get(r, envir = counters), integer(1))
+}
+
+#' Decide whether a storage write may proceed
+#'
+#' Called by every storage class's private `write()` before it touches its backend. The
+#' session token on the row selects the consent level from `consent_registry`; a token with
+#' no level yet parks the row in the pending buffer, a token for an ended session or a missing
+#' token drops it, and a level below the row's tier drops it. Every drop is counted on
+#' `counters` under its reason.
+#'
+#' @param values The row shiny.telemetry built (`time`, `app_name`, `session`, `type`, `details`).
+#' @param counters An environment from `new_counters()`.
+#' @return `"write"` when the backend write should happen, `"handled"` otherwise.
+gate_decision <- function(values, counters) {
+  bump(counters, "expired", consent_registry$expire())
+  decision <- consent_registry$decide(values$session, values$type)
+  switch(decision,
+    write = "write",
+    buffer = {
+      if (!consent_registry$buffer(values$session, values)) {
+        bump(counters, "expired")
+      }
+      "handled"
+    },
+    drop_consent = {
+      bump(counters, "consent")
+      "handled"
+    },
+    drop_no_token = {
+      bump(counters, "no_token")
+      "handled"
+    },
+    drop_closed = {
+      bump(counters, "closed")
+      "handled"
+    }
+  )
+}
+
 #' SQLite telemetry storage whose writes survive other containers' commits
 #'
 #' Several containers share one `telemetry.sqlite`. shiny.telemetry writes through
@@ -173,19 +236,36 @@ set_sqlite_wal <- function(storage) {
 #' had within the timeout, or anything else goes wrong, the event is dropped, counted and
 #' logged; it is never raised. A user session must not end because a telemetry row failed.
 #'
-#' `dropped_writes()` reports the count for tests and health checks.
+#' Every write first passes the consent gate (`gate_decision()`): this is the one point that
+#' sees the rows shiny.telemetry writes on its own as well as the app's `track_*()` rows.
+#' `dropped_writes()` reports the counts by reason for tests and health checks.
 DataStorageSQLiteResilient <- R6$R6Class( # nolint: object_name_linter.
   "DataStorageSQLiteResilient",
   inherit = shiny.telemetry::DataStorageSQLite,
   public = list(
-    #' @description Number of writes dropped on this connection since it was opened.
+    initialize = function(...) {
+      private$counters <- new_counters()
+      super$initialize(...)
+    },
+    #' @description Writes dropped on this connection since it was opened, by reason:
+    #'   `error` (backend failure), `consent`, `expired` (pending buffer), `no_token`, `closed`.
     dropped_writes = function() {
-      private$n_dropped
+      counters_vector(private$counters)
+    },
+    #' @description Re-submit rows the consent registry buffered before the level was known.
+    replay = function(values_list) {
+      for (values in values_list) {
+        private$write(values, self$event_bucket)
+      }
+      invisible(NULL)
     }
   ),
   private = list(
-    n_dropped = 0L,
+    counters = NULL,
     write = function(values, bucket) {
+      if (!identical(gate_decision(values, private$counters), "write")) {
+        return(invisible(FALSE))
+      }
       con <- private$db_con
       in_txn <- FALSE
       ok <- tryCatch(
@@ -200,7 +280,7 @@ DataStorageSQLiteResilient <- R6$R6Class( # nolint: object_name_linter.
           if (in_txn) {
             try(DBI::dbExecute(con, "ROLLBACK"), silent = TRUE)
           }
-          private$n_dropped <- private$n_dropped + 1L
+          bump(private$counters, "error")
           msg <- conditionMessage(e)
           # The handler must not become the thing that throws.
           try(log$warn("telemetry write dropped: {msg}"), silent = TRUE)
@@ -318,9 +398,16 @@ track_event <- function(event_name, event_data = list(), session = NULL) {
   }
 
   tryCatch({
+    # Every payload is checked against the event schema first: unknown keys go, user
+    # strings are scrubbed, enums outside their set become "other".
+    clean <- telemetry_schema$sanitize_event(event_name, event_data)
+    if (length(clean$dropped) > 0) {
+      dropped_keys <- paste(clean$dropped, collapse = ", ")
+      log$debug("telemetry {event_name}: dropped keys {dropped_keys}")
+    }
     # Serialize event data to JSON string for the details param
-    details <- if (length(event_data) > 0) {
-      toJSON(event_data, auto_unbox = TRUE, null = "null")
+    details <- if (length(clean$data) > 0) {
+      toJSON(clean$data, auto_unbox = TRUE, null = "null")
     } else {
       NULL
     }
@@ -336,6 +423,120 @@ track_event <- function(event_name, event_data = list(), session = NULL) {
   }, error = function(e) {
     log$warn("Failed to track telemetry event {event_name}: {e$message}")
   })
+}
+
+# ---------------------------------------------------------------------------------------
+# Consent entry points (called by app/view/consent.R and app/main.R)
+# ---------------------------------------------------------------------------------------
+
+#' Arguments for shiny.telemetry's `start_session()` at the usage level
+#'
+#' Kept in one place so a test can pin them. `track_values = FALSE` because the package's
+#' own `input` rows never pass through the event schema; `browser_version`, `track_errors`
+#' and `track_anonymous_user` are off because the app records its own versions and errors
+#' and must set no identifying cookie. The username is the session token, so `login` rows
+#' carry nothing a cookie would.
+#' @export
+usage_start_args <- function(session) {
+  list(
+    track_inputs = TRUE,
+    track_values = FALSE,
+    login = TRUE,
+    logout = TRUE,
+    browser_version = FALSE,
+    track_errors = FALSE,
+    track_anonymous_user = FALSE,
+    session = session,
+    username = session$token
+  )
+}
+
+#' Apply a session's consent level
+#'
+#' Idempotent: the same level twice does nothing. Otherwise, in this order: record the level;
+#' write the canonical `session_start` (once per session, as soon as the level is above
+#' `none`); write `consent_change` when a level was already known; release the rows the gate
+#' buffered before the level arrived (they keep their earlier timestamps; the consumer's
+#' session start is `min(time)`); and at `usage`, start shiny.telemetry's input/login/logout
+#' observers, once per session.
+#'
+#' @param session Shiny session (needs `$token` and `$userData`).
+#' @param level One of `none`, `diagnostic`, `usage`.
+#' @param source Where the level came from: `stored`, `default`, `default_eu`, `banner`,
+#'   `settings`. Recorded as `consent_source` on `session_start` (a change after a known
+#'   level is recorded as `changed`) and as `source` on `consent_change`.
+#' @param platform `web` or `desktop`; the default reads config.yml.
+#' @return Invisibly, the previous level (NULL the first time).
+#' @export
+set_session_consent <- function(session, level, source, platform = startup_info$platform()) {
+  token <- session$token
+  current <- consent_registry$get_level(token)
+  if (identical(current, level)) {
+    return(invisible(current))
+  }
+  prev <- consent_registry$set_level(token, level)
+  if (!is_telemetry_enabled()) {
+    return(invisible(prev))
+  }
+  telemetry <- get_telemetry()
+
+  if (level != "none" && !isTRUE(session$userData$.session_started)) {
+    consent_source <- if (is.null(prev)) source else "changed"
+    if (identical(consent_source, "changed")) {
+      session$userData$.start_time <- Sys.time()
+    }
+    track_event(
+      "session_start",
+      c(
+        session_start_data(session),
+        list(
+          consent = level,
+          consent_source = consent_source,
+          app_version = startup_info$app_version(),
+          platform = platform
+        )
+      ),
+      session
+    )
+    session$userData$.session_started <- TRUE
+  }
+
+  if (!is.null(prev)) {
+    track_event("consent_change", list(from = prev, to = level, source = source), session)
+  }
+
+  tryCatch(
+    telemetry$data_storage$replay(consent_registry$drain(token)),
+    error = function(e) log$warn("Failed to replay buffered telemetry rows: {e$message}")
+  )
+
+  if (level == "usage" && !isTRUE(session$userData$.telemetry_usage_started)) {
+    tryCatch(
+      {
+        do.call(telemetry$start_session, usage_start_args(session))
+        session$userData$.telemetry_usage_started <- TRUE
+      },
+      error = function(e) log$warn("Failed to start telemetry session observers: {e$message}")
+    )
+  }
+  invisible(prev)
+}
+
+#' Forget a session's consent at session end
+#'
+#' Call after the `session_end` row is written. The token is tombstoned so rows written by
+#' callbacks that run later (shiny.telemetry's logout) are dropped, not buffered.
+#' @export
+end_session_consent <- function(session) {
+  consent_registry$end_session(session$token)
+  invisible(NULL)
+}
+
+#' The session's current consent level, `none` when not yet known
+#' @export
+current_consent <- function(session) {
+  level <- consent_registry$get_level(session$token)
+  if (is.null(level)) "none" else level
 }
 
 #' Build the session_start event payload
@@ -754,6 +955,12 @@ create_session_telemetry <- function(session) {
     },
     track_configuration = function(module, config = list()) {
       track_configuration(module, config, session)
+    },
+    set_consent = function(level, source) {
+      set_session_consent(session, level, source)
+    },
+    consent = function() {
+      current_consent(session)
     }
   )
 }
