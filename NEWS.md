@@ -1,3 +1,28 @@
+# shinybeez 1.4.0 (development)
+
+## New Features
+
+- **Analytics consent** — a banner on first visit lets you choose what the
+  app may send: *Nothing*, *Diagnostics only* (errors, failed uploads and
+  timings, as counts) or *Usage and diagnostics* (which tools and settings are
+  used; on the hosted app this level also enables Google Analytics). The choice
+  is stored in the browser and can be changed any time from the shield icon in
+  the navbar or the Welcome page. Visitors in the EU/EEA/UK/CH default to
+  *Diagnostics only*; everyone else to *Usage and diagnostics*. Google Analytics
+  is now loaded by the browser only at the usage level, never by the server,
+  and the anonymous-user cookie the telemetry package used to set is gone.
+
+## Bug Fixes
+
+- Performance telemetry rows now carry the session token; every one of them
+  used to be unattributable.
+- Errors Shiny could not recover from are recorded as normal error rows
+  (context `unhandled`) instead of the telemetry package's own unread format.
+- Telemetry payloads are checked against a per-event schema before they are
+  stored: quoted user strings in messages are replaced by an ellipsis, factor
+  and covariate names are recorded as counts, and file names never leave the
+  session. Validation failures carry a stable `reason_code`.
+
 # shinybeez 1.3.0
 
 ## New Features

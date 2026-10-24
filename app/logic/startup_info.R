@@ -18,7 +18,7 @@ known_backends <- c("sqlite", "postgresql")
 # Release version, recorded on every telemetry session_start row. NEWS.md is not shipped in
 # the Docker image or the desktop bundle, so the value lives here; a test pins it to the
 # first NEWS.md heading so a release bump cannot skip it.
-APP_VERSION <- "1.3.0" # nolint: object_name_linter.
+APP_VERSION <- "1.4.0" # nolint: object_name_linter.
 
 #' @export
 app_version <- function() APP_VERSION
