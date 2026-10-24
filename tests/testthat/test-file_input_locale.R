@@ -38,7 +38,7 @@ describe("file_input with semicolon CSVs", {
   it("logs the shape of a rejected upload without its column names", {
     db <- with_sqlite_telemetry()
     shiny$testServer(file_input$server, args = list(type = "demand"), {
-      as_telemetry_session(session)
+      as_consented_session(session)
       session$setInputs(upload = upload_input("wide-qualtrics-apt.csv"))
       expect_false(is.null(mapper_request()))
     })
