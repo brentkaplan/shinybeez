@@ -1,5 +1,6 @@
 box::use(
   bslib,
+  jsonlite,
   rhino,
   sass,
   shiny
@@ -13,6 +14,7 @@ box::use(
   app / logic / startup_info,
   app / logic / telemetry_utils,
   app / logic / theme,
+  app / view / consent,
   app / view / mixed_effects_demand_coordinator,
   app / view / demand,
   app / view / discounting,
@@ -47,43 +49,28 @@ ui <- function(id) {
     category = "app_lifecycle"
   )
 
-  # Get Google Analytics config from environment-aware config.yml
+  # Google Analytics is never emitted by R. The browser (app/js/index.js) loads the tag only
+  # when the session's consent level is `usage`; this inline config gives it the measurement
+  # id, the platform and the consent policy version for the handshake.
   ga_config <- config::get("google_analytics")
-  ga_enabled <- isTRUE(ga_config$enabled)
-  ga_id <- ga_config$measurement_id
-
-  # Build GA script tag if enabled and ID is set
-  ga_script_tag <- if (ga_enabled && !is.null(ga_id) && nzchar(ga_id)) {
-    shiny$tagList(
-      shiny$tags$script(
-        async = NA,
-        src = paste0("https://www.googletagmanager.com/gtag/js?id=", ga_id)
-      ),
-      shiny$tags$script(shiny$HTML(sprintf(
-        "
-        window.dataLayer = window.dataLayer || [];
-        function gtag() { dataLayer.push(arguments); }
-        gtag('js', new Date());
-        gtag('config', '%s');
-        function trackPage(pageName) {
-          gtag('event', 'page_view', {
-            page_title: pageName,
-            page_location: window.location.href,
-            event_category: 'Navigation'
-          });
-        }
-      ",
-        ga_id
-      )))
-    )
+  ga_id <- if (isTRUE(ga_config$enabled) && is.character(ga_config$measurement_id)) {
+    ga_config$measurement_id
   } else {
-    NULL
+    ""
   }
+  consent_config_tag <- shiny$tags$script(shiny$HTML(paste0(
+    "window.SHINYBEEZ = ",
+    jsonlite$toJSON(
+      list(gaId = ga_id, platform = startup_info$platform(), policy = consent$CURRENT_POLICY),
+      auto_unbox = TRUE
+    ),
+    ";"
+  )))
 
   bslib$page_navbar(
     theme = theme$app_theme(),
     header = shiny$tags$head(
-      ga_script_tag,
+      consent_config_tag,
       # Add telemetry JavaScript if enabled
       if (telemetry_utils$is_telemetry_enabled()) {
         tryCatch(
@@ -100,6 +87,8 @@ ui <- function(id) {
     ),
     footer = shiny$tags$footer(
       class = "app-footer",
+      # The consent banner renders here, above the credit line, while no choice is stored.
+      consent$banner_ui(ns("consent")),
       "Developed and Built by Brent Kaplan · ",
       shiny$tags$a(
         href = "https://codedbx.com",
@@ -161,6 +150,7 @@ ui <- function(id) {
       mixed_effects_demand_coordinator$navpanel_ui(ns("mixed_effects_demand"))
     ),
     bslib$nav_spacer(),
+    consent$nav_ui(ns("consent")),
     bslib$nav_item(
       bslib$input_dark_mode(id = "dark_mode", mode = "dark")
     ),
@@ -206,6 +196,7 @@ server <- function(id) {
     # shiny.telemetry's session (input/login/logout observers) and the session_start row are
     # started by the consent module once the browser has sent the session's consent level.
     shiny$onUnhandledError(unhandled_error_handler(session_telemetry), session = session)
+    consent$server("consent", session_telemetry)
 
     # Log session start
     session_logger$info("New user session started", "session_lifecycle")
@@ -384,16 +375,19 @@ server <- function(id) {
       session_logger$info("User session ended", "session_lifecycle")
       session_logger$user_activity("Session terminated", module = "main")
 
-      # Track session end in telemetry
+      # Track session end in telemetry, then forget the session's consent (later callbacks
+      # that still write, such as shiny.telemetry's logout, are dropped as closed).
       session_telemetry$track_event(
         "session_end",
         list(
           session_duration = telemetry_utils$session_duration_secs(
             session$userData$.start_time
           ),
-          last_tab = .last_tab
+          last_tab = .last_tab,
+          consent = session_telemetry$consent()
         )
       )
+      telemetry_utils$end_session_consent(session)
 
       rhino$log$info("Session stopped: {session$token}")
     })
