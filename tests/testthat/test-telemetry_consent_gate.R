@@ -195,3 +195,16 @@ describe("the storage gate", {
     expect_identical(st$consent(), "diagnostic")
   })
 })
+
+describe("start_session at usage sets no identifying cookie", {
+  it("writes the login row under the session token, not an anonymous cookie user", {
+    consent_registry$reset()
+    db <- with_sqlite_telemetry()
+    s <- fake_session()
+    telemetry_utils$set_session_consent(s, "usage", "stored")
+    rows <- all_rows(db)
+    login <- details_of(rows, "login")
+    expect_identical(unlist(login$username), s$token)
+    expect_false(any(grepl("anon_user", rows$details, fixed = TRUE)))
+  })
+})
