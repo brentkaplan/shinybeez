@@ -62,6 +62,14 @@ describe("consent in the browser", {
     handshake <- app$get_value(input = "consent_level")
     expect_true(handshake$source %in% c("default", "default_eu"))
     expect_identical(has_ga_script(app), identical(handshake$source, "default"))
+    if (has_ga_script(app)) {
+      # The copy promises "advertising features off": the gtag config must say so.
+      expect_true(isTRUE(app$get_js(paste(
+        "Array.from(window.dataLayer).some(function(a){",
+        "return a[0]==='config' && a[2] && a[2].allow_google_signals===false",
+        "&& a[2].allow_ad_personalization_signals===false;})"
+      ))))
+    }
     expect_true(wait_for_rows(db, "session_start", 1))
     start <- jsonlite$fromJSON(rows_of(db, "session_start")$details[[1]])
     expect_identical(start$consent, handshake$level)
@@ -75,7 +83,7 @@ describe("consent in the browser", {
     app$wait_for_idle(duration = 500)
     stored <- jsonlite$fromJSON(app$get_js("localStorage.getItem('shinybeez.consent')"))
     expect_identical(stored$level, "none")
-    expect_identical(stored$policy, 1L)
+    expect_identical(stored$policy, 2L)
     expect_true(isTRUE(app$get_js("window['ga-disable-G-TEST'] === true")))
     expect_true(isTRUE(app$get_js("document.querySelector('.consent-banner') === null")))
     expect_true(wait_for_rows(db, "consent_change", 1))
@@ -89,7 +97,7 @@ describe("consent in the browser", {
 
   it("honours a stored diagnostic choice on the next visit without a banner", {
     require_app(app)
-    app$run_js("localStorage.setItem('shinybeez.consent', JSON.stringify({level:'diagnostic', policy:1, ts:1}))")
+    app$run_js("localStorage.setItem('shinybeez.consent', JSON.stringify({level:'diagnostic', policy:2, ts:1}))")
     # A second visit: same Chrome, same origin (pinned port), so the same localStorage.
     app$stop()
     app <<- create_app_driver(env = consent_env(db), port = port)

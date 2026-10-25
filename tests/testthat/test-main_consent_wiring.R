@@ -33,7 +33,7 @@ describe("main$ui() consent wiring", {
     expect_match(html, "window.SHINYBEEZ", fixed = TRUE)
     expect_match(html, '"gaId":"G-TEST"', fixed = TRUE)
     expect_match(html, '"platform":"web"', fixed = TRUE)
-    expect_match(html, '"policy":1', fixed = TRUE)
+    expect_match(html, '"policy":2', fixed = TRUE)
     expect_no_match(html, "googletagmanager", fixed = TRUE)
   })
 

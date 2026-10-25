@@ -65,7 +65,9 @@ describe("consent$server handshake", {
       expect_match(html, "Diagnostics only", fixed = TRUE)
       expect_match(html, "Nothing", fixed = TRUE)
       expect_match(html, "Details", fixed = TRUE)
-      expect_match(html, "never sends your data", fixed = TRUE)
+      expect_match(html, "maintained by one researcher", fixed = TRUE)
+      expect_match(html, "decide what I build next", fixed = TRUE)
+      expect_match(html, "column names and file names are never sent", fixed = TRUE)
       expect_match(html, 'data-consent-level="none"', fixed = TRUE)
     })
   })
@@ -181,7 +183,7 @@ describe("consent UI", {
   })
 
   it("exports the policy version as an integer", {
-    expect_identical(consent$CURRENT_POLICY, 1L)
+    expect_identical(consent$CURRENT_POLICY, 2L)
   })
 })
 
@@ -228,8 +230,8 @@ describe("consent$server policy and settings persistence", {
       {
         handshake(session, "usage", "stored")
         session$setInputs(open = 1)
-        expect_match(captured, "Policy version 1\\. ", fixed = FALSE)
-        expect_no_match(captured, "Policy version 1 \\.")
+        expect_match(captured, "Policy version 2\\. ", fixed = FALSE)
+        expect_no_match(captured, "Policy version 2 \\.")
       }
     )
   })
@@ -246,11 +248,34 @@ describe("consent$server policy and settings persistence", {
       {
         handshake(session, "usage", "stored")
         session$setInputs(open = 1)
-        expect_match(captured, "help me improve shinybeez", fixed = TRUE)
+        expect_match(captured, "decide what I build next", fixed = TRUE)
         expect_lt(
-          regexpr("help me improve shinybeez", captured, fixed = TRUE),
-          regexpr("Nothing: no usage", captured, fixed = TRUE)
+          regexpr("decide what I build next", captured, fixed = TRUE),
+          regexpr("Usage and diagnostics (recommended)", captured, fixed = TRUE)
         )
+      }
+    )
+  })
+
+  it("lists usage first as recommended, and sells diagnostics as cookie-free", {
+    tracker <- fake_tracker()
+    captured <- NULL
+    shiny$testServer(
+      consent$server,
+      args = list(
+        session_telemetry = tracker, client = fake_client(),
+        show_modal = function(ui) captured <<- as.character(ui)
+      ),
+      {
+        handshake(session, "usage", "stored")
+        session$setInputs(open = 1)
+        usage_at <- regexpr("Usage and diagnostics (recommended)", captured, fixed = TRUE)
+        diagnostic_at <- regexpr("Diagnostics only:", captured, fixed = TRUE)
+        none_at <- regexpr("Nothing:", captured, fixed = TRUE)
+        expect_true(usage_at > 0 && usage_at < diagnostic_at && diagnostic_at < none_at)
+        expect_match(captured, "advertising features off", fixed = TRUE)
+        expect_match(captured, "No Google Analytics, no cookies", fixed = TRUE)
+        expect_match(captured, "Nothing: nothing leaves this session", fixed = TRUE)
       }
     )
   })

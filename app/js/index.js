@@ -154,7 +154,13 @@ function loadGA() {
   };
   window.gtag('consent', 'default', { analytics_storage: 'granted', ad_storage: 'denied' });
   window.gtag('js', new Date());
-  window.gtag('config', gaId, { send_page_view: false });
+  // The consent copy promises "advertising features off": no Google signals, no ads
+  // personalisation, regardless of how the GA4 property is configured.
+  window.gtag('config', gaId, {
+    send_page_view: false,
+    allow_google_signals: false,
+    allow_ad_personalization_signals: false,
+  });
   const script = document.createElement('script');
   script.async = true;
   script.src = `https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(gaId)}`;

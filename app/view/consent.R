@@ -22,13 +22,14 @@ box::use(
 # choice). Mirrored in app/js/index.js through window.SHINYBEEZ.policy, which main.R emits.
 # Bump rule: any change to what a level sends, or to the copy that describes it.
 #' @export
-CURRENT_POLICY <- 1L # nolint: object_name_linter.
+CURRENT_POLICY <- 2L # nolint: object_name_linter.
 
 banner_copy <- function(platform) {
   base <- paste(
-    "shinybeez sends anonymous usage and diagnostic counts to help improve the app.",
-    "It never sends your data, your column names or file names.",
-    "You can change this any time from the shield icon."
+    "shinybeez is free and maintained by one researcher.",
+    "Anonymous counts of which tools get used decide what I build next.",
+    "Your data, column names and file names are never sent.",
+    "Change this any time from the shield icon."
   )
   if (identical(platform, "desktop")) {
     paste(base, "Your data and results never leave your computer.")
@@ -37,13 +38,18 @@ banner_copy <- function(platform) {
   }
 }
 
+# Modal order: the recommended level first, "Nothing" last. The browser JS sets the gtag
+# config flags that make "advertising features off" true (app/js/index.js, loadGA()).
 level_descriptions <- list(
-  none = "Nothing: no usage or diagnostic data leaves this session.",
-  diagnostic = "Diagnostics only: errors, failed uploads and timings, as counts.",
   usage = paste(
-    "Usage and diagnostics: which tools and settings are used, plus the above.",
-    "On the web this also enables Google Analytics."
-  )
+    "Usage and diagnostics (recommended): which tools and settings are used, plus diagnostics.",
+    "Page views also go to Google Analytics, with advertising features off."
+  ),
+  diagnostic = paste(
+    "Diagnostics only: errors, failed uploads and timings, as counts.",
+    "No Google Analytics, no cookies."
+  ),
+  none = "Nothing: nothing leaves this session."
 )
 
 #' Shield icon in the navbar that opens the settings modal
@@ -95,14 +101,15 @@ settings_modal <- function(ns, current) {
   shiny$modalDialog(
     title = "Privacy and analytics",
     shiny$p(
-      "Anonymous usage and diagnostic data help me improve shinybeez.",
+      "shinybeez is free and maintained by one researcher.",
+      "Anonymous counts of which tools get used decide what I build next.",
       "Choose what the app may send:"
     ),
     shiny$radioButtons(
       ns("level"),
       label = NULL,
-      choiceNames = unname(level_descriptions[telemetry_schema$LEVELS]),
-      choiceValues = telemetry_schema$LEVELS,
+      choiceNames = unname(level_descriptions),
+      choiceValues = names(level_descriptions),
       selected = current
     ),
     shiny$p(
