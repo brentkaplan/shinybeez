@@ -43,6 +43,12 @@
   }
 }
 
+// Settings modal: Shiny caps input containers at 300px, which wraps the level
+// descriptions into a narrow column. Let the radio group use the modal width.
+.modal-body .shiny-input-radiogroup[id$="consent-level"] {
+  width: 100%;
+}
+
 .consent-details {
   margin-left: 0.25rem;
   font-size: 0.85rem;

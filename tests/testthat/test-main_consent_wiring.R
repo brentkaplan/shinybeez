@@ -54,6 +54,9 @@ describe("welcome.html privacy copy", {
 
   it("has the Privacy and analytics section and the change-your-choice button", {
     expect_match(html, 'id="privacy-analytics"', fixed = TRUE)
+    expect_match(html, "advertising features off", fixed = TRUE)
+    expect_match(html, "no Google Analytics and no cookies", fixed = TRUE)
+    expect_no_match(html, "hosted app this level also enables", fixed = TRUE)
     expect_match(html, 'id="consent-open-welcome"', fixed = TRUE)
     expect_match(html, "Anonymous usage statistics are the exception", fixed = TRUE)
     expect_match(html, "Diagnostics only", fixed = TRUE)
