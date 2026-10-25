@@ -233,4 +233,25 @@ describe("consent$server policy and settings persistence", {
       }
     )
   })
+
+  it("explains why the data is collected before the choices", {
+    tracker <- fake_tracker()
+    captured <- NULL
+    shiny$testServer(
+      consent$server,
+      args = list(
+        session_telemetry = tracker, client = fake_client(),
+        show_modal = function(ui) captured <<- as.character(ui)
+      ),
+      {
+        handshake(session, "usage", "stored")
+        session$setInputs(open = 1)
+        expect_match(captured, "help me improve shinybeez", fixed = TRUE)
+        expect_lt(
+          regexpr("help me improve shinybeez", captured, fixed = TRUE),
+          regexpr("Nothing: no usage", captured, fixed = TRUE)
+        )
+      }
+    )
+  })
 })

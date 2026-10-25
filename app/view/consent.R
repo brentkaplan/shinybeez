@@ -94,6 +94,10 @@ settings_modal <- function(ns, current) {
   }
   shiny$modalDialog(
     title = "Privacy and analytics",
+    shiny$p(
+      "Anonymous usage and diagnostic data help me improve shinybeez.",
+      "Choose what the app may send:"
+    ),
     shiny$radioButtons(
       ns("level"),
       label = NULL,
