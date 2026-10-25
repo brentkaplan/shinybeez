@@ -66,7 +66,7 @@ describe("consent$server handshake", {
       expect_match(html, "Nothing", fixed = TRUE)
       expect_match(html, "Details", fixed = TRUE)
       expect_match(html, "maintained by one researcher", fixed = TRUE)
-      expect_match(html, "decide what I build next", fixed = TRUE)
+      expect_match(html, "decide what I build next and what needs fixing", fixed = TRUE)
       expect_match(html, "column names and file names are never sent", fixed = TRUE)
       expect_match(html, 'data-consent-level="none"', fixed = TRUE)
     })
@@ -248,9 +248,9 @@ describe("consent$server policy and settings persistence", {
       {
         handshake(session, "usage", "stored")
         session$setInputs(open = 1)
-        expect_match(captured, "decide what I build next", fixed = TRUE)
+        expect_match(captured, "decide what I build next and what needs fixing", fixed = TRUE)
         expect_lt(
-          regexpr("decide what I build next", captured, fixed = TRUE),
+          regexpr("decide what I build next and what needs fixing", captured, fixed = TRUE),
           regexpr("Usage and diagnostics (recommended)", captured, fixed = TRUE)
         )
       }

@@ -27,7 +27,7 @@ CURRENT_POLICY <- 2L # nolint: object_name_linter.
 banner_copy <- function(platform) {
   base <- paste(
     "shinybeez is free and maintained by one researcher.",
-    "Anonymous counts of which tools get used decide what I build next.",
+    "Anonymous counts of which tools get used decide what I build next and what needs fixing.",
     "Your data, column names and file names are never sent.",
     "Change this any time from the shield icon."
   )
@@ -102,7 +102,7 @@ settings_modal <- function(ns, current) {
     title = "Privacy and analytics",
     shiny$p(
       "shinybeez is free and maintained by one researcher.",
-      "Anonymous counts of which tools get used decide what I build next.",
+      "Anonymous counts of which tools get used decide what I build next and what needs fixing.",
       "Choose what the app may send:"
     ),
     shiny$radioButtons(
