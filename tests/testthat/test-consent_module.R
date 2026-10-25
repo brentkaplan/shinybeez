@@ -215,4 +215,22 @@ describe("consent$server policy and settings persistence", {
       }
     )
   })
+
+  it("prints the policy version as one sentence", {
+    tracker <- fake_tracker()
+    captured <- NULL
+    shiny$testServer(
+      consent$server,
+      args = list(
+        session_telemetry = tracker, client = fake_client(),
+        show_modal = function(ui) captured <<- as.character(ui)
+      ),
+      {
+        handshake(session, "usage", "stored")
+        session$setInputs(open = 1)
+        expect_match(captured, "Policy version 1\\. ", fixed = FALSE)
+        expect_no_match(captured, "Policy version 1 \\.")
+      }
+    )
+  })
 })

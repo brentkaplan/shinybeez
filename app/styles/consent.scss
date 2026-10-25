@@ -20,6 +20,14 @@
   gap: 0.5rem;
   align-items: center;
   margin-top: 0.5rem;
+
+  // Shiny's actionButton carries .btn-default, and Spacelab paints that with a
+  // grey gradient background-image at high specificity. On the two outline
+  // buttons the gradient matches the grey label colour and hides the text, so
+  // strip it (same workaround as the Export All download link in overrides.scss).
+  .btn-outline-secondary {
+    background-image: none !important;
+  }
 }
 
 .consent-details {

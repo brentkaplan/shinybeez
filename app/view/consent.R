@@ -103,7 +103,7 @@ settings_modal <- function(ns, current) {
     ),
     shiny$p(
       class = "small text-muted mb-0",
-      "Policy version ", CURRENT_POLICY, ". ",
+      paste0("Policy version ", CURRENT_POLICY, ". "),
       shiny$tags$a(
         href = "#privacy-analytics", `data-bs-dismiss` = "modal",
         "Privacy and analytics on the Welcome page"
