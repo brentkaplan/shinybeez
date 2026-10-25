@@ -49,7 +49,7 @@ level_descriptions <- list(
     "Diagnostics only: errors, failed uploads and timings, as counts.",
     "No Google Analytics, no cookies."
   ),
-  none = "Nothing: nothing leaves this session."
+  none = "Nothing: sends nothing except one anonymous record of this choice."
 )
 
 #' Shield icon in the navbar that opens the settings modal

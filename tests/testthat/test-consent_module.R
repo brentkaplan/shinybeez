@@ -275,7 +275,8 @@ describe("consent$server policy and settings persistence", {
         expect_true(usage_at > 0 && usage_at < diagnostic_at && diagnostic_at < none_at)
         expect_match(captured, "advertising features off", fixed = TRUE)
         expect_match(captured, "No Google Analytics, no cookies", fixed = TRUE)
-        expect_match(captured, "Nothing: nothing leaves this session", fixed = TRUE)
+        # A move to "none" still writes one consent_change row by design; the copy says so.
+        expect_match(captured, "Nothing: sends nothing except one anonymous record of this choice", fixed = TRUE)
       }
     )
   })
