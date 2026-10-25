@@ -1,3 +1,15 @@
+# shinybeez (development version)
+
+## Bug Fixes
+
+- **No work on load for the Mixed Effects tab** — a fresh session no longer
+  loads the Mixed Effects example data or computes its systematic criteria
+  before that tab is opened, so the "Computing systematic criteria..." notice
+  no longer appears over the Welcome page. The example data loads the first
+  time the tab is opened, as before, and the Systematic Criteria table is
+  computed when its subtab is shown. Notices about a transformed `y_ll4`
+  response or a missing group-by column now appear on that subtab.
+
 # shinybeez 1.3.0
 
 ## New Features

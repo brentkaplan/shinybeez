@@ -209,6 +209,10 @@ server <- function(id) {
     # Track last active tab for session_end telemetry (plain variable, not reactive)
     .last_tab <- "Welcome"
 
+    # Mixed Effects loads its example data only once that tab has been opened.
+    # Sticky: leaving the tab keeps the data and selections.
+    me_visited <- shiny$reactiveVal(FALSE)
+
     # Track navigation changes (log initial tab and all subsequent changes)
     # Note: nav input is non-namespaced at root level, access via rootScope
     shiny$observe({
@@ -230,6 +234,7 @@ server <- function(id) {
           session_telemetry$track_navigation(nav_value)
 
           .last_tab <<- nav_value
+          if (identical(nav_value, "MixedEffectsDemand")) me_visited(TRUE)
         })
       }
     })
@@ -324,7 +329,8 @@ server <- function(id) {
           data_reactive = shiny$reactive(
             session$userData$data$mixed_effects_demand
           ),
-          fit_task = mmd_fit_task
+          fit_task = mmd_fit_task,
+          active = me_visited
         )
 
         mixed_effects_demand_coordinator$navpanel_server(
