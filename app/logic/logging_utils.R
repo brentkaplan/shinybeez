@@ -235,13 +235,16 @@ log_user_activity <- function(
 #' @param duration_ms Duration in milliseconds
 #' @param session_id Shiny session ID
 #' @param additional_metrics Additional performance metrics
+#' @param session Shiny session object. shiny.telemetry reads `$token` from it; without it
+#'   the performance row has no session and the consent gate drops it.
 #' @export
 log_performance <- function(
   operation_name,
   duration_ms,
   session_id = NULL,
   additional_metrics = list(),
-  always_log = FALSE
+  always_log = FALSE,
+  session = NULL
 ) {
   config <- get_logging_config()
 
@@ -279,7 +282,8 @@ log_performance <- function(
       telemetry_utils$track_performance(
         operation_name = operation_name,
         duration_ms = duration_ms,
-        additional_metrics = additional_metrics
+        additional_metrics = additional_metrics,
+        session = session
       ),
       error = function(e) NULL
     )
@@ -356,7 +360,8 @@ with_performance_logging <- function(
   func,
   session_id = NULL,
   ...,
-  always_log = FALSE
+  always_log = FALSE,
+  session = NULL
 ) {
   start_time <- Sys.time()
 
@@ -385,7 +390,8 @@ with_performance_logging <- function(
         duration_ms = duration_ms,
         session_id = session_id,
         additional_metrics = list(status = "error"),
-        always_log = always_log
+        always_log = always_log,
+        session = session
       )
 
       stop(e)
@@ -401,7 +407,8 @@ with_performance_logging <- function(
     duration_ms = duration_ms,
     session_id = session_id,
     additional_metrics = list(status = "success"),
-    always_log = always_log
+    always_log = always_log,
+    session = session
   )
 
   result
@@ -533,7 +540,8 @@ create_session_logger <- function(session) {
         duration_ms,
         session_id,
         additional_metrics,
-        always_log = always_log
+        always_log = always_log,
+        session = session
       )
     },
     error_enhanced = function(
@@ -570,7 +578,7 @@ create_session_logger <- function(session) {
     },
     with_performance = function(operation_name, func, ..., always_log = FALSE) {
       with_performance_logging(
-        operation_name, func, session_id, ..., always_log = always_log
+        operation_name, func, session_id, ..., always_log = always_log, session = session
       )
     }
   )

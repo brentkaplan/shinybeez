@@ -11,7 +11,7 @@ describe("telemetry_utils", {
     it("is a function with correct formals", {
       expect_true(is.function(telemetry_utils$track_validation))
       fmls <- names(formals(telemetry_utils$track_validation))
-      expect_equal(fmls, c("module", "outcome", "check_name", "reason", "session", "shape"))
+      expect_equal(fmls, c("module", "outcome", "check_name", "reason", "session", "shape", "reason_code"))
     })
 
     it("returns invisibly when telemetry is disabled", {
@@ -315,14 +315,15 @@ describe("session lifecycle payloads (shinybeez-analytics#7)", {
         {
           built <- telemetry_utils$init_telemetry()
           start <- Sys.time() - 30
-          # session = NULL: shiny.telemetry only accepts a real ShinySession/session_proxy or NULL
+          # The storage gate drops rows without a session token, so the row needs a session
+          # whose consent level is known (consented_session() in helper-telemetry.R).
           telemetry_utils$track_event(
             "session_end",
             list(
               session_duration = telemetry_utils$session_duration_secs(start),
               last_tab = "Demand"
             ),
-            session = NULL
+            session = consented_session()
           )
         }
       )

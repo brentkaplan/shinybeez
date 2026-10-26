@@ -59,6 +59,8 @@ read_error_rows <- function(db_path) {
 fake_session <- function() {
   s <- shiny::MockShinySession$new()
   class(s) <- c("ShinySession", class(s))
+  # The storage gate only writes rows for a session whose consent level it knows.
+  telemetry_utils$set_session_consent(s, "usage", "stored")
   s
 }
 
