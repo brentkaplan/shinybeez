@@ -3,17 +3,26 @@
 ## New Features
 
 - **Analytics consent** — a banner on first visit lets you choose what the
-  app may send: *Nothing*, *Diagnostics only* (errors, failed uploads and
-  timings, as counts) or *Usage and diagnostics* (which tools and settings are
-  used; on the hosted app this level also enables Google Analytics). The choice
-  is stored in the browser and can be changed any time from the shield icon in
-  the navbar or the Welcome page. Visitors in the EU/EEA/UK/CH default to
-  *Diagnostics only*; everyone else to *Usage and diagnostics*. Google Analytics
-  is now loaded by the browser only at the usage level, never by the server,
-  and the anonymous-user cookie the telemetry package used to set is gone.
+  app may send: *Nothing* (only one anonymous record of the choice),
+  *Diagnostics only* (errors, failed uploads and timings, as counts; no Google
+  Analytics, no cookies) or *Usage and diagnostics* (which tools and settings
+  are used, plus page views via Google Analytics with advertising features
+  off). The choice is stored in the browser and can be changed any time from
+  the shield icon in the navbar or the Welcome page. Visitors in the EU/EEA/UK/CH
+  default to *Diagnostics only*; everyone else to *Usage and diagnostics*.
+  Google Analytics is now loaded by the browser only at the usage level, never
+  by the server, and the anonymous-user cookie the telemetry package used to
+  set is gone.
 
 ## Bug Fixes
 
+- **No work on load for the Mixed Effects tab** — a fresh session no longer
+  loads the Mixed Effects example data or computes its systematic criteria
+  before that tab is opened, so the "Computing systematic criteria..." notice
+  no longer appears over the Welcome page. The example data loads the first
+  time the tab is opened, as before, and the Systematic Criteria table is
+  computed when its subtab is shown. Notices about a transformed `y_ll4`
+  response or a missing group-by column now appear on that subtab.
 - Performance telemetry rows now carry the session token; every one of them
   used to be unattributable.
 - Errors Shiny could not recover from are recorded as normal error rows
