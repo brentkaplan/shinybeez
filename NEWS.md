@@ -1,5 +1,13 @@
 # shinybeez 1.4.0 (development)
 
+## Branding
+
+- **Sharper hex logos** — the shinybeez, beezdemand and beezdiscounting hex
+  stickers were rebuilt as vectors from the original artwork (same bee, same
+  fitted curves, Futura wordmark as outlines, frame at its original weight,
+  the four asterisks back). The navbar logo, the info-modal logo, the plot
+  watermark and the favicon use the new renders; sources live in `brand/`.
+
 ## New Features
 
 - **Analytics consent** — a banner on first visit lets you choose what the
