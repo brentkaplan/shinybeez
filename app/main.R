@@ -106,7 +106,7 @@ ui <- function(id) {
         class = "me-3",
         alt = "Shinybeez - Behavioral Economic Easy Demand and Discounting"
       ),
-      "Shinybeez"
+      "shinybeez"
     ),
     id = "nav",
     sidebar = bslib$sidebar(
