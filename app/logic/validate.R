@@ -283,6 +283,53 @@ check_wide_discounting <- function(dat) {
   TRUE
 }
 
+#' Quote a few values for a message
+#'
+#' Double quotes inside a value are dropped so that every quoted token is a clean `"..."`
+#' pair: `telemetry_schema$scrub_user_strings()` replaces each pair with an ellipsis before a
+#' reason is recorded, and a stray quote would leave a fragment of the user's value behind.
+#' @param x Values to show
+#' @param n How many to show before counting the rest
+#' @return A single string such as `"a", "b" (and 3 more)`
+quote_some <- function(x, n = 10L) {
+  x <- gsub("\"", "", as.character(x), fixed = TRUE)
+  shown <- paste0("\"", x[seq_len(min(n, length(x)))], "\"", collapse = ", ")
+  if (length(x) > n) shown <- paste0(shown, " (and ", length(x) - n, " more)")
+  shown
+}
+
+#' Validate the subject column of a wide 27-Item MCQ frame: one row per subject
+#'
+#' `beezdiscounting::wide_to_long_mcq()` (0.3.2 and 0.4.0) builds `questionid` as
+#' `rep(1:27, times = length(unique(subjectid)))` against a pivot that yields 27 rows per wide
+#' ROW, so a repeated (or doubly missing) subjectid aborts with "`questionid` must be size N or
+#' 1" (signatures a24ff1e1 / d1413265, 2026-10-28). The abort came from the eager reshape
+#' observer and ended the session. Blank ids are rejected here for the reason
+#' `check_mcq_item_counts()` rejects them at scoring time: they cannot be scored.
+#' @param dat Data frame with lowercased column names, `subjectid` first
+#' @return TRUE or character error message
+check_mcq_wide_ids <- function(dat) {
+  ids <- dat$subjectid
+  blank <- is.na(ids) | !nzchar(trimws(as.character(ids)))
+  if (any(blank)) {
+    return(coded(
+      "mcq_wide_blank_subjectid",
+      sum(blank), " row(s) of the wide 27-Item MCQ data have a missing or blank subjectid. ",
+      "Every row must name its subject."
+    ))
+  }
+  dupes <- unique(ids[duplicated(ids)])
+  if (length(dupes) > 0) {
+    return(coded(
+      "mcq_wide_duplicate_subjectid",
+      "Wide 27-Item MCQ data must have one row per subjectid. These ids appear on more than ",
+      "one row: ", quote_some(dupes), ". This usually comes from a survey export that kept ",
+      "repeated or restarted responses, or from appended files; keep one complete row per subject."
+    ))
+  }
+  TRUE
+}
+
 #' Validate discounting data
 #' @param dat Data frame
 #' @return TRUE or character error message
@@ -303,7 +350,7 @@ check_discounting_data <- function(dat) {
     #     MCQ-long with an ordered identical() check; a reordered frame would pass
     #     a looser test here and then fall into the standard-data branch, whose
     #     NA-row dropping defeats MCQ imputation.
-    if (ncol(dat) == 28 && identical(cols[1], "subjectid")) return(TRUE)
+    if (ncol(dat) == 28 && identical(cols[1], "subjectid")) return(check_mcq_wide_ids(dat))
     if (identical(cols, c("subjectid", "questionid", "response"))) return(TRUE)
     return(coded(
       "mcq_shape",
@@ -417,6 +464,10 @@ reshape_data <- function(dat, type = "demand") {
     pivot_demand_data(dat, format = "long", drop_na = FALSE)
   } else if (type == "discounting") {
     if (ncol(dat) == 28 && "subjectid" %in% colnames(dat)) {
+      # Guard here too: this function is exported, and a repeated subjectid aborts inside
+      # wide_to_long_mcq() with a size error rather than a message a user can act on.
+      chk <- check_mcq_wide_ids(dat)
+      if (is.character(chk)) stop(chk, call. = FALSE)
       dat |>
         beezdiscounting$wide_to_long_mcq(dat = _)
     } else if (length(unique(dat$id)) == length(dat$id)) {
