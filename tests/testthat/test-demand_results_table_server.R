@@ -519,3 +519,24 @@ describe("demand results table Q0 guard", {
     })
   })
 })
+
+describe("Calculate with no prepared data", {
+  # After a failed reshape the navpanel sets data_d to NULL (see
+  # test-navpanel_prepare_guard.R). Calculate must not hand that NULL to the fit
+  # worker, which would end in an "Error in FitCurves" notification on top of the
+  # "Could not prepare" one the user already saw.
+  it("does not invoke the fit when data_d is NULL", {
+    data_r <- shiny$reactiveValues(data_d = NULL)
+    calc <- shiny$reactiveVal(0)
+    fit_task <- task$make_fit_task(workers$fit_demand_fixed_worker, async = FALSE)
+
+    shiny$testServer(demand_results_table$server, args = module_args(data_r, calc, fit_task), {
+      set_plot_inputs(session)
+      calc(1)
+      session$flushReact()
+      settle(session)
+
+      expect_identical(fit_task$status(), "initial")
+    })
+  })
+})

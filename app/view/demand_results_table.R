@@ -150,6 +150,8 @@ server <- function(
     fit_generation <- shiny$reactiveVal(0L)
 
     shiny$observe({
+      # Nothing to fit after a failed reshape: data_d stays NULL until the next upload.
+      shiny$req(data_r$data_d)
       # The equation input reports "" before it has initialised, and Calculate is
       # reachable in that window; resolve_equation("") would stop() inside this
       # observer and end the session.
