@@ -7,6 +7,7 @@ box::use(
 )
 
 box::use(
+  app / logic / telemetry_schema,
   app / logic / validate,
 )
 
@@ -82,5 +83,34 @@ describe("reason_code()", {
   it("keeps the message text unchanged", {
     msg <- validate$check_data(data.frame(id = 1:2, a = 1:2, b = 3:4), "demand")
     expect_match(as.character(msg), 'Could not parse these price headers: "a", "b"', fixed = TRUE)
+  })
+})
+
+describe("reason_code() for the MCQ-wide subject guard", {
+  mcq_wide <- function(ids) {
+    items <- as.data.frame(matrix(1L, nrow = length(ids), ncol = 27))
+    colnames(items) <- as.character(1:27)
+    cbind(data.frame(subjectid = ids, stringsAsFactors = FALSE), items)
+  }
+
+  it("names the duplicate and blank subjectid failures", {
+    expect_identical(code_for(mcq_wide(c(1, 1)), "discounting"), "mcq_wide_duplicate_subjectid")
+    expect_identical(code_for(mcq_wide(c(1, NA)), "discounting"), "mcq_wide_blank_subjectid")
+  })
+
+  it("quotes ids so the telemetry scrub removes them whole", {
+    # An id carrying a double quote would otherwise split the quoted token and leave a
+    # fragment of the user's id in the recorded reason.
+    res <- validate$check_data(mcq_wide(c("zq\"zq", "zq\"zq")), "discounting")
+    expect_identical(validate$reason_code(res), "mcq_wide_duplicate_subjectid") # not a bare TRUE
+    scrubbed <- telemetry_schema$scrub_user_strings(as.character(res))
+    expect_no_match(scrubbed, "zq", fixed = TRUE)
+  })
+})
+
+describe("reason_code() for the wide indifference-point cell guard", {
+  it("names the non-numeric cell failure", {
+    dat <- data.frame(id = c("a", "b"), `1` = c(0.9, 0.8), `5` = c("0.5", "n/a"), check.names = FALSE)
+    expect_identical(code_for(dat, "discounting"), "wide_ip_nonnumeric_cells")
   })
 })

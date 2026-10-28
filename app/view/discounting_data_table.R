@@ -123,6 +123,7 @@ server <- function(id, data_r, type = NULL) {
 
       session_logger$info("Printing Discounting Datatable", "module_init")
       output$data_table <- DT$renderDT(server = FALSE, {
+        shiny$req(data_r$data_d)
         build_datatable(
           data_r$data_d,
           filename_prefix = "shinybeez_Discounting_Data",
@@ -132,6 +133,7 @@ server <- function(id, data_r, type = NULL) {
       })
 
       output$missings_table <- DT$renderDT(server = FALSE, {
+        shiny$req(data_r$data_d)
         missings <- NULL
         if (type() %in% "27-Item MCQ") {
           missings <- data_r$data_d |>
@@ -153,6 +155,7 @@ server <- function(id, data_r, type = NULL) {
       })
 
       output$systematic_table <- DT$renderDT(server = FALSE, {
+        shiny$req(data_r$data_d)
         sys_result <- NULL
         if (type() %in% "27-Item MCQ") {
           # MCQ has no systematic criteria

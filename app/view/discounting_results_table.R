@@ -49,6 +49,7 @@ server <- function(
     # Dynamic UI for results
     output$results_box <- shiny$renderUI({
       shiny$req(type())
+      shiny$req(data_r$data_d) # NULL after a failed reshape, until the next upload
       if (type() == "27-Item MCQ" && !("I16" %in% names(data_r$data_d))) {
         bslib$navset_card_tab(
           id = ns("tabs"),
