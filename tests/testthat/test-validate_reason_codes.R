@@ -106,3 +106,10 @@ describe("reason_code() for the MCQ-wide subject guard", {
     expect_no_match(scrubbed, "zq", fixed = TRUE)
   })
 })
+
+describe("reason_code() for the wide indifference-point cell guard", {
+  it("names the non-numeric cell failure", {
+    dat <- data.frame(id = c("a", "b"), `1` = c(0.9, 0.8), `5` = c("0.5", "n/a"), check.names = FALSE)
+    expect_identical(code_for(dat, "discounting"), "wide_ip_nonnumeric_cells")
+  })
+})

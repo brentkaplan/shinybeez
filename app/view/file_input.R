@@ -195,13 +195,19 @@ server <- function(id, type = "demand") {
       paste("Data are not in the correct format. Please refer to the documentation.", reason)
     }
 
-    # A rejected frame opens the mapper unless it carries a fixed-schema marker.
+    # A cell-level problem cannot be mapped away: the mapper's parse_cells() reads text
+    # through readr::parse_number(), which turns "7,5" into 75 and a text cell into NA.
+    # The user has to fix the cell, so no mapping is offered for these codes.
+    mapper_cannot_help <- c("wide_ip_nonnumeric_cells")
+
+    # A rejected frame opens the mapper unless it carries a fixed-schema marker or a
+    # problem the mapper cannot help with.
     reject_or_map <- function(tmp, reason, meta) {
       telemetry_utils$track_validation(
         module_label, "failure", "check_data", reason, session,
         shape = upload_read$upload_shape(tmp), reason_code = validate$reason_code(reason)
       )
-      if (is_fixed_schema(tmp)) {
+      if (is_fixed_schema(tmp) || validate$reason_code(reason) %in% mapper_cannot_help) {
         notify_error(rejection_message(reason))
         return(invisible(FALSE))
       }

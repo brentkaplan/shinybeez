@@ -242,6 +242,60 @@ check_mixed_effects_data <- function(dat) {
   TRUE
 }
 
+# A value column as text, per cell: factor labels (never codes), logical TRUE/FALSE as the
+# words they are, dates as their text. NA and the empty or "NA" strings are missing.
+cell_text <- function(v) {
+  s <- trimws(as.character(v))
+  s[!is.na(s) & s %in% c("", "NA")] <- NA_character_
+  s
+}
+
+#' Cells of a value column that cannot be read as a number
+#'
+#' The parser is `as.numeric()`, the one `retype_data()` applies to the long frame, so a cell
+#' accepted here is the number the analysis will use: "1e-1", "-0.5" and " 3 " pass; "7,5"
+#' (`readr::parse_number()` would read 75), "n/a", "TRUE" and a date do not. An all-missing
+#' column of any class passes (an empty column reads as logical).
+#' @param v A column
+#' @return Character vector of the distinct offending cells, empty when every cell is a number
+nonnumeric_cells <- function(v) {
+  if (is.numeric(v)) return(character(0))
+  s <- cell_text(v)
+  s <- s[!is.na(s)]
+  unique(s[is.na(suppressWarnings(as.numeric(s)))])
+}
+
+# The same column as doubles, for use once nonnumeric_cells() has found nothing.
+numeric_cells <- function(v) {
+  if (is.numeric(v)) return(as.numeric(v))
+  suppressWarnings(as.numeric(cell_text(v)))
+}
+
+#' Validate the value cells of a wide indifference-point frame
+#'
+#' 2026-10-27 (signatures 9fcff37e / a920a0a0 / 94eb3497): a single text cell made the upload
+#' reader type a whole delay column as character, and `reshape_data()` pivoted it against the
+#' numeric delay columns before `retype_data()` could coerce, so vctrs aborted with "Can't
+#' combine `1` <double> and `5` <character>" inside the eager observer and the session ended.
+#' @param dat Data frame with lowercased column names, `id` first
+#' @return TRUE or character error message naming each column and up to three of its cells
+check_wide_cells <- function(dat) {
+  bad <- lapply(dat[-1], nonnumeric_cells)
+  bad <- bad[lengths(bad) > 0]
+  if (length(bad) == 0) return(TRUE)
+  detail <- paste0(
+    "Column ", vapply(names(bad), quote_some, character(1)),
+    " has values that are not numbers: ",
+    vapply(bad, quote_some, character(1), n = 3L), ".",
+    collapse = " "
+  )
+  coded(
+    "wide_ip_nonnumeric_cells",
+    "Wide indifference point data must hold one number per cell. ", detail,
+    " Use a decimal point and leave missing values empty."
+  )
+}
+
 #' Validate a wide indifference-point frame: `id` first, one numeric delay per header
 #' @param dat Data frame with lowercased column names, `id` first
 #' @return TRUE or character error message
@@ -280,7 +334,7 @@ check_wide_discounting <- function(dat) {
   if (anyDuplicated(dat$id) > 0) {
     return(coded("wide_ip_one_row_per_id", "Wide indifference point data must have one row per id."))
   }
-  TRUE
+  check_wide_cells(dat)
 }
 
 #' Quote a few values for a message
@@ -471,6 +525,13 @@ reshape_data <- function(dat, type = "demand") {
       dat |>
         beezdiscounting$wide_to_long_mcq(dat = _)
     } else if (length(unique(dat$id)) == length(dat$id)) {
+      # Guard and convert here too: this function is exported, and a character delay column
+      # cannot be pivoted against numeric ones. Validation alone is not enough, because a
+      # character column whose cells all parse ("2.5", "") still cannot combine with doubles.
+      chk <- check_wide_cells(dat)
+      if (is.character(chk)) stop(chk, call. = FALSE)
+      idx <- seq.int(2L, ncol(dat))
+      dat[idx] <- lapply(dat[idx], numeric_cells)
       dat |>
         tidyr$pivot_longer(
           cols = 2:ncol(dat),
