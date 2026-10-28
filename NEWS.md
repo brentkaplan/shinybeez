@@ -16,6 +16,16 @@
 
 ## Bug Fixes
 
+- **Upload guards on the Discounting tab** — a wide 27-Item MCQ file with the
+  same `subjectid` on more than one row (or a blank one), and a wide
+  indifference-point file with a cell that is not a number, are now rejected at
+  upload with a message naming the repeated ids or the offending column and
+  cells. Both used to pass validation and abort inside the data reshape, which
+  ended the session with a grey screen. The reshape form does not open for the
+  non-numeric-cell case, since it cannot repair a cell.
+- **A failed data reshape no longer disconnects** — if preparing an upload on
+  the Demand or Discounting tab fails, the app shows the error as a
+  notification and leaves the data panel empty instead of closing the session.
 - **No work on load for the Mixed Effects tab** — a fresh session no longer
   loads the Mixed Effects example data or computes its systematic criteria
   before that tab is opened, so the "Computing systematic criteria..." notice
