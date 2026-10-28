@@ -21,8 +21,9 @@
   indifference-point file with a cell that is not a number, are now rejected at
   upload with a message naming the repeated ids or the offending column and
   cells. Both used to pass validation and abort inside the data reshape, which
-  ended the session with a grey screen. The reshape form does not open for the
-  non-numeric-cell case, since it cannot repair a cell.
+  ended the session with a grey screen. For an otherwise valid wide
+  indifference-point file, the reshape form does not open on this rejection,
+  since it cannot repair a cell.
 - **A failed data reshape no longer disconnects** — if preparing an upload on
   the Demand or Discounting tab fails, the app shows the error as a
   notification and leaves the data panel empty instead of closing the session.

@@ -17,7 +17,9 @@ box::use(
   app / logic / async / task,
   app / logic / async / workers,
   app / view / demand,
+  app / view / demand_data_table,
   app / view / discounting,
+  app / view / discounting_data_table,
 )
 
 # box gives each view module its own locked copy of the shiny exports; swap
@@ -69,6 +71,7 @@ bad_wide_demand <- function() {
 describe("discounting navpanel - a failing prepare notifies instead of ending the session", {
   it("sets data_d NULL, notifies, and recovers on the next good upload", {
     shown <- capture_notifications(discounting$navpanel_server)
+    shown_tables <- capture_notifications(discounting_data_table$server)
     shiny$testServer(discounting$navpanel_server, {
       # As in app/main.R, the reactive store exists before any observer runs, so the
       # observer's first (empty) run registers its dependency. The data-table child
@@ -78,10 +81,13 @@ describe("discounting navpanel - a failing prepare notifies instead of ending th
       session$userData$data$discounting <- good_wide_ip()
       session$flushReact()
       expect_s3_class(data_r$data_d, "data.frame")
+      n_table_notes <- length(shown_tables$messages)
 
       session$userData$data$discounting <- bad_wide_ip()
       session$flushReact()
       expect_null(data_r$data_d)
+      # The data panels req() data_d and stay quiet; no second error notification.
+      expect_length(shown_tables$messages, n_table_notes)
 
       session$userData$data$discounting <- good_wide_ip()
       session$flushReact()
@@ -95,16 +101,20 @@ describe("discounting navpanel - a failing prepare notifies instead of ending th
 describe("demand navpanel - a failing reshape notifies instead of ending the session", {
   it("sets data_d NULL, notifies, and recovers on the next good upload", {
     shown <- capture_notifications(demand$navpanel_server)
+    shown_tables <- capture_notifications(demand_data_table$server)
     fit_task <- task$make_fit_task(workers$fit_demand_fixed_worker, async = FALSE)
     shiny$testServer(demand$navpanel_server, args = list(fit_task = fit_task), {
       session$userData$data <- shiny$reactiveValues()
       session$userData$data$demand <- good_wide_demand()
       session$flushReact()
       expect_s3_class(data_r$data_d, "data.frame")
+      n_table_notes <- length(shown_tables$messages)
 
       session$userData$data$demand <- bad_wide_demand()
       session$flushReact()
       expect_null(data_r$data_d)
+      # The data panels req() data_d and stay quiet; no second error notification.
+      expect_length(shown_tables$messages, n_table_notes)
 
       session$userData$data$demand <- good_wide_demand()
       session$flushReact()

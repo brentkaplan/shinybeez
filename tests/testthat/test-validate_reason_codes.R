@@ -102,6 +102,7 @@ describe("reason_code() for the MCQ-wide subject guard", {
     # An id carrying a double quote would otherwise split the quoted token and leave a
     # fragment of the user's id in the recorded reason.
     res <- validate$check_data(mcq_wide(c("zq\"zq", "zq\"zq")), "discounting")
+    expect_identical(validate$reason_code(res), "mcq_wide_duplicate_subjectid") # not a bare TRUE
     scrubbed <- telemetry_schema$scrub_user_strings(as.character(res))
     expect_no_match(scrubbed, "zq", fixed = TRUE)
   })
