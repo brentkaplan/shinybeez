@@ -8,13 +8,39 @@ box::use(
   stats
 )
 
+#' A rejection message with a stable machine-readable code
+#'
+#' Messages quote the user's headers and are scrubbed before telemetry records them; the
+#' code survives the scrub, so analytics can group failures by cause. The code rides along
+#' as an attribute: callers that only test `is.character()` and print the message are unchanged.
+#' @param code A snake_case identifier for the failing check.
+#' @param ... Pieces of the message, pasted with `paste0()`.
+#' @return A character scalar with attribute `code`.
+coded <- function(code, ...) {
+  structure(paste0(...), code = code)
+}
+
+#' The code behind a rejection message
+#' @param msg Whatever `check_data()` and friends returned.
+#' @return `NULL` when `msg` is not a message (the check passed), the code when it carries one,
+#'   otherwise `"unspecified"`.
+#' @export
+reason_code <- function(msg) {
+  if (!is.character(msg)) {
+    return(NULL)
+  }
+  code <- attr(msg, "code", exact = TRUE)
+  if (is.null(code)) "unspecified" else code
+}
+
 #' Validate a single assertion, returning error message or TRUE
 #' @param condition Logical condition
 #' @param msg Error message if condition fails
+#' @param code Reason code attached to the message (see `coded()`)
 #' @return TRUE if valid, or character error message
-validate_condition <- function(condition, msg) {
+validate_condition <- function(condition, msg, code = "unspecified") {
   result <- assertthat$validate_that(condition, msg = msg)
-  if (is.character(result)) return(result)
+  if (is.character(result)) return(coded(code, result))
   TRUE
 }
 
@@ -88,7 +114,7 @@ price_col_index <- function(dat) {
 check_price_headers <- function(dat) {
   idx <- price_col_index(dat)
   if (length(idx) == 0) {
-    return("There are no price columns in the data.")
+    return(coded("no_price_columns", "There are no price columns in the data."))
   }
 
   headers <- colnames(dat)[idx]
@@ -97,7 +123,8 @@ check_price_headers <- function(dat) {
 
   bad <- headers[is.na(parsed)]
   if (length(bad) > 0) {
-    return(paste0(
+    return(coded(
+      "unparsable_price_headers",
       "The column names are not numeric. Could not parse these price headers: ",
       paste0("\"", bad, "\"", collapse = ", "), "."
     ))
@@ -105,7 +132,8 @@ check_price_headers <- function(dat) {
 
   dupes <- unique(parsed[duplicated(parsed)])
   if (length(dupes) > 0) {
-    return(paste0(
+    return(coded(
+      "duplicate_price_headers",
       "Duplicate price columns. These headers all resolve to the same price: ",
       paste0("\"", headers[parsed %in% dupes], "\"", collapse = ", "),
       ". Please give each price a single column."
@@ -123,14 +151,16 @@ check_demand_data <- function(dat) {
     if ("group" %in% colnames(dat)) {
       chk <- validate_condition(
         all(colnames(dat)[1:2] == c("id", "group")),
-        "The first two columns do not match `id`, `group`"
+        "The first two columns do not match `id`, `group`",
+        code = "first_columns_not_id_group"
       )
       if (is.character(chk)) return(chk)
       dat <- dplyr$relocate(dat, group, .after = id)
     } else {
       chk <- validate_condition(
         colnames(dat)[1] == "id",
-        "The first column is not `id`"
+        "The first column is not `id`",
+        code = "first_column_not_id"
       )
       if (is.character(chk)) return(chk)
     }
@@ -154,7 +184,8 @@ check_demand_sufficiency <- function(dat) {
   if (demand_format(dat) == "wide") {
     # One price column gives every participant a single point once reshaped.
     if (length(price_col_index(dat)) < 2) {
-      return(paste0(
+      return(coded(
+        "too_few_price_columns",
         "The data have fewer than two price columns. Each participant needs at ",
         "least two price points to fit a demand curve."
       ))
@@ -173,7 +204,8 @@ check_demand_sufficiency <- function(dat) {
   )
   short <- names(distinct_prices)[distinct_prices < 2]
   if (length(short) > 0) {
-    return(paste0(
+    return(coded(
+      "insufficient_price_points",
       "After removing missing values these ids have fewer than two distinct ",
       "price points: ", paste0("\"", short, "\"", collapse = ", "),
       ". Each participant needs at least two price points to fit a demand curve."
@@ -188,23 +220,80 @@ check_demand_sufficiency <- function(dat) {
 check_mixed_effects_data <- function(dat) {
   chk <- validate_condition(
     any(c("monkey", "id") %in% colnames(dat)),
-    "ID column ('monkey' or 'id') not found."
+    "ID column ('monkey' or 'id') not found.",
+    code = "me_missing_id"
   )
   if (is.character(chk)) return(chk)
 
   chk <- validate_condition(
     "x" %in% colnames(dat),
-    "Price/X column ('x') not found."
+    "Price/X column ('x') not found.",
+    code = "me_missing_x"
   )
   if (is.character(chk)) return(chk)
 
   chk <- validate_condition(
     any(c("y", "y_ll4") %in% colnames(dat)),
-    "Consumption column ('y' or 'y_ll4') not found."
+    "Consumption column ('y' or 'y_ll4') not found.",
+    code = "me_missing_y"
   )
   if (is.character(chk)) return(chk)
 
   TRUE
+}
+
+# A value column as text, per cell: factor labels (never codes), logical TRUE/FALSE as the
+# words they are, dates as their text. NA and the empty or "NA" strings are missing.
+cell_text <- function(v) {
+  s <- trimws(as.character(v))
+  s[!is.na(s) & s %in% c("", "NA")] <- NA_character_
+  s
+}
+
+#' Cells of a value column that cannot be read as a number
+#'
+#' The parser is `as.numeric()`, the one `retype_data()` applies to the long frame, so a cell
+#' accepted here is the number the analysis will use: "1e-1", "-0.5" and " 3 " pass; "7,5"
+#' (`readr::parse_number()` would read 75), "n/a", "TRUE" and a date do not. An all-missing
+#' column of any class passes (an empty column reads as logical).
+#' @param v A column
+#' @return Character vector of the distinct offending cells, empty when every cell is a number
+nonnumeric_cells <- function(v) {
+  if (is.numeric(v)) return(character(0))
+  s <- cell_text(v)
+  s <- s[!is.na(s)]
+  unique(s[is.na(suppressWarnings(as.numeric(s)))])
+}
+
+# The same column as doubles, for use once nonnumeric_cells() has found nothing.
+numeric_cells <- function(v) {
+  if (is.numeric(v)) return(as.numeric(v))
+  suppressWarnings(as.numeric(cell_text(v)))
+}
+
+#' Validate the value cells of a wide indifference-point frame
+#'
+#' 2026-10-27 (signatures 9fcff37e / a920a0a0 / 94eb3497): a single text cell made the upload
+#' reader type a whole delay column as character, and `reshape_data()` pivoted it against the
+#' numeric delay columns before `retype_data()` could coerce, so vctrs aborted with "Can't
+#' combine `1` <double> and `5` <character>" inside the eager observer and the session ended.
+#' @param dat Data frame with lowercased column names, `id` first
+#' @return TRUE or character error message naming each column and up to three of its cells
+check_wide_cells <- function(dat) {
+  bad <- lapply(dat[-1], nonnumeric_cells)
+  bad <- bad[lengths(bad) > 0]
+  if (length(bad) == 0) return(TRUE)
+  detail <- paste0(
+    "Column ", vapply(names(bad), quote_some, character(1)),
+    " has values that are not numbers: ",
+    vapply(bad, quote_some, character(1), n = 3L), ".",
+    collapse = " "
+  )
+  coded(
+    "wide_ip_nonnumeric_cells",
+    "Wide indifference point data must hold one number per cell. ", detail,
+    " Use a decimal point and leave missing values empty."
+  )
 }
 
 #' Validate a wide indifference-point frame: `id` first, one numeric delay per header
@@ -213,29 +302,84 @@ check_mixed_effects_data <- function(dat) {
 check_wide_discounting <- function(dat) {
   delay_headers <- colnames(dat)[-1]
   if (length(delay_headers) < 2) {
-    return("Wide indifference point data need `id` plus at least two delay columns.")
+    return(coded(
+      "wide_ip_needs_delays",
+      "Wide indifference point data need `id` plus at least two delay columns."
+    ))
   }
   parsed <- parse_header_number(delay_headers)
   bad <- delay_headers[is.na(parsed)]
   if (length(bad) > 0) {
-    return(paste0(
+    return(coded(
+      "unparsable_delay_headers",
       "Wide indifference point data must have one numeric delay per column header. ",
       "Could not parse: ", paste0("\"", bad, "\"", collapse = ", "), "."
     ))
   }
   dupes <- unique(parsed[duplicated(parsed)])
   if (length(dupes) > 0) {
-    return(paste0(
+    return(coded(
+      "duplicate_delay_headers",
       "Duplicate delay columns. These headers all resolve to the same delay: ",
       paste0("\"", delay_headers[parsed %in% dupes], "\"", collapse = ", "),
       ". Please give each delay a single column."
     ))
   }
   if (any(parsed <= 0)) {
-    return("Wide indifference point data must have delays greater than zero in every column header.")
+    return(coded(
+      "nonpositive_delays",
+      "Wide indifference point data must have delays greater than zero in every column header."
+    ))
   }
   if (anyDuplicated(dat$id) > 0) {
-    return("Wide indifference point data must have one row per id.")
+    return(coded("wide_ip_one_row_per_id", "Wide indifference point data must have one row per id."))
+  }
+  check_wide_cells(dat)
+}
+
+#' Quote a few values for a message
+#'
+#' Double quotes inside a value are dropped so that every quoted token is a clean `"..."`
+#' pair: `telemetry_schema$scrub_user_strings()` replaces each pair with an ellipsis before a
+#' reason is recorded, and a stray quote would leave a fragment of the user's value behind.
+#' @param x Values to show
+#' @param n How many to show before counting the rest
+#' @return A single string such as `"a", "b" (and 3 more)`
+quote_some <- function(x, n = 10L) {
+  x <- gsub("\"", "", as.character(x), fixed = TRUE)
+  shown <- paste0("\"", x[seq_len(min(n, length(x)))], "\"", collapse = ", ")
+  if (length(x) > n) shown <- paste0(shown, " (and ", length(x) - n, " more)")
+  shown
+}
+
+#' Validate the subject column of a wide 27-Item MCQ frame: one row per subject
+#'
+#' `beezdiscounting::wide_to_long_mcq()` (0.3.2 and 0.4.0) builds `questionid` as
+#' `rep(1:27, times = length(unique(subjectid)))` against a pivot that yields 27 rows per wide
+#' ROW, so a repeated (or doubly missing) subjectid aborts with "`questionid` must be size N or
+#' 1" (signatures a24ff1e1 / d1413265, 2026-10-28). The abort came from the eager reshape
+#' observer and ended the session. Blank ids are rejected here for the reason
+#' `check_mcq_item_counts()` rejects them at scoring time: they cannot be scored.
+#' @param dat Data frame with lowercased column names, `subjectid` first
+#' @return TRUE or character error message
+check_mcq_wide_ids <- function(dat) {
+  ids <- dat$subjectid
+  blank <- is.na(ids) | !nzchar(trimws(as.character(ids)))
+  if (any(blank)) {
+    return(coded(
+      "mcq_wide_blank_subjectid",
+      sum(blank), " row(s) of the wide 27-Item MCQ data have a missing or blank subjectid. ",
+      "Every row must name its subject."
+    ))
+  }
+  dupes <- unique(ids[duplicated(ids)])
+  if (length(dupes) > 0) {
+    return(coded(
+      "mcq_wide_duplicate_subjectid",
+      "Wide 27-Item MCQ data must have one row per subjectid. These ids appear on more than ",
+      "one row: ", quote_some(dupes), ". This usually comes from a survey export that kept ",
+      "repeated or restarted responses, or from appended files; keep one complete row per subject."
+    ))
   }
   TRUE
 }
@@ -260,9 +404,10 @@ check_discounting_data <- function(dat) {
     #     MCQ-long with an ordered identical() check; a reordered frame would pass
     #     a looser test here and then fall into the standard-data branch, whose
     #     NA-row dropping defeats MCQ imputation.
-    if (ncol(dat) == 28 && identical(cols[1], "subjectid")) return(TRUE)
+    if (ncol(dat) == 28 && identical(cols[1], "subjectid")) return(check_mcq_wide_ids(dat))
     if (identical(cols, c("subjectid", "questionid", "response"))) return(TRUE)
-    return(paste0(
+    return(coded(
+      "mcq_shape",
       "27-Item MCQ data must be either 28 columns wide with subjectid first ",
       "(subjectid + 27 items) or exactly subjectid, questionid, response ",
       "(long, in that order)."
@@ -273,7 +418,8 @@ check_discounting_data <- function(dat) {
     i_cols <- grep("^i[0-9]+$", cols, value = TRUE)
     return(validate_condition(
       length(i_cols) >= 1,
-      "Check to make sure you are using the correct Qualtrics template."
+      "Check to make sure you are using the correct Qualtrics template.",
+      code = "qualtrics_template"
     ))
   }
 
@@ -285,10 +431,11 @@ check_discounting_data <- function(dat) {
     if (identical(cols[1], "id") && !any(c("x", "y") %in% cols)) {
       return(check_wide_discounting(dat))
     }
-    return("Indifference point data must have exactly three columns: id, x, y")
+    return(coded("ip_three_columns", "Indifference point data must have exactly three columns: id, x, y"))
   }
 
-  paste0(
+  coded(
+    "unrecognised_discounting_format",
     "Unrecognised discounting data format. Expected 27-Item MCQ data ",
     "(subjectid), 5.5-Trial data (ResponseId), or Indifference Point ",
     "data (id, x, y)."
@@ -304,7 +451,10 @@ check_data <- function(dat, type = "demand") {
     error = function(e) NULL
   )
   if (is.null(normalized)) {
-    return("Column names contain invalid characters. Is this a valid data file?")
+    return(coded(
+      "invalid_column_names",
+      "Column names contain invalid characters. Is this a valid data file?"
+    ))
   }
   colnames(dat) <- normalized
 
@@ -368,9 +518,20 @@ reshape_data <- function(dat, type = "demand") {
     pivot_demand_data(dat, format = "long", drop_na = FALSE)
   } else if (type == "discounting") {
     if (ncol(dat) == 28 && "subjectid" %in% colnames(dat)) {
+      # Guard here too: this function is exported, and a repeated subjectid aborts inside
+      # wide_to_long_mcq() with a size error rather than a message a user can act on.
+      chk <- check_mcq_wide_ids(dat)
+      if (is.character(chk)) stop(chk, call. = FALSE)
       dat |>
         beezdiscounting$wide_to_long_mcq(dat = _)
     } else if (length(unique(dat$id)) == length(dat$id)) {
+      # Guard and convert here too: this function is exported, and a character delay column
+      # cannot be pivoted against numeric ones. Validation alone is not enough, because a
+      # character column whose cells all parse ("2.5", "") still cannot combine with doubles.
+      chk <- check_wide_cells(dat)
+      if (is.character(chk)) stop(chk, call. = FALSE)
+      idx <- seq.int(2L, ncol(dat))
+      dat[idx] <- lapply(dat[idx], numeric_cells)
       dat |>
         tidyr$pivot_longer(
           cols = 2:ncol(dat),

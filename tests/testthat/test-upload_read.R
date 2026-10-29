@@ -132,3 +132,18 @@ describe("read_upload() review cases", {
     expect_equal(dat$y, c(10, 8, 6))
   })
 })
+
+describe("read_upload() and a wide indifference-point file with a text cell", {
+  it("reads the column as text and validation then rejects the cell by name", {
+    # 2026-10-27: one stray text cell turned a delay column into character and the pivot
+    # that ran before coercion aborted the session. The read is right; the guard is new.
+    path <- write_upload(c(
+      "id,1,5,10,100", "p1,0.95,0.80,0.60,0.20", "p2,0.90,n/a,0.55,0.15", "p3,0.85,0.70,0.50,0.10"
+    ))
+    dat <- normalise(upload_read$read_upload(path, "csv"))
+    expect_type(dat[["5"]], "character")
+    res <- validate$check_data(dat, type = "discounting")
+    expect_identical(validate$reason_code(res), "wide_ip_nonnumeric_cells")
+    expect_match(res, '"n/a"', fixed = TRUE)
+  })
+})

@@ -111,7 +111,7 @@ server <- function(id, type = "demand") {
       if (nrow(tmp) == 0) {
         telemetry_utils$track_validation(
           module_label, "failure", "all_na_rows",
-          "All rows contained missing values", session
+          "All rows contained missing values", session, reason_code = "all_na_rows"
         )
         notify_error("All rows contained missing values and were removed. Please check your data.")
         return(invisible(FALSE))
@@ -129,7 +129,8 @@ server <- function(id, type = "demand") {
         chk_enough <- validate$check_demand_sufficiency(tmp)
         if (is.character(chk_enough)) {
           telemetry_utils$track_validation(
-            "demand", "failure", "insufficient_price_points", chk_enough, session
+            "demand", "failure", "insufficient_price_points", chk_enough, session,
+            reason_code = validate$reason_code(chk_enough)
           )
           notify_error(chk_enough)
           return(invisible(FALSE))
@@ -194,13 +195,19 @@ server <- function(id, type = "demand") {
       paste("Data are not in the correct format. Please refer to the documentation.", reason)
     }
 
-    # A rejected frame opens the mapper unless it carries a fixed-schema marker.
+    # A cell-level problem cannot be mapped away: the mapper's parse_cells() reads text
+    # through readr::parse_number(), which turns "7,5" into 75 and a text cell into NA.
+    # The user has to fix the cell, so no mapping is offered for these codes.
+    mapper_cannot_help <- c("wide_ip_nonnumeric_cells")
+
+    # A rejected frame opens the mapper unless it carries a fixed-schema marker or a
+    # problem the mapper cannot help with.
     reject_or_map <- function(tmp, reason, meta) {
       telemetry_utils$track_validation(
         module_label, "failure", "check_data", reason, session,
-        shape = upload_read$upload_shape(tmp)
+        shape = upload_read$upload_shape(tmp), reason_code = validate$reason_code(reason)
       )
-      if (is_fixed_schema(tmp)) {
+      if (is_fixed_schema(tmp) || validate$reason_code(reason) %in% mapper_cannot_help) {
         notify_error(rejection_message(reason))
         return(invisible(FALSE))
       }
@@ -228,7 +235,7 @@ server <- function(id, type = "demand") {
           "Maximum allowed size is ", max_size_mb, " MB."
         )
         telemetry_utils$track_validation(
-          module_label, "failure", "file_size", size_msg, session
+          module_label, "failure", "file_size", size_msg, session, reason_code = "file_size"
         )
         notify_error(size_msg)
         return()
@@ -249,7 +256,7 @@ server <- function(id, type = "demand") {
       if (is.null(tmp)) {
         telemetry_utils$track_validation(
           module_label, "failure", "file_read",
-          "Unable to read file as CSV or TSV", session
+          "Unable to read file as CSV or TSV", session, reason_code = "file_read"
         )
         notify_error("Unable to read the uploaded file. Please ensure it is a valid CSV or TSV file.")
         return()
@@ -258,7 +265,9 @@ server <- function(id, type = "demand") {
       # would strip every column (all sums equal nrow == 0) and the mapper would open empty.
       if (nrow(tmp) == 0) {
         empty_msg <- "The file has no data rows."
-        telemetry_utils$track_validation(module_label, "failure", "empty_file", empty_msg, session)
+        telemetry_utils$track_validation(
+          module_label, "failure", "empty_file", empty_msg, session, reason_code = "empty_file"
+        )
         notify_error(empty_msg)
         return()
       }

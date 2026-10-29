@@ -1,3 +1,56 @@
+# shinybeez 1.4.0
+
+## Branding
+
+- **Sharper hex logos** — the shinybeez, beezdemand and beezdiscounting hex
+  stickers were rebuilt as vectors from the original artwork (same bee, same
+  fitted curves, Futura wordmark as outlines, frame at its original weight,
+  the four asterisks back). The navbar logo, the info-modal logo, the plot
+  watermark and the favicon use the new renders; sources live in `brand/`.
+
+## New Features
+
+- **Analytics consent** — a banner on first visit lets you choose what the
+  app may send: *Nothing* (only one anonymous record of the choice),
+  *Diagnostics only* (errors, failed uploads and timings, as counts; no Google
+  Analytics, no cookies) or *Usage and diagnostics* (which tools and settings
+  are used, plus page views via Google Analytics with advertising features
+  off). The choice is stored in the browser and can be changed any time from
+  the shield icon in the navbar or the Welcome page. Visitors in the EU/EEA/UK/CH
+  default to *Diagnostics only*; everyone else to *Usage and diagnostics*.
+  Google Analytics is now loaded by the browser only at the usage level, never
+  by the server, and the anonymous-user cookie the telemetry package used to
+  set is gone.
+
+## Bug Fixes
+
+- **Upload guards on the Discounting tab** — a wide 27-Item MCQ file with the
+  same `subjectid` on more than one row (or a blank one), and a wide
+  indifference-point file with a cell that is not a number, are now rejected at
+  upload with a message naming the repeated ids or the offending column and
+  cells. Both used to pass validation and abort inside the data reshape, which
+  ended the session with a grey screen. For an otherwise valid wide
+  indifference-point file, the reshape form does not open on this rejection,
+  since it cannot repair a cell.
+- **A failed data reshape no longer disconnects** — if preparing an upload on
+  the Demand or Discounting tab fails, the app shows the error as a
+  notification and leaves the data panel empty instead of closing the session.
+- **No work on load for the Mixed Effects tab** — a fresh session no longer
+  loads the Mixed Effects example data or computes its systematic criteria
+  before that tab is opened, so the "Computing systematic criteria..." notice
+  no longer appears over the Welcome page. The example data loads the first
+  time the tab is opened, as before, and the Systematic Criteria table is
+  computed when its subtab is shown. Notices about a transformed `y_ll4`
+  response or a missing group-by column now appear on that subtab.
+- Performance telemetry rows now carry the session token; every one of them
+  used to be unattributable.
+- Errors Shiny could not recover from are recorded as normal error rows
+  (context `unhandled`) instead of the telemetry package's own unread format.
+- Telemetry payloads are checked against a per-event schema before they are
+  stored: quoted user strings in messages are replaced by an ellipsis, factor
+  and covariate names are recorded as counts, and file names never leave the
+  session. Validation failures carry a stable `reason_code`.
+
 # shinybeez 1.3.0
 
 ## New Features
