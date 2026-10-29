@@ -1,4 +1,4 @@
-# shinybeez 1.4.0 (development)
+# shinybeez 1.4.0
 
 ## Branding
 
