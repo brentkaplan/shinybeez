@@ -1,3 +1,16 @@
+# shinybeez 1.4.1 (development)
+
+## Bug Fixes
+
+- **Upload guard on the Demand tab** — a wide demand file with a price cell that
+  is not a number is now rejected at upload with a message naming the column and
+  the cell. Before, the file failed with a raw `Can't combine` message, or, if
+  every price column held text such as `$5`, those values silently became missing.
+- **Systematic criteria on the Discounting tab** — opening the tab with a 5.5-Trial
+  or MCQ file while "What are you scoring?" is on Indifference Point Regression now
+  explains the mismatch in place instead of showing a raw `Column id is not found`
+  error.
+
 # shinybeez 1.4.0
 
 ## Branding
