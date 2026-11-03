@@ -160,6 +160,15 @@ server <- function(id, data_r, type = NULL) {
         if (type() %in% "27-Item MCQ") {
           # MCQ has no systematic criteria
         } else if (type() %in% "Indifference Point Regression") {
+          # The dropdown defaults to this branch whatever was uploaded. A 5.5-Trial or MCQ file
+          # has no id/x/y, and that mismatch is not an app failure: say so here, unlogged.
+          shiny$validate(shiny$need(
+            all(c("id", "x", "y") %in% colnames(data_r$data_d)),
+            paste(
+              "These data are not indifference point data (id, x, y), so systematic criteria",
+              "cannot be checked. Check the \"What are you scoring?\" setting."
+            )
+          ))
           sys_result <- tryCatch(
             session_logger$with_performance(
               "discounting_systematic_check",
