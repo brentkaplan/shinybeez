@@ -198,7 +198,7 @@ server <- function(id, type = "demand") {
     # A cell-level problem cannot be mapped away: the mapper's parse_cells() reads text
     # through readr::parse_number(), which turns "7,5" into 75 and a text cell into NA.
     # The user has to fix the cell, so no mapping is offered for these codes.
-    mapper_cannot_help <- c("wide_ip_nonnumeric_cells")
+    mapper_cannot_help <- c("wide_ip_nonnumeric_cells", "wide_demand_nonnumeric_cells")
 
     # A rejected frame opens the mapper unless it carries a fixed-schema marker or a
     # problem the mapper cannot help with.
