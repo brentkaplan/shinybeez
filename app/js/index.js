@@ -265,12 +265,17 @@ document.addEventListener('click', (event) => {
   const wrapper = btn.closest('.dataTables_wrapper');
   const tableEl = wrapper ? wrapper.querySelector('table') : null;
   const tableId = tableEl ? tableEl.id : 'unknown';
+  // The DT output container carries the namespaced Shiny output id (app-<module>-...),
+  // which names the module; the <table> id is DT's own DataTables_Table_<n>.
+  const container = btn.closest('.datatables');
+  const outputId = container ? container.id : '';
   const exportType = btn.textContent.trim().toLowerCase();
 
   // eslint-disable-next-line no-undef
   Shiny.setInputValue('_telemetry_dt_export', {
     export_type: exportType,
     table_id: tableId,
+    output_id: outputId,
     ts: Date.now(),
   }, { priority: 'event' });
 });

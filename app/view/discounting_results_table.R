@@ -22,6 +22,7 @@ box::use(
   app / logic / plot_downloads,
   app / logic / telemetry_utils,
   app / logic / utils,
+  app / logic / validate,
   app / view / shared / data_table[build_datatable],
 )
 
@@ -178,7 +179,8 @@ server <- function(
         fmt_chk <- five_trial$validate_five_trial(data_r$data_d)
         if (is.character(fmt_chk)) {
           telemetry_utils$track_validation(
-            "discounting", "failure", "five_trial_format", fmt_chk, session
+            "discounting", "failure", "five_trial_format", fmt_chk, session,
+            reason_code = validate$reason_code(fmt_chk)
           )
           shiny$showNotification(fmt_chk, type = "error", duration = NULL)
           return(list())
@@ -231,7 +233,8 @@ server <- function(
         fmt_chk <- five_trial$validate_five_trial(data_r$data_d)
         if (is.character(fmt_chk)) {
           telemetry_utils$track_validation(
-            "discounting", "failure", "five_trial_format", fmt_chk, session
+            "discounting", "failure", "five_trial_format", fmt_chk, session,
+            reason_code = validate$reason_code(fmt_chk)
           )
           shiny$showNotification(fmt_chk, type = "error", duration = NULL)
           return(list())

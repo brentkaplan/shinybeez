@@ -5,7 +5,8 @@ box::use(
   dplyr,
   readr,
   tidyr,
-  stats
+  stats,
+  utils
 )
 
 #' A rejection message with a stable machine-readable code
@@ -16,6 +17,7 @@ box::use(
 #' @param code A snake_case identifier for the failing check.
 #' @param ... Pieces of the message, pasted with `paste0()`.
 #' @return A character scalar with attribute `code`.
+#' @export
 coded <- function(code, ...) {
   structure(paste0(...), code = code)
 }
@@ -214,6 +216,55 @@ check_demand_sufficiency <- function(dat) {
     ))
   }
   TRUE
+}
+
+#' Check no id sees the same price twice
+#'
+#' Long format only: wide headers are already unique after `check_price_headers()`.
+#' Runs on the STORED frame like `check_demand_sufficiency()`, so prices are parsed the
+#' way `retype_data()` parses them: "$1" and "1" are one price. The key includes `group`
+#' when the frame has one, because the grouped empirical measures split by group before
+#' calling beezdemand. Without the guard the file passes every upload check and
+#' `beezdemand::get_empirical_measures()` aborts on the Empirical Measures tab with
+#' "Duplicates found where id = ..." (2026-11-03).
+#'
+#' @param dat Demand data frame as stored (post `remove_na_rows()`)
+#' @return TRUE or character error message naming the ids and repeated prices
+#' @export
+check_demand_duplicate_prices <- function(dat) {
+  if (demand_format(dat) == "wide") {
+    return(TRUE)
+  }
+  prices <- dat$x
+  if (!is.numeric(prices)) {
+    prices <- suppressWarnings(readr$parse_number(as.character(prices)))
+  }
+  keep <- !is.na(prices)
+  id <- as.character(dat$id)[keep]
+  prices <- prices[keep]
+  key <- if ("group" %in% colnames(dat)) {
+    paste(id, as.character(dat$group)[keep], sep = "\r")
+  } else {
+    id
+  }
+  dup <- duplicated(data.frame(key = key, price = prices))
+  if (!any(dup)) {
+    return(TRUE)
+  }
+  offenders <- unique(data.frame(id = id[dup], price = prices[dup], stringsAsFactors = FALSE))
+  shown <- utils$head(offenders, 10L)
+  listed <- paste0("\"", shown$id, "\" at price ", shown$price, collapse = ", ")
+  more <- if (nrow(offenders) > nrow(shown)) {
+    paste0(" (and ", nrow(offenders) - nrow(shown), " more)")
+  } else {
+    ""
+  }
+  coded(
+    "duplicate_price_rows",
+    "These ids have more than one row at the same price: ", listed, more,
+    ". Each participant can have only one consumption value per price; ",
+    "combine or remove the repeated rows and upload again."
+  )
 }
 
 #' Validate mixed effects demand data
