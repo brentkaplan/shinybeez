@@ -414,3 +414,67 @@ describe("k_values", {
     expect_equal(validate$k_values, c(1.5, 2, 2.5, 3, 3.5, 4))
   })
 })
+
+# ------------------------------------------------------------------------------
+# check_demand_duplicate_prices() tests
+# ------------------------------------------------------------------------------
+# 2026-11-03 (demand_empirical_measures :: Duplicates found where id = "..."): a long
+# file that repeats a price within one id passes check_data() and the sufficiency
+# check, then beezdemand::get_empirical_measures() rejects it on the Empirical
+# Measures tab. The guard runs at upload, on the stored frame, so the user learns
+# which id and price to fix before any tab is opened.
+
+describe("check_demand_duplicate_prices", {
+  long_ok <- data.frame(
+    id = rep(c("1", "2"), each = 3),
+    x = rep(c(0.5, 1, 2), 2),
+    y = c(10, 8, 5, 12, 9, 6)
+  )
+
+  it("accepts long data where every id sees each price once", {
+    expect_true(isTRUE(validate$check_demand_duplicate_prices(long_ok)))
+  })
+
+  it("accepts wide data (headers are checked elsewhere)", {
+    wide <- data.frame(id = 1:2, `1` = 1:2, `1` = 3:4, check.names = FALSE)
+    expect_true(isTRUE(validate$check_demand_duplicate_prices(wide)))
+  })
+
+  it("rejects a repeated (id, price) row naming the id and the price", {
+    dup <- rbind(long_ok, data.frame(id = "2", x = 1, y = 7))
+    res <- validate$check_demand_duplicate_prices(dup)
+    expect_type(res, "character")
+    expect_identical(validate$reason_code(res), "duplicate_price_rows")
+    expect_match(res, "\"2\"", fixed = TRUE)
+    expect_match(res, "1", fixed = TRUE)
+    expect_false(grepl("\"1\"", res, fixed = TRUE)) # id 1 is clean
+  })
+
+  it("treats \"$1\" and \"1\" as the same price, like retype_data()", {
+    dup <- data.frame(
+      id = c("1", "1", "1"), x = c("$1", "1", "2"), y = c(10, 9, 5)
+    )
+    res <- validate$check_demand_duplicate_prices(dup)
+    expect_identical(validate$reason_code(res), "duplicate_price_rows")
+  })
+
+  it("keys on the group as well when a group column is present", {
+    grouped <- data.frame(
+      id = c("1", "1", "1", "1"),
+      group = c("a", "a", "b", "b"),
+      x = c(1, 2, 1, 2),
+      y = c(10, 5, 11, 6)
+    )
+    expect_true(isTRUE(validate$check_demand_duplicate_prices(grouped)))
+    grouped_dup <- rbind(grouped, data.frame(id = "1", group = "b", x = 2, y = 7))
+    expect_identical(
+      validate$reason_code(validate$check_demand_duplicate_prices(grouped_dup)),
+      "duplicate_price_rows"
+    )
+  })
+
+  it("ignores rows whose price is missing", {
+    with_na <- rbind(long_ok, data.frame(id = c("1", "1"), x = c(NA, NA), y = c(1, 2)))
+    expect_true(isTRUE(validate$check_demand_duplicate_prices(with_na)))
+  })
+})

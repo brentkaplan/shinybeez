@@ -178,6 +178,28 @@ describe("sanitize_event()", {
     expect_true(out$data$first_col_id_like)
   })
 
+  it("keeps the tab on an error row and the layout flags on an upload row", {
+    out <- telemetry_schema$sanitize_event(
+      "error", list(error_message = "boom", context = "demand_curve_fitting", tab = "Demand")
+    )
+    expect_identical(out$data$tab, "Demand")
+    expect_identical(
+      telemetry_schema$sanitize_event("error", list(error_message = "boom", tab = "Settings"))$data$tab,
+      "other"
+    )
+    out <- telemetry_schema$sanitize_event(
+      "data_upload", list(rows = 3L, layout = "mcq_long", has_group = TRUE)
+    )
+    expect_identical(out$data$layout, "mcq_long")
+    expect_true(out$data$has_group)
+    expect_identical(out$dropped, character())
+    for (layout in c("long", "wide", "mcq_wide", "mcq_long", "five_trial", "unknown")) {
+      expect_identical(
+        telemetry_schema$sanitize_event("data_upload", list(layout = layout))$data$layout, layout
+      )
+    }
+  })
+
   it("keeps POSIXct timestamps", {
     now <- Sys.time()
     out <- telemetry_schema$sanitize_event("navigation", list(tab = "Demand", timestamp = now))

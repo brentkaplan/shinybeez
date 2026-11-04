@@ -264,3 +264,45 @@ describe("5.5-Trial scoring through the real upload path", {
     expect_error(five_trial$compute_five_trial_pd(dat), "ResponseId")
   })
 })
+
+
+# Every rejection carries a stable code so telemetry can group 5.5-Trial format
+# failures by cause (the `five_trial_format` rows used to carry reason_code = null).
+describe("validate_five_trial reason codes", {
+  code_of <- function(dat) validate$reason_code(five_trial$validate_five_trial(dat))
+
+  it("names a non-Qualtrics file", {
+    expect_identical(
+      code_of(data.frame(id = "a", x = 1, y = 0.5)),
+      "five_trial_missing_responseid"
+    )
+  })
+
+  it("names duplicate headers, blank and repeated ids, and an empty file", {
+    dup_headers <- data.frame(ResponseId = "r1", responseid = "r1", check.names = FALSE)
+    expect_identical(code_of(dup_headers), "five_trial_duplicate_headers")
+    expect_identical(code_of(data.frame(responseid = character())), "five_trial_no_rows")
+    expect_identical(code_of(data.frame(responseid = c("r1", ""))), "five_trial_blank_responseid")
+    expect_identical(code_of(data.frame(responseid = c("r1", "r1"))), "five_trial_duplicate_responseid")
+  })
+
+  it("names missing items, attention checks, unusable and non-numeric timing", {
+    dat <- as_uploaded(qualtrics_fixture("dd"))
+    no_items <- dat[, !grepl("^i1$", names(dat))]
+    expect_identical(code_of(no_items), "five_trial_missing_items")
+    no_attend <- dat[, names(dat) != "attend-ll"]
+    expect_identical(code_of(no_attend), "five_trial_missing_attention_checks")
+    no_timing <- dat
+    no_timing[, grepl("timing_click count", names(no_timing), fixed = TRUE)] <- NA
+    expect_identical(code_of(no_timing), "five_trial_timing_no_values")
+    bad_timing <- dat
+    col <- which(grepl("timing_first click", names(bad_timing), fixed = TRUE))[1]
+    bad_timing[[col]] <- as.character(bad_timing[[col]])
+    bad_timing[[col]][which(!is.na(bad_timing[[col]]))[1]] <- "fast"
+    expect_identical(code_of(bad_timing), "five_trial_timing_nonnumeric")
+  })
+
+  it("passes the bundled template", {
+    expect_true(isTRUE(five_trial$validate_five_trial(as_uploaded(qualtrics_fixture("dd")))))
+  })
+})

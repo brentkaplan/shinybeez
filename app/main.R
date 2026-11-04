@@ -205,8 +205,10 @@ server <- function(id) {
     # Initialize reactive data storage
     session$userData$data <- shiny$reactiveValues()
 
-    # Track last active tab for session_end telemetry (plain variable, not reactive)
+    # Track last active tab for session_end telemetry (plain variable, not reactive).
+    # Mirrored on userData so track_error() can stamp error rows with the tab.
     .last_tab <- "Welcome"
+    session$userData$last_tab <- "Welcome"
 
     # Mixed Effects loads its example data only once that tab has been opened.
     # Sticky: leaving the tab keeps the data and selections.
@@ -233,6 +235,7 @@ server <- function(id) {
           session_telemetry$track_navigation(nav_value)
 
           .last_tab <<- nav_value
+          session$userData$last_tab <- nav_value
           if (identical(nav_value, "MixedEffectsDemand")) me_visited(TRUE)
         })
       }
@@ -244,7 +247,10 @@ server <- function(id) {
 
     shiny$observeEvent(root_input[["_telemetry_dt_export"]], {
       evt <- root_input[["_telemetry_dt_export"]]
-      module <- sub("-.*", "", evt$table_id)
+      # output_id is the DT output container (namespaced, names the module); table_id
+      # is DT's own <table> id and is kept only for older bundles.
+      output_id <- if (is.null(evt$output_id)) evt$table_id else evt$output_id
+      module <- telemetry_utils$table_export_module(output_id)
       session_telemetry$track_export(
         export_type = evt$export_type,
         module = module,
@@ -264,10 +270,12 @@ server <- function(id) {
 
     shiny$observeEvent(root_input[["_telemetry_client_error"]], {
       evt <- root_input[["_telemetry_client_error"]]
-      context <- paste0("client_js:", evt$source, ":", evt$line)
+      if (!telemetry_utils$client_error_budget(session)) {
+        return()
+      }
       session_telemetry$track_error(
         error_message = evt$message,
-        error_context = context
+        error_context = telemetry_utils$client_error_context(evt$source, evt$line)
       )
     })
 

@@ -8,6 +8,10 @@ box::use(
   utils,
 )
 
+box::use(
+  app / logic / validate[coded],
+)
+
 #' The Qualtrics 5.5-Trial column vocabulary, in the case beezdiscounting expects
 #'
 #' beezdiscounting's internals are case-sensitive: `timing_dd()`/`timing_pd()`
@@ -68,7 +72,8 @@ validate_five_trial <- function(data) {
   # The same applies to any duplicated item or timing header.
   duplicate_headers <- unique(present[duplicated(present)])
   if (length(duplicate_headers) > 0) {
-    return(paste0(
+    return(coded(
+      "five_trial_duplicate_headers",
       "The 5.5-Trial data have duplicate column name(s): ",
       paste(utils$head(duplicate_headers, 5), collapse = ", "),
       ". Column names must be unique, ignoring case."
@@ -76,25 +81,33 @@ validate_five_trial <- function(data) {
   }
 
   if (!"responseid" %in% present) {
-    return(paste0(
+    return(coded(
+      "five_trial_missing_responseid",
       "This does not look like a Qualtrics 5.5-Trial export: the `ResponseId` ",
       "column is missing. Please use the 5.5-Trial template from the welcome page."
     ))
   }
 
   if (nrow(data) == 0) {
-    return("The 5.5-Trial data have no rows. Please upload a file with responses.")
+    return(coded(
+      "five_trial_no_rows",
+      "The 5.5-Trial data have no rows. Please upload a file with responses."
+    ))
   }
 
   # calc_dd/calc_pd join on ResponseId; blank or repeated ids collapse rows and
   # produce "Each row of output must be identified by a unique combination of keys".
   response_id <- data[[which(present == "responseid")[1]]]
   if (anyNA(response_id) || any(!nzchar(trimws(as.character(response_id))))) {
-    return("Some rows have a blank `ResponseId`. Every response needs an id.")
+    return(coded(
+      "five_trial_blank_responseid",
+      "Some rows have a blank `ResponseId`. Every response needs an id."
+    ))
   }
   duplicated_ids <- unique(response_id[duplicated(response_id)])
   if (length(duplicated_ids) > 0) {
-    return(paste0(
+    return(coded(
+      "five_trial_duplicate_responseid",
       "The 5.5-Trial data have duplicate `ResponseId` values: ",
       paste(utils$head(duplicated_ids, 5), collapse = ", "),
       ". Each response must appear exactly once."
@@ -104,7 +117,8 @@ validate_five_trial <- function(data) {
   expected_items <- paste0("i", 1:31)
   missing_items <- expected_items[!expected_items %in% present]
   if (length(missing_items) > 0) {
-    return(paste0(
+    return(coded(
+      "five_trial_missing_items",
       "The 5.5-Trial data are missing ", length(missing_items),
       " item column(s): ",
       paste(toupper(missing_items), collapse = ", "),
@@ -117,7 +131,8 @@ validate_five_trial <- function(data) {
   expected_attend <- c("attend-ll", "attend-ss")
   missing_attend <- expected_attend[!expected_attend %in% present]
   if (length(missing_attend) > 0) {
-    return(paste0(
+    return(coded(
+      "five_trial_missing_attention_checks",
       "The 5.5-Trial data are missing the attention-check column(s): ",
       paste(c("Attend-LL", "Attend-SS")[expected_attend %in% missing_attend],
         collapse = ", "
@@ -149,7 +164,8 @@ validate_five_trial <- function(data) {
   )
 
   if (!all(measure_usable)) {
-    return(paste0(
+    return(coded(
+      "five_trial_timing_no_values",
       "The 5.5-Trial data have no usable values for Timing measure(s): ",
       paste(unname(expected_measures[!measure_usable]), collapse = ", "),
       ". Export the Qualtrics survey with all four timing measures ",
@@ -175,7 +191,8 @@ validate_five_trial <- function(data) {
     )
   ]
   if (length(non_numeric) > 0) {
-    return(paste0(
+    return(coded(
+      "five_trial_timing_nonnumeric",
       "These Timing column(s) contain non-numeric values: ",
       paste(utils$head(non_numeric, 5), collapse = ", "),
       ". Timing data must be numeric."

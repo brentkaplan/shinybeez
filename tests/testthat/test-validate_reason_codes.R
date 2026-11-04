@@ -48,6 +48,11 @@ describe("reason_code()", {
       validate$reason_code(validate$check_demand_sufficiency(long)),
       "insufficient_price_points"
     )
+    repeated <- data.frame(id = c(1, 1, 1), x = c(1, 1, 2), y = c(5, 4, 3))
+    expect_identical(
+      validate$reason_code(validate$check_demand_duplicate_prices(repeated)),
+      "duplicate_price_rows"
+    )
   })
 
   it("names the discounting failures", {
