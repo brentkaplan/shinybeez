@@ -1,4 +1,4 @@
-# shinybeez 1.4.1 (development)
+# shinybeez 1.4.1
 
 ## Bug Fixes
 
