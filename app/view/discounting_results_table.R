@@ -22,6 +22,7 @@ box::use(
   app / logic / plot_downloads,
   app / logic / telemetry_utils,
   app / logic / utils,
+  app / logic / validate,
   app / view / shared / data_table[build_datatable],
 )
 
@@ -49,6 +50,7 @@ server <- function(
     # Dynamic UI for results
     output$results_box <- shiny$renderUI({
       shiny$req(type())
+      shiny$req(data_r$data_d) # NULL after a failed reshape, until the next upload
       if (type() == "27-Item MCQ" && !("I16" %in% names(data_r$data_d))) {
         bslib$navset_card_tab(
           id = ns("tabs"),
@@ -78,9 +80,9 @@ server <- function(
               sidebar = bslib$sidebar(
                 title = "Plot Settings",
                 open = FALSE,
-                shiny$textInput(ns("title"), "Title Text", "title"),
-                shiny$textInput(ns("xtext"), "X-Axis Text", "x"),
-                shiny$textInput(ns("ytext"), "Y-Axis Text", "y"),
+                shiny$textInput(ns("title"), "Title Text", ""),
+                shiny$textInput(ns("xtext"), "X-Axis Text", "Delay"),
+                shiny$textInput(ns("ytext"), "Y-Axis Text", "Indifference Point"),
                 shiny$checkboxInput(ns("xlog"), "Log X-Axis"),
                 shiny$actionButton(ns("update_plot_btn"), "Update Plot")
               ),
@@ -177,7 +179,8 @@ server <- function(
         fmt_chk <- five_trial$validate_five_trial(data_r$data_d)
         if (is.character(fmt_chk)) {
           telemetry_utils$track_validation(
-            "discounting", "failure", "five_trial_format", fmt_chk, session
+            "discounting", "failure", "five_trial_format", fmt_chk, session,
+            reason_code = validate$reason_code(fmt_chk)
           )
           shiny$showNotification(fmt_chk, type = "error", duration = NULL)
           return(list())
@@ -230,7 +233,8 @@ server <- function(
         fmt_chk <- five_trial$validate_five_trial(data_r$data_d)
         if (is.character(fmt_chk)) {
           telemetry_utils$track_validation(
-            "discounting", "failure", "five_trial_format", fmt_chk, session
+            "discounting", "failure", "five_trial_format", fmt_chk, session,
+            reason_code = validate$reason_code(fmt_chk)
           )
           shiny$showNotification(fmt_chk, type = "error", duration = NULL)
           return(list())
@@ -424,7 +428,7 @@ server <- function(
         ylabel = input$ytext,
         logx = input$xlog
       ) +
-        ggplot2$ggtitle(input$title) +
+        ggplot2$ggtitle(utils$plot_title_or_null(input$title)) +
         utils$add_shiny_logo(utils$watermark_tr)
     })
 

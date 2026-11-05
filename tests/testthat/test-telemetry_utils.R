@@ -11,7 +11,7 @@ describe("telemetry_utils", {
     it("is a function with correct formals", {
       expect_true(is.function(telemetry_utils$track_validation))
       fmls <- names(formals(telemetry_utils$track_validation))
-      expect_equal(fmls, c("module", "outcome", "check_name", "reason", "session"))
+      expect_equal(fmls, c("module", "outcome", "check_name", "reason", "session", "shape", "reason_code"))
     })
 
     it("returns invisibly when telemetry is disabled", {
@@ -315,14 +315,15 @@ describe("session lifecycle payloads (shinybeez-analytics#7)", {
         {
           built <- telemetry_utils$init_telemetry()
           start <- Sys.time() - 30
-          # session = NULL: shiny.telemetry only accepts a real ShinySession/session_proxy or NULL
+          # The storage gate drops rows without a session token, so the row needs a session
+          # whose consent level is known (consented_session() in helper-telemetry.R).
           telemetry_utils$track_event(
             "session_end",
             list(
               session_duration = telemetry_utils$session_duration_secs(start),
               last_tab = "Demand"
             ),
-            session = NULL
+            session = consented_session()
           )
         }
       )
@@ -552,5 +553,81 @@ describe("session lifecycle payloads (shinybeez-analytics#7)", {
 
       expect_false(telemetry_utils$set_sqlite_wal(storage))
     })
+  })
+})
+
+
+describe("table_export_module()", {
+  it("reads the module from the namespaced DT output id", {
+    expect_identical(telemetry_utils$table_export_module("app-demand-demand_data_table-data_table"), "demand")
+    expect_identical(
+      telemetry_utils$table_export_module("app-discounting-discounting_results_table-results_table"),
+      "discounting"
+    )
+    expect_identical(
+      telemetry_utils$table_export_module("app-mixed_effects_demand-input_data_table"),
+      "mixed_effects"
+    )
+  })
+
+  it("is unknown for DT's own table element id, an empty id and NULL", {
+    expect_identical(telemetry_utils$table_export_module("DataTables_Table_0"), "unknown")
+    expect_identical(telemetry_utils$table_export_module(""), "unknown")
+    expect_identical(telemetry_utils$table_export_module(NULL), "unknown")
+  })
+})
+
+describe("client_error_context()", {
+  it("keeps only the script name and line, never the proxy path or query", {
+    src <- paste0(
+      "https://shinybeez.app/app_proxy/3ac69b5f-305f-46d8-8ecb-9c5405504b7b/",
+      "shiny-javascript-1.13.0/shiny.min.js?v=1"
+    )
+    expect_identical(telemetry_utils$client_error_context(src, 444), "client_js:shiny.min.js:444")
+  })
+
+  it("names the page when the source is the app URL itself or a hash", {
+    expect_identical(
+      telemetry_utils$client_error_context("https://shinybeez.app/app_proxy/d84e8e8a-77cd/", 4),
+      "client_js:page:4"
+    )
+    expect_identical(
+      telemetry_utils$client_error_context("https://shinybeez.app/app_proxy/af2b/#templates", 0),
+      "client_js:page:0"
+    )
+  })
+
+  it("passes promise rejections and an empty source through", {
+    expect_identical(telemetry_utils$client_error_context("promise", NULL), "client_js:promise")
+    expect_identical(telemetry_utils$client_error_context("", 0), "client_js:unknown:0")
+    expect_identical(telemetry_utils$client_error_context(NULL, NULL), "client_js:unknown")
+  })
+})
+
+describe("client_error_budget()", {
+  it("allows the first ten client errors of a session and refuses the rest", {
+    sess <- shiny::MockShinySession$new()
+    allowed <- vapply(1:12, function(i) telemetry_utils$client_error_budget(sess, limit = 10L), logical(1))
+    expect_identical(allowed, c(rep(TRUE, 10), FALSE, FALSE))
+  })
+})
+
+describe("track_data_upload() layout flags", {
+  it("forwards layout and has_group only when the caller gives them", {
+    db_path <- with_sqlite_telemetry()
+    sess <- consented_session()
+    telemetry_utils$track_data_upload(
+      list(size = 10, type = "csv", rows = 4L, cols = 3L, layout = "long", has_group = TRUE),
+      session = sess
+    )
+    telemetry_utils$track_data_upload(list(size = 10, type = "csv", rows = 4L, cols = 3L), session = sess)
+    rows <- read_event_rows(db_path, "data_upload")
+    expect_equal(nrow(rows), 2L)
+    first <- jsonlite::fromJSON(rows$details[1])
+    expect_identical(first$layout, "long")
+    expect_true(first$has_group)
+    second <- jsonlite::fromJSON(rows$details[2])
+    expect_false("layout" %in% names(second))
+    expect_false("has_group" %in% names(second))
   })
 })

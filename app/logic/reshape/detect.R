@@ -19,6 +19,10 @@ flat_y_pattern <- "^(y|y_ll4|consumption|consumed|indiff|indifference|ip)$"
 group_name_pattern <- "^(group|series|condition|cond|commodity|drug|session|site|wave|arm)$"
 suffix_pattern <- "^(.*?)[_. -]?([0-9]+(\\.[0-9]+)?)$"
 
+#' Whether column names look like a participant id
+#' @export
+is_id_like <- function(nms) grepl(id_pattern, tolower(nms), perl = TRUE)
+
 #' @export
 guess_id_col <- function(dat) {
   nms <- colnames(dat)

@@ -45,3 +45,22 @@ as_telemetry_session <- function(session) {
 }
 
 fake_session <- function() as_telemetry_session(shiny::MockShinySession$new())
+
+# A fake session whose consent level is already known to the storage gate. Rows written for
+# a session with no level wait in the pending buffer and never reach the database, so every
+# round-trip test that is not about the handshake itself starts from one of these.
+consented_session <- function(level = "usage") {
+  box::use(app / logic / telemetry_utils)
+  s <- fake_session()
+  telemetry_utils$set_session_consent(s, level, "stored")
+  s
+}
+
+# For shiny::testServer bodies: give the mock session the class shiny.telemetry needs AND a
+# known consent level, so the module's telemetry rows reach the database.
+as_consented_session <- function(session, level = "usage") {
+  box::use(app / logic / telemetry_utils)
+  as_telemetry_session(session)
+  telemetry_utils$set_session_consent(session, level, "stored")
+  session
+}

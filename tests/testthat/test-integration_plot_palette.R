@@ -62,6 +62,56 @@ describe("Mixed Effects - palette picker", {
     expect_false(grepl("palette-note", note_html, fixed = TRUE))
   })
 
+  it("lists every palette name in full, above its swatches", {
+    require_app(app)
+    # In the 250px sidebar a [swatches][name] row left 8-swatch palettes a 66px name, so
+    # half the names were cut ("prism_light" and "prism_dark" both read "prism_..."). The
+    # stacking check does not depend on font metrics, so it catches that layout locally.
+    # The selected item keeps the one-row layout. setValue(.., true) is silent: no change
+    # event, so Shiny never sees it and the plot does not re-render.
+    n_palettes <- app$get_js("Object.keys(window.shinybeezPalettes).length")
+    sel_js <- sprintf("$('#%s')[0].selectize", palette_id)
+    # Close the picker even if the wait below times out, so the later tests start from a closed control.
+    withr::defer(app$run_js(sprintf("var s = %s; s.close(); s.blur();", sel_js)))
+    # Selectize draws the dropdown rows asynchronously after open().
+    app$run_js(sprintf("var s = %s; s.focus(); s.open();", sel_js))
+    app$wait_for_js(sprintf(
+      "%s.$dropdown[0].querySelectorAll('.option.palette-option').length === %d", sel_js, n_palettes
+    ), timeout = 10000)
+    res <- app$get_js(sprintf("(function(){
+      var s = %s, before = s.getValue(), out = {options: [], items: []};
+      var box = function(el) { return el.getBoundingClientRect(); };
+      try {
+        s.$dropdown[0].querySelectorAll('.option.palette-option').forEach(function(o) {
+          var n = o.querySelector('.palette-name'), sw = box(o.querySelector('.palette-swatches')), nb = box(n);
+          out.options.push({name: n.textContent, w: nb.width, swh: sw.height,
+            cut: n.scrollWidth > n.clientWidth, below: sw.top >= nb.bottom - 1});
+        });
+        Object.keys(window.shinybeezPalettes).forEach(function(p) {
+          s.setValue(p, true);
+          var it = s.$control[0].querySelector('.item.palette-option'), n = it.querySelector('.palette-name');
+          var sw = box(it.querySelector('.palette-swatches')), nb = box(n);
+          out.items.push({name: p, w: nb.width, cut: n.scrollWidth > n.clientWidth,
+            row: Math.abs((sw.top + sw.bottom) / 2 - (nb.top + nb.bottom) / 2) < 4});
+        });
+      } finally {
+        s.setValue(before, true);
+      }
+      return out;
+    })()", sel_js))
+    opts <- do.call(rbind, lapply(res$options, as.data.frame))
+    items <- do.call(rbind, lapply(res$items, as.data.frame))
+    expect_equal(nrow(opts), n_palettes)
+    expect_true(all(opts$w > 0 & opts$swh > 0))
+    expect_equal(opts$name[opts$cut], character(0))
+    expect_equal(opts$name[!opts$below], character(0))
+    expect_equal(nrow(items), n_palettes)
+    expect_true(all(items$w > 0))
+    expect_equal(items$name[items$cut], character(0))
+    expect_equal(items$name[!items$row], character(0))
+    expect_equal(app$get_value(input = palette_id), "Codedbx")
+  })
+
   it("switches to viridis, warns about the yellow, and re-renders on Update Plot", {
     require_app(app)
     toggle_js <- "document.querySelector('bslib-input-dark-mode').shadowRoot.querySelector('button').click()"

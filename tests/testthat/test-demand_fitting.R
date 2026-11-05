@@ -228,6 +228,26 @@ describe("resolve_q0_constraint", {
   })
 })
 
+describe("q0_constraint_problem", {
+  it("has nothing to say when Q0 is not constrained", {
+    expect_null(fitting$q0_constraint_problem(0, FALSE))
+    expect_null(fitting$q0_constraint_problem(NULL, NULL))
+  })
+
+  it("accepts a positive, finite Q0", {
+    expect_null(fitting$q0_constraint_problem(5, TRUE))
+    expect_null(fitting$q0_constraint_problem(0.5, TRUE))
+  })
+
+  it("rejects a missing, zero, negative or infinite Q0", {
+    for (bad in list(NULL, NA, NA_real_, 0, -1, Inf, NaN)) {
+      msg <- fitting$q0_constraint_problem(bad, TRUE)
+      expect_type(msg, "character")
+      expect_match(msg, "greater than 0")
+    }
+  })
+})
+
 # ------------------------------------------------------------------------------
 # format_demand_results() tests
 # ------------------------------------------------------------------------------
@@ -540,5 +560,27 @@ describe("fit_params", {
     json <- jsonlite::toJSON(params, auto_unbox = TRUE, null = "null")
     expect_match(json, '"constrainq0":null', fixed = TRUE)
     expect_match(json, '"aggregation":"Pooled"', fixed = TRUE)
+  })
+})
+
+describe("fit_demand_ungrouped with a constrained Q0", {
+  # Production 2026-08-31 and 2026-10-06: "Error in FitCurves: subscript out of bounds".
+  # With constrainq0 set only alpha is free, and beezdemand before 299d0a1 indexed a 1x1
+  # matrix at [2, 2] when one subject could not be fitted, aborting the whole call. The
+  # fix arrived with the 2026-09-19 lockfile update; this guards a future repin.
+  it("reports a non-fittable subject instead of aborting the fit", {
+    apt <- beezdemand::apt
+    good <- apt[apt$id %in% c(19, 30), ]
+    degenerate <- data.frame(id = 999, x = sort(unique(good$x)), y = 0)
+    degenerate$y[1] <- 3
+    dat <- rbind(good, degenerate)
+
+    expect_no_error(
+      result <- suppressWarnings(fitting$fit_demand_ungrouped(
+        data = dat, eq = "koff", agg = NULL, k = 2, constrainq0 = 10
+      ))
+    )
+    expect_equal(nrow(result$results), 3)
+    expect_false(result$output$results$converged[result$output$results$id == "999"])
   })
 })

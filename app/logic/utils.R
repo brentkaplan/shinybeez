@@ -492,3 +492,15 @@ apply_dark_mode_theme <- function(p, dark_mode = "light") {
 geomean <- function(x) {
   return(round(exp(mean(log((x + 1)))) - 1, 2))
 }
+
+#' Plot title, or NULL when there is nothing to show
+#'
+#' `ggplot2::ggtitle(NULL)` adds no title strip; `ggtitle("")` leaves a blank one.
+#' Text inputs hand back "" (or NULL before the browser reports them), so route them through here.
+#'
+#' @param x A title: character, NULL or NA.
+#' @return NULL for NULL, NA, zero-length, empty and whitespace-only input; otherwise `x` unchanged.
+#' @export
+plot_title_or_null <- function(x) {
+  if (is.null(x) || length(x) == 0L || is.na(x[[1]]) || !nzchar(trimws(x[[1]]))) NULL else x
+}

@@ -323,6 +323,35 @@ describe("palette registry", {
   })
 })
 
+describe("palette name matching", {
+  it("resolves the size and swatch of a palette case-insensitively", {
+    expect_identical(utils$palette_size("okabe-ito"), utils$palette_size("Okabe-Ito"))
+    expect_identical(utils$palette_size("okabe-ito"), 8L)
+    expect_identical(utils$palette_swatch("VIRIDIS"), utils$palette_swatch("viridis"))
+    expect_identical(utils$palette_swatch("winter_BRIGHT"), utils$palette_swatch("winter_bright"))
+  })
+
+  it("does not trim whitespace, so a padded name is unknown", {
+    expect_identical(utils$palette_group(" viridis"), NA_character_)
+    expect_identical(utils$get_palette_colors(" viridis", 3), utils$get_palette_colors("HCL Light", 3))
+  })
+
+  it("treats NULL, NA, empty and non-scalar names as no match for the lookups", {
+    for (bad in list(NULL, NA_character_, "", c("viridis", "Dark2"), character(0))) {
+      expect_identical(utils$palette_group(bad), NA_character_)
+      expect_identical(utils$palette_size(bad), NA_integer_)
+      expect_length(utils$palette_swatch(bad), 8)
+    }
+  })
+
+  it("draws with the brand palette for NULL, NA, empty and non-scalar names", {
+    brand <- utils$get_palette_colors("Codedbx", 3)
+    for (bad in list(NULL, NA_character_, "", c("viridis", "Dark2"), character(0))) {
+      expect_identical(utils$get_palette_colors(bad, 3), brand)
+    }
+  })
+})
+
 describe("palette_preflight", {
   it("exports the two thresholds", {
     expect_identical(utils$PREFLIGHT_MIN_CONTRAST, 1.5)
@@ -446,5 +475,18 @@ describe("palette_preflight", {
       expect_identical(utils$palette_preflight(p, n_levels = 2)$flags, "low_contrast", info = p)
       expect_match(utils$palette_preflight(p, n_levels = 2)$message, "colour 2 (", fixed = TRUE, info = p)
     }
+  })
+})
+
+describe("plot_title_or_null", {
+  it("returns NULL for NULL, NA, zero-length, empty and whitespace-only titles", {
+    for (empty in list(NULL, NA, NA_character_, character(0), "", " ", "   ", "\t\n")) {
+      expect_null(utils$plot_title_or_null(empty))
+    }
+  })
+
+  it("returns a real title unchanged, keeping its own spacing", {
+    expect_identical(utils$plot_title_or_null("Demand"), "Demand")
+    expect_identical(utils$plot_title_or_null("  Demand curve "), "  Demand curve ")
   })
 })

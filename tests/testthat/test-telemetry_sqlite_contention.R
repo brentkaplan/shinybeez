@@ -108,16 +108,15 @@ describe("telemetry SQLite storage under concurrent writers", {
     withr::defer(for (w in writers) if (w$is_alive()) w$kill())
     wait_for_files(paste0(db_path, ".ready", seq_along(writers)))
 
-    sessions <- lapply(1:4, function(i) fake_session())
-    # start_session writes a login row and registers the package's input observer.
-    # Each setInputs() flushes the reactive graph, which runs that observer and writes one
-    # `input` row per changed input. With MockShinySession an observer error is raised
-    # here rather than silently ending the session.
+    # consented_session() applies the usage level, which starts shiny.telemetry's session:
+    # that writes a login row and registers the package's input observer. Each setInputs()
+    # flushes the reactive graph, which runs that observer and writes one `input` row per
+    # changed input. With MockShinySession an observer error is raised here rather than
+    # silently ending the session.
+    sessions <- NULL
     expect_no_error({
-      for (s in sessions) {
-        # MockShinySession warns that session$request is not realistic; irrelevant here.
-        suppressWarnings(telemetry$start_session(session = s, track_values = FALSE))
-      }
+      # MockShinySession warns that session$request is not realistic; irrelevant here.
+      sessions <- suppressWarnings(lapply(1:4, function(i) consented_session()))
       for (k in 1:60) {
         for (s in sessions) {
           s$setInputs(probe = k)
@@ -132,7 +131,7 @@ describe("telemetry SQLite storage under concurrent writers", {
       expect_gte(w$get_result(), 1L)
     }
 
-    expect_equal(telemetry$data_storage$dropped_writes(), 0L)
+    expect_equal(telemetry$data_storage$dropped_writes()[["error"]], 0L)
     expect_equal(count_rows(db_path, "type = 'login' AND app_name = 'develop'"), 4L)
     expect_equal(count_rows(db_path, "type = 'input' AND app_name = 'develop'"), 4L * 60L)
   })
@@ -140,7 +139,7 @@ describe("telemetry SQLite storage under concurrent writers", {
   it("drops and counts a write when the lock is held past busy_timeout, then recovers", {
     db_path <- with_sqlite_telemetry()
     telemetry <- telemetry_utils$get_telemetry()
-    sess <- fake_session()
+    sess <- consented_session()
 
     holder <- hold_write_lock(db_path, secs = 4)
     withr::defer(if (holder$is_alive()) holder$kill())
@@ -151,13 +150,13 @@ describe("telemetry SQLite storage under concurrent writers", {
     waited <- as.numeric(Sys.time() - t0, units = "secs")
     expect_gte(waited, 1.5) # it did wait for busy_timeout
     expect_lt(waited, 3.5) # and did not block the session for the whole hold
-    expect_equal(telemetry$data_storage$dropped_writes(), 1L)
+    expect_equal(telemetry$data_storage$dropped_writes()[["error"]], 1L)
 
     holder$wait()
     expect_true(holder$get_result())
     # The failed write left no open transaction behind: the next write lands.
     expect_no_error(telemetry$log_custom_event("probe", list(k = 2L), session = sess))
-    expect_equal(telemetry$data_storage$dropped_writes(), 1L)
+    expect_equal(telemetry$data_storage$dropped_writes()[["error"]], 1L)
     expect_equal(count_rows(db_path, "type = 'probe'"), 1L)
   })
 

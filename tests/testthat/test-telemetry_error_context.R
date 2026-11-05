@@ -59,6 +59,8 @@ read_error_rows <- function(db_path) {
 fake_session <- function() {
   s <- shiny::MockShinySession$new()
   class(s) <- c("ShinySession", class(s))
+  # The storage gate only writes rows for a session whose consent level it knows.
+  telemetry_utils$set_session_consent(s, "usage", "stored")
   s
 }
 
@@ -90,6 +92,22 @@ describe("error telemetry context", {
       expect_equal(payload$details$constrainq0, 1)
       expect_null(payload$details$aggregation)
       expect_equal(payload$details$n_rows, 256L)
+    })
+
+    it("records the tab the session last navigated to, when known", {
+      db_path <- with_sqlite_telemetry()
+      sess <- fake_session()
+      sess$userData$last_tab <- "Discounting"
+      telemetry_utils$track_error("boom", "mcq_scoring", session = sess)
+      payload <- jsonlite$fromJSON(read_error_rows(db_path)$details)
+      expect_equal(payload$tab, "Discounting")
+    })
+
+    it("omits the tab when the session has none", {
+      db_path <- with_sqlite_telemetry()
+      telemetry_utils$track_error("boom", "ctx", session = fake_session())
+      payload <- jsonlite$fromJSON(read_error_rows(db_path)$details)
+      expect_false("tab" %in% names(payload))
     })
 
     it("omits the details key when none are given", {

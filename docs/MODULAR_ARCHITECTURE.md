@@ -42,7 +42,6 @@ app/
 │   │   ├── data_table.R            # DT-based data table
 │   │   ├── palette_picker.R        # Palette picker with swatch previews + preflight note
 │   │   ├── plot_layers.R           # Plot layer show/hide and prominence controls
-│   │   ├── plot_settings.R         # Plot settings sidebar
 │   │   └── systematic_criteria.R   # Systematic criteria panel
 │   ├── mixed_effects_demand_coordinator.R  # Coordinator (25 lines)
 │   ├── mixed_effects_demand_sidebar.R      # Sidebar UI/server (1,379 lines)
@@ -202,22 +201,6 @@ data_table$server(
   data_reactive = my_data,
   filename_prefix = "shinybeez_Export"
 )
-```
-
-### `app/view/shared/plot_settings.R`
-
-Reusable plot settings sidebar.
-
-```r
-box::use(app/view/shared/plot_settings)
-
-# UI
-plot_settings$sidebar_ui(ns("plot_opts"))
-
-# Server - returns reactive list of settings
-opts <- plot_settings$server("plot_opts")
-opts$settings()  # Get current settings
-opts$update_trigger()  # Trigger for update button
 ```
 
 ### `app/view/shared/plot_layers.R`

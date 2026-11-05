@@ -7,6 +7,7 @@ box::use(
 box::use(
   app / logic / validate,
   app / logic / logging_utils,
+  app / logic / telemetry_utils,
   app / view / demand_data_table,
   app / view / demand_results_table,
   app / view / file_input,
@@ -112,7 +113,8 @@ sidebar_server <- function(id, fit_task) {
             "Currently an experimental feature. Selecting Yes will only work
         with a fixed k value."
           ),
-          value = 0,
+          # Empty, not 0: a Q0 of 0 is invalid and used to be fitted unnoticed.
+          value = "",
           min = 0,
           max = 100
         )
@@ -239,11 +241,26 @@ navpanel_server <- function(id, fit_task) {
 
     data_r <- shiny$reactiveValues(data_d = NULL)
 
+    # An error here used to end the session (see the same observer in discounting.R):
+    # catch, record and notify; the data panels stay empty until the next upload.
     shiny$observe({
       shiny$req(session$userData$data$demand)
-      data_r$data_d <- validate$rename_cols(session$userData$data$demand) |>
-        validate$reshape_data(dat = _) |>
-        validate$retype_data(dat = _)
+      data_r$data_d <- tryCatch(
+        validate$rename_cols(session$userData$data$demand) |>
+          validate$reshape_data(dat = _) |>
+          validate$retype_data(dat = _),
+        error = function(e) {
+          msg <- conditionMessage(e)
+          session_logger$error(
+            paste("Could not prepare demand data:", msg), category = "data_processing"
+          )
+          telemetry_utils$track_error(msg, error_context = "demand_prepare", session = session)
+          shiny$showNotification(
+            paste("Could not prepare the uploaded data:", msg), type = "error", duration = NULL
+          )
+          NULL
+        }
+      )
     })
 
     # Show empty state or data content

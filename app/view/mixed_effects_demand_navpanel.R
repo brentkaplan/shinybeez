@@ -36,6 +36,7 @@ box::use(
   app / logic / mixed_effects / plotting,
   app / logic / mixed_effects / systematic_utils,
   app / logic / mixed_effects / validation_utils,
+  app / view / shared / aesthetic_gate,
   app / view / shared / palette_picker[palette_note, palette_picker],
   app / view / shared / plot_layers
 )
@@ -479,7 +480,11 @@ navpanel_server <- function(id, sidebar_reactives, fit_task) {
         df_display,
         rownames = FALSE,
         extensions = c("Buttons", "Scroller"),
+        fillContainer = FALSE,
         options = list(
+          # Scroller needs a fixed viewport: without scrollY the scroll body
+          # grew to the full virtual height and the info line read "1 to 0".
+          scrollY = 300,
           scrollX = TRUE,
           pageLength = 5,
           autoWidth = TRUE,
@@ -546,8 +551,10 @@ navpanel_server <- function(id, sidebar_reactives, fit_task) {
       )
     })
 
-    # Systematic Criteria table
-    shiny$observe({
+    # Systematic Criteria table. A reactive read only by the table output, so it
+    # computes while the Systematic Criteria subtab is visible and not before.
+    # The early exits cancel rather than clear, keeping the last table on screen.
+    systematic_r <- shiny$reactive({
       # Add dependency on selected factors so changes there retrigger this calculation
       facs_dep <- sidebar_reactives$selected_factors()
       df_raw <- sidebar_reactives$data_to_analyze_trigger()
@@ -559,7 +566,7 @@ navpanel_server <- function(id, sidebar_reactives, fit_task) {
 
       # Guard against race: ensure selected columns exist in current data
       if (!all(c(id_col, x_col, y_col) %in% names(df_raw))) {
-        return(invisible(NULL))
+        shiny$req(FALSE, cancelOutput = TRUE)
       }
 
       # Friendly note if using transformed Y
@@ -584,11 +591,10 @@ navpanel_server <- function(id, sidebar_reactives, fit_task) {
           type = "error",
           duration = NULL
         )
-        return()
+        shiny$req(FALSE, cancelOutput = TRUE)
       }
 
-      # Compute systematic criteria using helper
-      systematic <- shiny$withProgress(message = "Computing systematic criteria...", {
+      shiny$withProgress(message = "Computing systematic criteria...", {
         systematic_utils$compute_systematic_criteria(
           df_raw = df_raw,
           id_col = id_col,
@@ -602,28 +608,28 @@ navpanel_server <- function(id, sidebar_reactives, fit_task) {
           prepare_fn = mixed_effects_demand_utils$prepare_systematic_input
         )
       })
+    })
 
-      output$systematic_table <- DT$renderDT(server = FALSE, {
-        DT$datatable(
-          systematic,
-          rownames = FALSE,
-          extensions = c("Buttons", "Scroller", "FixedColumns"),
-          fillContainer = FALSE,
-          options = list(
-            autoWidth = FALSE,
-            ordering = TRUE,
-            dom = "Bti",
-            buttons = export_utils$build_dt_buttons(
-              "shinybeez_MixedEffects_Systematic_Criteria"
-            ),
-            deferRender = TRUE,
-            scrollY = 250,
-            scroller = TRUE,
-            scrollX = TRUE,
-            fixedColumns = list(leftColumns = 1)
-          )
+    output$systematic_table <- DT$renderDT(server = FALSE, {
+      DT$datatable(
+        systematic_r(),
+        rownames = FALSE,
+        extensions = c("Buttons", "Scroller", "FixedColumns"),
+        fillContainer = FALSE,
+        options = list(
+          autoWidth = FALSE,
+          ordering = TRUE,
+          dom = "Bti",
+          buttons = export_utils$build_dt_buttons(
+            "shinybeez_MixedEffects_Systematic_Criteria"
+          ),
+          deferRender = TRUE,
+          scrollY = 250,
+          scroller = TRUE,
+          scrollX = TRUE,
+          fixedColumns = list(leftColumns = 1)
         )
-      })
+      )
     })
 
     # The fit runs on a mirai daemon via fit_task (app/logic/async). The click
@@ -754,15 +760,19 @@ navpanel_server <- function(id, sidebar_reactives, fit_task) {
       cov_info <- build_covariate_modeling_info(df)
       cont_covars_to_pass <- cov_info$model_covariate_name
 
+      # Counts and fixed-vocabulary codes only: factor and covariate names are the user's
+      # column names and must never reach telemetry. random_params_for_formula holds model
+      # parameter names (Q0, alpha, k), not columns.
       telemetry_utils$track_configuration(
         "mixed_effects",
         config = list(
           equation_form = sidebar_reactives$equation_form(),
-          factors = paste(sel_factors, collapse = ","),
+          n_factors = length(sel_factors),
           factor_interaction = sidebar_reactives$factor_interaction(),
-          random_effects = random_formula_str,
+          random_effects = paste(random_params_for_formula, collapse = "_"),
+          n_random_effects = length(random_params_for_formula),
           covariance_structure = sidebar_reactives$covariance_structure(),
-          covariates = paste(cont_covars_to_pass, collapse = ","),
+          n_covariates = length(cont_covars_to_pass),
           n_rows = nrow(df),
           n_groups = length(unique(df[[sidebar_reactives$id_var()]]))
         ),
@@ -772,7 +782,7 @@ navpanel_server <- function(id, sidebar_reactives, fit_task) {
         "mixed_effects",
         parameters = list(
           equation = sidebar_reactives$equation_form(),
-          factors = paste(sel_factors, collapse = ",")
+          n_factors = length(sel_factors)
         ),
         status = "started",
         session = session
@@ -813,9 +823,11 @@ navpanel_server <- function(id, sidebar_reactives, fit_task) {
       }
       shiny$removeNotification(p$notif_id)
       on.exit(pending_fit(NULL), add = TRUE)
+      # Telemetry parameters: the equation code and a factor COUNT (factor names are the
+      # user's column names).
       fit_params <- list(
         equation = p$equation_form,
-        factors = paste(p$sel_factors, collapse = ",")
+        n_factors = length(p$sel_factors)
       )
 
       if (identical(st, "success")) {
@@ -1500,6 +1512,17 @@ navpanel_server <- function(id, sidebar_reactives, fit_task) {
     })
 
     # Plotting Logic
+    # Holds the plot render until the browser applies the selections the defaults observer below
+    # pushes on a refit (see app/view/shared/aesthetic_gate.R). The render expression waits on it.
+    aes_gate <- aesthetic_gate$new(function() {
+      list(
+        color = input$plot_color_by,
+        linetype = input$plot_linetype_by,
+        facet = input$plot_facet_by,
+        shape = input$plot_shape_by
+      )
+    })
+
     # Populate plot aesthetic choices
     shiny$observe({
       model_fit <- fitted_model_reactive()
@@ -1516,8 +1539,11 @@ navpanel_server <- function(id, sidebar_reactives, fit_task) {
         current_color = shiny$isolate(input$plot_color_by) %||% "",
         current_linetype = shiny$isolate(input$plot_linetype_by) %||% "",
         current_facet = shiny$isolate(input$plot_facet_by) %||% "",
-        factors_in_model = factors_in_model
+        factors_in_model = factors_in_model,
+        current_shape = shiny$isolate(input$plot_shape_by) %||% ""
       )
+      # Shut the gate before the updates below so the render in this flush sees it.
+      aes_gate$push(defaults)
 
       shiny$updateSelectInput(
         session,
@@ -1540,9 +1566,10 @@ navpanel_server <- function(id, sidebar_reactives, fit_task) {
       shiny$updateSelectInput(
         session,
         "plot_shape_by",
-        choices = choices_with_none
+        choices = choices_with_none,
+        selected = defaults$shape
       )
-    }) |>
+    }, priority = 10) |>
       shiny$bindEvent(fitted_model_reactive())
 
     # Validated aesthetics, shared by the plot reactive and the telemetry snapshot.
@@ -1763,6 +1790,8 @@ navpanel_server <- function(id, sidebar_reactives, fit_task) {
     esquisse$render_ggplot(
       id = "mixed_model_plot",
       expr = {
+        # Wait for the browser to apply the defaults pushed on a refit (see aes_gate).
+        shiny$req(aes_gate$open())
         p <- plot_object_reactive()
         # Runs only after the plot built without error; isolate() keeps the payload's
         # inputs from adding render dependencies beyond the plot itself. The tryCatch
@@ -1991,7 +2020,11 @@ navpanel_server <- function(id, sidebar_reactives, fit_task) {
 
         # --- Plot Sheet (requires model) ---
         if (has_model) {
-          plot_obj <- tryCatch(plot_object_reactive(), error = function(e) NULL)
+          # Skip while pushed defaults are in flight: computing the bindEvent'd plot now
+          # would memoise it with stale inputs and the render would later show that.
+          plot_obj <- if (shiny$isolate(aes_gate$open())) {
+            tryCatch(plot_object_reactive(), error = function(e) NULL)
+          }
           if (!is.null(plot_obj)) {
             openxlsx$addWorksheet(
               wb, "Plot",

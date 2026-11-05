@@ -100,6 +100,45 @@ describe("compute_aesthetic_defaults", {
     expect_equal(result$color, "") # Not A, since linetype has it
     expect_equal(result$linetype, "A")
   })
+
+  it("keeps a valid shape and resets an invalid one", {
+    keep <- plotting$compute_aesthetic_defaults("", "", "", c("A", "B"), current_shape = "B")
+    expect_equal(keep$shape, "B")
+    drop <- plotting$compute_aesthetic_defaults("", "", "", c("A", "B"), current_shape = "gone")
+    expect_equal(drop$shape, "")
+    default <- plotting$compute_aesthetic_defaults("", "", "", character(0))
+    expect_equal(default$shape, "")
+  })
+
+  it("treats NULL, NA and zero-length current selections as None", {
+    for (empty in list(NULL, NA, NA_character_, character(0))) {
+      shape <- plotting$compute_aesthetic_defaults("", "", "", c("A", "B"), current_shape = empty)
+      expect_equal(shape$shape, "")
+      color <- plotting$compute_aesthetic_defaults(empty, "", "", c("A", "B"))
+      expect_equal(color$color, "A")
+      linetype <- plotting$compute_aesthetic_defaults("", empty, "", c("A", "B"))
+      expect_equal(linetype$linetype, "B")
+      facet <- plotting$compute_aesthetic_defaults("", "", empty, c("A", "B"))
+      expect_equal(facet$facet, "")
+    }
+  })
+})
+
+describe("aesthetics_in_sync", {
+  sel <- function(color = "", linetype = "", facet = "", shape = "") {
+    list(color = color, linetype = linetype, facet = facet, shape = shape)
+  }
+  it("is TRUE when every selection matches", {
+    expect_true(plotting$aesthetics_in_sync(sel("drug", "dose"), sel("drug", "dose")))
+  })
+  it("is FALSE when one selection still lags", {
+    expect_false(plotting$aesthetics_in_sync(sel("dose"), sel("drug")))
+    expect_false(plotting$aesthetics_in_sync(sel(shape = "drug"), sel()))
+  })
+  it("treats NULL, NA and empty as None", {
+    current <- list(color = NULL, linetype = NA_character_, facet = character(0), shape = "")
+    expect_true(plotting$aesthetics_in_sync(sel(), current))
+  })
 })
 
 # Test build_facet_formula

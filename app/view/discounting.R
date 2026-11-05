@@ -7,6 +7,7 @@ box::use(
 box::use(
   app / logic / validate,
   app / logic / logging_utils,
+  app / logic / telemetry_utils,
   app / view / discounting_data_table,
   app / view / discounting_results_table,
   app / view / file_input,
@@ -200,10 +201,25 @@ navpanel_server <- function(id) {
 
     data_r <- shiny$reactiveValues(data_d = NULL)
 
+    # An error here used to end the session: shiny closes the connection on an uncaught
+    # observer error, so a bad upload showed the grey screen instead of a message (every
+    # production error row of 2026-10-27/28 was followed by logout within 0.5 s). Catch,
+    # record and notify; the data panels stay empty until the next upload.
     shiny$observe({
       shiny$req(session$userData$data$discounting)
-      data_r$data_d <- validate$prepare_discounting_data(
-        session$userData$data$discounting
+      data_r$data_d <- tryCatch(
+        validate$prepare_discounting_data(session$userData$data$discounting),
+        error = function(e) {
+          msg <- conditionMessage(e)
+          session_logger$error(
+            paste("Could not prepare discounting data:", msg), category = "data_processing"
+          )
+          telemetry_utils$track_error(msg, error_context = "discounting_prepare", session = session)
+          shiny$showNotification(
+            paste("Could not prepare the uploaded data:", msg), type = "error", duration = NULL
+          )
+          NULL
+        }
       )
     })
 

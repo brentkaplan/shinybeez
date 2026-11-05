@@ -95,6 +95,7 @@ server <- function(id, isgroup = NULL, data_r) {
     # Lazy reactive: only computes when the Descriptives tab is viewed
     descriptives_r <- shiny$reactive({
       shiny$req(session$userData$data$demand)
+      shiny$req(data_r$data_d)
       session_logger$info("Computing demand descriptives", "data_processing")
       shiny$withProgress(message = "Computing descriptives...", {
         tryCatch(
@@ -102,8 +103,8 @@ server <- function(id, isgroup = NULL, data_r) {
             empirical$compute_descriptives(data_r$data_d, is_grouped = isgroup())
           }, always_log = TRUE),
           error = function(e) {
-            session_logger$error_enhanced(e$message, e, context = "demand_descriptives")
-            shiny$showNotification(e$message, type = "error", duration = NULL)
+            session_logger$error_enhanced(conditionMessage(e), e, context = "demand_descriptives")
+            shiny$showNotification(conditionMessage(e), type = "error", duration = NULL)
             NULL
           }
         )
@@ -113,6 +114,7 @@ server <- function(id, isgroup = NULL, data_r) {
     # Lazy reactive: only computes when the Empirical Measures tab is viewed
     empirical_r <- shiny$reactive({
       shiny$req(session$userData$data$demand)
+      shiny$req(data_r$data_d)
       session_logger$info(
         paste0("Computing empirical measures, grouped = ", isgroup()),
         "data_processing"
@@ -126,8 +128,8 @@ server <- function(id, isgroup = NULL, data_r) {
             )
           }, always_log = TRUE),
           error = function(e) {
-            session_logger$error_enhanced(e$message, e, context = "demand_empirical_measures")
-            shiny$showNotification(e$message, type = "error", duration = NULL)
+            session_logger$error_enhanced(conditionMessage(e), e, context = "demand_empirical_measures")
+            shiny$showNotification(conditionMessage(e), type = "error", duration = NULL)
             NULL
           }
         )
@@ -138,6 +140,7 @@ server <- function(id, isgroup = NULL, data_r) {
     # Debounced to avoid redundant recomputations when adjusting multiple thresholds
     systematic_r_raw <- shiny$reactive({
       shiny$req(session$userData$data$demand)
+      shiny$req(data_r$data_d)
       # Wait for the threshold inputs to initialize before computing; otherwise
       # the reactive fires on upload with NULL thresholds (compute_systematic
       # coalesces these to defaults as a safety net regardless).
@@ -161,8 +164,8 @@ server <- function(id, isgroup = NULL, data_r) {
             )
           }, always_log = TRUE),
           error = function(e) {
-            session_logger$error_enhanced(e$message, e, context = "demand_systematic_check")
-            shiny$showNotification(e$message, type = "error", duration = NULL)
+            session_logger$error_enhanced(conditionMessage(e), e, context = "demand_systematic_check")
+            shiny$showNotification(conditionMessage(e), type = "error", duration = NULL)
             NULL
           }
         )
@@ -173,6 +176,7 @@ server <- function(id, isgroup = NULL, data_r) {
     # Render data table
     output$data_table <- DT$renderDT(server = FALSE, {
       shiny$req(session$userData$data$demand)
+      shiny$req(data_r$data_d)
       session_logger$info("Rendering Demand data table", category = "module_init")
       build_datatable(
         data_r$data_d,

@@ -312,7 +312,7 @@ sidebar_ui <- function(id) {
 }
 
 #' @export
-sidebar_server <- function(id, data_reactive, fit_task) {
+sidebar_server <- function(id, data_reactive, fit_task, active = shiny$reactive(TRUE)) {
   shiny$moduleServer(id, function(input, output, session) {
     ns <- session$ns
 
@@ -368,8 +368,10 @@ sidebar_server <- function(id, data_reactive, fit_task) {
       }
     })
 
-    # Reactive to get the current data (uploaded or default 'ko')
+    # Reactive to get the current data (uploaded or default 'ko'). Nothing loads
+    # until `active()` is TRUE, i.e. the user has opened the Mixed Effects tab.
     current_data <- shiny$reactive({
+      shiny$req(active())
       data_uploaded <- session$userData$data$mixed_effects_demand
       if (!is.null(data_uploaded)) {
         session_logger$data_processing(

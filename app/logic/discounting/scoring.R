@@ -25,11 +25,22 @@ valid_impute_methods <- c("none", "ggm", "GGM", "inn", "INN")
 #' missing *values*, not missing *rows*. Check up front so the user is told which subjects are
 #' short and by how much, and so the whole results panel does not collapse on a raw abort.
 #'
-#' @param data Long MCQ data frame with a subjectid column.
+#' @param data Long MCQ data frame with subjectid, questionid and response columns.
 #' @return Invisibly TRUE; aborts with a precise message otherwise.
 check_mcq_item_counts <- function(data) {
-  if (is.null(data) || !"subjectid" %in% colnames(data)) {
-    return(invisible(TRUE))
+  # Data left over from another analysis type (e.g. id/x/y) used to skip this check and
+  # reach score_mcq27(), which aborted with "argument is of length zero" or "replacement has
+  # 1 row, data has 0". Name the problem instead.
+  required <- c("subjectid", "questionid", "response")
+  if (!is.null(data) && !all(required %in% colnames(data))) {
+    stop(
+      "This does not look like 27-Item MCQ data: it needs subjectid, questionid, response ",
+      "columns (or subjectid plus 27 items, wide).",
+      call. = FALSE
+    )
+  }
+  if (is.null(data) || nrow(data) == 0) {
+    stop("The MCQ data have no rows. Please upload a file with 27-item responses.", call. = FALSE)
   }
 
   # A missing or blank subject identifier cannot be scored and silently corrupts
@@ -111,6 +122,10 @@ friendly_discounting_error <- function(msg) {
     list(
       pattern = "undefined columns selected",
       friendly = "Your data is missing expected columns. Please check the documentation for required columns."
+    ),
+    list(
+      pattern = "data has 0",
+      friendly = "The data have no rows to score. Please check that the file matches the selected analysis type."
     ),
     list(
       pattern = "Response length not equal to 27",

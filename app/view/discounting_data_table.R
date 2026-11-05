@@ -123,6 +123,7 @@ server <- function(id, data_r, type = NULL) {
 
       session_logger$info("Printing Discounting Datatable", "module_init")
       output$data_table <- DT$renderDT(server = FALSE, {
+        shiny$req(data_r$data_d)
         build_datatable(
           data_r$data_d,
           filename_prefix = "shinybeez_Discounting_Data",
@@ -132,6 +133,7 @@ server <- function(id, data_r, type = NULL) {
       })
 
       output$missings_table <- DT$renderDT(server = FALSE, {
+        shiny$req(data_r$data_d)
         missings <- NULL
         if (type() %in% "27-Item MCQ") {
           missings <- data_r$data_d |>
@@ -153,10 +155,20 @@ server <- function(id, data_r, type = NULL) {
       })
 
       output$systematic_table <- DT$renderDT(server = FALSE, {
+        shiny$req(data_r$data_d)
         sys_result <- NULL
         if (type() %in% "27-Item MCQ") {
           # MCQ has no systematic criteria
         } else if (type() %in% "Indifference Point Regression") {
+          # The dropdown defaults to this branch whatever was uploaded. A 5.5-Trial or MCQ file
+          # has no id/x/y, and that mismatch is not an app failure: say so here, unlogged.
+          shiny$validate(shiny$need(
+            all(c("id", "x", "y") %in% colnames(data_r$data_d)),
+            paste(
+              "These data are not indifference point data (id, x, y), so systematic criteria",
+              "cannot be checked. Check the \"What are you scoring?\" setting."
+            )
+          ))
           sys_result <- tryCatch(
             session_logger$with_performance(
               "discounting_systematic_check",
@@ -170,8 +182,8 @@ server <- function(id, data_r, type = NULL) {
               always_log = TRUE
             ),
             error = function(e) {
-              session_logger$error_enhanced(e$message, e, context = "discounting_systematic_check")
-              shiny$showNotification(e$message, type = "error", duration = 10)
+              session_logger$error_enhanced(conditionMessage(e), e, context = "discounting_systematic_check")
+              shiny$showNotification(conditionMessage(e), type = "error", duration = 10)
               NULL
             }
           )

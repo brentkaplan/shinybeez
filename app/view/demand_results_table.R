@@ -46,18 +46,18 @@ ui <- function(id) {
             shiny$textInput(
               inputId = ns("title"),
               label = "Title Text",
-              value = "title"
+              value = "Demand Curve"
             ),
             shiny$uiOutput(ns("group_name")),
             shiny$textInput(
               inputId = ns("xtext"),
               label = "X-Axis Text",
-              value = "x"
+              value = "Price"
             ),
             shiny$textInput(
               inputId = ns("ytext"),
               label = "Y-Axis Text",
-              value = "y"
+              value = "Consumption"
             ),
             palette_picker(ns("palette")),
             shiny$uiOutput(ns("palette_note")),
@@ -150,6 +150,24 @@ server <- function(
     fit_generation <- shiny$reactiveVal(0L)
 
     shiny$observe({
+      # Nothing to fit after a failed reshape: data_d stays NULL until the next upload.
+      shiny$req(data_r$data_d)
+      # The equation input reports "" before it has initialised, and Calculate is
+      # reachable in that window; resolve_equation("") would stop() inside this
+      # observer and end the session.
+      if (!shiny$isTruthy(eq())) {
+        shiny$showNotification(
+          "Choose an equation before fitting.",
+          type = "warning",
+          duration = 5
+        )
+        return(NULL)
+      }
+      q0_problem <- fitting$q0_constraint_problem(q0_val(), fix_q0())
+      if (!is.null(q0_problem)) {
+        shiny$showNotification(q0_problem, type = "warning", duration = 5)
+        return(NULL)
+      }
       eq_code <- fitting$resolve_equation(eq())
       k <- fitting$resolve_k_value(kval(), validate$k_values)
       agg_val <- fitting$resolve_aggregation(agg())
@@ -344,8 +362,7 @@ server <- function(
         res$results,
         filename_prefix = "shinybeez_Demand_ModelResults",
         fixed_columns = 1L,
-        page_length = 20,
-        fill_container = TRUE
+        page_length = 20
       )
     })
 
@@ -358,6 +375,12 @@ server <- function(
       res$plot_group_levels <- NULL
     }
 
+    # Builds res$base_plot. The decorating observer below needs it in the same flush, so this one
+    # runs first by priority: Shiny orders observers of one reactive by the string sort of their
+    # context ids, not by creation, and the decorator also fires alone on Update Plot and the
+    # dark-mode toggle. Without the priority a late Update Plot click put the decorator first
+    # on the next fit, clear_plot_state() then dropped the plot it had just made, and the Plots
+    # tab stayed blank.
     shiny$observe({
       # Everything here describes the fit that just finished, so it reads the
       # snapshot captured at invoke (res$fit_inputs) rather than the live
@@ -493,7 +516,7 @@ server <- function(
             theme_apa()
         }
       }
-    }) |>
+    }, priority = 10) |>
       shiny$bindEvent(fit_generation(), ignoreInit = TRUE)
 
     shiny$observe({
@@ -501,7 +524,7 @@ server <- function(
       res$plot <- res$base_plot +
         ggplot2$xlab(input$xtext) +
         ggplot2$ylab(input$ytext) +
-        ggplot2$ggtitle(input$title)
+        ggplot2$ggtitle(utils$plot_title_or_null(input$title))
 
       if (input$xlog) {
         res$plot <- res$plot +

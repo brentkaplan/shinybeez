@@ -1,4 +1,90 @@
-# shinybeez 1.3.0 (development)
+# shinybeez 1.4.1
+
+## Bug Fixes
+
+- **Upload guard on the Demand tab** — a wide demand file with a price cell that
+  is not a number is now rejected at upload with a message naming the column and
+  the cell. Before, the file failed with a raw `Can't combine` message, or, if
+  every price column held text such as `$5`, those values silently became missing.
+- **Repeated prices within a participant** — a long demand file in which one `id`
+  (within one `group`, when there is a group column) has more than one row at the
+  same price is now rejected at upload with a message naming the ids and prices.
+  Before, the file passed validation, descriptives and curve fits, and then the
+  Empirical Measures tab stayed blank with a "Duplicates found where id = ..."
+  notice from beezdemand.
+
+## Telemetry
+
+- Table exports (Copy, CSV, Excel, PDF, Print) now record the module they came
+  from. The export hook read DT's own table id, which names no module, so every
+  table export was stored as module "other".
+- Client-side JavaScript errors are recorded as `client_js:<script>:<line>`
+  without the proxy path or query string, and at most ten per session. One
+  session used to write the same browser error dozens of times.
+- 5.5-Trial format rejections carry a reason code (`five_trial_missing_items`,
+  `five_trial_duplicate_responseid`, ...) like the other upload checks.
+- Error rows record the tab the session had open (`tab`), and upload rows record
+  the stored layout (`layout`: long, wide, mcq_wide, mcq_long or five_trial) and
+  whether a `group` column was present (`has_group`).
+- **Systematic criteria on the Discounting tab** — opening the tab with a 5.5-Trial
+  or MCQ file while "What are you scoring?" is on Indifference Point Regression now
+  explains the mismatch in place instead of showing a raw `Column id is not found`
+  error.
+
+# shinybeez 1.4.0
+
+## Branding
+
+- **Sharper hex logos** — the shinybeez, beezdemand and beezdiscounting hex
+  stickers were rebuilt as vectors from the original artwork (same bee, same
+  fitted curves, Futura wordmark as outlines, frame at its original weight,
+  the four asterisks back). The navbar logo, the info-modal logo, the plot
+  watermark and the favicon use the new renders; sources live in `brand/`.
+
+## New Features
+
+- **Analytics consent** — a banner on first visit lets you choose what the
+  app may send: *Nothing* (only one anonymous record of the choice),
+  *Diagnostics only* (errors, failed uploads and timings, as counts; no Google
+  Analytics, no cookies) or *Usage and diagnostics* (which tools and settings
+  are used, plus page views via Google Analytics with advertising features
+  off). The choice is stored in the browser and can be changed any time from
+  the shield icon in the navbar or the Welcome page. Visitors in the EU/EEA/UK/CH
+  default to *Diagnostics only*; everyone else to *Usage and diagnostics*.
+  Google Analytics is now loaded by the browser only at the usage level, never
+  by the server, and the anonymous-user cookie the telemetry package used to
+  set is gone.
+
+## Bug Fixes
+
+- **Upload guards on the Discounting tab** — a wide 27-Item MCQ file with the
+  same `subjectid` on more than one row (or a blank one), and a wide
+  indifference-point file with a cell that is not a number, are now rejected at
+  upload with a message naming the repeated ids or the offending column and
+  cells. Both used to pass validation and abort inside the data reshape, which
+  ended the session with a grey screen. For an otherwise valid wide
+  indifference-point file, the reshape form does not open on this rejection,
+  since it cannot repair a cell.
+- **A failed data reshape no longer disconnects** — if preparing an upload on
+  the Demand or Discounting tab fails, the app shows the error as a
+  notification and leaves the data panel empty instead of closing the session.
+- **No work on load for the Mixed Effects tab** — a fresh session no longer
+  loads the Mixed Effects example data or computes its systematic criteria
+  before that tab is opened, so the "Computing systematic criteria..." notice
+  no longer appears over the Welcome page. The example data loads the first
+  time the tab is opened, as before, and the Systematic Criteria table is
+  computed when its subtab is shown. Notices about a transformed `y_ll4`
+  response or a missing group-by column now appear on that subtab.
+- Performance telemetry rows now carry the session token; every one of them
+  used to be unattributable.
+- Errors Shiny could not recover from are recorded as normal error rows
+  (context `unhandled`) instead of the telemetry package's own unread format.
+- Telemetry payloads are checked against a per-event schema before they are
+  stored: quoted user strings in messages are replaced by an ellipsis, factor
+  and covariate names are recorded as counts, and file names never leave the
+  session. Validation failures carry a stable `reason_code`.
+
+# shinybeez 1.3.0
 
 ## New Features
 
@@ -47,6 +133,18 @@
 
 ## Bug Fixes
 
+- **Semicolon CSVs and decimal commas** — Excel in Portuguese, Spanish and most
+  European locales saves CSV files with `;` between fields and a decimal comma.
+  These were read as a single column, so every tab rejected them ("The first
+  column is not `id`", "Unrecognised discounting data format") and the reshape
+  form had nothing to split. The delimiter is now detected from the file, and
+  both `0,5` and `0.5` read as numbers. A comma file whose lines end in a run
+  of semicolons is read as if they were not there.
+
+- **More currency symbols in price headers** — wide demand headers such as
+  `R$0.50`, `US$1`, `A$2`, `0.50€`, `¥100` and `₹20` now count as prices.
+  Headers that only contain a symbol and digits, like `Q$1`, still do not.
+
 - **Wide demand headers must be whole numbers** — item-style headers such as
   `APT_1`, `APT_2` were parsed to prices 1, 2, … and fitted silently. A header
   now counts as a price only when the whole header is a number (currency symbol
@@ -63,6 +161,43 @@
   are not whole numbers (for example `price_1` or `1,000`), which the old
   parser tolerated, now open the reshape form instead of loading directly.
 
+- **Mixed-effects plot colour after a refit** — refitting with different
+  factors while the Plot tab was open drew the first plot without the new
+  colour and linetype mapping; only a later Update Plot applied it. The plot
+  now waits for the new selections and draws them on the first render. A shape
+  selection that is still a factor of the new model is kept across refits.
+
+- **Plot title and axis defaults** — the demand plot's settings started with
+  the placeholder text `title`, `x` and `y`, and the discounting regression
+  plot's with `title`, `x` and `y` as well. They now start as "Demand Curve",
+  "Price" and "Consumption" (demand) and a blank title, "Delay" and
+  "Indifference Point" (discounting). An empty title no longer leaves a blank
+  band above the plot.
+
+- **Palette picker layout** — each dropdown entry shows the palette name on its
+  own line above its swatches, so long names such as "prism_light" and
+  "winter_bright" display in full at the standard Plot Settings sidebar width; the
+  selected palette stays on one line with smaller swatches, and the swatch
+  borders are visible on the dark dropdown.
+
+- **Demand plot blank after a fit** — in a longer session, a fit that followed
+  an Update Plot click or a dark-mode switch could leave the Plots tab empty,
+  with no error message, until Update Plot was clicked again. The plot now
+  draws after every successful fit.
+
+- **Table row counts** — the demand Model Results table said "Showing 1 to 0
+  of 3 entries" with all three rows on screen, and the mixed-effects Data
+  table said "Showing 1 to 0 of 135 entries" above several thousand pixels of
+  blank space. Both now count the rows you can see, and the mixed-effects
+  Data table scrolls inside a fixed height like the other tables.
+
+- **Constrained Q0 must be above 0** — ticking "constrain Q0" filled the box
+  with 0, and a fit with Q0 fixed at 0 ran without warning (in koff, zero
+  predicted consumption at every price). The box now starts empty, and
+  Calculate asks for a Q0 greater than 0 instead of fitting. Fits with a
+  constrained Q0 and one subject that cannot be fitted no longer stop with
+  "subscript out of bounds"; that subject is reported as not converged.
+
 ## Internal
 
 - Plot settings are recorded as a `configuration_snapshot` (module
@@ -72,6 +207,9 @@
 - Discounting plot downloads are now named `shinybeez-discounting-prop-ss`,
   `shinybeez-discounting-boxplot` and `shinybeez-discounting-regression`
   (previously `export-ggplot`).
+
+- Removed the unused `app/view/shared/plot_settings.R` module (no caller; its
+  four-palette select predated the palette picker).
 
 # shinybeez 1.1.3
 
