@@ -5,7 +5,8 @@ box::use(
   dplyr,
   readr,
   tidyr,
-  stats
+  stats,
+  utils
 )
 
 #' A rejection message with a stable machine-readable code
@@ -16,6 +17,7 @@ box::use(
 #' @param code A snake_case identifier for the failing check.
 #' @param ... Pieces of the message, pasted with `paste0()`.
 #' @return A character scalar with attribute `code`.
+#' @export
 coded <- function(code, ...) {
   structure(paste0(...), code = code)
 }
@@ -166,6 +168,8 @@ check_demand_data <- function(dat) {
     }
     chk <- check_price_headers(dat)
     if (is.character(chk)) return(chk)
+    chk <- check_wide_demand_cells(dat)
+    if (is.character(chk)) return(chk)
   }
   TRUE
 }
@@ -212,6 +216,55 @@ check_demand_sufficiency <- function(dat) {
     ))
   }
   TRUE
+}
+
+#' Check no id sees the same price twice
+#'
+#' Long format only: wide headers are already unique after `check_price_headers()`.
+#' Runs on the STORED frame like `check_demand_sufficiency()`, so prices are parsed the
+#' way `retype_data()` parses them: "$1" and "1" are one price. The key includes `group`
+#' when the frame has one, because the grouped empirical measures split by group before
+#' calling beezdemand. Without the guard the file passes every upload check and
+#' `beezdemand::get_empirical_measures()` aborts on the Empirical Measures tab with
+#' "Duplicates found where id = ..." (2026-11-03).
+#'
+#' @param dat Demand data frame as stored (post `remove_na_rows()`)
+#' @return TRUE or character error message naming the ids and repeated prices
+#' @export
+check_demand_duplicate_prices <- function(dat) {
+  if (demand_format(dat) == "wide") {
+    return(TRUE)
+  }
+  prices <- dat$x
+  if (!is.numeric(prices)) {
+    prices <- suppressWarnings(readr$parse_number(as.character(prices)))
+  }
+  keep <- !is.na(prices)
+  id <- as.character(dat$id)[keep]
+  prices <- prices[keep]
+  key <- if ("group" %in% colnames(dat)) {
+    paste(id, as.character(dat$group)[keep], sep = "\r")
+  } else {
+    id
+  }
+  dup <- duplicated(data.frame(key = key, price = prices))
+  if (!any(dup)) {
+    return(TRUE)
+  }
+  offenders <- unique(data.frame(id = id[dup], price = prices[dup], stringsAsFactors = FALSE))
+  shown <- utils$head(offenders, 10L)
+  listed <- paste0("\"", shown$id, "\" at price ", shown$price, collapse = ", ")
+  more <- if (nrow(offenders) > nrow(shown)) {
+    paste0(" (and ", nrow(offenders) - nrow(shown), " more)")
+  } else {
+    ""
+  }
+  coded(
+    "duplicate_price_rows",
+    "These ids have more than one row at the same price: ", listed, more,
+    ". Each participant can have only one consumption value per price; ",
+    "combine or remove the repeated rows and upload again."
+  )
 }
 
 #' Validate mixed effects demand data
@@ -278,9 +331,15 @@ numeric_cells <- function(v) {
 #' numeric delay columns before `retype_data()` could coerce, so vctrs aborted with "Can't
 #' combine `1` <double> and `5` <character>" inside the eager observer and the session ended.
 #' @param dat Data frame with lowercased column names, `id` first
+#' @param cols Positions of the value columns
+#' @param code Reason code for the rejection
+#' @param label What the message calls this kind of file
 #' @return TRUE or character error message naming each column and up to three of its cells
-check_wide_cells <- function(dat) {
-  bad <- lapply(dat[-1], nonnumeric_cells)
+check_wide_cells <- function(dat,
+                             cols = seq_along(dat)[-1],
+                             code = "wide_ip_nonnumeric_cells",
+                             label = "Wide indifference point data") {
+  bad <- lapply(dat[cols], nonnumeric_cells)
   bad <- bad[lengths(bad) > 0]
   if (length(bad) == 0) return(TRUE)
   detail <- paste0(
@@ -290,10 +349,21 @@ check_wide_cells <- function(dat) {
     collapse = " "
   )
   coded(
-    "wide_ip_nonnumeric_cells",
-    "Wide indifference point data must hold one number per cell. ", detail,
+    code,
+    label, " must hold one number per cell. ", detail,
     " Use a decimal point and leave missing values empty."
   )
+}
+
+#' Validate the price cells of a wide demand frame
+#'
+#' A text cell makes the upload reader type its whole price column as character, and
+#' `pivot_demand_data()` cannot combine that with numeric columns. If every price column is
+#' character the pivot succeeds and `retype_data()` turns each unreadable cell into NA.
+#' @param dat Wide demand frame with `id` first and any `group` second
+#' @return TRUE or character error message naming each column and up to three of its cells
+check_wide_demand_cells <- function(dat) {
+  check_wide_cells(dat, price_col_index(dat), "wide_demand_nonnumeric_cells", "Wide demand data")
 }
 
 #' Validate a wide indifference-point frame: `id` first, one numeric delay per header
@@ -515,6 +585,12 @@ reshape_data <- function(dat, type = "demand") {
     # going through check_data(), which would hand an "NA" column to beezdemand.
     chk <- check_price_headers(dat)
     if (is.character(chk)) stop(chk, call. = FALSE)
+    # As in the discounting branch: a character column whose cells all parse ("2.5", "")
+    # passes validation and still cannot combine with doubles.
+    chk <- check_wide_demand_cells(dat)
+    if (is.character(chk)) stop(chk, call. = FALSE)
+    idx <- price_col_index(dat)
+    dat[idx] <- lapply(dat[idx], numeric_cells)
     pivot_demand_data(dat, format = "long", drop_na = FALSE)
   } else if (type == "discounting") {
     if (ncol(dat) == 28 && "subjectid" %in% colnames(dat)) {

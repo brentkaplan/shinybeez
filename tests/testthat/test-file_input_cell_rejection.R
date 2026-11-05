@@ -57,3 +57,15 @@ describe("file_input - a wide indifference-point file with a text cell", {
     })
   })
 })
+
+describe("file_input - a wide demand file with a text cell", {
+  it("notifies and leaves the mapper closed", {
+    shown <- capture_notifications()
+    upload <- upload_from_lines(c("id,0.5,1,5", "p1,10,8,2", "p2,9,n/a,1"))
+    shiny$testServer(file_input$server, args = list(type = "demand"), {
+      session$setInputs(upload = upload)
+      expect_null(mapper_request())
+    })
+    expect_true(any(grepl("not numbers", shown$messages, fixed = TRUE)))
+  })
+})

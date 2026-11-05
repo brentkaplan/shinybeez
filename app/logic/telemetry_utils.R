@@ -623,6 +623,13 @@ track_data_upload <- function(file_info = list(), session = NULL) {
     cols = file_info$cols,
     reshaped = isTRUE(file_info$reshaped)
   )
+  # Optional: absent keys stay absent (the schema would record an absent enum as "other").
+  if (is_nonempty_string(file_info$layout)) {
+    safe_file_info$layout <- file_info$layout
+  }
+  if (is.logical(file_info$has_group) && length(file_info$has_group) == 1L) {
+    safe_file_info$has_group <- isTRUE(file_info$has_group)
+  }
 
   track_event(
     event_name = "data_upload",
@@ -762,19 +769,87 @@ plot_download_module <- function(filename = NULL, id = NULL) {
       }
     }
   }
-  if (is_nonempty_string(id)) {
-    # Alternation order matters: mixed_effects_demand must be tried before demand.
-    hit <- regmatches(id, regexpr("(^|-)(mixed_effects_demand|discounting|demand)-", id))
-    if (length(hit) == 1L) {
-      segments <- c(
-        mixed_effects_demand = "mixed_effects",
-        discounting = "discounting",
-        demand = "demand"
-      )
-      return(segments[[gsub("^-|-$", "", hit)]])
-    }
+  module_from_id(id)
+}
+
+#' Module named by a namespaced Shiny id
+#'
+#' Module servers are mounted as `demand`, `discounting` and `mixed_effects_demand`
+#' (app/main.R), so every namespaced id carries one of those segments.
+#' @param id A namespaced id such as `app-demand-demand_data_table-data_table`.
+#' @return One of `"demand"`, `"mixed_effects"`, `"discounting"`, `"unknown"`.
+module_from_id <- function(id) {
+  if (!is_nonempty_string(id)) {
+    return("unknown")
   }
-  "unknown"
+  # Alternation order matters: mixed_effects_demand must be tried before demand.
+  hit <- regmatches(id, regexpr("(^|-)(mixed_effects_demand|discounting|demand)-", id))
+  if (length(hit) != 1L) {
+    return("unknown")
+  }
+  segments <- c(
+    mixed_effects_demand = "mixed_effects",
+    discounting = "discounting",
+    demand = "demand"
+  )
+  segments[[gsub("^-|-$", "", hit)]]
+}
+
+#' Module that owns a DT table export
+#'
+#' The DT buttons sit inside the `.datatables` output container whose id is the
+#' namespaced output id (`app-demand-...`). The `<table>` element inside it carries
+#' DT's own `DataTables_Table_<n>` id, which names no module; every table export
+#' was recorded as module "other" while that id was used (2026-11-04).
+#' @param output_id Id of the DT output container (may be NULL or empty).
+#' @return One of `"demand"`, `"mixed_effects"`, `"discounting"`, `"unknown"`.
+#' @export
+table_export_module <- function(output_id = NULL) {
+  module_from_id(output_id)
+}
+
+#' Context string for a client-side JavaScript error
+#'
+#' The browser reports the full script URL, which embeds the ShinyProxy app_proxy
+#' id and any query string, so the raw value never repeats across sessions and the
+#' analytics cannot group the errors. Keep the script name and line only.
+#' @param source `event.filename` from the browser, `"promise"` for a rejection, or empty.
+#' @param line Line number, may be NULL or 0.
+#' @return `client_js:<script>:<line>`, `client_js:promise`, or `client_js:unknown[:line]`.
+#' @export
+client_error_context <- function(source = NULL, line = NULL) {
+  line_part <- if (is.null(line) || length(line) != 1L || is.na(line)) "" else paste0(":", as.integer(line))
+  if (!is_nonempty_string(source)) {
+    return(paste0("client_js:unknown", line_part))
+  }
+  if (identical(source, "promise")) {
+    return("client_js:promise")
+  }
+  path <- sub("[?#].*$", "", source)
+  name <- basename(path)
+  # A source ending in "/" or carrying only a hash is the app page itself.
+  if (!nzchar(name) || grepl("/$", path) || !grepl("\\.", name)) {
+    name <- "page"
+  }
+  paste0("client_js:", name, line_part)
+}
+
+#' Whether a session may record another client-side error
+#'
+#' One broken binding re-fires on every resize or re-render: a single session wrote
+#' the same TypeError 37 times (2026-10). Each session gets a fixed budget.
+#' @param session Shiny session (its `userData` keeps the count).
+#' @param limit Errors allowed per session.
+#' @return TRUE when this error may be recorded (and counts it), else FALSE.
+#' @export
+client_error_budget <- function(session, limit = 10L) {
+  count <- tryCatch(session$userData$client_error_count, error = function(e) NULL)
+  if (is.null(count)) count <- 0L
+  if (count >= limit) {
+    return(FALSE)
+  }
+  session$userData$client_error_count <- count + 1L
+  TRUE
 }
 
 # esquisse names its export links `...-export_<format>` (or `export-<format>` in the "More options" modal).
@@ -865,6 +940,12 @@ track_error <- function(error_message, error_context = NULL, session = NULL, det
   # the top-level schema the analytics consumer reads (error_message, context).
   if (!is.null(details)) {
     event_data$details <- details
+  }
+  # The tab the session last opened (set by the navigation observer in main.R), so an
+  # error row can be placed without joining it to the navigation rows.
+  tab <- tryCatch(session$userData$last_tab, error = function(e) NULL)
+  if (is_nonempty_string(tab)) {
+    event_data$tab <- tab
   }
   track_event(
     event_name = "error",

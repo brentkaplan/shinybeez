@@ -135,12 +135,29 @@ server <- function(id, type = "demand") {
           notify_error(chk_enough)
           return(invisible(FALSE))
         }
+        # A price repeated within one id passes every check above but aborts
+        # beezdemand::get_empirical_measures() on the Empirical Measures tab.
+        chk_unique <- validate$check_demand_duplicate_prices(tmp)
+        if (is.character(chk_unique)) {
+          telemetry_utils$track_validation(
+            "demand", "failure", "duplicate_price_rows", chk_unique, session,
+            reason_code = validate$reason_code(chk_unique)
+          )
+          notify_error(chk_unique)
+          return(invisible(FALSE))
+        }
       }
       session$userData$data[[type]] <- tmp
+      layout <- if (type == "discounting") {
+        if (all(c("id", "x", "y") %in% colnames(tmp))) "long" else "wide"
+      } else {
+        validate$demand_format(tmp)
+      }
       telemetry_utils$track_data_upload(
         file_info = list(
           size = meta$size, type = meta$ext,
-          rows = nrow(tmp), cols = ncol(tmp), reshaped = reshaped
+          rows = nrow(tmp), cols = ncol(tmp), reshaped = reshaped,
+          layout = layout, has_group = "group" %in% colnames(tmp)
         ),
         session = session
       )
@@ -170,7 +187,11 @@ server <- function(id, type = "demand") {
       )
       session$userData$data$discounting <- tmp
       telemetry_utils$track_data_upload(
-        file_info = list(size = meta$size, type = meta$ext, rows = nrow(tmp), cols = ncol(tmp)),
+        file_info = list(
+          size = meta$size, type = meta$ext, rows = nrow(tmp), cols = ncol(tmp),
+          layout = if (is_mcq_wide) "mcq_wide" else if (is_mcq_long) "mcq_long" else "five_trial",
+          has_group = FALSE
+        ),
         session = session
       )
       telemetry_utils$track_validation("discounting", "success", session = session)
@@ -198,7 +219,7 @@ server <- function(id, type = "demand") {
     # A cell-level problem cannot be mapped away: the mapper's parse_cells() reads text
     # through readr::parse_number(), which turns "7,5" into 75 and a text cell into NA.
     # The user has to fix the cell, so no mapping is offered for these codes.
-    mapper_cannot_help <- c("wide_ip_nonnumeric_cells")
+    mapper_cannot_help <- c("wide_ip_nonnumeric_cells", "wide_demand_nonnumeric_cells")
 
     # A rejected frame opens the mapper unless it carries a fixed-schema marker or a
     # problem the mapper cannot help with.

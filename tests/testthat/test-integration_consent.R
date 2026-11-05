@@ -58,6 +58,10 @@ describe("consent in the browser", {
 
   it("shows the banner on a first visit and loads GA only for a usage default", {
     require_app(app)
+    # The banner is a renderUI that fires only after the browser's consent_level
+    # handshake reaches the server; on a slow runner the page can be loaded before it
+    # exists (CI flake, PR #77, 2026-11-04). Wait for it rather than asserting at once.
+    app$wait_for_js("document.querySelector('.consent-banner') !== null", timeout = 10000)
     expect_true(isTRUE(app$get_js("document.querySelector('.consent-banner') !== null")))
     handshake <- app$get_value(input = "consent_level")
     expect_true(handshake$source %in% c("default", "default_eu"))

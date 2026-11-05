@@ -146,8 +146,10 @@ event_schema <- list(
     from = enum(c(LEVELS, "unset")), to = enum(LEVELS), source = enum(c("banner", "settings"))
   ),
   navigation = list(tab = enum(nav_values), timestamp = time),
+  # tab: the navbar tab the session last opened, so an error row says where the user was.
   error = list(
-    error_message = text(500L), context = text(100L), details = nested, timestamp = time
+    error_message = text(500L), context = text(100L), details = nested, timestamp = time,
+    tab = enum(nav_values)
   ),
   validation_outcome = list(
     module = enum(module_values), outcome = enum(c("success", "failure")),
@@ -167,9 +169,13 @@ event_schema <- list(
     parameters = nested, timestamp = time
   ),
   configuration_snapshot = list(module = enum(module_values), timestamp = time),
+  # layout: the shape the app stored (long id/x/y, wide id + price or delay headers, the two
+  # MCQ shapes, a Qualtrics 5.5-Trial export). has_group: a `group` column was present.
   data_upload = list(
     file_size = number, rows = number, cols = number,
-    file_type = enum(c("csv", "tsv", "txt", "xlsx", "xls", "other")), reshaped = flag
+    file_type = enum(c("csv", "tsv", "txt", "xlsx", "xls", "other")), reshaped = flag,
+    layout = enum(c("long", "wide", "mcq_wide", "mcq_long", "five_trial", "unknown")),
+    has_group = flag
   ),
   # DT button labels (copy/csv/excel/pdf/print), the plot download relay, Export All.
   result_export = list(

@@ -1,3 +1,36 @@
+# shinybeez 1.4.1
+
+## Bug Fixes
+
+- **Upload guard on the Demand tab** — a wide demand file with a price cell that
+  is not a number is now rejected at upload with a message naming the column and
+  the cell. Before, the file failed with a raw `Can't combine` message, or, if
+  every price column held text such as `$5`, those values silently became missing.
+- **Repeated prices within a participant** — a long demand file in which one `id`
+  (within one `group`, when there is a group column) has more than one row at the
+  same price is now rejected at upload with a message naming the ids and prices.
+  Before, the file passed validation, descriptives and curve fits, and then the
+  Empirical Measures tab stayed blank with a "Duplicates found where id = ..."
+  notice from beezdemand.
+
+## Telemetry
+
+- Table exports (Copy, CSV, Excel, PDF, Print) now record the module they came
+  from. The export hook read DT's own table id, which names no module, so every
+  table export was stored as module "other".
+- Client-side JavaScript errors are recorded as `client_js:<script>:<line>`
+  without the proxy path or query string, and at most ten per session. One
+  session used to write the same browser error dozens of times.
+- 5.5-Trial format rejections carry a reason code (`five_trial_missing_items`,
+  `five_trial_duplicate_responseid`, ...) like the other upload checks.
+- Error rows record the tab the session had open (`tab`), and upload rows record
+  the stored layout (`layout`: long, wide, mcq_wide, mcq_long or five_trial) and
+  whether a `group` column was present (`has_group`).
+- **Systematic criteria on the Discounting tab** — opening the tab with a 5.5-Trial
+  or MCQ file while "What are you scoring?" is on Indifference Point Regression now
+  explains the mismatch in place instead of showing a raw `Column id is not found`
+  error.
+
 # shinybeez 1.4.0
 
 ## Branding
