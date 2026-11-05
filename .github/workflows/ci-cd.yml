@@ -227,6 +227,8 @@ jobs:
         username: ${{ secrets.PRODUCTION_USERNAME }}
         key: ${{ secrets.PRODUCTION_SSH_KEY }}
         port: 22
+        # Up to ~6 min of idle polling, then pull, restart and the smoke loop (action default is 10m).
+        command_timeout: 15m
         script: |
           set -euo pipefail
           # Fail-closed guard using ShinyProxy's own recyclability signal (verified live on the droplet):
@@ -235,11 +237,27 @@ jobs:
           # recyclable with zero active connections; otherwise abort so a live session is never dropped. This is
           # authoritative and image-agnostic (a container/image filter misses containers on a now-dangling old
           # image — the exact stale case). No response / not-safe both abort (fail-closed).
-          rec=$(curl -s -m 10 http://127.0.0.1:9090/actuator/recyclable 2>/dev/null || true)
-          echo "recyclable probe: ${rec:-<no response>}"
-          if ! printf '%s' "$rec" | grep -q '"isRecyclable":true' \
-             || ! printf '%s' "$rec" | grep -qE '"activeConnections":0([,}]|$)'; then
-            echo "Aborting restart: ShinyProxy not safely recyclable (need isRecyclable=true, activeConnections=0). Retry when idle."
+          # One reading is not enough: a monitoring probe opens a short session every 30 minutes and ShinyProxy
+          # stays non-recyclable for about 4 minutes after it, so a single read failed any approval that landed
+          # in that window. Poll for up to ~6 minutes and proceed on the first safe reading; a session that
+          # outlasts the window still aborts.
+          deadline=$(( $(date +%s) + 360 ))
+          attempt=0
+          safe=0
+          while :; do
+            attempt=$(( attempt + 1 ))
+            rec=$(curl -s -m 10 http://127.0.0.1:9090/actuator/recyclable 2>/dev/null || true)
+            echo "recyclable probe ${attempt}: ${rec:-<no response>}"
+            if printf '%s' "$rec" | grep -q '"isRecyclable":true' \
+               && printf '%s' "$rec" | grep -qE '"activeConnections":0([,}]|$)'; then
+              safe=1
+              break
+            fi
+            if [ "$(date +%s)" -ge "$deadline" ]; then break; fi
+            sleep 10
+          done
+          if [ "$safe" != "1" ]; then
+            echo "Aborting restart: ShinyProxy not safely recyclable after ~6 min of polling (need isRecyclable=true, activeConnections=0). Retry when idle."
             exit 1
           fi
           docker pull brentkaplan/shinybeez:latest
