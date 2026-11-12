@@ -193,3 +193,24 @@ describe("compute_empirical_measures", {
     )
   })
 })
+
+# The overall aggregate row is the same curve whether or not the data are also split by
+# group. The grouped table rounded that one row to 1 decimal place and every other row to 2.
+describe("compute_empirical_measures aggregate row", {
+  it("reports the same aggregate measures with and without grouping", {
+    dat <- make_grouped_demand_data()
+    ungrouped <- empirical$compute_empirical_measures(dat, is_grouped = FALSE)
+    grouped <- empirical$compute_empirical_measures(dat, is_grouped = TRUE)
+
+    agg_ungrouped <- ungrouped[ungrouped$id == "aggregate", ]
+    agg_grouped <- grouped[grouped$id == "aggregate", ]
+    measures <- setdiff(names(agg_ungrouped), "id")
+    expect_equal(
+      as.numeric(agg_grouped[1, measures]), as.numeric(agg_ungrouped[1, measures])
+    )
+    # Mean consumption by price is 10, 8, 5, 2, 1/3 at prices .01, .1, 1, 10, 100, so the
+    # largest expenditure is 100 * 1/3 = 33.33 (the old 1-decimal row showed 33.3).
+    expect_identical(agg_grouped$Omaxe, 33.33)
+    expect_identical(agg_ungrouped$Omaxe, 33.33)
+  })
+})
