@@ -178,17 +178,19 @@ log_structured <- function(
     data_summary
   )
 
-  # Log using appropriate level (main log)
+  # Log using appropriate level (main log). rhino::log treats its argument as a glue
+  # template, so the message is interpolated as data: braces in user text (a group
+  # label, a condition message) must be written as typed, never evaluated.
   switch(
     tolower(level),
-    "fatal" = log$fatal(formatted_message),
-    "error" = log$error(formatted_message),
-    "warn" = log$warn(formatted_message),
-    "success" = log$success(formatted_message),
-    "info" = log$info(formatted_message),
-    "debug" = log$debug(formatted_message),
-    "trace" = log$trace(formatted_message),
-    log$info(formatted_message) # default
+    "fatal" = log$fatal("{formatted_message}"),
+    "error" = log$error("{formatted_message}"),
+    "warn" = log$warn("{formatted_message}"),
+    "success" = log$success("{formatted_message}"),
+    "info" = log$info("{formatted_message}"),
+    "debug" = log$debug("{formatted_message}"),
+    "trace" = log$trace("{formatted_message}"),
+    log$info("{formatted_message}") # default
   )
 
   # Also write to category-specific log files
