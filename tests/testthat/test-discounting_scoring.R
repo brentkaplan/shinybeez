@@ -348,4 +348,105 @@ describe("score_and_format_mcq", {
     result2 <- scoring$score_and_format_mcq(mcq_data)
     expect_equal(result1$results, result2$results)
   })
+
+  # Imputation fills in missing answers; it must never alter an answer the participant
+  # gave. Uploads are not guaranteed to list questions 1..27 in order.
+  it("returns each observed answer unchanged after INN imputation, whatever the question order", {
+    dat <- make_mcq_data(n_ids = 2)
+    dat$response[c(3, 11, 20, 30, 41)] <- NA
+    reversed <- dat[order(dat$subjectid, -dat$questionid), ]
+
+    scored <- suppressWarnings(scoring$score_and_format_mcq(reversed, imputation = "INN"))$data
+
+    check <- merge(
+      dat, scored[, c("subjectid", "questionid", "newresponse")],
+      by = c("subjectid", "questionid")
+    )
+    observed <- !is.na(check$response)
+    expect_equal(nrow(check), nrow(dat))
+    expect_equal(check$newresponse[observed], check$response[observed])
+  })
+
+  it("returns each observed answer unchanged when question ids are a factor", {
+    # factor("1".."27") sorts as text ("1", "10", "11", ...), not as numbers
+    dat <- data.frame(subjectid = 1, questionid = 1:27, response = rep(c(0, 1), length.out = 27))
+    dat$response[3] <- NA
+    as_factor <- dat
+    as_factor$questionid <- factor(as.character(as_factor$questionid))
+
+    scored <- suppressWarnings(scoring$score_and_format_mcq(as_factor, imputation = "INN"))$data
+    scored$questionid <- as.numeric(as.character(scored$questionid))
+
+    check <- merge(dat, scored[, c("questionid", "newresponse")], by = "questionid")
+    observed <- !is.na(check$response)
+    expect_equal(check$newresponse[observed], check$response[observed])
+  })
+
+  it("imputes the same answer for a question whatever the question order", {
+    dat <- make_mcq_data(n_ids = 2)
+    dat$response[c(3, 11, 20, 30, 41)] <- NA
+    reversed <- dat[order(dat$subjectid, -dat$questionid), ]
+
+    by_key <- function(d) {
+      d <- d[order(d$subjectid, d$questionid), c("subjectid", "questionid", "newresponse")]
+      rownames(d) <- NULL
+      d
+    }
+    in_order <- suppressWarnings(scoring$score_and_format_mcq(dat, imputation = "INN"))$data
+    out_of_order <- suppressWarnings(scoring$score_and_format_mcq(reversed, imputation = "INN"))$data
+
+    expect_equal(by_key(out_of_order), by_key(in_order))
+  })
+})
+
+# ------------------------------------------------------------------------------
+# mean_prop_ss() tests
+# ------------------------------------------------------------------------------
+
+describe("mean_prop_ss", {
+  # Each of the 9 k ranks has 3 items. A participant who answers 0 to all 27 chose the
+  # smaller-sooner option on 3 of 3 items at every rank (proportion 1); one who answers
+  # 1 to all 27 chose it on 0 of 3 (proportion 0).
+  all_answers <- function(subjectid, response) {
+    data.frame(subjectid = subjectid, questionid = 1:27, response = response)
+  }
+
+  it("averages two opposite participants to one half at every k rank", {
+    dat <- rbind(all_answers("A", 0), all_answers("B", 1))
+
+    for (d in list(dat, dat[rev(seq_len(nrow(dat))), ])) {
+      out <- scoring$mean_prop_ss(d)
+      expect_equal(nrow(out), 9)
+      expect_equal(out$prop_ss, rep(0.5, 9))
+    }
+  })
+
+  it("weights participants equally: two of three choosing smaller-sooner gives 0.67", {
+    dat <- rbind(all_answers("A", 0), all_answers("B", 0), all_answers("C", 1))
+
+    expect_equal(scoring$mean_prop_ss(dat)$prop_ss, rep(0.67, 9))
+  })
+
+  it("averages exact thirds and rounds once: one of six items gives 0.17, not 0.16", {
+    # A chose smaller-sooner on question 1 only; B never did. At question 1's k rank
+    # that is 1 of 3 items for A and 0 of 3 for B: mean 1/6 = 0.1667. Every other
+    # rank is 0 for both.
+    a <- all_answers("A", 1)
+    a$response[a$questionid == 1] <- 0
+    out <- scoring$mean_prop_ss(rbind(a, all_answers("B", 1)))
+
+    expect_equal(sort(out$prop_ss), c(rep(0, 8), 0.17))
+  })
+
+  it("leaves a single participant's proportions as they are", {
+    expect_equal(scoring$mean_prop_ss(all_answers("A", 0))$prop_ss, rep(1, 9))
+  })
+
+  it("returns a prop_ss_output with k_rank, so the existing plot method applies", {
+    out <- scoring$mean_prop_ss(rbind(all_answers("A", 0), all_answers("B", 1)))
+
+    expect_s3_class(out, "prop_ss_output")
+    expect_named(out, c("k_rank", "prop_ss"))
+    expect_s3_class(plot(out), "ggplot")
+  })
 })

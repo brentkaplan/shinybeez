@@ -168,4 +168,34 @@ describe("compute_systematic_discounting", {
     expect_equal(nrow(result), 1)
     expect_equal(as.character(result$id), "solo")
   })
+
+  # Johnson & Bickel (2008) define both criteria on indifference points ordered by
+  # delay: criterion 1 compares each point with the one at the preceding delay, and
+  # criterion 2 compares the longest delay with the shortest. The order of rows in
+  # the upload carries no meaning.
+  it("gives the same flags whatever order the delays are uploaded in", {
+    # y falls .9 -> .6 -> .2 as delay grows: no increase, and the last point is
+    # well below the first, so both criteria pass.
+    ascending <- data.frame(id = "s1", x = c(1, 7, 30), y = c(0.9, 0.6, 0.2))
+    descending <- ascending[3:1, ]
+
+    for (d in list(ascending, descending)) {
+      result <- systematic$compute_systematic_discounting(d)
+      expect_true(result$c1_pass)
+      expect_true(result$c2_pass)
+    }
+  })
+
+  it("finds a between-delay increase when the rows run from long to short delay", {
+    # By delay: .9 (1), .5 (7), .75 (30), .2 (90). The 7 -> 30 step rises by .25,
+    # above the .2 threshold, so criterion 1 fails; .2 is below .9 - .1, so
+    # criterion 2 passes.
+    reversed <- data.frame(
+      id = "s1", x = c(90, 30, 7, 1), y = c(0.2, 0.75, 0.5, 0.9)
+    )
+
+    result <- systematic$compute_systematic_discounting(reversed)
+    expect_false(result$c1_pass)
+    expect_true(result$c2_pass)
+  })
 })

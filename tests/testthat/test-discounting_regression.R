@@ -44,13 +44,27 @@ make_mock_results <- function() {
 
 describe("format_regression_results", {
 
-  it("rounds numeric columns to 4 decimal places", {
+  # A discounting rate, its standard error and interval, and a p-value can all be far
+  # smaller than 0.0001. Four decimal places showed and exported them as 0: a rate of
+  # zero, and p = 0.
+  it("keeps four significant digits of the estimate, its error, its interval and p", {
+    mock <- make_mock_results()
+    mock$estimate[1] <- 0.0000123449
+    mock$conf_low <- c(0.0000111111, 0.9, 0.5)
+    mock$conf_high <- c(0.0000135799, 1.1, 0.6)
+    result <- regression$format_regression_results(mock, id_levels = c("b", "a", "c"))
+
+    expect_identical(result$estimate, c(0.00001234, 0.9877, 0.5556))
+    expect_identical(result$std.error, c(0.001235, 0.009877, 0.005556))
+    expect_identical(result$p.value, c(0.00001234, 0.05, 0.1235))
+    expect_identical(result$conf_low[1], 0.00001111)
+    expect_identical(result$conf_high[1], 0.00001358)
+  })
+
+  it("rounds the other numeric columns to 4 decimal places", {
     mock <- make_mock_results()
     result <- regression$format_regression_results(mock, id_levels = c("b", "a", "c"))
 
-    expect_equal(result$estimate, c(0.1235, 0.9877, 0.5556))
-    expect_equal(result$std.error, c(0.0012, 0.0099, 0.0056))
-    expect_equal(result$p.value, c(0, 0.05, 0.1235))
     expect_equal(result$R2, c(0.8765, 1, 0.1235))
     expect_equal(result$auc_regular, c(12.3457, 45.6789, 78.9012))
   })
@@ -200,17 +214,23 @@ describe("fit_and_format_regression", {
     expect_equal(levels(result$results$id), c("p1", "p2", "p3"))
   })
 
-  it("results numeric columns are rounded to 4 decimal places", {
+  it("results are rounded: 4 significant digits for estimate columns, 4 decimals for the rest", {
     dat <- make_dd_data()
     result <- suppressWarnings(
       regression$fit_and_format_regression(dat, equation = "hyperbolic", method = "two stage")
-    )
+    )$results
 
-    numeric_cols <- result$results[, sapply(result$results, is.numeric)]
-    all_rounded <- all(sapply(numeric_cols, function(col) {
-      all(col == round(col, 4), na.rm = TRUE)
-    }))
-    expect_true(all_rounded)
+    significant <- intersect(
+      c("estimate", "std.error", "conf_low", "conf_high", "p.value"), names(result)
+    )
+    expect_true(length(significant) >= 3)
+    for (col in significant) {
+      expect_equal(result[[col]], signif(result[[col]], 4), info = col)
+    }
+    decimals <- setdiff(names(result)[sapply(result, is.numeric)], significant)
+    for (col in decimals) {
+      expect_equal(result[[col]], round(result[[col]], 4), info = col)
+    }
   })
 
   it("results has one row per participant with two stage method", {
