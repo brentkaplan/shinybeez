@@ -61,7 +61,8 @@ build_specs_string <- function(main_factor, by_factor, model_factors) {
   if (
     !is.null(by_factor) &&
       nzchar(by_factor) &&
-      by_factor %in% model_factors
+      by_factor %in% model_factors &&
+      !identical(by_factor, main_factor)
   ) {
     specs_str <- paste(main_factor, "*", by_factor)
   }
@@ -73,13 +74,15 @@ build_specs_string <- function(main_factor, by_factor, model_factors) {
 #'
 #' @param by_factor The factor to stratify by (may be NULL or empty)
 #' @param model_factors Character vector of valid factors in the model
+#' @param main_factor The factor being compared; a factor is never stratified by itself
 #' @return The by_factor if valid, NULL otherwise
 #' @export
-get_contrast_by_arg <- function(by_factor, model_factors) {
+get_contrast_by_arg <- function(by_factor, model_factors, main_factor = NULL) {
   if (
     !is.null(by_factor) &&
       nzchar(by_factor) &&
-      by_factor %in% model_factors
+      by_factor %in% model_factors &&
+      !identical(by_factor, main_factor)
   ) {
     return(by_factor)
   }

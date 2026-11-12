@@ -206,12 +206,15 @@ build_nlme_control <- function(
       minScale = 0.001,
       niterEM = 25L
     ),
-    # Shinybeez UI presets
+    # Shinybeez UI presets. Each value must sit inside nlme_control_limits: the fit
+    # uses the clamped value, so a preset outside its range would display one number
+    # and fit with another. Balanced and Faster once listed tolerance 1e-3 and 3e-3
+    # and were always fitted at the 1e-4 limit, which is what they now say.
     Balanced = list(
       maxIter = 100L,
       pnlsMaxIter = 7L,
       msMaxIter = 100L,
-      tolerance = 1e-3,
+      tolerance = 1e-4,
       pnlsTol = 1e-3,
       minScale = 1e-3,
       niterEM = 50L
@@ -220,7 +223,7 @@ build_nlme_control <- function(
       maxIter = 60L,
       pnlsMaxIter = 10L,
       msMaxIter = 80L,
-      tolerance = 3e-3,
+      tolerance = 1e-4,
       pnlsTol = 3e-3,
       minScale = 5e-3,
       niterEM = 30L
@@ -269,6 +272,36 @@ build_nlme_control <- function(
     minScale = as.numeric(min_scale),
     niterEM = as.integer(n_iter_em)
   )
+}
+
+#' Allowed range of each fitting control: the sidebar's inputs and the fit share it
+#' @export
+nlme_control_limits <- list(
+  maxIter = c(min = 30, max = 300),
+  pnlsMaxIter = c(min = 7, max = 50),
+  msMaxIter = c(min = 50, max = 500),
+  tolerance = c(min = 1e-7, max = 1e-4),
+  pnlsTol = c(min = 1e-4, max = 1e-2),
+  minScale = c(min = 1e-4, max = 1e-2),
+  niterEM = c(min = 0, max = 100)
+)
+
+#' Clamp fitting controls to their allowed ranges
+#'
+#' @param controls Named list of control values, as typed (NULL, text or numeric)
+#' @return Named list with one numeric per control in `nlme_control_limits`; NA where
+#'   the value is missing or not a number
+#' @export
+clamp_nlme_control <- function(controls) {
+  clamp_one <- function(name) {
+    value <- suppressWarnings(as.numeric(controls[[name]]))
+    if (length(value) != 1 || is.na(value)) {
+      return(NA_real_)
+    }
+    limits <- nlme_control_limits[[name]]
+    min(max(value, limits[["min"]]), limits[["max"]])
+  }
+  stats$setNames(lapply(names(nlme_control_limits), clamp_one), names(nlme_control_limits))
 }
 
 #' Validate factor columns exist and have multiple levels

@@ -356,7 +356,7 @@ navpanel_server <- function(id, sidebar_reactives, fit_task) {
       # Show notification if scale failed
       if (isTRUE(result$transform_info$scale_failed)) {
         shiny$showNotification(
-          "Scale requested but SD is not positive; applying centering only.",
+          "Scale requested but the covariate's SD is not positive; scaling was not applied.",
           type = "warning"
         )
       }
@@ -373,21 +373,10 @@ navpanel_server <- function(id, sidebar_reactives, fit_task) {
       equation_choice <- sidebar_reactives$equation_form()
       shiny$req(y_var_col_name, equation_choice)
 
-      if (identical(equation_choice, "zben")) {
-        # Prefer existing y_ll4; otherwise LL4-transform the selected Y
-        if ("y_ll4" %in% names(df)) {
-          df[["y_for_model"]] <- df[["y_ll4"]]
-        } else {
-          shiny$req(y_var_col_name %in% names(df))
-          df[["y_for_model"]] <- beezdemand$ll4(df[[y_var_col_name]])
-        }
-        attr(df, "y_is_ll4") <- TRUE
-      } else {
-        # simplified / exponentiated: use the user's column as-is
-        shiny$req(y_var_col_name %in% names(df))
-        df[["y_for_model"]] <- df[[y_var_col_name]]
-        attr(df, "y_is_ll4") <- FALSE
-      }
+      # ZBEn: LL4 of the selected Y (y_ll4 as it is only when it is the selected Y);
+      # simplified / exponentiated: the selected Y as it is
+      df <- data_prep$add_model_response(df, y_var_col_name, equation_choice)
+      shiny$req(df)
 
       # Convert any nonfactors selected to factors
       factors_to_convert <- setdiff(
@@ -441,10 +430,10 @@ navpanel_server <- function(id, sidebar_reactives, fit_task) {
         df_now <- sidebar_reactives$data_to_analyze_trigger()
         shiny$req(eq, yname, df_now)
         if (identical(eq, "zben")) {
-          if ("y_ll4" %in% names(df_now)) {
-            # Using existing y_ll4; no transform needed
+          if (identical(yname, "y_ll4")) {
+            # y_ll4 selected: already transformed, used as it is
             shiny$showNotification(
-              "ZBEn: using existing y_ll4 column.",
+              "ZBEn: using the selected y_ll4 column as it is.",
               type = "message",
               duration = 3
             )
@@ -533,6 +522,16 @@ navpanel_server <- function(id, sidebar_reactives, fit_task) {
       )
     })
 
+    # The grouping selector is only drawn while factors are selected, but its input keeps
+    # its last value after it disappears. Group only by factors that are still selected, so
+    # the table and the export cannot stay grouped by a control the user can no longer see.
+    systematic_group_vars <- function() {
+      intersect(
+        input$systematic_group_by,
+        setdiff(sidebar_reactives$selected_factors(), c("None", ""))
+      )
+    }
+
     # Systematic Criteria: optional grouping selector (multi-select)
     output$systematic_group_ui <- shiny$renderUI({
       facs <- sidebar_reactives$selected_factors()
@@ -578,7 +577,7 @@ navpanel_server <- function(id, sidebar_reactives, fit_task) {
         )
       }
 
-      group_vars <- input$systematic_group_by
+      group_vars <- systematic_group_vars()
 
       # Validate group vars if provided
       missing_groups <- systematic_utils$validate_group_vars(group_vars, df_raw)
@@ -646,6 +645,26 @@ navpanel_server <- function(id, sidebar_reactives, fit_task) {
     # live sidebar state. Sidebar changes take effect on the next Run.
     last_fit_df <- shiny$reactiveVal(NULL)
     last_fit_cov <- shiny$reactiveVal(NULL)
+    last_fit_settings <- shiny$reactiveVal(NULL)
+
+    # The sidebar settings an export describes. Read live here; a copy is taken when a fit
+    # starts (pending_fit) and kept with a successful fit (last_fit_settings).
+    current_fit_settings <- function() {
+      list(
+        equation = sidebar_reactives$equation_form(),
+        factors = sidebar_reactives$selected_factors(),
+        factor_interaction = sidebar_reactives$factor_interaction(),
+        id_var = sidebar_reactives$id_var(),
+        x_var = sidebar_reactives$x_var(),
+        y_var = sidebar_reactives$y_var(),
+        random_effects = sidebar_reactives$random_effects_spec(),
+        covariance_structure = sidebar_reactives$covariance_structure(),
+        collapse_info = tryCatch(
+          sidebar_reactives$collapse_levels_reactive(), error = function(e) NULL
+        ),
+        nlme_ctrl = tryCatch(sidebar_reactives$nlme_controls(), error = function(e) NULL)
+      )
+    }
 
     shiny$observeEvent(sidebar_reactives$run_trigger(), {
       df <- data_to_analyze()
@@ -809,7 +828,8 @@ navpanel_server <- function(id, sidebar_reactives, fit_task) {
         notif_id = notif_id,
         sel_factors = sel_factors,
         equation_form = sidebar_reactives$equation_form(),
-        id_var = sidebar_reactives$id_var()
+        id_var = sidebar_reactives$id_var(),
+        settings = current_fit_settings()
       ))
       fit_task$invoke(spec, df)
     })
@@ -865,6 +885,7 @@ navpanel_server <- function(id, sidebar_reactives, fit_task) {
           )
           last_fit_df(NULL)
           last_fit_cov(NULL)
+          last_fit_settings(NULL)
           last_fit(NULL)
           fit_generation(fit_generation() + 1L)
           return()
@@ -902,6 +923,7 @@ navpanel_server <- function(id, sidebar_reactives, fit_task) {
 
         last_fit_df(p$df)
         last_fit_cov(p$cov_info)
+        last_fit_settings(p$settings)
         last_fit(model_fit)
         fit_generation(fit_generation() + 1L)
         if (isTRUE(r$worker_rss_mb > daemons$rss_limit_mb())) {
@@ -949,6 +971,7 @@ navpanel_server <- function(id, sidebar_reactives, fit_task) {
         )
         last_fit_df(NULL)
         last_fit_cov(NULL)
+        last_fit_settings(NULL)
         last_fit(NULL)
         fit_generation(fit_generation() + 1L)
         return()
@@ -981,6 +1004,7 @@ navpanel_server <- function(id, sidebar_reactives, fit_task) {
       )
       last_fit_df(NULL)
       last_fit_cov(NULL)
+      last_fit_settings(NULL)
       last_fit(NULL)
       fit_generation(fit_generation() + 1L)
     })
@@ -1349,7 +1373,8 @@ navpanel_server <- function(id, sidebar_reactives, fit_task) {
       )
       contrast_by_arg <- comparisons$get_contrast_by_arg(
         by_factor,
-        model_factors
+        model_factors,
+        main_factor = main_factor
       )
 
       # Build 'at' for covariate conditioning from the fit's own snapshot
@@ -1833,54 +1858,40 @@ navpanel_server <- function(id, sidebar_reactives, fit_task) {
         wb <- openxlsx$createWorkbook()
 
         # --- Sheet 1: Summary (using export_utils module) ---
-        settings <- list(
-          equation = sidebar_reactives$equation_form(),
-          factors = sidebar_reactives$selected_factors(),
-          factor_interaction = sidebar_reactives$factor_interaction(),
-          id_var = sidebar_reactives$id_var(),
-          x_var = sidebar_reactives$x_var(),
-          y_var = sidebar_reactives$y_var(),
-          random_effects = sidebar_reactives$random_effects_spec(),
-          covariance_structure = sidebar_reactives$covariance_structure()
+        # A fitted model is described by what it was fitted with, not by whatever the
+        # sidebar says now: settings and data come from the fit's own snapshot.
+        settings <- export_utils$export_source(
+          has_model, last_fit_settings(), current_fit_settings()
         )
         summary_data <- export_utils$build_summary_sheet(
           settings,
           version = "1.0.0"
         )
-
-        collapse_info <- tryCatch(
-          sidebar_reactives$collapse_levels_reactive(),
-          error = function(e) NULL
-        )
         summary_data <- export_utils$add_collapse_info(
           summary_data,
-          collapse_info
-        )
-
-        nlme_ctrl <- tryCatch(
-          sidebar_reactives$nlme_controls(),
-          error = function(e) NULL
+          settings$collapse_info
         )
         summary_data <- export_utils$add_fitting_settings(
           summary_data,
-          nlme_ctrl
+          settings$nlme_ctrl
         )
 
         export_utils$write_summary_sheet(wb, summary_data, openxlsx)
 
         # --- Sheet 2: Data ---
         tab_data <- export_utils$excel_palette$TAB_DATA
-        raw_data <- tryCatch(data_to_analyze(), error = function(e) NULL)
+        raw_data <- export_utils$export_source(
+          has_model, last_fit_df(), tryCatch(data_to_analyze(), error = function(e) NULL)
+        )
         export_utils$write_data_sheet(
           wb, "Data", raw_data, openxlsx, tab_colour = tab_data
         )
 
         # --- Sheet 3: Descriptives ---
         if (!is.null(raw_data) && "y_for_model" %in% names(raw_data)) {
-          factors <- sidebar_reactives$selected_factors()
-          x_var_sel <- sidebar_reactives$x_var()
-          grouping_vars <- c(factors, x_var_sel)
+          grouping_vars <- c(settings$factors, settings$x_var)
           grouping_vars <- grouping_vars[!grouping_vars %in% c("None", "")]
+          grouping_vars <- intersect(grouping_vars, names(raw_data))
           desc_data <- export_utils$build_descriptives(raw_data, grouping_vars)
           export_utils$write_data_sheet(
             wb, "Descriptives", desc_data, openxlsx, tab_colour = tab_data
@@ -1892,16 +1903,22 @@ navpanel_server <- function(id, sidebar_reactives, fit_task) {
           sidebar_reactives$data_to_analyze_trigger(),
           error = function(e) NULL
         )
-        systematic <- systematic_utils$compute_systematic_criteria(
-          df_raw = df_raw,
-          id_col = sidebar_reactives$id_var(),
-          x_col = sidebar_reactives$x_var(),
-          y_col = sidebar_reactives$y_var(),
-          group_vars = input$systematic_group_by,
-          deltaq = input$deltaq %||% 0.025,
-          bounce = input$bounce %||% 0.10,
-          reversals = input$reversals %||% 0,
-          ncons0 = input$ncons0 %||% 2
+        # Same inputs and preparation as the on-screen table; a failure here leaves the
+        # sheet out rather than aborting the whole download.
+        systematic <- tryCatch(
+          systematic_utils$compute_systematic_criteria(
+            df_raw = df_raw,
+            id_col = sidebar_reactives$id_var(),
+            x_col = sidebar_reactives$x_var(),
+            y_col = sidebar_reactives$y_var(),
+            group_vars = systematic_group_vars(),
+            deltaq = input$deltaq %||% 0.025,
+            bounce = input$bounce %||% 0.10,
+            reversals = input$reversals %||% 0,
+            ncons0 = input$ncons0 %||% 2,
+            prepare_fn = mixed_effects_demand_utils$prepare_systematic_input
+          ),
+          error = function(e) NULL
         )
         export_utils$write_data_sheet(
           wb, "Systematic_Criteria", systematic, openxlsx,
