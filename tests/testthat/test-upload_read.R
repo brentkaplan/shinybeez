@@ -147,3 +147,50 @@ describe("read_upload() and a wide indifference-point file with a text cell", {
     expect_match(res, '"n/a"', fixed = TRUE)
   })
 })
+
+# In a comma-delimited file a quoted "7,5" is ambiguous: a decimal comma (7.5) or, read
+# as a grouping mark, 75. It must never be silently read as either; the cell stays text
+# so validation can name it. A quoted "1,234" is treated the same way.
+describe("read_upload() and a quoted number containing a comma", {
+  wide_demand <- c("id,0,1,5", "1,10,\"7,5\",2", "2,9,6,\"1,234\"")
+
+  it("keeps the cell as typed in a comma CSV", {
+    dat <- upload_read$read_upload(write_upload(wide_demand), "csv")
+    expect_identical(dat[["1"]], c("7,5", "6"))
+    expect_identical(dat[["5"]], c("2", "1,234"))
+    expect_equal(dat[["0"]], c(10, 9))
+  })
+
+  it("keeps the cell as typed in a comma CSV with trailing semicolon junk", {
+    dat <- upload_read$read_upload(write_upload(paste0(wide_demand, ";;;")), "csv")
+    expect_identical(dat[["1"]], c("7,5", "6"))
+  })
+
+  it("keeps the cell as typed in a TSV", {
+    path <- write_upload(c("id\t0\t1", "1\t10\t7,5", "2\t9\t6"), ext = "tsv")
+    dat <- upload_read$read_upload(path, "tsv")
+    expect_identical(dat[["1"]], c("7,5", "6"))
+  })
+
+  # Column types are guessed from a sample of rows. A cell beyond the sample used to be
+  # forced into the guessed type: the text became NA with only a parsing warning.
+  it("keeps the cell as typed when it sits far down a long file", {
+    rows <- paste0(seq_len(3000), ",10,2")
+    rows[2500] <- "2500,10,\"7,5\""
+    dat <- upload_read$read_upload(write_upload(c("id,0,1", rows)), "csv")
+    expect_identical(dat[["1"]][2500], "7,5")
+    expect_identical(dat[["1"]][2499], "2")
+
+    tsv <- gsub(",", "\t", rows[-2500], fixed = TRUE)
+    tsv <- append(tsv, "2500\t10\t7,5", after = 2499)
+    dat <- upload_read$read_upload(write_upload(c("id\t0\t1", tsv), ext = "tsv"), "tsv")
+    expect_identical(dat[["1"]][2500], "7,5")
+  })
+
+  it("is then rejected by demand validation, naming the cell", {
+    dat <- normalise(upload_read$read_upload(write_upload(wide_demand), "csv"))
+    res <- validate$check_data(dat, type = "demand")
+    expect_type(res, "character")
+    expect_match(res, '"7,5"', fixed = TRUE)
+  })
+})

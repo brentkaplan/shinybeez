@@ -70,14 +70,27 @@ read_semicolon <- function(path) {
 # (`id,r$0,r$1;;;;`), which turned the last header into "r$1;;;;". Only a run of two
 # or more on the header, with every line ending in `;`, counts as junk: a single
 # trailing `;` can be data ("note;").
+# vroom's default locale takes "," for a grouping mark, so a quoted "7,5" became 75 and
+# passed validation as a number. With no grouping mark such a cell stays text, and
+# validation names it instead of guessing between 7.5 and 75.
+no_grouping <- vroom$locale(grouping_mark = "")
+
+# Column types are guessed from every row, not vroom's default sample: a text cell
+# beyond the sample was forced into the sampled type and became NA with only a warning.
+read_delimited <- function(file, delim) {
+  vroom$vroom(
+    file, delim = delim, show_col_types = FALSE, locale = no_grouping, guess_max = Inf
+  )
+}
+
 read_comma <- function(path, first_line) {
-  plain <- function() vroom$vroom(path, delim = ",", show_col_types = FALSE)
+  plain <- function() read_delimited(path, ",")
   if (!grepl(";{2,}\\s*$", first_line, useBytes = TRUE)) return(plain())
   lines <- readLines(path, warn = FALSE, encoding = "UTF-8")
   filled <- lines[nzchar(trimws(lines))]
   if (!all(grepl(";\\s*$", filled, useBytes = TRUE))) return(plain())
   lines <- sub(";+\\s*$", "", lines, useBytes = TRUE)
-  vroom$vroom(I(paste(lines, collapse = "\n")), delim = ",", show_col_types = FALSE)
+  read_delimited(I(paste(lines, collapse = "\n")), ",")
 }
 
 #' Read an uploaded CSV or TSV file
@@ -90,7 +103,7 @@ read_upload <- function(path, ext) {
   ext <- tolower(ext)
   tryCatch({
     if (identical(ext, "tsv")) {
-      dat <- vroom$vroom(path, delim = "\t", show_col_types = FALSE)
+      dat <- read_delimited(path, "\t")
       attr(dat, "delim") <- "\t"
       return(dat)
     }

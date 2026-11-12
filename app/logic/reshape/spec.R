@@ -4,9 +4,12 @@
 #' telemetry summaries, and tested without a session.
 
 box::use(
-  readr[parse_number],
   stats[complete.cases],
   utils[head],
+)
+
+box::use(
+  app / logic / validate[parse_single_number],
 )
 
 targets <- c("demand", "mixed_effects_demand", "discounting")
@@ -77,19 +80,41 @@ parse_x_text <- function(text) {
   }
   tokens <- strsplit(trimws(text[1]), "[,;[:space:]]+")[[1]]
   tokens <- tokens[nzchar(tokens)]
-  suppressWarnings(parse_number(tokens))
+  parse_single_number(tokens)
 }
 
-#' Parse response cells to numbers: numeric columns as-is, text via parse_number()
+#' Parse response cells to numbers: numeric columns as-is, text when it holds one number
 #'
-#' Inf and NaN are missing responses, not responses: nothing downstream can fit them,
-#' and counting them as usable would let a participant pass the two-response rule with
-#' nothing to fit.
+#' "6 drinks" is 6; "7,5", "<1" and a date are not guessed at (see
+#' `validate$parse_single_number()`). Inf and NaN are missing responses, not responses:
+#' nothing downstream can fit them, and counting them as usable would let a participant
+#' pass the two-response rule with nothing to fit.
 #' @export
 parse_cells <- function(v) {
-  out <- if (is.numeric(v)) as.numeric(v) else suppressWarnings(parse_number(as.character(v)))
+  out <- parse_single_number(v)
   out[!is.finite(out)] <- NA_real_
   out
+}
+
+# What parse_cells() made of the response columns, for the preview line: cells that were
+# text around a number ("6 drinks" read as 6) and cells with content that is not a number
+# ("7,5", "n/a"), which are dropped with the empty ones. Up to three distinct examples each.
+cell_readings <- function(columns) {
+  text <- unlist(lapply(columns, function(v) {
+    if (is.numeric(v)) return(character(0))
+    s <- trimws(as.character(v))
+    s[!is.na(s) & nzchar(s) & s != "NA"]
+  }), use.names = FALSE)
+  parsed <- parse_cells(text)
+  plain <- !is.na(suppressWarnings(as.numeric(text)))
+  from_text <- text[!plain & !is.na(parsed)]
+  unreadable <- text[is.na(parsed)]
+  list(
+    n_from_text = length(from_text),
+    from_text = head(unique(from_text), 3L),
+    n_unreadable = length(unreadable),
+    unreadable = head(unique(unreadable), 3L)
+  )
 }
 
 quote_names <- function(x) paste0("\"", x, "\"", collapse = ", ")
@@ -136,7 +161,8 @@ PARTITION_LABEL <- "Splits each participant into complete sets" # nolint: object
 # The output frame names the grouping column differently per target, and not at all when there
 # is none, so the curve key is read off the result rather than the spec.
 curve_key <- function(d) {
-  g <- if (!is.null(d$group)) d$group else d$series
+  # [[ ]], not $: `d$group` would partially match a carried column such as "grouping"
+  g <- if (!is.null(d[["group"]])) d[["group"]] else d[["series"]]
   if (is.null(g)) as.character(d$id) else composite_key(d$id, g)
 }
 
@@ -155,7 +181,7 @@ preview_summary <- function(spec, preview) {
     } else {
       paste(min(per), max(per), sep = "\u2013")
     }
-    g <- if (!is.null(d$group)) d$group else d$series
+    g <- if (!is.null(d[["group"]])) d[["group"]] else d[["series"]]
     if (is.null(g)) {
       sprintf(
         "%d participants \u00d7 %s responses \u2192 %s rows, %d curves",
@@ -177,8 +203,28 @@ preview_summary <- function(spec, preview) {
     )
   }
   losses <- preview$losses
-  if (losses$n_na_y > 0) {
-    msg <- paste0(msg, sprintf(" \u00b7 %d empty responses dropped", losses$n_na_y))
+  readings <- preview$readings
+  n_unreadable <- if (is.null(readings)) 0L else readings$n_unreadable
+  n_empty <- losses$n_na_y - n_unreadable
+  plural <- function(n) if (n == 1) "" else "s"
+  if (n_empty > 0) {
+    msg <- paste0(msg, sprintf(" \u00b7 %d empty response%s dropped", n_empty, plural(n_empty)))
+  }
+  if (!is.null(readings) && readings$n_from_text > 0) {
+    examples <- paste0(
+      "\"", readings$from_text, "\" as ", format(parse_cells(readings$from_text)),
+      collapse = ", "
+    )
+    msg <- paste0(msg, sprintf(
+      " \u00b7 %d response%s read from text (%s)",
+      readings$n_from_text, plural(readings$n_from_text), examples
+    ))
+  }
+  if (n_unreadable > 0) {
+    msg <- paste0(msg, sprintf(
+      " \u00b7 %d response%s not read as number%s and dropped (%s)",
+      n_unreadable, plural(n_unreadable), plural(n_unreadable), quote_names(readings$unreadable)
+    ))
   }
   if (losses$n_na_keep > 0) {
     msg <- paste0(msg, sprintf(
@@ -513,7 +559,8 @@ output_columns <- function(spec, long) {
 }
 
 #' Apply a validated spec: one row per participant x series x price
-#' @return list(data, losses = list(n_na_y, n_na_keep), n_ids)
+#' @return list(data, losses = list(n_na_y, n_na_keep), n_ids, readings = what was read from text
+#'   and what could not be read; see cell_readings())
 #' @export
 apply_spec <- function(spec, dat) {
   chk <- validate_spec(spec, dat)
@@ -551,7 +598,8 @@ apply_long_spec <- function(spec, dat) {
   list(
     data = long,
     losses = list(n_na_y = as.integer(n_na_y), n_na_keep = as.integer(n_na_keep)),
-    n_ids = length(unique(ids))
+    n_ids = length(unique(ids)),
+    readings = cell_readings(list(dat[[spec$y_col]]))
   )
 }
 
@@ -603,6 +651,7 @@ apply_wide_spec <- function(spec, dat) {
   list(
     data = long,
     losses = list(n_na_y = as.integer(n_na_y), n_na_keep = as.integer(n_na_keep)),
-    n_ids = length(unique(ids))
+    n_ids = length(unique(ids)),
+    readings = cell_readings(dat[unlist(lapply(spec$series, function(s) s$cols))])
   )
 }

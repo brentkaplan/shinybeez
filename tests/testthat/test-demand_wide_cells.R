@@ -62,9 +62,11 @@ describe("check_data - wide demand value cells", {
     expect_true(validate$check_data(dat, type = "demand"))
   })
 
-  it("does not check long files", {
+  it("reports a long file's cells under the long-file reason code", {
+    # long files have their own check (test-long_cells.R); the wide one must not claim them
     dat <- data.frame(id = c("p1", "p1"), x = c(1, 5), y = c("8", "n/a"))
-    expect_true(validate$check_data(dat, type = "demand"))
+    res <- validate$check_data(dat, type = "demand")
+    expect_identical(validate$reason_code(res), "long_demand_nonnumeric_cells")
   })
 })
 
