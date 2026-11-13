@@ -285,6 +285,11 @@ server <- function(id, type = "demand") {
         notify_error("Unable to read the uploaded file. Please ensure it is a valid CSV or TSV file.")
         return()
       }
+      # Commas read as decimal marks change the numbers analysed: always say so.
+      comma_notice <- upload_read$decimal_comma_notice(tmp)
+      if (!is.null(comma_notice)) {
+        shiny$showNotification(comma_notice, type = "warning", duration = 15)
+      }
       # A header-only file has nothing to validate or reshape: obliterate_empty_cols()
       # would strip every column (all sums equal nrow == 0) and the mapper would open empty.
       if (nrow(tmp) == 0) {

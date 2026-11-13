@@ -80,7 +80,9 @@ describe("read_upload() delimiter", {
       path <- file.path(dir, f)
       expected <- vroom$vroom(path, delim = ",", show_col_types = FALSE)
       got <- upload_read$read_upload(path, "csv")
+      expect_identical(attr(got, "decimal_commas")$n, 0L, info = f)
       attr(got, "delim") <- NULL
+      attr(got, "decimal_commas") <- NULL
       expect_equal(as.data.frame(got), as.data.frame(expected), info = f)
     }
   })
@@ -148,49 +150,191 @@ describe("read_upload() and a wide indifference-point file with a text cell", {
   })
 })
 
-# In a comma-delimited file a quoted "7,5" is ambiguous: a decimal comma (7.5) or, read
-# as a grouping mark, 75. It must never be silently read as either; the cell stays text
-# so validation can name it. A quoted "1,234" is treated the same way.
-describe("read_upload() and a quoted number containing a comma", {
-  wide_demand <- c("id,0,1,5", "1,10,\"7,5\",2", "2,9,6,\"1,234\"")
+# A comma inside a number is a decimal mark in Brazil and most of Europe (7,5 is seven and
+# a half) and a thousands separator in the US and Mexico (1,234 is one thousand). The
+# reader never guesses from one cell. It reads commas as decimal marks only when the file
+# shows that is what they are: some number could not be a thousands value (7,5 or 0,25 or
+# 12,50) and nothing in the file uses a decimal point. It then says so. A file whose only
+# comma numbers look like 1,234, or one that mixes commas and points, is left as typed for
+# validation to reject by name. vroom's default read "7,5" as 75 without a word.
+describe("read_upload() and decimal commas in comma and tab files", {
+  commas <- function(dat) attr(dat, "decimal_commas")
 
-  it("keeps the cell as typed in a comma CSV", {
-    dat <- upload_read$read_upload(write_upload(wide_demand), "csv")
-    expect_identical(dat[["1"]], c("7,5", "6"))
-    expect_identical(dat[["5"]], c("2", "1,234"))
-    expect_equal(dat[["0"]], c(10, 9))
-  })
-
-  it("keeps the cell as typed in a comma CSV with trailing semicolon junk", {
-    dat <- upload_read$read_upload(write_upload(paste0(wide_demand, ";;;")), "csv")
-    expect_identical(dat[["1"]], c("7,5", "6"))
-  })
-
-  it("keeps the cell as typed in a TSV", {
-    path <- write_upload(c("id\t0\t1", "1\t10\t7,5", "2\t9\t6"), ext = "tsv")
+  it("reads them as decimals in a tab file and reports what it converted", {
+    path <- write_upload(c("id\tx\ty", "a\t1\t7,5", "a\t2\t0,25", "a\t4\t3"), ext = "tsv")
     dat <- upload_read$read_upload(path, "tsv")
-    expect_identical(dat[["1"]], c("7,5", "6"))
+    expect_identical(dat$y, c(7.5, 0.25, 3))
+    expect_identical(commas(dat)$n, 2L)
+    expect_identical(commas(dat)$examples, c("7,5", "0,25"))
   })
 
-  # Column types are guessed from a sample of rows. A cell beyond the sample used to be
-  # forced into the guessed type: the text became NA with only a parsing warning.
-  it("keeps the cell as typed when it sits far down a long file", {
-    rows <- paste0(seq_len(3000), ",10,2")
-    rows[2500] <- "2500,10,\"7,5\""
-    dat <- upload_read$read_upload(write_upload(c("id,0,1", rows)), "csv")
-    expect_identical(dat[["1"]][2500], "7,5")
-    expect_identical(dat[["1"]][2499], "2")
-
-    tsv <- gsub(",", "\t", rows[-2500], fixed = TRUE)
-    tsv <- append(tsv, "2500\t10\t7,5", after = 2499)
-    dat <- upload_read$read_upload(write_upload(c("id\t0\t1", tsv), ext = "tsv"), "tsv")
-    expect_identical(dat[["1"]][2500], "7,5")
+  it("reads quoted ones as decimals in a comma file, never as a larger number", {
+    dat <- upload_read$read_upload(
+      write_upload(c("id,x,y", "a,1,\"7,5\"", "a,2,\"12,50\"", "a,4,3")), "csv"
+    )
+    expect_identical(dat$y, c(7.5, 12.5, 3))
+    expect_identical(commas(dat)$n, 2L)
   })
 
-  it("is then rejected by demand validation, naming the cell", {
-    dat <- normalise(upload_read$read_upload(write_upload(wide_demand), "csv"))
-    res <- validate$check_data(dat, type = "demand")
+  it("does the same when the comma file ends each line with semicolon junk", {
+    lines <- paste0(c("id,x,y", "a,1,\"7,5\"", "a,2,3"), ";;;")
+    dat <- upload_read$read_upload(write_upload(lines), "csv")
+    expect_identical(dat$y, c(7.5, 3))
+  })
+
+  it("reads 1,234 as 1.234 once another cell has shown commas are decimals", {
+    path <- write_upload(c("id\tx\ty", "a\t1\t7,5", "a\t2\t1,234"), ext = "tsv")
+    dat <- upload_read$read_upload(path, "tsv")
+    expect_identical(dat$y, c(7.5, 1.234))
+  })
+
+  it("takes 0,250 as proof of a decimal comma: no thousands value starts with zero", {
+    path <- write_upload(c("id\tx\ty", "a\t1\t0,250", "a\t2\t1,500"), ext = "tsv")
+    dat <- upload_read$read_upload(path, "tsv")
+    expect_identical(dat$y, c(0.25, 1.5))
+  })
+
+  it("converts negative values and decimal-comma price headers", {
+    path <- write_upload(c("id\t0\t0,5\t2,5", "a\t10\t8\t-1,5"), ext = "tsv")
+    dat <- upload_read$read_upload(path, "tsv")
+    expect_identical(colnames(dat), c("id", "0", "0.5", "2.5"))
+    expect_identical(dat[["2.5"]], -1.5)
+    expect_identical(commas(dat)$n, 3L)
+  })
+
+  it("converts a cell far down a long file instead of losing it to type guessing", {
+    rows <- paste0(seq_len(3000), "\t10\t2")
+    rows[2500] <- "2500\t10\t7,5"
+    dat <- upload_read$read_upload(write_upload(c("id\tx\ty", rows), ext = "tsv"), "tsv")
+    expect_identical(dat$y[2500], 7.5)
+    expect_identical(dat$y[2499], 2)
+  })
+
+  it("leaves a file alone when every comma number could be a thousands value", {
+    path <- write_upload(c("id\tx\ty", "a\t1\t1,234", "a\t2\t2,500"), ext = "tsv")
+    dat <- upload_read$read_upload(path, "tsv")
+    expect_identical(dat$y, c("1,234", "2,500"))
+    expect_identical(commas(dat)$n, 0L)
+
+    res <- validate$check_data(normalise(dat), type = "demand")
     expect_type(res, "character")
-    expect_match(res, '"7,5"', fixed = TRUE)
+    expect_match(res, "\"1,234\"", fixed = TRUE)
+  })
+
+  it("leaves a file alone when it mixes decimal commas and decimal points", {
+    path <- write_upload(c("id\tx\ty", "a\t0.5\t7,5", "a\t2\t3"), ext = "tsv")
+    dat <- upload_read$read_upload(path, "tsv")
+    expect_identical(dat$y, c("7,5", "3"))
+    expect_identical(commas(dat)$n, 0L)
+
+    res <- validate$check_data(normalise(dat), type = "demand")
+    expect_match(res, "\"7,5\"", fixed = TRUE)
+  })
+
+  # Type guessing turns "1.0" into 1 and so hides the decimal point: the file's own text
+  # is what counts.
+  it("sees a decimal point that type guessing would hide", {
+    for (x in list(c("1.0", "2.0"), c("1.", "2"), c("1.5e-2", "2"))) {
+      path <- write_upload(
+        c("id\tx\ty", paste0("a\t", x[1], "\t7,5"), paste0("a\t", x[2], "\t3")), ext = "tsv"
+      )
+      dat <- upload_read$read_upload(path, "tsv")
+      expect_identical(dat$y, c("7,5", "3"), info = x[1])
+      expect_identical(commas(dat)$n, 0L, info = x[1])
+    }
+  })
+
+  it("leaves price headers alone when one uses a decimal point and another a comma", {
+    path <- write_upload(c("id\tR$0.50\tR$1,50", "a\t10\t8"), ext = "tsv")
+    dat <- upload_read$read_upload(path, "tsv")
+    expect_identical(colnames(dat), c("id", "R$0.50", "R$1,50"))
+    expect_identical(commas(dat)$n, 0L)
+  })
+
+  it("reads a decimal comma written with a plus sign", {
+    path <- write_upload(c("id\tx\ty", "a\t1\t+7,5", "a\t2\t3"), ext = "tsv")
+    dat <- upload_read$read_upload(path, "tsv")
+    expect_identical(dat$y, c(7.5, 3))
+    expect_identical(commas(dat)$n, 1L)
+  })
+
+  it("does not touch text that merely contains a comma", {
+    dat <- upload_read$read_upload(
+      write_upload(c("id,note,y", "a,\"red, blue\",\"7,5\"", "b,\"1,2,3\",2")), "csv"
+    )
+    expect_identical(dat$note, c("red, blue", "1,2,3"))
+    expect_identical(dat$y, c(7.5, 2))
+  })
+
+  # Labels are not measurements. An id or a group label that happens to look like a comma
+  # number is never rewritten, and says nothing about how the file writes its decimals.
+  it("leaves id and group labels exactly as typed while converting measurements", {
+    path <- write_upload(
+      c("id\tgroup\tx\ty", "01,5\t1,5\t1\t7,5", "1,50\t2,5\t2\t3"), ext = "tsv"
+    )
+    dat <- upload_read$read_upload(path, "tsv")
+    expect_identical(dat$id, c("01,5", "1,50"))
+    expect_identical(dat$group, c("1,5", "2,5"))
+    expect_identical(dat$y, c(7.5, 3))
+    expect_identical(commas(dat)$n, 1L)
+  })
+
+  it("does not take a label like 1,5 as proof that 1,234 is a decimal", {
+    path <- write_upload(
+      c("id\tgroup\tx\ty", "a\t1,5\t1\t1,234", "b\t2,5\t2\t2,500"), ext = "tsv"
+    )
+    dat <- upload_read$read_upload(path, "tsv")
+    expect_identical(dat$y, c("1,234", "2,500"))
+    expect_identical(commas(dat)$n, 0L)
+  })
+
+  it("does not let a decimal point in an id veto clear decimal-comma measurements", {
+    path <- write_upload(c("subject\tx\ty", "1.5\t1\t7,5", "2.5\t2\t3"), ext = "tsv")
+    dat <- upload_read$read_upload(path, "tsv")
+    expect_identical(dat$y, c(7.5, 3))
+  })
+
+  it("converts a decimal comma inside a currency price header", {
+    path <- write_upload(c("id\tR$0,50\tR$1\t2,50\u20ac", "a\t10\t8\t2"), ext = "tsv")
+    dat <- upload_read$read_upload(path, "tsv")
+    expect_identical(colnames(dat), c("id", "R$0.50", "R$1", "2.50\u20ac"))
+    expect_identical(commas(dat)$n, 2L)
+  })
+
+  it("reports nothing for a file with no comma numbers", {
+    dat <- upload_read$read_upload(write_upload(c("id,x,y", "a,1,7.5", "a,2,3")), "csv")
+    expect_identical(commas(dat)$n, 0L)
+  })
+})
+
+describe("read_upload() reports the decimal commas it converts in a semicolon file", {
+  it("counts the converted cells and keeps examples", {
+    dat <- upload_read$read_upload(write_upload(c("id;x;y", "a;0,5;10", "a;1,5;8", "a;2;6")), "csv")
+    expect_identical(dat$x, c(0.5, 1.5, 2))
+    expect_identical(attr(dat, "decimal_commas")$n, 2L)
+    expect_identical(attr(dat, "decimal_commas")$examples, c("0,5", "1,5"))
+  })
+})
+
+describe("read_upload() and a plus sign in a semicolon file", {
+  it("reads +7,5 as 7.5, as it does in a tab file", {
+    dat <- upload_read$read_upload(write_upload(c("id;x;y", "a;1;+7,5", "a;2;3")), "csv")
+    expect_identical(dat$y, c(7.5, 3))
+  })
+})
+
+describe("decimal_comma_notice", {
+  it("says how many cells were converted, with an example", {
+    path <- write_upload(c("id\tx\ty", "a\t1\t7,5", "a\t2\t0,25"), ext = "tsv")
+    msg <- upload_read$decimal_comma_notice(upload_read$read_upload(path, "tsv"))
+    expect_identical(
+      msg,
+      "Commas were read as decimal marks in 2 values (for example \"7,5\" as 7.5)."
+    )
+  })
+
+  it("is NULL when nothing was converted", {
+    dat <- upload_read$read_upload(write_upload(c("id,x,y", "a,1,7.5")), "csv")
+    expect_null(upload_read$decimal_comma_notice(dat))
   })
 })
