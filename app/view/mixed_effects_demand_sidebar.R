@@ -533,12 +533,25 @@ sidebar_server <- function(id, data_reactive, fit_task, active = shiny$reactive(
     # changes it is reset to the new covariate's mean (empty when there is none), so EMMs
     # are never conditioned at a value left over from another variable. A value typed by
     # the user stands until the covariate or the data changes.
+    #
+    # current_data() also re-evaluates when this tab becomes active again, returning the
+    # same data; that must not wipe a typed value, so the reset runs only when the data or
+    # the covariate differs from the pair it last ran for. Uploading the same file again
+    # is the same data.
+    cov_at_set_for <- NULL
     shiny$observeEvent(
       list(current_data(), input$covariate_choice),
       {
+        # The columns only: a frame fresh from the reader carries a pointer attribute
+        # that differs on every read, even of the same file.
+        now <- list(lapply(current_data(), identity), input$covariate_choice)
+        if (identical(now, cov_at_set_for)) {
+          return()
+        }
+        cov_at_set_for <<- now
         shiny$updateNumericInput(
           session, "cov_at",
-          value = data_prep$covariate_default_at(current_data(), input$covariate_choice)
+          value = data_prep$covariate_default_at(current_data(), now[[2]])
         )
       },
       ignoreInit = FALSE
