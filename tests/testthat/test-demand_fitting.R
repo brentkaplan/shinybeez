@@ -294,15 +294,26 @@ describe("format_demand_results", {
     }
   })
 
-  it("rounds 4dp columns to 4 decimal places", {
+  # Alpha is routinely of the order 1e-5 or smaller. Four decimal places showed and
+  # exported such an estimate, and both ends of its interval, as 0.
+  it("keeps four significant digits of a small Alpha instead of rounding it to zero", {
     output <- make_mock_fitcurves_output()
+    output$results$Alpha[1] <- 0.0000123449
+    output$results$Alphase[1] <- 0.00000056789
+    output$results$AlphaLow[1] <- 0.0000111111
+    output$results$AlphaHigh[1] <- 0.0000135799
     result <- fitting$format_demand_results(output)
-    cols_4dp <- c("Alpha", "Alphase", "AlphaLow", "AlphaHigh")
-    for (col in cols_4dp) {
-      values <- result[[col]]
-      rounded <- round(values, 4)
-      expect_equal(values, rounded, info = paste(col, "should be rounded to 4dp"))
-    }
+    expect_identical(result$Alpha[1], 0.00001234)
+    expect_identical(result$Alphase[1], 0.0000005679)
+    expect_identical(result$AlphaLow[1], 0.00001111)
+    expect_identical(result$AlphaHigh[1], 0.00001358)
+  })
+
+  it("shows a larger Alpha to four significant digits", {
+    output <- make_mock_fitcurves_output()
+    output$results$Alpha[1] <- 0.0123456
+    result <- fitting$format_demand_results(output)
+    expect_identical(result$Alpha[1], 0.01235)
   })
 
   it("returns a data.frame", {

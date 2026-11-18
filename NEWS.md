@@ -1,3 +1,77 @@
+# shinybeez 1.5.0 (development)
+
+## New Features
+
+- **Decimal commas in uploads** — a comma or tab file that writes decimals with
+  a comma (`7,5`, `0,25`, a price header such as `R$0,50`) is now read as
+  intended, and the upload says how many values were converted, with one
+  example. Semicolon files were already converted; they now show the same
+  notice. Id and group columns are left as typed.
+
+## Breaking Changes
+
+- **Ambiguous numbers are rejected instead of guessed** — a cell such as `1,234`
+  in a file with no clear decimal commas, a file that mixes decimal commas and
+  decimal points, and cells such as `1-2`, `<1` or a date are now rejected at
+  upload with a message naming the cell. Before, `7,5` was read as 75, `1,234`
+  as 1234 and `1-2` as 1, with no warning. Remove thousands separators before
+  uploading.
+- **Long demand and indifference-point files are cell-checked** — a value that
+  is not a number is rejected at upload, as wide files already were. Before, it
+  became missing or was read from its first digits.
+- **27-Item MCQ files** — a file in which a participant answers the same
+  question twice, or a question number outside 1–27, is rejected at upload.
+
+## Bug Fixes
+
+### Uploads
+
+- A text cell far down a long column no longer turns into a missing value
+  because the column type was guessed from the first rows.
+- In the wide-to-long mapper, a response with one number and a unit
+  (`6 drinks`) is read as that number, and the preview reports how many
+  responses were read from text and how many were dropped.
+
+### Discounting
+
+- **MCQ scoring with INN imputation** — imputed responses were assigned to the
+  wrong questions when a participant's rows were not in question order. Rows
+  are now sorted by participant and question before scoring.
+- **Mean proportion of smaller-sooner choices** — now computed per participant
+  and then averaged. Before, all participants were scored as one.
+- **Systematic criteria** — the result no longer depends on the row order of
+  the file; delays are sorted within each participant first.
+- **Regression table** — estimates, standard errors, confidence limits and
+  p-values show four significant digits, so small values no longer print as 0.
+
+### Demand
+
+- **Alpha** shows four significant digits in the results tables. Small values
+  used to print as 0.
+- The aggregate row of a grouped empirical table is no longer rounded to one
+  decimal place when the other rows are not.
+
+### Mixed Effects Demand
+
+- **ZBEn** is fitted to the Y variable selected in the sidebar. A `y_ll4`
+  column is used as it stands only when it is the one selected.
+- **Covariate conditioning value** resets to the covariate's default when the
+  data or the covariate changes, and keeps a typed value otherwise.
+- **Export All** writes the settings, data and descriptives of the fitted
+  model, not whatever the sidebar shows at the time of export.
+- **Optimizer presets** — Balanced and Faster show a tolerance of 1e-4, the
+  value the fit actually used; typed control values are held to the same
+  limits.
+- **Collapse levels** — two collapsed groups can no longer be given the same
+  name.
+- **Comparisons** — a factor is no longer stratified by itself.
+- The systematic-criteria export groups by the factors selected for the model.
+
+## Internal
+
+- Log messages are written as data. A message containing `{` or `}` (for
+  example from a column name) could fail to log or be evaluated as a template.
+
 # shinybeez 1.4.1
 
 ## Bug Fixes

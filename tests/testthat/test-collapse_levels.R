@@ -306,3 +306,41 @@ describe("build_collapse_structure", {
     expect_null(result)
   })
 })
+
+# Two groups given the same name are one list entry: the second silently replaced the
+# first, and the model was fitted without the first group's constraint.
+describe("process_param_collapse with two groups of the same name", {
+  it("refuses the specification instead of dropping the first group", {
+    result <- collapse_levels$process_param_collapse(
+      collapse_enabled = TRUE,
+      g1_name = "Merged", g1_levels = c("A", "B"),
+      g2_name = "Merged", g2_levels = c("C", "D"),
+      factor_name = "dose", param_label = "Q0"
+    )
+    expect_null(result$collapse)
+    expect_false(result$error$valid)
+    expect_match(result$error$error_message, "same name", fixed = TRUE)
+    expect_match(result$error$error_message, "Merged", fixed = TRUE)
+    expect_match(result$error$error_message, "dose", fixed = TRUE)
+  })
+
+  it("still accepts two groups with different names", {
+    result <- collapse_levels$process_param_collapse(
+      collapse_enabled = TRUE,
+      g1_name = "Low", g1_levels = c("A", "B"),
+      g2_name = "High", g2_levels = c("C", "D")
+    )
+    expect_null(result$error)
+    expect_identical(result$collapse, list(Low = c("A", "B"), High = c("C", "D")))
+  })
+
+  it("does not object to a shared name when the second group has no levels", {
+    result <- collapse_levels$process_param_collapse(
+      collapse_enabled = TRUE,
+      g1_name = "Merged", g1_levels = c("A", "B"),
+      g2_name = "Merged", g2_levels = character(0)
+    )
+    expect_null(result$error)
+    expect_identical(result$collapse, list(Merged = c("A", "B")))
+  })
+})

@@ -14,7 +14,7 @@ box::use(
 #' Splits data by id, applies check_unsystematic per participant,
 #' and returns results sorted by original id order.
 #'
-#' @param data Data frame with id, x, y columns
+#' @param data Data frame with id, x (numeric delay), y columns
 #' @param c1 Local change criterion (default 0.2)
 #' @param c2 Global trend criterion (default 0.1)
 #' @return Data frame with systematic criteria results, one row per id,
@@ -26,8 +26,10 @@ compute_systematic_discounting <- function(data, c1 = 0.2, c2 = 0.1) {
   data |>
     dplyr$group_split(id) |>
     purrr$map_dfr(
+      # check_unsystematic() compares consecutive rows and first with last, so each
+      # participant's points must be in delay order whatever order they were uploaded in
       ~ check_unsystematic(
-        .x,
+        dplyr$arrange(.x, x),
         ll = 1,
         c1 = c1,
         c2 = c2

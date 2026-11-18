@@ -23,6 +23,10 @@ suffix_pattern <- "^(.*?)[_. -]?([0-9]+(\\.[0-9]+)?)$"
 #' @export
 is_id_like <- function(nms) grepl(id_pattern, tolower(nms), perl = TRUE)
 
+#' Whether column names look like a group, series or condition label
+#' @export
+is_group_like <- function(nms) grepl(group_name_pattern, tolower(trimws(nms)), perl = TRUE)
+
 #' @export
 guess_id_col <- function(dat) {
   nms <- colnames(dat)

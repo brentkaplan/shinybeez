@@ -2,6 +2,10 @@
 #'
 #' Pure functions for column guessing, data validation, and preparation.
 
+box::use(
+  beezdemand[ll4],
+)
+
 #' Case-insensitive column name matching
 #'
 #' Searches for the first matching column name from a list of candidates.
@@ -280,4 +284,50 @@ coerce_x_numeric <- function(v) {
     return(list(ok = FALSE, values = NULL, n_bad = as.integer(n_bad)))
   }
   list(ok = FALSE, values = NULL, n_bad = as.integer(sum(!is.na(v))))
+}
+
+#' Add the response column the model is fitted to
+#'
+#' ZBEn is fitted to an LL4-transformed response. The selected Y is what gets
+#' transformed; a column named `y_ll4` is taken as already transformed, and used as it
+#' is, only when it is the selected Y. The other equations use the selected Y as it is.
+#'
+#' @param df Data frame to analyse
+#' @param y_var Name of the selected Y column
+#' @param equation Equation form ("zben", "simplified", "exponentiated")
+#' @return `df` with a `y_for_model` column and a logical `y_is_ll4` attribute, or NULL
+#'   when `y_var` is not a column of `df`
+#' @export
+add_model_response <- function(df, y_var, equation) {
+  if (!y_var %in% names(df)) {
+    return(NULL)
+  }
+  is_zben <- identical(equation, "zben")
+  df[["y_for_model"]] <- if (is_zben && !identical(y_var, "y_ll4")) {
+    ll4(df[[y_var]])
+  } else {
+    df[[y_var]]
+  }
+  attr(df, "y_is_ll4") <- is_zben
+  df
+}
+
+#' Default conditioning value for a covariate: its mean
+#'
+#' @param df Data frame being analysed
+#' @param covariate Name of the chosen covariate column ("" or NULL for none)
+#' @return The covariate's mean to 3 decimal places, or NA when there is no covariate, it
+#'   is not a column of `df`, or it holds no numbers
+#' @export
+covariate_default_at <- function(df, covariate) {
+  if (is.null(df) || is.null(covariate) || length(covariate) != 1 || !nzchar(covariate) ||
+        !covariate %in% names(df)) {
+    return(NA_real_)
+  }
+  values <- df[[covariate]]
+  if (!is.numeric(values)) {
+    values <- suppressWarnings(as.numeric(as.character(values)))
+  }
+  centre <- mean(values, na.rm = TRUE)
+  if (is.finite(centre)) round(centre, 3) else NA_real_
 }

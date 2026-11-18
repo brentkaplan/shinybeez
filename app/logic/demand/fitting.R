@@ -107,7 +107,9 @@ results_cols_2dp <- c(
   "Q0d", "K", "R2", "Q0se", "AbsSS", "SdRes",
   "Q0Low", "Q0High", "EV", "Omaxd", "Pmaxd", "Omaxa", "Pmaxa"
 )
-results_cols_4dp <- c(
+# Significant digits, not decimal places: alpha is often 1e-5 or smaller, which four
+# decimal places turned into 0 in the table and its exports.
+results_cols_4sig <- c(
   "Alpha", "Alphase", "AlphaLow", "AlphaHigh",
   "alpha_star", "alpha_star_se"
 )
@@ -121,14 +123,14 @@ results_cols_hidden <- c(
 #' Format fit_demand_fixed output into a clean results data frame
 #'
 #' @param output List output from fit_demand_fixed (or synthetic grouped list)
-#' @return Formatted data frame with rounded columns
+#' @return Formatted data frame: 2 decimal places, alpha columns to 4 significant digits
 #' @export
 format_demand_results <- function(output) {
   output$results |>
     dplyr$select(!(Intensity:Pmaxe), -dplyr$any_of(results_cols_hidden)) |>
     dplyr$mutate(
       dplyr$across(dplyr$any_of(results_cols_2dp), \(x) round(x, 2)),
-      dplyr$across(dplyr$any_of(results_cols_4dp), \(x) round(x, 4))
+      dplyr$across(dplyr$any_of(results_cols_4sig), \(x) signif(x, 4))
     )
 }
 
@@ -191,7 +193,9 @@ fit_demand_grouped <- function(data, eq, agg, k, constrainq0 = NULL) {
             constrainq0 = constrainq0
           ),
           error = function(e) {
-            rhino$log$warn(paste0("Group '", grp, "' failed to fit: ", e$message))
+            # interpolate as data: a group label is user text, not a glue template
+            fit_error <- conditionMessage(e)
+            rhino$log$warn("Group '{grp}' failed to fit: {fit_error}")
             NULL
           }
         )
@@ -214,12 +218,11 @@ fit_demand_grouped <- function(data, eq, agg, k, constrainq0 = NULL) {
   failed_groups <- setdiff(all_groups, succeeded_groups)
 
   if (length(failed_groups) > 0) {
-    rhino$log$warn(
-      paste0(
-        length(failed_groups), " of ", length(all_groups),
-        " groups failed to fit: ", paste(failed_groups, collapse = ", ")
-      )
+    failed_summary <- paste0(
+      length(failed_groups), " of ", length(all_groups),
+      " groups failed to fit: ", paste(failed_groups, collapse = ", ")
     )
+    rhino$log$warn("{failed_summary}")
   }
 
   if (length(group_fits) == 0) {

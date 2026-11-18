@@ -8,6 +8,11 @@ box::use(
   dplyr,
 )
 
+# Significant digits, not decimal places: a discounting rate, its standard error and
+# interval, and a p-value are often far below 0.0001, which four decimal places turned
+# into 0 in the table and its exports.
+results_cols_4sig <- c("estimate", "std.error", "conf_low", "conf_high", "p.value")
+
 #' Format regression results with rounding and id sorting
 #'
 #' Pooled and Mean fits return a single aggregate row with no `id` column, so
@@ -16,11 +21,17 @@ box::use(
 #'
 #' @param results Data frame from results_dd()
 #' @param id_levels Character vector of original id levels for factor ordering
-#' @return Data frame with numeric cols rounded to 4dp; id sorted when present
+#' @return Data frame with the estimate, its error, its interval and p to 4 significant
+#'   digits and other numeric cols to 4dp; id sorted when present
 #' @export
 format_regression_results <- function(results, id_levels) {
   results <- results |>
-    dplyr$mutate(dplyr$across(dplyr$where(is.numeric), \(x) round(x, 4)))
+    dplyr$mutate(
+      dplyr$across(
+        dplyr$where(is.numeric) & !dplyr$any_of(results_cols_4sig), \(x) round(x, 4)
+      ),
+      dplyr$across(dplyr$any_of(results_cols_4sig), \(x) signif(x, 4))
+    )
 
   if (!"id" %in% names(results)) {
     return(results)

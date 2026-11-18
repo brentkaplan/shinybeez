@@ -3,7 +3,7 @@
 #' Pure functions for scoring the 27-Item MCQ and formatting results.
 
 box::use(
-  beezdiscounting[score_mcq27, summarize_mcq],
+  beezdiscounting[prop_ss, score_mcq27, summarize_mcq],
   dplyr,
 )
 
@@ -59,16 +59,37 @@ check_mcq_item_counts <- function(data) {
 
   counts <- table(data$subjectid)
   short <- counts[counts != 27]
-  if (length(short) == 0L) {
-    return(invisible(TRUE))
+  if (length(short) > 0L) {
+    detail <- paste0(
+      "Subject ", names(short), " has ", as.integer(short),
+      " of the 27 required MCQ items",
+      collapse = "; "
+    )
+    stop(detail, ". Each subject must have exactly 27 items.", call. = FALSE)
   }
 
-  detail <- paste0(
-    "Subject ", names(short), " has ", as.integer(short),
-    " of the 27 required MCQ items",
-    collapse = "; "
-  )
-  stop(detail, ". Each subject must have exactly 27 items.", call. = FALSE)
+  # 27 rows is not 27 questions: a repeated question (and so a missing one) passed the
+  # count, and the scorer returned NA or a k computed from the wrong items.
+  question <- suppressWarnings(as.numeric(as.character(data$questionid)))
+  outside <- is.na(question) | !question %in% 1:27
+  if (any(outside)) {
+    stop(
+      "MCQ question numbers must be the whole numbers 1 to 27; found: ",
+      paste(utils::head(unique(as.character(data$questionid[outside])), 5), collapse = ", "),
+      ".",
+      call. = FALSE
+    )
+  }
+  repeated <- duplicated(data.frame(data$subjectid, question))
+  if (any(repeated)) {
+    first <- which(repeated)[1]
+    stop(
+      "Subject ", data$subjectid[first], " has question ", question[first],
+      " more than once. Each subject must answer each of the 27 questions exactly once.",
+      call. = FALSE
+    )
+  }
+  invisible(TRUE)
 }
 
 #' Resolve imputation settings from UI input
@@ -172,6 +193,17 @@ score_and_format_mcq <- function(data, imputation = "none", trans = "none") {
 
   imp <- resolve_imputation(imputation)
 
+  # score_mcq27() returns its imputed responses in question order but attaches them to
+  # the rows as uploaded, so questions listed out of order came back with other
+  # questions' answers. Put each participant's questions in numeric order first;
+  # participants keep the order they were uploaded in.
+  question_number <- suppressWarnings(as.numeric(as.character(data$questionid)))
+  if (is.factor(data$questionid) && !anyNA(question_number)) {
+    # the scorer orders a factor by its codes ("1", "10", "11", ...), not by number
+    data$questionid <- question_number
+  }
+  data <- data[order(match(data$subjectid, unique(data$subjectid)), question_number), ]
+
   calc_results <- score_mcq27(
     data,
     impute_method = imp$impute_method,
@@ -185,4 +217,26 @@ score_and_format_mcq <- function(data, imputation = "none", trans = "none") {
     data = calc_results$data,
     summary = summarize_mcq(calc_results$results)
   )
+}
+
+#' Mean proportion of smaller-sooner choices at each k rank, across participants
+#'
+#' beezdiscounting::prop_ss() scores one participant: given several it keeps 27 rows in
+#' total, not 27 per participant. Score each participant on their own, then average the
+#' participants at each k rank.
+#'
+#' @param data Data frame with subjectid, questionid, response (27 rows per participant)
+#' @return Tibble with k_rank and prop_ss (2 dp), classed `prop_ss_output` for plot()
+#' @export
+mean_prop_ss <- function(data) {
+  per_participant <- lapply(split(data, data$subjectid, drop = TRUE), prop_ss)
+
+  out <- dplyr$bind_rows(per_participant) |>
+    dplyr$group_by(k_rank) |>
+    # prop_ss() returns thirds already rounded to 2 dp (0.33, 0.67): recover the exact
+    # thirds before averaging, so the mean is rounded once
+    dplyr$summarise(prop_ss = round(mean(round(prop_ss * 3) / 3), 2), .groups = "drop")
+
+  class(out) <- class(per_participant[[1]])
+  out
 }

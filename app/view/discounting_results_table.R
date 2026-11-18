@@ -1,6 +1,6 @@
 box::use(
   beezdemand,
-  beezdiscounting[plot_dd, prop_ss],
+  beezdiscounting[plot_dd],
   bslib,
   dplyr,
   DT,
@@ -96,11 +96,14 @@ server <- function(
     # Reactive calculation engine
     main_calc_reactive <- shiny$eventReactive(calculate_btn(), {
       shiny$req(data_r$data_d, type())
-      rhino$log$info(paste("Calculating for:", type()))
+      # input values arrive from the client: log them as data, not as a glue template
+      calc_type <- type()
+      rhino$log$info("Calculating for: {calc_type}")
 
       res <- list()
       if (type() == "27-Item MCQ" && !("I16" %in% names(data_r$data_d))) {
-        rhino$log$debug(paste("Imputation method:", imputation(), "; Transformation:", trans()))
+        mcq_settings <- paste("Imputation method:", imputation(), "; Transformation:", trans())
+        rhino$log$debug("{mcq_settings}")
         telemetry_utils$track_configuration(
           "discounting",
           config = list(type = "MCQ", imputation = imputation(), transformation = trans()),
@@ -158,7 +161,7 @@ server <- function(
           res$data
         }
         res$propplot <- plot_data |>
-          prop_ss() |>
+          scoring$mean_prop_ss() |>
           plot() +
           beezdemand$theme_apa() +
           utils$add_shiny_logo(utils$watermark_tr)
@@ -283,7 +286,8 @@ server <- function(
         )
         res$results <- pd_out
       } else if (type() == "Indifference Point Regression") {
-        rhino$log$debug(paste("Equation:", eq(), "; Aggregation:", agg()))
+        reg_settings <- paste("Equation:", eq(), "; Aggregation:", agg())
+        rhino$log$debug("{reg_settings}")
         rhino$log$info("Calculating Regression")
         telemetry_utils$track_configuration(
           "discounting",

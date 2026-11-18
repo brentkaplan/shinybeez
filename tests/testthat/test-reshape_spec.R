@@ -633,3 +633,90 @@ describe("partition_note", {
     expect_match(spec$partition_note("session", 2, 4, "discounting", FALSE), "4 delays")
   })
 })
+
+# A mapped response cell is a number only when it holds exactly one (validate$parse_single_number).
+# readr::parse_number() read "7,5" as 75 and a date as its year. What the mapper reads from
+# text, and what it cannot read, is reported instead of being folded into "empty responses".
+describe("parse_cells", {
+  it("reads one number per cell and does not guess at the rest", {
+    cells <- c("5", "6 drinks", "7,5", "<1", "2026-01-01", "", NA)
+    expect_identical(spec$parse_cells(cells), c(5, 6, NA, NA, NA, NA, NA))
+  })
+
+  it("still treats Inf and NaN as missing", {
+    expect_identical(spec$parse_cells(c(1, Inf, NaN)), c(1, NA, NA))
+  })
+})
+
+describe("parse_x_text", {
+  it("still reads a pasted list of prices with currency signs", {
+    expect_equal(spec$parse_x_text("0, $0.50; 1\n5 10"), c(0, 0.5, 1, 5, 10))
+  })
+
+  it("gives NA for a token that is a range, not a price", {
+    expect_identical(spec$parse_x_text("1-2 3"), c(NA, 3))
+  })
+})
+
+describe("apply_spec readings", {
+  mixed_cells <- function() {
+    dat <- apt()
+    dat$apt_3 <- c("5", "6 drinks", "7,5")
+    dat$apt_4 <- c("2", "", "n/a")
+    dat
+  }
+
+  it("lists the cells read from text and the cells it could not read", {
+    out <- spec$apply_spec(apt_spec(), mixed_cells())
+    expect_identical(out$readings$n_from_text, 1L)
+    expect_identical(out$readings$from_text, "6 drinks")
+    expect_identical(out$readings$n_unreadable, 2L)
+    expect_identical(out$readings$unreadable, c("7,5", "n/a"))
+    # one empty cell + two unreadable ones
+    expect_identical(out$losses$n_na_y, 3L)
+    expect_identical(out$data$y[out$data$id == "R_2" & out$data$x == 1], 6)
+  })
+
+  it("reports nothing for a file whose cells are all plain numbers", {
+    dat <- apt()
+    dat$apt_3 <- c("5", "6", "4")
+    out <- spec$apply_spec(apt_spec(), dat)
+    expect_identical(out$readings$n_from_text, 0L)
+    expect_identical(out$readings$n_unreadable, 0L)
+  })
+
+  it("reports a long file's response column the same way", {
+    dat <- data.frame(
+      subject = rep(c("a", "b"), each = 3), price = rep(c(1, 2, 4), 2),
+      consumption = c("10", "8 drinks", "2", "9", "7,5", "1"), stringsAsFactors = FALSE
+    )
+    out <- spec$apply_spec(long_spec(), dat)
+    expect_identical(out$readings$from_text, "8 drinks")
+    expect_identical(out$readings$unreadable, "7,5")
+  })
+
+  it("says in the preview line what was read from text, not read, and empty", {
+    out <- spec$apply_spec(apt_spec(), mixed_cells())
+    msg <- spec$preview_summary(apt_spec(), out)
+    expect_match(msg, "1 empty response dropped", fixed = TRUE)
+    expect_match(msg, "1 response read from text (\"6 drinks\" as 6)", fixed = TRUE)
+    expect_match(
+      msg, "2 responses not read as numbers and dropped (\"7,5\", \"n/a\")", fixed = TRUE
+    )
+  })
+})
+
+describe("preview_summary curve count", {
+  it("does not take a carried column called grouping for the group", {
+    d <- data.frame(
+      id = rep(c("a", "b"), each = 4), x = rep(c(1, 2, 4, 8), 2), y = 1:8,
+      grouping = rep(c("p", "q"), 4), stringsAsFactors = FALSE
+    )
+    s <- spec$new_spec(
+      target = "mixed_effects_demand", layout = "long", id_col = "id", x_col = "x", y_col = "y",
+      keep_cols = "grouping"
+    )
+    msg <- spec$preview_summary(s, list(data = d, n_ids = 2, losses = list(n_na_y = 0, n_na_keep = 0)))
+    expect_equal(msg, "2 participants \u00d7 4 responses \u2192 8 rows, 2 curves")
+  })
+})

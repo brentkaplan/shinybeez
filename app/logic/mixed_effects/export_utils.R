@@ -658,3 +658,17 @@ write_model_summary_sheet <- function(wb, model_text, openxlsx) {
 
   invisible(TRUE)
 }
+
+#' What an export should describe: the fit, or the current sidebar
+#'
+#' A fitted model is exported with the settings and data it ran with. The sidebar can be
+#' changed afterwards without re-running; reading it live put new settings beside the old
+#' model's estimates.
+#' @param has_model Logical, whether a fitted model is being exported
+#' @param fitted Snapshot taken when the fit was started (NULL if none)
+#' @param live Current sidebar state
+#' @return `fitted` when there is a model and a snapshot, otherwise `live`
+#' @export
+export_source <- function(has_model, fitted, live) {
+  if (isTRUE(has_model) && !is.null(fitted)) fitted else live
+}

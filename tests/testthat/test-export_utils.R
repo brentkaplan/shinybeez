@@ -492,3 +492,24 @@ describe("write_model_summary_sheet", {
     unlink(tmp)
   })
 })
+
+# Export All describes a fitted model. Its settings and data must be the ones the fit ran
+# with; the sidebar can be changed afterwards without re-running, and reading it live put
+# the new settings beside the old model's estimates.
+describe("export_source", {
+  fitted <- list(equation = "zben", factors = "drug")
+  live <- list(equation = "simplified", factors = "dose")
+
+  it("uses what the fit ran with when there is a fitted model", {
+    expect_identical(export_utils$export_source(TRUE, fitted, live), fitted)
+  })
+
+  it("uses the current sidebar state when nothing has been fitted", {
+    expect_identical(export_utils$export_source(FALSE, fitted, live), live)
+    expect_identical(export_utils$export_source(FALSE, NULL, live), live)
+  })
+
+  it("falls back to the current state if a fitted model has no snapshot", {
+    expect_identical(export_utils$export_source(TRUE, NULL, live), live)
+  })
+})

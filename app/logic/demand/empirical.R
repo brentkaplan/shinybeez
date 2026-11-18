@@ -55,10 +55,7 @@ compute_empirical_measures <- function(data, is_grouped = FALSE) {
     data_group_agg$id <- "group aggregate"
 
     emp_agg <- get_empirical_measures(data_agg)$measures |>
-      dplyr$mutate(
-        dplyr$across(dplyr$where(is.numeric), \(x) round(x, 1)),
-        group = "aggregate"
-      ) |>
+      dplyr$mutate(group = "aggregate") |>
       dplyr$relocate(group, .before = id)
     emp_group_agg <- dplyr$group_by(data_group_agg, group) |>
       dplyr$group_modify(~ get_empirical_measures(.x)$measures)

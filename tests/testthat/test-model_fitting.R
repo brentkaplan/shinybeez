@@ -381,3 +381,43 @@ describe("build_mixed_fit_spec", {
     expect_lt(length(serialize(spec, NULL)), 5000)
   })
 })
+
+# ------------------------------------------------------------------------------
+# clamp_nlme_control() tests
+# ------------------------------------------------------------------------------
+
+describe("clamp_nlme_control", {
+  # The sidebar clamps every control to its allowed range before the fit. A preset
+  # outside that range was fitted with a different value from the one it displayed:
+  # Balanced showed tolerance 1e-3 and Faster 3e-3, and both ran at 1e-4.
+  it("leaves every preset offered in the sidebar exactly as displayed", {
+    for (preset in c("Balanced", "Faster", "Stricter")) {
+      controls <- model_fitting$build_nlme_control(preset = preset)
+      expect_equal(model_fitting$clamp_nlme_control(controls), controls, info = preset)
+    }
+  })
+
+  it("keeps the tolerance every preset has actually been fitted with", {
+    expect_identical(model_fitting$build_nlme_control(preset = "Balanced")$tolerance, 1e-4)
+    expect_identical(model_fitting$build_nlme_control(preset = "Faster")$tolerance, 1e-4)
+    expect_identical(model_fitting$build_nlme_control(preset = "Stricter")$tolerance, 1e-5)
+  })
+
+  it("pulls an out-of-range value to the nearest limit", {
+    controls <- model_fitting$build_nlme_control(preset = "Balanced")
+    controls$tolerance <- 1
+    controls$maxIter <- 1
+    clamped <- model_fitting$clamp_nlme_control(controls)
+    expect_identical(clamped$tolerance, 1e-4)
+    expect_identical(clamped$maxIter, 30)
+  })
+
+  it("turns an empty or non-numeric control into NA", {
+    controls <- model_fitting$build_nlme_control(preset = "Balanced")
+    controls$tolerance <- NULL
+    controls$maxIter <- "abc"
+    clamped <- suppressWarnings(model_fitting$clamp_nlme_control(controls))
+    expect_true(is.na(clamped$tolerance))
+    expect_true(is.na(clamped$maxIter))
+  })
+})

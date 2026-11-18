@@ -203,3 +203,29 @@ describe("check_mcq_item_counts - shape guards", {
     expect_false(grepl("An error occurred during scoring", msg, fixed = TRUE))
   })
 })
+
+# 27 rows is not 27 questions. A participant whose file repeats one question and omits
+# another passed the row count, and the scorer returned NA or a k from the wrong items.
+describe("score_and_format_mcq - one row per question", {
+  mcq_rows <- function(questionid, subjectid = "s1") {
+    data.frame(subjectid = subjectid, questionid = questionid, response = 0)
+  }
+
+  it("rejects a participant with a repeated question, naming the participant and question", {
+    dat <- mcq_rows(c(1:26, 26))
+    expect_error(scoring$score_and_format_mcq(dat), "s1", fixed = TRUE)
+    expect_error(scoring$score_and_format_mcq(dat), "26", fixed = TRUE)
+    expect_error(scoring$score_and_format_mcq(dat), "more than once", fixed = TRUE)
+  })
+
+  it("rejects question numbers outside 1 to 27", {
+    expect_error(scoring$score_and_format_mcq(mcq_rows(c(1:26, 28))), "1 to 27", fixed = TRUE)
+    expect_error(scoring$score_and_format_mcq(mcq_rows(c(0:26))), "1 to 27", fixed = TRUE)
+  })
+
+  it("accepts questions 1 to 27 in any order, as numbers or text", {
+    expect_no_error(suppressWarnings(scoring$score_and_format_mcq(mcq_rows(27:1))))
+    shuffled <- mcq_rows(as.character(c(14:27, 1:13)))
+    expect_no_error(suppressWarnings(scoring$score_and_format_mcq(shuffled)))
+  })
+})

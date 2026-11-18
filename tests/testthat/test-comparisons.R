@@ -252,3 +252,21 @@ describe("round_comparison_data", {
     expect_equal(result$x, 1.2346)
   })
 })
+
+# While the two selectors update, "compare levels of" and "within levels of" can briefly
+# name the same factor. That is not a stratified comparison; it is an unstratified one.
+describe("comparing a factor within its own levels", {
+  factors <- c("drug", "dose")
+
+  it("builds an unstratified specification", {
+    expect_identical(comparisons$build_specs_string("drug", "drug", factors), "drug")
+    expect_identical(comparisons$build_specs_string("drug", "dose", factors), "drug * dose")
+  })
+
+  it("drops the by-factor", {
+    expect_null(comparisons$get_contrast_by_arg("drug", factors, main_factor = "drug"))
+    expect_identical(
+      comparisons$get_contrast_by_arg("dose", factors, main_factor = "drug"), "dose"
+    )
+  })
+})

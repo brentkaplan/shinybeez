@@ -216,10 +216,13 @@ server <- function(id, type = "demand") {
       paste("Data are not in the correct format. Please refer to the documentation.", reason)
     }
 
-    # A cell-level problem cannot be mapped away: the mapper's parse_cells() reads text
-    # through readr::parse_number(), which turns "7,5" into 75 and a text cell into NA.
-    # The user has to fix the cell, so no mapping is offered for these codes.
-    mapper_cannot_help <- c("wide_ip_nonnumeric_cells", "wide_demand_nonnumeric_cells")
+    # A cell-level problem cannot be mapped away: the file already has the right columns,
+    # and the mapper would only drop the cell it cannot read. The user has to fix the cell,
+    # so no mapping is offered for these codes.
+    mapper_cannot_help <- c(
+      "wide_ip_nonnumeric_cells", "wide_demand_nonnumeric_cells",
+      "long_demand_nonnumeric_cells", "long_ip_nonnumeric_cells"
+    )
 
     # A rejected frame opens the mapper unless it carries a fixed-schema marker or a
     # problem the mapper cannot help with.
@@ -281,6 +284,11 @@ server <- function(id, type = "demand") {
         )
         notify_error("Unable to read the uploaded file. Please ensure it is a valid CSV or TSV file.")
         return()
+      }
+      # Commas read as decimal marks change the numbers analysed: always say so.
+      comma_notice <- upload_read$decimal_comma_notice(tmp)
+      if (!is.null(comma_notice)) {
+        shiny$showNotification(comma_notice, type = "warning", duration = 15)
       }
       # A header-only file has nothing to validate or reshape: obliterate_empty_cols()
       # would strip every column (all sums equal nrow == 0) and the mapper would open empty.

@@ -296,3 +296,78 @@ describe("as_ordered_factor", {
     expect_s3_class(result, "factor")
   })
 })
+
+# ------------------------------------------------------------------------------
+# add_model_response() tests
+# ------------------------------------------------------------------------------
+
+describe("add_model_response", {
+  # y_ll4 deliberately disagrees with both other columns, so each test shows which
+  # column the model response was built from.
+  responses <- function() {
+    data.frame(
+      id = 1:3, x = c(0, 1, 10),
+      y = c(0, 10, 100), drinks = c(0, 4, 40), y_ll4 = c(9, 9, 9)
+    )
+  }
+
+  it("ZBEn fits the LL4 transform of the selected Y, not a y_ll4 column that happens to exist", {
+    out <- data_prep$add_model_response(responses(), "drinks", "zben")
+    expect_equal(out$y_for_model, beezdemand::ll4(c(0, 4, 40)))
+    expect_false(isTRUE(all.equal(out$y_for_model, c(9, 9, 9))))
+    expect_true(attr(out, "y_is_ll4"))
+  })
+
+  it("ZBEn transforms a selected column named y as well", {
+    out <- data_prep$add_model_response(responses(), "y", "zben")
+    expect_equal(out$y_for_model, beezdemand::ll4(c(0, 10, 100)))
+  })
+
+  it("ZBEn uses y_ll4 as it is when y_ll4 is the selected Y", {
+    out <- data_prep$add_model_response(responses(), "y_ll4", "zben")
+    expect_identical(out$y_for_model, c(9, 9, 9))
+    expect_true(attr(out, "y_is_ll4"))
+  })
+
+  it("other equations use the selected Y untransformed", {
+    for (equation in c("simplified", "exponentiated")) {
+      out <- data_prep$add_model_response(responses(), "drinks", equation)
+      expect_identical(out$y_for_model, c(0, 4, 40))
+      expect_false(attr(out, "y_is_ll4"))
+    }
+  })
+
+  it("returns NULL when the selected Y is not a column", {
+    expect_null(data_prep$add_model_response(responses(), "gone", "zben"))
+    expect_null(data_prep$add_model_response(responses(), "gone", "simplified"))
+  })
+})
+
+# ------------------------------------------------------------------------------
+# covariate_default_at() tests
+# ------------------------------------------------------------------------------
+
+# The "covariate value for EMMs/plots" box was filled with the covariate's mean only when
+# it was empty. Choosing another covariate, or loading other data, left the old value in
+# place, so estimated marginal means were conditioned at a value from a different variable.
+describe("covariate_default_at", {
+  covariates <- function() {
+    data.frame(age = c(20, 30, 40), dose = c("0.1", "0.2", "0.6"), label = c("a", "b", "c"))
+  }
+
+  it("is the mean of the chosen covariate, to 3 decimal places", {
+    expect_identical(data_prep$covariate_default_at(covariates(), "age"), 30)
+    expect_identical(data_prep$covariate_default_at(covariates(), "dose"), 0.3)
+  })
+
+  it("is NA when no covariate is chosen, so no stale value is left behind", {
+    expect_identical(data_prep$covariate_default_at(covariates(), ""), NA_real_)
+    expect_identical(data_prep$covariate_default_at(covariates(), NULL), NA_real_)
+  })
+
+  it("is NA when the covariate is not in the data or has no numbers", {
+    expect_identical(data_prep$covariate_default_at(covariates(), "gone"), NA_real_)
+    expect_identical(data_prep$covariate_default_at(covariates(), "label"), NA_real_)
+    expect_identical(data_prep$covariate_default_at(NULL, "age"), NA_real_)
+  })
+})

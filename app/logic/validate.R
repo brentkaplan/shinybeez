@@ -3,7 +3,6 @@ box::use(
   beezdemand[pivot_demand_data],
   beezdiscounting,
   dplyr,
-  readr,
   tidyr,
   stats,
   utils
@@ -170,6 +169,9 @@ check_demand_data <- function(dat) {
     if (is.character(chk)) return(chk)
     chk <- check_wide_demand_cells(dat)
     if (is.character(chk)) return(chk)
+  } else {
+    chk <- check_long_cells(dat, "long_demand_nonnumeric_cells", "Long demand data")
+    if (is.character(chk)) return(chk)
   }
   TRUE
 }
@@ -201,7 +203,7 @@ check_demand_sufficiency <- function(dat) {
   # two raw strings but one price, and would otherwise be counted as two.
   prices <- dat$x
   if (!is.numeric(prices)) {
-    prices <- suppressWarnings(readr$parse_number(as.character(prices)))
+    prices <- parse_single_number(prices)
   }
   distinct_prices <- tapply(
     prices, dat$id, function(v) length(unique(v[!is.na(v)]))
@@ -237,7 +239,7 @@ check_demand_duplicate_prices <- function(dat) {
   }
   prices <- dat$x
   if (!is.numeric(prices)) {
-    prices <- suppressWarnings(readr$parse_number(as.character(prices)))
+    prices <- parse_single_number(prices)
   }
   keep <- !is.na(prices)
   id <- as.character(dat$id)[keep]
@@ -324,6 +326,42 @@ numeric_cells <- function(v) {
   suppressWarnings(as.numeric(cell_text(v)))
 }
 
+#' Read each cell as a number when it holds exactly one
+#'
+#' For cells that may carry a unit or a currency: "6 drinks" is 6, "$0.50" is 0.5, "1e-1"
+#' is 0.1. A cell with two numbers in it is not guessed at: "7,5" (7.5 or 75?), "1,234",
+#' "1-2", a date. Nor is a comparison ("<1" is not 1). `readr::parse_number()` read all of
+#' those as their leading number.
+#' @param v A column
+#' @return Numeric vector, NA where a cell is missing or is not exactly one number
+#' @export
+parse_single_number <- function(v) {
+  if (is.numeric(v)) return(as.numeric(v))
+  s <- cell_text(v)
+  out <- rep(NA_real_, length(s))
+  number <- "(?:[0-9]+\\.?[0-9]*|\\.[0-9]+)(?:[eE][-+]?[0-9]+)?"
+  found <- gregexpr(number, s, perl = TRUE)
+  one <- !is.na(s) &
+    vapply(found, function(m) sum(m > 0), integer(1)) == 1L &
+    !grepl("[<>\u2264\u2265~\u00b1]", s)
+  if (!any(one)) return(out)
+  tokens <- vapply(regmatches(s[one], found[one]), `[`, character(1), 1L)
+  before <- substr(s[one], 1L, vapply(found[one], `[`, integer(1), 1L) - 1L)
+  # a minus counts when only symbols (a currency sign, a space) sit between it and the number
+  negative <- grepl("-[^0-9A-Za-z]*$", before)
+  out[one] <- ifelse(negative, -1, 1) * as.numeric(tokens)
+  out
+}
+
+#' Cells of a price or delay column that cannot be read as one number
+#' @param v A column
+#' @return Character vector of the distinct offending cells
+unreadable_cells <- function(v) {
+  if (is.numeric(v)) return(character(0))
+  s <- cell_text(v)
+  unique(s[!is.na(s) & is.na(parse_single_number(v))])
+}
+
 #' Validate the value cells of a wide indifference-point frame
 #'
 #' 2026-10-27 (signatures 9fcff37e / a920a0a0 / 94eb3497): a single text cell made the upload
@@ -334,12 +372,14 @@ numeric_cells <- function(v) {
 #' @param cols Positions of the value columns
 #' @param code Reason code for the rejection
 #' @param label What the message calls this kind of file
+#' @param find_bad Function returning a column's offending cells
 #' @return TRUE or character error message naming each column and up to three of its cells
 check_wide_cells <- function(dat,
                              cols = seq_along(dat)[-1],
                              code = "wide_ip_nonnumeric_cells",
-                             label = "Wide indifference point data") {
-  bad <- lapply(dat[cols], nonnumeric_cells)
+                             label = "Wide indifference point data",
+                             find_bad = nonnumeric_cells) {
+  bad <- lapply(dat[cols], find_bad)
   bad <- bad[lengths(bad) > 0]
   if (length(bad) == 0) return(TRUE)
   detail <- paste0(
@@ -353,6 +393,22 @@ check_wide_cells <- function(dat,
     label, " must hold one number per cell. ", detail,
     " Use a decimal point and leave missing values empty."
   )
+}
+
+#' Validate the x and y cells of a long id, x, y frame
+#'
+#' The wide files stop at upload on a cell that is not a number. A long file with the same
+#' cell used to pass: `retype_data()` then turned it into NA after the upload's missing-row
+#' check had run, so the response vanished without a word. `y` must be a plain number, as in
+#' a wide file; `x` may carry a currency or unit ("$0.50") but must hold exactly one number.
+#' @param dat Long frame with lowercased `x` and `y` columns
+#' @param code Reason code for the rejection
+#' @param label What the message calls this kind of file
+#' @return TRUE or character error message naming each column and up to three of its cells
+check_long_cells <- function(dat, code, label) {
+  chk <- check_wide_cells(dat, match("x", colnames(dat)), code, label, find_bad = unreadable_cells)
+  if (is.character(chk)) return(chk)
+  check_wide_cells(dat, match("y", colnames(dat)), code, label)
 }
 
 #' Validate the price cells of a wide demand frame
@@ -494,7 +550,9 @@ check_discounting_data <- function(dat) {
   }
 
   if ("id" %in% cols) {
-    if (identical(cols, c("id", "x", "y"))) return(TRUE)
+    if (identical(cols, c("id", "x", "y"))) {
+      return(check_long_cells(dat, "long_ip_nonnumeric_cells", "Long indifference point data"))
+    }
     # id first and no x/y: the wide template shape (id + one column per delay).
     # prepare_discounting_data() already reshapes it; until 2026-09-06 this
     # branch rejected the app's own template_discounting_wide.csv.
@@ -660,7 +718,7 @@ prepare_discounting_data <- function(dat) {
 #' @export
 retype_data <- function(dat) {
   if (!is.numeric(dat$x)) {
-    dat$x <- readr$parse_number(dat$x)
+    dat$x <- parse_single_number(dat$x)
   }
   if ("group" %in% colnames(dat)) {
     dat |>

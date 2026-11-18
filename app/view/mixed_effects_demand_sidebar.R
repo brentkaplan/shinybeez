@@ -242,7 +242,7 @@ sidebar_ui <- function(id) {
             trigger = list("tolerance (outer)", bsicons$bs_icon("info-circle")),
             "Overall convergence tolerance. Loosen (1e-5–1e-4) for speed; tighten (1e-7) for exacting fits."
           ),
-          value = 1e-3,
+          value = 1e-4,
           min = 1e-7,
           max = 1e-4,
           step = 1e-5
@@ -525,15 +525,34 @@ sidebar_server <- function(id, data_reactive, fit_task, active = shiny$reactive(
           selected = new_sel
         )
 
-        # Default the "at" value to the mean if not set
-        if (nzchar(new_sel)) {
-          x <- df[[new_sel]]
-          xnum <- if (is.character(x)) suppressWarnings(as.numeric(x)) else x
-          mu <- suppressWarnings(mean(xnum, na.rm = TRUE))
-          if (is.finite(mu) && (is.null(input$cov_at) || is.na(input$cov_at))) {
-            shiny$updateNumericInput(session, "cov_at", value = round(mu, 3))
-          }
+      },
+      ignoreInit = FALSE
+    )
+
+    # The conditioning value belongs to one covariate in one data set. Whenever either
+    # changes it is reset to the new covariate's mean (empty when there is none), so EMMs
+    # are never conditioned at a value left over from another variable. A value typed by
+    # the user stands until the covariate or the data changes.
+    #
+    # current_data() also re-evaluates when this tab becomes active again, returning the
+    # same data; that must not wipe a typed value, so the reset runs only when the data or
+    # the covariate differs from the pair it last ran for. Uploading the same file again
+    # is the same data.
+    cov_at_set_for <- NULL
+    shiny$observeEvent(
+      list(current_data(), input$covariate_choice),
+      {
+        # The columns only: a frame fresh from the reader carries a pointer attribute
+        # that differs on every read, even of the same file.
+        now <- list(lapply(current_data(), identity), input$covariate_choice)
+        if (identical(now, cov_at_set_for)) {
+          return()
         }
+        cov_at_set_for <<- now
+        shiny$updateNumericInput(
+          session, "cov_at",
+          value = data_prep$covariate_default_at(current_data(), now[[2]])
+        )
       },
       ignoreInit = FALSE
     )
@@ -1308,24 +1327,10 @@ sidebar_server <- function(id, data_reactive, fit_task, active = shiny$reactive(
       shiny$updateSelectInput(session, "fit_presets", selected = "Balanced")
     })
 
-    clamp_num <- function(x, lo, hi) {
-      x <- suppressWarnings(as.numeric(x))
-      if (is.na(x)) {
-        return(NA_real_)
-      }
-      pmin(pmax(x, lo), hi)
-    }
-
     nlme_controls_reactive <- shiny$reactive({
-      list(
-        maxIter = clamp_num(input$maxIter, 30, 300),
-        pnlsMaxIter = clamp_num(input$pnlsMaxIter, 7, 50),
-        msMaxIter = clamp_num(input$msMaxIter, 50, 500),
-        tolerance = clamp_num(input$tolerance, 1e-7, 1e-4),
-        pnlsTol = clamp_num(input$pnlsTol, 1e-4, 1e-2),
-        minScale = clamp_num(input$minScale, 1e-4, 1e-2),
-        niterEM = clamp_num(input$niterEM, 0, 100)
-      )
+      control_names <- names(model_fitting$nlme_control_limits)
+      typed <- lapply(control_names, function(name) input[[name]])
+      model_fitting$clamp_nlme_control(stats$setNames(typed, control_names))
     })
 
     # Precompute basic covariate stats (global center/scale) with numeric-like coercion

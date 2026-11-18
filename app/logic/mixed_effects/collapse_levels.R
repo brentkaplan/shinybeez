@@ -128,6 +128,25 @@ process_param_collapse <- function(
     return(list(collapse = NULL, error = validation))
   }
 
+  # Two groups with one name are a single list entry: the second would silently replace
+  # the first, and the model would be fitted without the first group's constraint.
+  both_used <- length(g1_levels) > 0 && length(g2_levels) > 0
+  if (both_used && !is.null(g1_name) && nzchar(g1_name) && identical(g1_name, g2_name)) {
+    where <- if (!is.null(factor_name) && !is.null(param_label)) {
+      paste0(" in the ", param_label, " collapse for '", factor_name, "'")
+    } else {
+      ""
+    }
+    return(list(collapse = NULL, error = list(
+      valid = FALSE,
+      overlap = NULL,
+      error_message = paste0(
+        "Both groups", where, " have the same name ('", g1_name,
+        "'). Give each group its own name."
+      )
+    )))
+  }
+
   # Build and return the collapse mapping
   collapse <- build_collapse_list(g1_name, g1_levels, g2_name, g2_levels)
   list(collapse = collapse, error = NULL)
