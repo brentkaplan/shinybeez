@@ -105,6 +105,10 @@
   variable's default and is reported in the startup log.
 - **CI** — the Docker image is smoke-tested before it is pushed. Before, a
   release run pushed `:latest` first.
+- **beezdiscounting** is pinned to GitHub commit `c616b4f` (0.4.0.9000) in
+  place of CRAN 0.3.2. That version sorts by delay in `check_unsystematic()`
+  and aligns imputed MCQ responses by question id; the app sorted before both
+  calls already, so results do not change.
 - Log messages are written as data. A message containing `{` or `}` (for
   example from a column name) could fail to log or be evaluated as a template.
 

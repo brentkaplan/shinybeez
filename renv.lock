@@ -924,38 +924,63 @@
     },
     "beezdiscounting": {
       "Package": "beezdiscounting",
-      "Version": "0.3.2",
-      "Source": "Repository",
+      "Version": "0.4.0.9000",
+      "Source": "GitHub",
       "Title": "Behavioral Economic Easy Discounting",
-      "Date": "2025-01-08",
+      "Date": "2026-09-22",
       "Authors@R": "person(given = \"Brent A.\", family = \"Kaplan\", email = \"bkaplan.ku@gmail.com\", role = c(\"aut\", \"cre\", \"cph\"), comment = c(ORCID = \"0000-0002-3758-6776\"))",
-      "Maintainer": "Brent A. Kaplan <bkaplan.ku@gmail.com>",
-      "Description": "Facilitates some of the analyses performed in studies of behavioral economic discounting. The package supports scoring of the 27-Item Monetary Choice Questionnaire (see Kaplan et al., 2016; <doi:10.1007/s40614-016-0070-9>), calculating k values (Mazur's simple hyperbolic and exponential) using nonlinear regression, calculating various Area Under the Curve (AUC) measures, plotting regression curves for both fit-to-group and two-stage approaches, checking for unsystematic discounting (Johnson & Bickel, 2008; <doi:10.1037/1064-1297.16.3.264>) and scoring of the minute discounting task (see Koffarnus & Bickel, 2014; <doi:10.1037/a0035973>) using the Qualtrics 5-trial discounting template (see the Qualtrics Minute Discounting User Guide; <doi:10.13140/RG.2.2.26495.79527>), which is also available as a .qsf file in this package.",
+      "Description": "Facilitates some of the analyses performed in studies of behavioral economic discounting. The package supports scoring of the 21- and 27-Item Monetary Choice Questionnaires (see Kaplan et al., 2016; <doi:10.1007/s40614-016-0070-9>), scoring of the 30-Item Probability Discounting Questionnaire (see Madden et al., 2009; <doi:10.1037/a0016806>), calculating k values (Mazur's simple hyperbolic and exponential) using nonlinear regression, calculating various Area Under the Curve (AUC) measures, plotting regression curves for both fit-to-group and two-stage approaches, checking for unsystematic discounting (Johnson & Bickel, 2008; <doi:10.1037/1064-1297.16.3.264>) and scoring of the minute discounting task (see Koffarnus & Bickel, 2014; <doi:10.1037/a0035973>) using the Qualtrics 5-trial discounting template (see the Qualtrics Minute Discounting User Guide; <doi:10.13140/RG.2.2.26495.79527>), which is also available as a .qsf file in this package. The package also fits mixed-effects (hierarchical) discounting models with a scale-location-truncated beta likelihood that admits indifference points at exactly 0 and 1 (Kim, Kaplan, Koffarnus, and Franck, 2025; <doi:10.48550/arXiv.2509.13167>).",
       "License": "GPL (>= 2)",
-      "URL": "https://github.com/brentkaplan/beezdiscounting",
+      "URL": "https://brentkaplan.github.io/beezdiscounting/, https://github.com/brentkaplan/beezdiscounting",
+      "BugReports": "https://github.com/brentkaplan/beezdiscounting/issues",
       "Encoding": "UTF-8",
-      "RoxygenNote": "7.3.2",
+      "Language": "en-US",
+      "Roxygen": "list(markdown = TRUE)",
       "Depends": [
-        "R (>= 2.10)"
+        "R (>= 4.2.0)"
       ],
       "Imports": [
         "beezdemand",
         "broom",
+        "cli",
         "dplyr",
+        "generics",
         "ggplot2",
         "gtools",
         "magrittr",
         "minpack.lm",
+        "nlme",
         "psych",
         "purrr",
-        "stringr",
         "tibble",
-        "tidyr"
+        "tidyr",
+        "TMB (>= 1.9.0)"
       ],
+      "Suggests": [
+        "brms (>= 2.20.0)",
+        "knitr",
+        "loo",
+        "posterior",
+        "pwr",
+        "rmarkdown",
+        "testthat (>= 3.0.0)"
+      ],
+      "LinkingTo": [
+        "RcppEigen",
+        "TMB"
+      ],
+      "VignetteBuilder": "knitr",
+      "SystemRequirements": "GNU make",
+      "Config/testthat/edition": "3",
       "LazyData": "true",
-      "NeedsCompilation": "no",
-      "Author": "Brent A. Kaplan [aut, cre, cph] (<https://orcid.org/0000-0002-3758-6776>)",
-      "Repository": "https://packagemanager.posit.co/cran/latest"
+      "Config/roxygen2/version": "8.0.0",
+      "RoxygenNote": "7.3.3",
+      "RemoteType": "github",
+      "RemoteHost": "api.github.com",
+      "RemoteUsername": "brentkaplan",
+      "RemoteRepo": "beezdiscounting",
+      "RemoteRef": "c616b4fa91a650dc947423abaf5338a380b07dd3",
+      "RemoteSha": "c616b4fa91a650dc947423abaf5338a380b07dd3"
     },
     "bit": {
       "Package": "bit",
