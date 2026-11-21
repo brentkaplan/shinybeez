@@ -37,7 +37,7 @@ mcq_long <- function(n_subjects = 2) {
   data.frame(
     subjectid = rep(seq_len(n_subjects), each = 27),
     questionid = rep(1:27, n_subjects),
-    response = rep(c(1L, 2L), length.out = 27 * n_subjects)
+    response = rep(c(1L, 0L), length.out = 27 * n_subjects)
   )
 }
 
