@@ -316,8 +316,12 @@ add_model_response <- function(df, y_var, equation) {
 #'
 #' @param df Data frame being analysed
 #' @param covariate Name of the chosen covariate column ("" or NULL for none)
-#' @return The covariate's mean to 3 decimal places, or NA when there is no covariate, it
-#'   is not a column of `df`, or it holds no numbers
+#' Three decimal places, or more when the mean is small: a mean of 0.00068 kept to 3 places
+#' is 0.001, 47% away, so a mean below 1 keeps 4 significant digits instead.
+#'
+#' @return The covariate's mean to 3 decimal places or 4 significant digits, whichever
+#'   keeps more; NA when there is no covariate, it is not a column of `df`, or it holds no
+#'   numbers
 #' @export
 covariate_default_at <- function(df, covariate) {
   if (is.null(df) || is.null(covariate) || length(covariate) != 1 || !nzchar(covariate) ||
@@ -329,5 +333,11 @@ covariate_default_at <- function(df, covariate) {
     values <- suppressWarnings(as.numeric(as.character(values)))
   }
   centre <- mean(values, na.rm = TRUE)
-  if (is.finite(centre)) round(centre, 3) else NA_real_
+  if (!is.finite(centre)) {
+    return(NA_real_)
+  }
+  if (centre == 0) {
+    return(0)
+  }
+  round(centre, max(3, 3 - floor(log10(abs(centre)))))
 }

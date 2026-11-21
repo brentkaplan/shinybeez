@@ -7,6 +7,10 @@ box::use(
   stats
 )
 
+box::use(
+  app / logic / startup_info,
+)
+
 # --- Excel Styling Constants & Factories ---
 
 #' Color palette for Excel export styling
@@ -201,10 +205,10 @@ style_data_sheet <- function(wb, sheet_name, data, openxlsx) {
 #' Build summary sheet data for Excel export
 #'
 #' @param settings List with analysis settings (equation, factors, id_var, x_var, y_var, etc.)
-#' @param version Application version string
+#' @param version Application version string; the running app's version by default
 #' @return Data frame with Item and Value columns for summary sheet
 #' @export
-build_summary_sheet <- function(settings, version = "1.0.0") {
+build_summary_sheet <- function(settings, version = startup_info$app_version()) {
   # Build string representations
   eq_str <- if (is.null(settings$equation)) {
     "N/A"

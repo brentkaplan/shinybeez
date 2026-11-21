@@ -358,6 +358,25 @@ describe("covariate_default_at", {
   it("is the mean of the chosen covariate, to 3 decimal places", {
     expect_identical(data_prep$covariate_default_at(covariates(), "age"), 30)
     expect_identical(data_prep$covariate_default_at(covariates(), "dose"), 0.3)
+    # the mean of 34.5678 and 34.5682 is 34.568
+    expect_identical(
+      data_prep$covariate_default_at(data.frame(age = c(34.5678, 34.5682)), "age"), 34.568
+    )
+  })
+
+  # Three decimal places turned a small mean into a different number: the example data's
+  # dose has mean 0.00068 and the box showed 0.001, 47% above it.
+  it("keeps 4 significant digits of a mean too small for 3 decimal places", {
+    # (0.0003 + 0.0005 + 0.00125) / 3 = 0.00205 / 3 = 0.000683333...
+    small <- data.frame(dose = c(0.0003, 0.0005, 0.00125))
+    expect_identical(data_prep$covariate_default_at(small, "dose"), 0.0006833)
+    # (-0.02 + -0.03 + -0.0123) / 3 = -0.0623 / 3 = -0.0207666...
+    negative <- data.frame(dose = c(-0.02, -0.03, -0.0123))
+    expect_identical(data_prep$covariate_default_at(negative, "dose"), -0.02077)
+  })
+
+  it("is 0 for a covariate whose mean is 0", {
+    expect_identical(data_prep$covariate_default_at(data.frame(z = c(-1, 0, 1)), "z"), 0)
   })
 
   it("is NA when no covariate is chosen, so no stale value is left behind", {
