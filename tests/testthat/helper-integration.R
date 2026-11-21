@@ -342,6 +342,25 @@ wait_for_notification <- function(app, type = "error", timeout_ms = 10000) {
   app$wait_for_idle(duration = 500, timeout = timeout_ms)
 }
 
+# Click a button whose node Shiny may replace while the test looks at it.
+#
+# app$click(selector =) finds the node in one browser call and clicks it in a second. A
+# modal body drawn by renderUI replaces its nodes when the output flushes; a flush between
+# the two calls fails with "No node with given id found". Here the app goes idle first, and
+# one script finds the button and clicks it in the same call.
+click_when_settled <- function(app, id, timeout_ms = 10000) {
+  app$wait_for_js(sprintf("document.getElementById('%s') !== null", id), timeout = timeout_ms)
+  app$wait_for_idle(duration = 300, timeout = timeout_ms)
+  js <- sprintf(
+    paste0(
+      "(function(){var e=document.getElementById('%s');",
+      "if(!e){return false;} e.click(); return true;})()"
+    ),
+    id
+  )
+  app$wait_for_js(js, timeout = timeout_ms)
+}
+
 wait_for_input <- function(app, input_id, timeout_ms = 5000) {
   app$wait_for_value(input = input_id, timeout = timeout_ms)
   app$wait_for_idle(duration = 500, timeout = timeout_ms)
