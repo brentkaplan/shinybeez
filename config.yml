@@ -2,13 +2,18 @@ default:
   rhino_log_level: !expr Sys.getenv("RHINO_LOG_LEVEL", "INFO")
   rhino_log_file: !expr Sys.getenv("RHINO_LOG_FILE", "logs/log.txt")
 
+  # On/off variables: 1/true/yes/on/t and 0/false/no/off/f in any case. Anything else,
+  # including an empty value, keeps the flag's default, and app/logic/env_flags.R logs a
+  # warning at startup. as.logical() read "1" and "yes" as NA. Keep the two word lists the
+  # same as env_flags.R; tests/testthat/test-env_flags.R compares them.
+
   # Which build this is. Every hosted profile inherits "web"; only the desktop profile
   # (private branch) overrides it. Read by startup_info$platform() for telemetry.
   platform: "web"
 
   # Google Analytics configuration
   google_analytics:
-    enabled: !expr as.logical(Sys.getenv("GA_ENABLED", "FALSE"))
+    enabled: !expr tolower(trimws(Sys.getenv("GA_ENABLED", "FALSE"))) %in% c("1", "true", "yes", "on", "t")
     measurement_id: !expr Sys.getenv("GA_MEASUREMENT_ID", "")
 
   # Enhanced logging configuration
@@ -23,19 +28,19 @@ default:
     activity_log_file: !expr Sys.getenv("ACTIVITY_LOG_FILE", "logs/activity.log")
 
     # Console logging (always enabled for Docker/shinyapps.io log capture)
-    log_to_console: !expr as.logical(Sys.getenv("LOG_TO_CONSOLE", "TRUE"))
+    log_to_console: !expr (!tolower(trimws(Sys.getenv("LOG_TO_CONSOLE", "TRUE"))) %in% c("0", "false", "no", "off", "f"))
 
     # Log levels for different environments
     development_log_level: "DEBUG"
     production_log_level: "INFO"
 
     # Performance monitoring settings
-    log_performance: !expr as.logical(Sys.getenv("LOG_PERFORMANCE", "TRUE"))
+    log_performance: !expr (!tolower(trimws(Sys.getenv("LOG_PERFORMANCE", "TRUE"))) %in% c("0", "false", "no", "off", "f"))
     performance_threshold_ms: !expr as.numeric(Sys.getenv("PERFORMANCE_THRESHOLD_MS", "1000"))
 
   # Telemetry configuration
   telemetry:
-    enabled: !expr as.logical(Sys.getenv("TELEMETRY_ENABLED", "TRUE"))
+    enabled: !expr (!tolower(trimws(Sys.getenv("TELEMETRY_ENABLED", "TRUE"))) %in% c("0", "false", "no", "off", "f"))
     storage_type: !expr Sys.getenv("TELEMETRY_STORAGE", "sqlite")  # sqlite, postgresql
 
     # SQLite configuration (for development/single instance)
@@ -54,8 +59,8 @@ default:
     retention_days: !expr as.numeric(Sys.getenv("TELEMETRY_RETENTION_DAYS", "90"))
 
     # Privacy settings
-    track_inputs: !expr as.logical(Sys.getenv("TELEMETRY_TRACK_INPUTS", "FALSE"))  # Don't track input values by default
-    anonymize_sessions: !expr as.logical(Sys.getenv("TELEMETRY_ANONYMIZE", "TRUE"))
+    track_inputs: !expr tolower(trimws(Sys.getenv("TELEMETRY_TRACK_INPUTS", "FALSE"))) %in% c("1", "true", "yes", "on", "t")  # Don't track input values by default
+    anonymize_sessions: !expr (!tolower(trimws(Sys.getenv("TELEMETRY_ANONYMIZE", "TRUE"))) %in% c("0", "false", "no", "off", "f"))
 
 development:
   rhino_log_level: !expr Sys.getenv("RHINO_LOG_LEVEL", "DEBUG")
@@ -131,7 +136,7 @@ shinyapps:
     performance_threshold_ms: 3000  # Higher threshold for shared hosting
 
   telemetry:
-    enabled: !expr as.logical(Sys.getenv("TELEMETRY_ENABLED", "TRUE"))
+    enabled: !expr (!tolower(trimws(Sys.getenv("TELEMETRY_ENABLED", "TRUE"))) %in% c("0", "false", "no", "off", "f"))
     storage_type: "sqlite"  # SQLite for shinyapps.io simplicity
     sqlite:
       db_path: "telemetry.sqlite"  # Local to app directory
@@ -160,7 +165,7 @@ connectcloud:
     performance_threshold_ms: 3000  # Higher threshold for shared hosting
 
   telemetry:
-    enabled: !expr as.logical(Sys.getenv("TELEMETRY_ENABLED", "TRUE"))
+    enabled: !expr (!tolower(trimws(Sys.getenv("TELEMETRY_ENABLED", "TRUE"))) %in% c("0", "false", "no", "off", "f"))
     storage_type: !expr Sys.getenv("TELEMETRY_STORAGE", "sqlite")
     sqlite:
       db_path: "telemetry.sqlite"  # Local to app directory; lost when the worker is recycled
@@ -189,7 +194,7 @@ shinyproxy:
     performance_threshold_ms: 500
 
   telemetry:
-    enabled: !expr as.logical(Sys.getenv("TELEMETRY_ENABLED", "TRUE"))
+    enabled: !expr (!tolower(trimws(Sys.getenv("TELEMETRY_ENABLED", "TRUE"))) %in% c("0", "false", "no", "off", "f"))
     storage_type: !expr Sys.getenv("TELEMETRY_STORAGE", "sqlite")  # SQLite — no PostgreSQL driver in Docker image
     sqlite:
       db_path: "data/telemetry.sqlite"  # Relative to workdir
