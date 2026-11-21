@@ -5,6 +5,7 @@ box::use(
 )
 
 box::use(
+  app / logic / demand / id_keys,
   app / logic / validate,
   app / logic / logging_utils,
   app / logic / telemetry_utils,
@@ -248,7 +249,9 @@ navpanel_server <- function(id, fit_task) {
       data_r$data_d <- tryCatch(
         validate$rename_cols(session$userData$data$demand) |>
           validate$reshape_data(dat = _) |>
-          validate$retype_data(dat = _),
+          validate$retype_data(dat = _) |>
+          # An id in more than one group becomes one curve per group (see id_keys.R).
+          id_keys$key_ids_within_group(data = _),
         error = function(e) {
           msg <- conditionMessage(e)
           session_logger$error(
@@ -261,6 +264,22 @@ navpanel_server <- function(id, fit_task) {
           NULL
         }
       )
+      # Stays until dismissed: it changes how many curves every by-id analysis reports.
+      keyed_notice <- if (is.null(data_r$data_d)) NULL else id_keys$key_ids_notice(data_r$data_d)
+      if (is.null(keyed_notice)) {
+        shiny$removeNotification(ns("ids_keyed_by_group"))
+      } else {
+        shiny$showNotification(
+          keyed_notice, type = "warning", duration = NULL, id = ns("ids_keyed_by_group")
+        )
+        session_logger$info(
+          paste(
+            length(attr(data_r$data_d, "ids_keyed_by_group")),
+            "id(s) span groups; analysed as one curve per id and group"
+          ),
+          category = "data_processing"
+        )
+      }
     })
 
     # Show empty state or data content

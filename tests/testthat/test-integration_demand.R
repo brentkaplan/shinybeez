@@ -121,6 +121,43 @@ describe("Demand - grouped analysis", {
   local_app_stop()
 })
 
+# A within-subject file: id 1 is in groups a and b. Two Stage ignores grouping, saw two
+# consumption values per price for id 1, and aborted with "Duplicates found where id = 1".
+describe("Demand - Two Stage with an id in two groups", {
+  app <- NULL
+  result_id <- ns_id("demand", "results_table_demand", "model_results_table")
+
+  it("warns at upload that the id is analysed as one curve per group", {
+    app <<- create_app_driver()
+    require_app(app)
+    navigate_to_tab(app, "Demand")
+    upload_and_wait(
+      app, ids$demand$upload, fixture_path("demand-within-subject-grouped.csv")
+    )
+    wait_for_notification(app, "warning")
+    html <- paste(app$get_html(".shiny-notification-warning"), collapse = " ")
+    expect_match(html, "more than one group", fixed = TRUE)
+    expect_match(html, "1 (a)", fixed = TRUE)
+  })
+
+  it("fits 4 curves from 3 ids, without an error", {
+    require_app(app)
+    app$set_inputs(!!ids$demand$analysis_type := "Ind")
+    app$set_inputs(!!ids$demand$k := "2", wait_ = FALSE)
+    app$wait_for_idle(duration = 500)
+    app$click(selector = paste0("#", ids$demand$calculate))
+    wait_for_output(app, result_id, timeout_ms = 15000)
+    # id 1 in group a, id 1 in group b, id 2, id 3
+    expect_demand_results(app, result_id, n_rows = 4)
+    table_html <- paste(app$get_html(paste0("#", result_id)), collapse = " ")
+    expect_match(table_html, "1 (a)", fixed = TRUE)
+    expect_match(table_html, "1 (b)", fixed = TRUE)
+    expect_null(app$get_html(".shiny-notification-error"))
+  })
+
+  local_app_stop()
+})
+
 # ==========================================================================
 # Full example (gated)
 # ==========================================================================

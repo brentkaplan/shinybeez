@@ -294,6 +294,50 @@ describe("read_upload() and decimal commas in comma and tab files", {
     expect_identical(dat$y, c(7.5, 3))
   })
 
+  # A long file names its measurements: x and y (or y_ll4). Any other column is a label or
+  # a covariate the reader knows nothing about, whatever it is called. A `dose` column
+  # holding "1,5" used to count as proof of decimal commas and turned y 1,234 into 1.234.
+  it("in a long file takes evidence from x and y only, not from a column such as dose", {
+    path <- write_upload(c(
+      "id,x,y,dose", '1,0,"1,234","1,5"', '1,1,"2,345","1,5"', '2,0,"3,456","2,5"'
+    ))
+    dat <- upload_read$read_upload(path, "csv")
+    expect_identical(dat$y, c("1,234", "2,345", "3,456"))
+    expect_identical(dat$dose, c("1,5", "1,5", "2,5"))
+    expect_identical(attr(dat, "decimal_commas")$n, 0L)
+    expect_match(
+      validate$check_data(normalise(dat), type = "mixed_effects_demand"), "1,234", fixed = TRUE
+    )
+  })
+
+  it("in a long file converts x and y and leaves every other column as typed", {
+    path <- write_upload(c(
+      "monkey,x,y,y_ll4,drug,dose",
+      'a,"0,5","7,5","0,875",coc,"0,001"',
+      'a,1,"6,25","0,796",coc,"0,001"'
+    ))
+    dat <- upload_read$read_upload(path, "csv")
+    expect_identical(dat$x, c(0.5, 1))
+    expect_identical(dat$y, c(7.5, 6.25))
+    expect_identical(dat$y_ll4, c(0.875, 0.796))
+    expect_identical(dat$dose, c("0,001", "0,001"))
+    expect_identical(attr(dat, "decimal_commas")$n, 5L)
+  })
+
+  it("does not let a decimal point in a long file's covariate veto decimal-comma x and y", {
+    path <- write_upload(c("id,x,y,dose", '1,"0,5","7,5",0.001', '1,1,"6,5",0.001'))
+    dat <- upload_read$read_upload(path, "csv")
+    expect_identical(dat$y, c(7.5, 6.5))
+    expect_identical(dat$dose, c(0.001, 0.001))
+  })
+
+  it("still converts named response columns in a file that is not long", {
+    path <- write_upload(c("id\tbeer_free\tbeer_paid", "1\t7,5\t3,5", "2\t6,5\t2,5"), ext = "tsv")
+    dat <- upload_read$read_upload(path, "tsv")
+    expect_identical(dat$beer_free, c(7.5, 6.5))
+    expect_identical(dat$beer_paid, c(3.5, 2.5))
+  })
+
   it("converts a decimal comma inside a currency price header", {
     path <- write_upload(c("id\tR$0,50\tR$1\t2,50\u20ac", "a\t10\t8\t2"), ext = "tsv")
     dat <- upload_read$read_upload(path, "tsv")
@@ -313,6 +357,25 @@ describe("read_upload() reports the decimal commas it converts in a semicolon fi
     expect_identical(dat$x, c(0.5, 1.5, 2))
     expect_identical(attr(dat, "decimal_commas")$n, 2L)
     expect_identical(attr(dat, "decimal_commas")$examples, c("0,5", "1,5"))
+  })
+})
+
+# The comma and tab reader never rewrites an id or group label. The semicolon reader did:
+# id "01,5" became 1.5, the same id as "1,50".
+describe("read_upload() and labels in a semicolon file", {
+  it("leaves id and group labels exactly as typed while converting measurements", {
+    path <- write_upload(c("id;group;x;y", "01,5;1,5;0;7,5", "1,50;2,5;0;6,5"))
+    dat <- upload_read$read_upload(path, "csv")
+    expect_identical(dat$id, c("01,5", "1,50"))
+    expect_identical(dat$group, c("1,5", "2,5"))
+    expect_identical(dat$y, c(7.5, 6.5))
+    expect_identical(attr(dat, "decimal_commas")$n, 2L)
+  })
+
+  it("still reads a plain numeric id as a number", {
+    path <- write_upload(c("id;x;y", "1;0;7,5", "2;0;6,5"))
+    dat <- upload_read$read_upload(path, "csv")
+    expect_identical(dat$id, c(1L, 2L))
   })
 })
 

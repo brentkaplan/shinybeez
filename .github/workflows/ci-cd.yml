@@ -137,21 +137,23 @@ jobs:
           type=semver,pattern={{major}}.{{minor}}
           type=sha
 
-    - name: Build and push Docker image
-      id: build
+    # Build, smoke-test, then push. Production pulls :latest, so an image must not reach
+    # the registry until it has answered a request. The image is built once: the push step
+    # below reuses this step's layers from the builder cache.
+    - name: Build Docker image
       uses: docker/build-push-action@v7
       with:
         context: .
         platforms: linux/amd64
-        push: ${{ github.event_name != 'pull_request' }}
-        tags: ${{ steps.meta.outputs.tags }}
+        load: true
+        push: false
+        tags: shinybeez-smoke
         labels: ${{ steps.meta.outputs.labels }}
         cache-from: type=gha
         cache-to: type=gha,mode=max
 
     - name: Docker smoke test
       run: |
-        docker build -t shinybeez-smoke .
         docker run -d --name smoke-test -p 3838:3838 \
           -e TELEMETRY_ENABLED=FALSE -e GA_ENABLED=FALSE shinybeez-smoke
         echo "Waiting for app to respond (up to 120s)..."
@@ -168,6 +170,20 @@ jobs:
         docker logs smoke-test
         docker stop smoke-test && docker rm smoke-test
         exit 1
+
+    # Keeps the id `build`: the job output, the SBOM and the Trivy scan read this step's
+    # digest, which is the pushed image's.
+    - name: Push Docker image
+      id: build
+      if: github.event_name != 'pull_request'
+      uses: docker/build-push-action@v7
+      with:
+        context: .
+        platforms: linux/amd64
+        push: true
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        cache-from: type=gha
 
     - name: Generate SBOM
       if: github.event_name != 'pull_request'

@@ -1863,10 +1863,7 @@ navpanel_server <- function(id, sidebar_reactives, fit_task) {
         settings <- export_utils$export_source(
           has_model, last_fit_settings(), current_fit_settings()
         )
-        summary_data <- export_utils$build_summary_sheet(
-          settings,
-          version = "1.0.0"
-        )
+        summary_data <- export_utils$build_summary_sheet(settings)
         summary_data <- export_utils$add_collapse_info(
           summary_data,
           settings$collapse_info

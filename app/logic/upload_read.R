@@ -46,11 +46,15 @@ number_cell <- "^\\s*[-+]?[0-9]+([.,][0-9]+)?\\s*$"
 # never taken for 105, and a stray text cell leaves the column exactly as a comma
 # file with the same values would ("0.5", "bad", "1.5"), not as "0,5" for
 # readr::parse_number() to read as 5.
+# An id or group column is a label, as in convert_decimal_commas(): its commas stay as
+# typed, so an id "01,5" does not become the same id as "1,50".
 convert_semicolon_columns <- function(dat) {
   converted <- character(0)
-  for (nm in names(dat)) {
+  label <- is_label_name(names(dat))
+  for (i in seq_along(dat)) {
+    nm <- names(dat)[i]
     v <- dat[[nm]]
-    num <- !is.na(v) & grepl(number_cell, v, perl = TRUE)
+    num <- !label[i] & !is.na(v) & grepl(number_cell, v, perl = TRUE)
     converted <- c(converted, trimws(v[num & grepl(",", v, fixed = TRUE)]))
     v[num] <- sub(",", ".", trimws(v[num]), fixed = TRUE)
     dat[[nm]] <- type.convert(v, as.is = TRUE)
@@ -61,6 +65,23 @@ convert_semicolon_columns <- function(dat) {
   names(dat) <- gsub("([0-9]),([0-9])", "\\1.\\2", names(dat))
   attr(dat, "decimal_commas") <- comma_record(converted)
   dat
+}
+
+# Columns named like an id or a group, series or condition.
+is_label_name <- function(nms) is_id_like(trimws(nms)) | is_group_like(nms)
+
+# Which columns hold measurements. A long file names them: x and y (or y_ll4), and every
+# other column is a label or a covariate the reader knows nothing about, so a `dose` of
+# "1,5" is left as typed and is no evidence of how the file writes decimals. Any other
+# shape (wide prices or delays, a survey export for the mapper) has measurements in every
+# column that is not named like an id or a group.
+long_measures <- c("x", "y", "y_ll4")
+is_measured <- function(nms) {
+  lower <- tolower(trimws(nms))
+  if ("x" %in% lower && any(c("y", "y_ll4") %in% lower)) {
+    return(lower %in% long_measures)
+  }
+  !is_label_name(nms)
 }
 
 # What a read converted from decimal commas: how many values, and up to three as typed.
@@ -105,13 +126,14 @@ uses_decimal_point <- function(text) {
 #'
 #' Id and group columns are labels, not measurements: they are never rewritten and are not
 #' evidence either way, so an id "01,5" stays distinct from "1,50" and a group label "1,5"
-#' does not turn a consumption of 1,234 into 1.234.
+#' does not turn a consumption of 1,234 into 1.234. In a long file the same holds for every
+#' column but x, y and y_ll4 (see `is_measured()`).
 #' @param dat Frame read from a comma or tab file with no grouping mark
 #' @param read_text Function returning the same file with every column as text; called
 #'   only when the file has comma numbers, to look for decimal points as typed
 #' @return `dat`, with attr "decimal_commas" = list(n, examples)
 convert_decimal_commas <- function(dat, read_text) {
-  measured <- !(is_id_like(trimws(names(dat))) | is_group_like(names(dat)))
+  measured <- is_measured(names(dat))
   is_text <- measured & vapply(dat, is.character, logical(1))
   hits <- lapply(dat[is_text], function(v) !is.na(v) & grepl(comma_number, v, perl = TRUE))
   header_hit <- measured & grepl(comma_header, names(dat), perl = TRUE)

@@ -6,7 +6,16 @@
   a comma (`7,5`, `0,25`, a price header such as `R$0,50`) is now read as
   intended, and the upload says how many values were converted, with one
   example. Semicolon files were already converted; they now show the same
-  notice. Id and group columns are left as typed.
+  notice. Id and group columns are left as typed. In a long comma or tab file
+  (one with `x` and `y` columns) only `x`, `y` and `y_ll4` are converted or
+  count as evidence of decimal commas; a covariate such as `dose` is left as
+  typed. In a semicolon file a comma can only be a decimal mark, so every
+  column but id and group is converted.
+- **Within-subject demand files** — an id that appears in more than one group
+  is analysed as one curve per group, labelled by id and group (`1 (a)`,
+  `1 (b)`), and the upload shows a warning naming those ids. Before, Two Stage
+  fits and the ungrouped empirical measures stopped with "Duplicates found
+  where id = ...".
 
 ## Breaking Changes
 
@@ -16,9 +25,19 @@
   upload with a message naming the cell. Before, `7,5` was read as 75, `1,234`
   as 1234 and `1-2` as 1, with no warning. Remove thousands separators before
   uploading.
-- **Long demand and indifference-point files are cell-checked** — a value that
-  is not a number is rejected at upload, as wide files already were. Before, it
-  became missing or was read from its first digits.
+- **Long demand and indifference-point files are cell-checked** — a cell that
+  does not hold exactly one number is rejected at upload, as in wide files.
+  Before, it became missing or was read from its first digits. A cell with one
+  number and a unit or currency (`6 drinks`, `$0.50`) is read as that number,
+  and the upload says how many cells were read this way.
+- **Mixed-effects demand files are cell-checked** — a cell in `x`, `y` or
+  `y_ll4` that is not a plain number (`1,234`, `n/a`, `6 drinks`) is rejected at
+  upload with a message naming the column and the cell. Before, only the column
+  names were checked.
+- **27-Item MCQ responses must be 0, 1 or empty** — any other value is rejected
+  at upload with a message naming the column and the value. Before, a response
+  such as 2 or 0.5 was scored as given and changed k and consistency without a
+  warning, and a text cell stopped the scoring with a raw error.
 - **27-Item MCQ files** — a file in which a participant answers the same
   question twice, or a question number outside 1–27, is rejected at upload.
 
@@ -28,6 +47,8 @@
 
 - A text cell far down a long column no longer turns into a missing value
   because the column type was guessed from the first rows.
+- In a semicolon file, id and group labels are left as typed, as in comma and
+  tab files. Before, an id `01,5` was read as the number 1.5.
 - In the wide-to-long mapper, a response with one number and a unit
   (`6 drinks`) is read as that number, and the preview reports how many
   responses were read from text and how many were dropped.
@@ -41,8 +62,9 @@
   and then averaged. Before, all participants were scored as one.
 - **Systematic criteria** — the result no longer depends on the row order of
   the file; delays are sorted within each participant first.
-- **Regression table** — estimates, standard errors, confidence limits and
-  p-values show four significant digits, so small values no longer print as 0.
+- **Regression table** — estimates, standard errors, confidence limits,
+  p-values, `finTol`, `deviance` and `sigma` show four significant digits, so
+  small values no longer print as 0.
 
 ### Demand
 
@@ -50,15 +72,22 @@
   used to print as 0.
 - The aggregate row of a grouped empirical table is no longer rounded to one
   decimal place when the other rows are not.
+- **Legend title** — the legend of a grouped plot is titled "group" on the
+  first fit. Before, it had no title until the plot was updated.
+- The plot's download and resize handlers are set up once per session instead
+  of once per fit, plot update and colour-mode change.
 
 ### Mixed Effects Demand
 
 - **ZBEn** is fitted to the Y variable selected in the sidebar. A `y_ll4`
   column is used as it stands only when it is the one selected.
 - **Covariate conditioning value** resets to the covariate's default when the
-  data or the covariate changes, and keeps a typed value otherwise.
+  data or the covariate changes, and keeps a typed value otherwise. The default
+  is the covariate's mean to three decimal places, or to four significant
+  digits when the mean is below 1: a mean of 0.00068 used to show as 0.001.
 - **Export All** writes the settings, data and descriptives of the fitted
-  model, not whatever the sidebar shows at the time of export.
+  model, not whatever the sidebar shows at the time of export. Its summary
+  sheet reports the app's version; it used to say 1.0.0.
 - **Optimizer presets** — Balanced and Faster show a tolerance of 1e-4, the
   value the fit actually used; typed control values are held to the same
   limits.
@@ -69,6 +98,13 @@
 
 ## Internal
 
+- **On/off environment variables** (`TELEMETRY_ENABLED`, `GA_ENABLED`,
+  `LOG_TO_CONSOLE`, `LOG_PERFORMANCE`, `TELEMETRY_TRACK_INPUTS`,
+  `TELEMETRY_ANONYMIZE`) accept `1/true/yes/on` and `0/false/no/off` in any
+  case. Before, `1` and `yes` were read as missing. Any other value keeps the
+  variable's default and is reported in the startup log.
+- **CI** — the Docker image is smoke-tested before it is pushed. Before, a
+  release run pushed `:latest` first.
 - Log messages are written as data. A message containing `{` or `}` (for
   example from a column name) could fail to log or be evaluated as a template.
 

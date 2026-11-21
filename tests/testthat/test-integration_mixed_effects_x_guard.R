@@ -9,9 +9,10 @@
 # Two claims are checked here, one per half of the guard:
 #   1. the sidebar never OFFERS a column that would be rejected at fit time
 #      (mixed_effects_demand_sidebar.R:381, choices = x_candidates)
-#   2. a non-numeric X that DOES get selected is stopped before the fit, with an
-#      actionable message rather than beezdemand's raw error
-#      (mixed_effects_demand_navpanel.R:735)
+#   2. a file whose `x` column is text is stopped at upload, naming the cells
+#      (validate.R, check_mixed_effects_data). Until 1.5.0 the upload passed and a
+#      guard before the fit caught it; that guard is still there for a selected
+#      column that is mostly, but not wholly, numeric, and is unit-tested.
 #
 # Both fixtures carry text where numbers are expected: the first adds a
 # `price_label` column alongside a numeric `x`, the second makes `x` itself
@@ -47,32 +48,22 @@ describe("Mixed Effects - X variable guard (#23)", {
     expect_false(identical(x_var, "price_label"))
   })
 
-  it("blocks the fit and explains why when the x column is not numeric", {
+  it("rejects the upload, naming the cells, when the x column is text", {
     require_app(app)
 
-    # This is production error e84804c9 itself: a column literally named `x`
-    # whose values are text. Upload validation passes (it checks for the name),
-    # and the app selects it by name, so the navpanel guard is the only thing
-    # standing between this file and fit_demand_mixed().
-    upload_and_wait(
-      app, ids$mixed$upload, fixture_path("mixed-effects-no-numeric-x.csv")
+    # Production error e84804c9: a column literally named `x` whose values are text. The
+    # upload check used to look at column names only, the app selected `x` by name, and a
+    # guard in the navpanel was all that stood between this file and fit_demand_mixed().
+    # The upload now stops on the cells themselves.
+    app$upload_file(
+      !!ids$mixed$upload := fixture_path("mixed-effects-no-numeric-x.csv")
     )
-    expect_identical(app$get_value(input = ids$mixed$x_var), "x")
-
-    app$click(selector = paste0("#", ids$mixed$run))
-    app$wait_for_idle(duration = 3000)
-
+    wait_for_notification(app, "error")
     err_html <- paste(app$get_html(".shiny-notification-error"), collapse = " ")
-    # The guard's own message, naming the column and the bad-value count,
-    # rather than beezdemand's raw error.
-    expect_match(err_html, "'x' is not numeric", fixed = TRUE)
-    expect_match(err_html, "30 value(s) could not be read", fixed = TRUE)
-
-    # And the fit must not have produced a model summary.
-    summary_html <- paste(
-      app$get_html(paste0("#", summary_id)) %||% "", collapse = " "
-    )
-    expect_false(grepl("Fixed Effects", summary_html, fixed = TRUE))
+    expect_match(err_html, "must hold one number per cell", fixed = TRUE)
+    expect_match(err_html, "ten", fixed = TRUE)
+    # No reshape form: it could only drop the cells it cannot read.
+    expect_false(app$get_js("document.querySelector('.modal.show') !== null"))
   })
 
   local_app_stop()

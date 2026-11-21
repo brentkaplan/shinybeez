@@ -244,12 +244,13 @@ check_demand_duplicate_prices <- function(dat) {
   keep <- !is.na(prices)
   id <- as.character(dat$id)[keep]
   prices <- prices[keep]
-  key <- if ("group" %in% colnames(dat)) {
-    paste(id, as.character(dat$group)[keep], sep = "\r")
-  } else {
-    id
+  # id and group as two columns, never pasted: a pasted key is ambiguous when a label
+  # contains the separator.
+  key <- data.frame(id = id, price = prices, stringsAsFactors = FALSE)
+  if ("group" %in% colnames(dat)) {
+    key$group <- as.character(dat$group)[keep]
   }
-  dup <- duplicated(data.frame(key = key, price = prices))
+  dup <- duplicated(key)
   if (!any(dup)) {
     return(TRUE)
   }
@@ -294,7 +295,13 @@ check_mixed_effects_data <- function(dat) {
   )
   if (is.character(chk)) return(chk)
 
-  TRUE
+  # Plain numbers only, unlike the long demand file: the mixed-effects tab does not retype
+  # its upload, and the model reads these columns with as.numeric(), which makes "$0.50"
+  # or "6 drinks" missing. Other columns may hold labels and are left to the sidebar.
+  check_wide_cells(
+    dat, which(colnames(dat) %in% c("x", "y", "y_ll4")),
+    "me_nonnumeric_cells", "Mixed-effects demand data"
+  )
 }
 
 # A value column as text, per cell: factor labels (never codes), logical TRUE/FALSE as the
@@ -338,10 +345,12 @@ numeric_cells <- function(v) {
 parse_single_number <- function(v) {
   if (is.numeric(v)) return(as.numeric(v))
   s <- cell_text(v)
-  out <- rep(NA_real_, length(s))
+  # A cell R takes whole as a number is that number: "0xFF" is 255, where picking out
+  # "the one number" would read 0.
+  out <- suppressWarnings(as.numeric(s))
   number <- "(?:[0-9]+\\.?[0-9]*|\\.[0-9]+)(?:[eE][-+]?[0-9]+)?"
   found <- gregexpr(number, s, perl = TRUE)
-  one <- !is.na(s) &
+  one <- !is.na(s) & is.na(out) &
     vapply(found, function(m) sum(m > 0), integer(1)) == 1L &
     !grepl("[<>\u2264\u2265~\u00b1]", s)
   if (!any(one)) return(out)
@@ -399,16 +408,46 @@ check_wide_cells <- function(dat,
 #'
 #' The wide files stop at upload on a cell that is not a number. A long file with the same
 #' cell used to pass: `retype_data()` then turned it into NA after the upload's missing-row
-#' check had run, so the response vanished without a word. `y` must be a plain number, as in
-#' a wide file; `x` may carry a currency or unit ("$0.50") but must hold exactly one number.
+#' check had run, so the response vanished without a word. Either column may carry a
+#' currency or unit ("$0.50", "6 drinks") but each cell must hold exactly one number, the
+#' rule the wide-to-long form applies to its response cells.
 #' @param dat Long frame with lowercased `x` and `y` columns
 #' @param code Reason code for the rejection
 #' @param label What the message calls this kind of file
 #' @return TRUE or character error message naming each column and up to three of its cells
 check_long_cells <- function(dat, code, label) {
-  chk <- check_wide_cells(dat, match("x", colnames(dat)), code, label, find_bad = unreadable_cells)
-  if (is.character(chk)) return(chk)
-  check_wide_cells(dat, match("y", colnames(dat)), code, label)
+  check_wide_cells(
+    dat, match(c("x", "y"), colnames(dat)), code, label, find_bad = unreadable_cells
+  )
+}
+
+#' The x and y cells of a long frame that are text around a number
+#'
+#' "$0.50" and "6 drinks" are read as 0.5 and 6; the upload says so rather than changing a
+#' cell without a word.
+#' @param dat Long frame with `x` and `y` columns, as uploaded
+#' @return Character vector of those cells as typed, one per cell, x first
+#' @export
+text_number_cells <- function(dat) {
+  unlist(lapply(dat[intersect(c("x", "y"), colnames(dat))], function(v) {
+    if (is.numeric(v)) return(character(0))
+    s <- cell_text(v)
+    plain <- !is.na(suppressWarnings(as.numeric(s)))
+    s[!is.na(s) & !plain & !is.na(parse_single_number(v))]
+  }), use.names = FALSE) %||% character(0)
+}
+
+#' The notice for an upload whose cells were read from text around a number
+#' @param cells Result of `text_number_cells()`
+#' @return Character message, or NULL when there is nothing to report
+#' @export
+text_number_notice <- function(cells) {
+  if (length(cells) == 0) return(NULL)
+  sprintf(
+    "%d value%s read from text around a number (for example \"%s\" as %s).",
+    length(cells), if (length(cells) == 1) " was" else "s were",
+    cells[1], format(parse_single_number(cells[1]))
+  )
 }
 
 #' Validate the price cells of a wide demand frame
@@ -510,6 +549,35 @@ check_mcq_wide_ids <- function(dat) {
   TRUE
 }
 
+# Cells of an MCQ response column that are not 0, 1 or missing.
+not_binary_cells <- function(v) {
+  s <- cell_text(v)
+  s <- s[!is.na(s)]
+  unique(s[!suppressWarnings(as.numeric(s)) %in% c(0, 1)])
+}
+
+#' Validate the responses of a 27-Item MCQ frame: each is 0, 1 or missing
+#'
+#' The scorer sums responses, so a 2, a 0.5 or a -1 came back as a consistency above 1 or
+#' a different k with nothing said, and a text cell aborted later with a raw type error.
+#' @param dat Data frame with lowercased column names
+#' @param cols Positions of the response columns
+#' @return TRUE or character error message naming each column and up to three of its cells
+check_mcq_responses <- function(dat, cols) {
+  bad <- lapply(dat[cols], not_binary_cells)
+  bad <- bad[lengths(bad) > 0]
+  if (length(bad) == 0) return(TRUE)
+  coded(
+    "mcq_response_not_0_or_1",
+    "27-Item MCQ responses must be 0 (smaller-sooner), 1 (larger-later) or empty. ",
+    paste0(
+      "Column ", vapply(names(bad), quote_some, character(1)),
+      " has other values: ", vapply(bad, quote_some, character(1), n = 3L), ".",
+      collapse = " "
+    )
+  )
+}
+
 #' Validate discounting data
 #' @param dat Data frame
 #' @return TRUE or character error message
@@ -530,8 +598,14 @@ check_discounting_data <- function(dat) {
     #     MCQ-long with an ordered identical() check; a reordered frame would pass
     #     a looser test here and then fall into the standard-data branch, whose
     #     NA-row dropping defeats MCQ imputation.
-    if (ncol(dat) == 28 && identical(cols[1], "subjectid")) return(check_mcq_wide_ids(dat))
-    if (identical(cols, c("subjectid", "questionid", "response"))) return(TRUE)
+    if (ncol(dat) == 28 && identical(cols[1], "subjectid")) {
+      chk <- check_mcq_wide_ids(dat)
+      if (is.character(chk)) return(chk)
+      return(check_mcq_responses(dat, 2:28))
+    }
+    if (identical(cols, c("subjectid", "questionid", "response"))) {
+      return(check_mcq_responses(dat, 3L))
+    }
     return(coded(
       "mcq_shape",
       "27-Item MCQ data must be either 28 columns wide with subjectid first ",
@@ -719,6 +793,9 @@ prepare_discounting_data <- function(dat) {
 retype_data <- function(dat) {
   if (!is.numeric(dat$x)) {
     dat$x <- parse_single_number(dat$x)
+  }
+  if (!is.numeric(dat$y)) {
+    dat$y <- parse_single_number(dat$y)
   }
   if ("group" %in% colnames(dat)) {
     dat |>

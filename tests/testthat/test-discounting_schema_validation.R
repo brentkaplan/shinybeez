@@ -76,7 +76,7 @@ describe("check_discounting_data - still accepts every valid shape", {
 
   it("accepts MCQ long: subjectid, questionid, response", {
     df <- data.frame(
-      subjectid = rep(1, 3), questionid = 1:3, response = c(1, 2, 1)
+      subjectid = rep(1, 3), questionid = 1:3, response = c(1, 0, 1)
     )
     expect_true(validate$check_data(df, type = "discounting"))
   })

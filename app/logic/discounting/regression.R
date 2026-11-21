@@ -10,8 +10,11 @@ box::use(
 
 # Significant digits, not decimal places: a discounting rate, its standard error and
 # interval, and a p-value are often far below 0.0001, which four decimal places turned
-# into 0 in the table and its exports.
-results_cols_4sig <- c("estimate", "std.error", "conf_low", "conf_high", "p.value")
+# into 0 in the table and its exports. The same goes for the optimiser's final tolerance
+# (about 1e-8) and for the deviance and residual sigma of a close fit.
+results_cols_4sig <- c(
+  "estimate", "std.error", "conf_low", "conf_high", "p.value", "finTol", "deviance", "sigma"
+)
 
 #' Format regression results with rounding and id sorting
 #'
@@ -21,8 +24,8 @@ results_cols_4sig <- c("estimate", "std.error", "conf_low", "conf_high", "p.valu
 #'
 #' @param results Data frame from results_dd()
 #' @param id_levels Character vector of original id levels for factor ordering
-#' @return Data frame with the estimate, its error, its interval and p to 4 significant
-#'   digits and other numeric cols to 4dp; id sorted when present
+#' @return Data frame with the estimate, its error, its interval, p, finTol, deviance and
+#'   sigma to 4 significant digits and other numeric cols to 4dp; id sorted when present
 #' @export
 format_regression_results <- function(results, id_levels) {
   results <- results |>

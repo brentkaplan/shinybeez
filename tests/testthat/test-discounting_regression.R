@@ -61,6 +61,20 @@ describe("format_regression_results", {
     expect_identical(result$conf_high[1], 0.00001358)
   })
 
+  # The optimiser's final tolerance is about 1e-8, and a good fit's deviance and residual
+  # sigma are small: four decimal places showed finTol as 0 and deviance to 2 digits.
+  it("keeps four significant digits of finTol, deviance and sigma", {
+    mock <- make_mock_results()
+    mock$finTol <- c(0.000000014901161, 0.000001, 0.5)
+    mock$deviance <- c(0.0033189747, 12.345678, 0.5)
+    mock$sigma <- c(0.025764218, 1.2345678, 0.5)
+    result <- regression$format_regression_results(mock, id_levels = c("b", "a", "c"))
+
+    expect_identical(result$finTol, c(0.0000000149, 0.000001, 0.5))
+    expect_identical(result$deviance, c(0.003319, 12.35, 0.5))
+    expect_identical(result$sigma, c(0.02576, 1.235, 0.5))
+  })
+
   it("rounds the other numeric columns to 4 decimal places", {
     mock <- make_mock_results()
     result <- regression$format_regression_results(mock, id_levels = c("b", "a", "c"))

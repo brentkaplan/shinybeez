@@ -10,6 +10,7 @@ box::use(
   app / logic / async / daemons,
   app / logic / async / task,
   app / logic / async / workers,
+  app / logic / env_flags,
   app / logic / logging_utils,
   app / logic / startup_info,
   app / logic / telemetry_utils,
@@ -29,6 +30,9 @@ if (daemons$async_enabled()) {
 
 # Once per process, before any session: what this process is actually running as.
 rhino$log$info(startup_info$startup_line())
+for (flag_warning in env_flags$flag_warnings()) {
+  rhino$log$warn(flag_warning)
+}
 
 #' @export
 ui <- function(id) {

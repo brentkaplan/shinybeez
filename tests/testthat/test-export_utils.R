@@ -32,6 +32,18 @@ describe("build_summary_sheet", {
     expect_true(any(grepl("Equation", result$Item)))
   })
 
+  # The summary sheet said "1.0.0" in every release: the default and the caller both
+  # hard-coded it.
+  it("reports the running app version when none is given", {
+    result <- export_utils$build_summary_sheet(list(equation = "zben"))
+    news_version <- sub(
+      "^# shinybeez ([0-9.]+).*$", "\\1",
+      grep("^# shinybeez ", readLines(file.path(project_root, "NEWS.md")), value = TRUE)[1]
+    )
+    expect_true(any(grepl(news_version, result$Value, fixed = TRUE)))
+    expect_false(any(grepl("1.0.0", result$Value, fixed = TRUE)))
+  })
+
   it("handles NULL settings gracefully", {
     settings <- list(
       equation = NULL,
