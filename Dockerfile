@@ -57,8 +57,18 @@ FROM rocker/r-ver:4.5.1 AS runtime
 
 LABEL maintainer="Brent Kaplan <bkaplan.ku@gmail.com>"
 
-# Runtime libs only (no compilers); include fonts/graphics + CA certs
-RUN apt-get update -qq && apt-get install -y --no-install-recommends \
+# Ubuntu security updates, then runtime libs only (no compilers); include fonts/graphics + CA certs.
+# rocker/r-ver:4.5.1 was last built 2025-10-31 (rocker stops rebuilding a tag once the next R is out),
+# so without the upgrade this image ships system libraries that far behind Ubuntu's security fixes.
+# Bump OS_UPDATES_DATE to take new updates: the value is part of this layer's cache key, so the CI
+# layer cache cannot keep serving an older package set. Runtime stage only: R packages are still
+# built in the stage above and copied over unchanged.
+ARG OS_UPDATES_DATE=2026-11-21
+RUN echo "Ubuntu updates as of ${OS_UPDATES_DATE}" \
+    && apt-get update -qq \
+    && DEBIAN_FRONTEND=noninteractive apt-get upgrade -y --no-install-recommends \
+       -o Dpkg::Options::=--force-confold \
+    && apt-get install -y --no-install-recommends \
     curl libcurl4 libssl3 libcairo2 libxml2 libfontconfig1 libfreetype6 \
     libharfbuzz0b libfribidi0 libpng16-16 libtiff6 libxt6 libodbc2 libuv1 ca-certificates \
     && update-ca-certificates \
