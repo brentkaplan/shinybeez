@@ -96,6 +96,14 @@ server <- function(id, type = "demand") {
     # store, telemetry, notify. Shared by the direct path and the mapper path so
     # storage and telemetry happen exactly once per accepted upload.
     finish_standard <- function(tmp, meta, reshaped = FALSE) {
+      # A long file's "6 drinks" or "$0.50" is read as its number: say so, as the reshape
+      # form does in its preview. The mixed-effects check accepts plain numbers only.
+      if (!reshaped && type != "mixed_effects_demand") {
+        text_notice <- validate$text_number_notice(validate$text_number_cells(tmp))
+        if (!is.null(text_notice)) {
+          shiny$showNotification(text_notice, type = "warning", duration = 15)
+        }
+      }
       na_result <- validate$remove_na_rows(tmp)
       tmp <- na_result$data
       if (type == "discounting") {
@@ -221,7 +229,7 @@ server <- function(id, type = "demand") {
     # so no mapping is offered for these codes.
     mapper_cannot_help <- c(
       "wide_ip_nonnumeric_cells", "wide_demand_nonnumeric_cells",
-      "long_demand_nonnumeric_cells", "long_ip_nonnumeric_cells"
+      "long_demand_nonnumeric_cells", "long_ip_nonnumeric_cells", "me_nonnumeric_cells"
     )
 
     # A rejected frame opens the mapper unless it carries a fixed-schema marker or a
