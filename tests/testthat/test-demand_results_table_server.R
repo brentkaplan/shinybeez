@@ -540,3 +540,76 @@ describe("Calculate with no prepared data", {
     })
   })
 })
+
+# The Legend Title box is drawn by the fit that creates the grouped plot, so on the first
+# grouped fit the browser has not sent its value yet (NULL). guide_legend(title = NULL)
+# draws no title at all: the first plot had an untitled legend while the box said "group".
+describe("demand results table legend title", {
+  legend_title <- function(plot) plot$guides$guides$colour$params$title
+
+  it("titles the legend \"group\" on the first grouped fit, before the box has a value", {
+    data_r <- shiny$reactiveValues(data_d = grouped_demand_data())
+    calc <- shiny$reactiveVal(0)
+
+    shiny$testServer(demand_results_table$server, args = module_args(data_r, calc), {
+      set_plot_inputs(session)
+      session$setInputs(legend_title = NULL)
+      calc(1)
+      session$flushReact()
+      settle(session)
+      expect_identical(legend_title(res$plot), "group")
+    })
+  })
+
+  it("uses the typed legend title once there is one", {
+    data_r <- shiny$reactiveValues(data_d = grouped_demand_data())
+    calc <- shiny$reactiveVal(0)
+
+    shiny$testServer(demand_results_table$server, args = module_args(data_r, calc), {
+      set_plot_inputs(session)
+      session$setInputs(legend_title = "Dose")
+      calc(1)
+      session$flushReact()
+      settle(session)
+      expect_identical(legend_title(res$plot), "Dose")
+    })
+  })
+})
+
+# render_ggplot() starts a module server with download handlers and resize observers. It
+# was called inside the plot observer, so every fit, Update Plot click and dark-mode toggle
+# started another one under the same id.
+describe("demand results table plot output", {
+  it("registers the plot module once, however many times the plot is rebuilt", {
+    data_r <- shiny$reactiveValues(data_d = grouped_demand_data())
+    calc <- shiny$reactiveVal(0)
+    registrations <- 0L
+    # The module calls esquisse through its own box import, so that is the binding to count.
+    imported <- get("esquisse", environment(demand_results_table$server))
+    real <- imported$render_ggplot
+    unlockBinding("render_ggplot", imported)
+    assign("render_ggplot", function(...) {
+      registrations <<- registrations + 1L
+      real(...)
+    }, envir = imported)
+    withr::defer({
+      assign("render_ggplot", real, envir = imported)
+      lockBinding("render_ggplot", imported)
+    })
+
+    shiny$testServer(demand_results_table$server, args = module_args(data_r, calc), {
+      set_plot_inputs(session)
+      calc(1)
+      session$flushReact()
+      settle(session)
+      session$setInputs(update_plot_btn = 1)
+      session$flushReact()
+      settle(session)
+      calc(2)
+      session$flushReact()
+      settle(session)
+      expect_false(is.null(res$plot))
+    })
+    expect_identical(registrations, 1L)
+  })
+})

@@ -554,7 +554,9 @@ server <- function(
       if (!is.null(res$plot_group_levels)) {
         res$plot <- res$plot +
           ggplot2$guides(
-            color = ggplot2$guide_legend(title = input$legend_title)
+            # NULL on the first grouped fit: the box is drawn by that fit and the browser
+            # has not sent its value yet. A NULL title would draw no legend title at all.
+            color = ggplot2$guide_legend(title = input$legend_title %||% "group")
           ) +
           utils$resolve_group_scale(
             res$plot_group_levels,
@@ -580,17 +582,23 @@ server <- function(
         res$plot,
         session$rootScope()$input$dark_mode
       )
-
-      esquisse$render_ggplot(
-        id = "plot",
-        expr = res$plot,
-        filename = "shinybeez-demand"
-      )
     }) |>
       shiny$bindEvent(
         c(fit_generation(), input$update_plot_btn),
         session$rootScope()$input$dark_mode,
         ignoreInit = TRUE
       )
+
+    # Registered once. Inside the observer above it started another plot module, with its
+    # own download handlers and resize observers, on every fit, Update Plot click and
+    # dark-mode toggle. The expression re-runs whenever the observer assigns res$plot.
+    esquisse$render_ggplot(
+      id = "plot",
+      expr = {
+        shiny$req(res$plot)
+        res$plot
+      },
+      filename = "shinybeez-demand"
+    )
   })
 }
