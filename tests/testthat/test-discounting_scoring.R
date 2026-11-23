@@ -487,3 +487,34 @@ describe("mean_prop_ss", {
     expect_s3_class(plot(out), "ggplot")
   })
 })
+
+describe("plot_mean_prop_ss", {
+  x_labels <- function(p) {
+    ggplot2::ggplot_build(p)$layout$panel_params[[1]]$x$get_labels()
+  }
+  dat <- rbind(
+    data.frame(subjectid = "A", questionid = 1:27, response = 0),
+    data.frame(subjectid = "B", questionid = 1:27, response = 1)
+  )
+
+  it("labels the x axis with the 9 k values of the 27-Item MCQ", {
+    p <- scoring$plot_mean_prop_ss(dat)
+
+    expect_s3_class(p, "ggplot")
+    expect_equal(
+      x_labels(p),
+      c("0.00016", "0.0004", "0.001", "0.0025", "0.006", "0.016", "0.041", "0.1", "0.25")
+    )
+  })
+
+  it("plots the mean proportions", {
+    p <- scoring$plot_mean_prop_ss(dat)
+
+    expect_equal(ggplot2::ggplot_build(p)$data[[1]]$y, rep(0.5, 9))
+  })
+
+  it("builds without a message or a warning", {
+    expect_no_message(scoring$plot_mean_prop_ss(dat))
+    expect_no_warning(scoring$plot_mean_prop_ss(dat))
+  })
+})

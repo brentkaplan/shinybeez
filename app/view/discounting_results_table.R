@@ -161,8 +161,7 @@ server <- function(
           res$data
         }
         res$propplot <- plot_data |>
-          scoring$mean_prop_ss() |>
-          plot() +
+          scoring$plot_mean_prop_ss() +
           beezdemand$theme_apa() +
           utils$add_shiny_logo(utils$watermark_tr)
         res$boxplot <- res$results |>
