@@ -5,6 +5,7 @@
 box::use(
   beezdiscounting[prop_ss, score_mcq27, summarize_mcq],
   dplyr,
+  ggplot2,
 )
 
 # The only methods beezdiscounting accepts (mcq.R:27-28). Anything else — an empty string
@@ -249,6 +250,27 @@ mean_prop_ss <- function(data) {
 
   class(out) <- class(per_participant[[1]])
   out
+}
+
+#' Plot of the mean proportion of smaller-sooner choices at each k rank
+#'
+#' beezdiscounting 0.4.0.9000's plot method labels every x tick NA (it indexes its label
+#' vector by the k values). The labels are set here from the k values plotted.
+#'
+#' @param data Data frame with subjectid, questionid, response (27 rows per participant)
+#' @return A ggplot
+#' @export
+plot_mean_prop_ss <- function(data) {
+  out <- mean_prop_ss(data)
+  k_labels <- vapply(
+    sort(unique(out$k_rank)),
+    format,
+    character(1),
+    scientific = FALSE,
+    drop0trailing = TRUE
+  )
+  # Replacing the x scale that plot() added makes ggplot2 say so; nothing to report.
+  suppressMessages(plot(out) + ggplot2$scale_x_discrete(labels = k_labels))
 }
 
 # prop_ss() rounds to 2 dp, so 1/3 and 2/3 arrive as 0.33 and 0.67. Restore those two
