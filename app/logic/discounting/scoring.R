@@ -225,18 +225,44 @@ score_and_format_mcq <- function(data, imputation = "none", trans = "none") {
 #' total, not 27 per participant. Score each participant on their own, then average the
 #' participants at each k rank.
 #'
+#' A participant's proportion at a k rank is NA when they answered none of its items;
+#' those participants are left out of that rank's average. A rank nobody answered is NA.
+#'
 #' @param data Data frame with subjectid, questionid, response (27 rows per participant)
 #' @return Tibble with k_rank and prop_ss (2 dp), classed `prop_ss_output` for plot()
 #' @export
 mean_prop_ss <- function(data) {
-  per_participant <- lapply(split(data, data$subjectid, drop = TRUE), prop_ss)
+  # prop_ss() warns once per participant with a missing response. The app tells the user
+  # about missing MCQ data itself, once, so that warning is dropped; any other is kept.
+  per_participant <- withCallingHandlers(
+    lapply(split(data, data$subjectid, drop = TRUE), prop_ss),
+    warning = function(w) {
+      if (grepl("Missing data found and ignored", conditionMessage(w), fixed = TRUE)) {
+        invokeRestart("muffleWarning")
+      }
+    }
+  )
 
   out <- dplyr$bind_rows(per_participant) |>
     dplyr$group_by(k_rank) |>
-    # prop_ss() returns thirds already rounded to 2 dp (0.33, 0.67): recover the exact
-    # thirds before averaging, so the mean is rounded once
-    dplyr$summarise(prop_ss = round(mean(round(prop_ss * 3) / 3), 2), .groups = "drop")
+    dplyr$summarise(prop_ss = mean_of_answered(exact_thirds(prop_ss)), .groups = "drop")
 
   class(out) <- class(per_participant[[1]])
   out
+}
+
+# prop_ss() rounds to 2 dp, so 1/3 and 2/3 arrive as 0.33 and 0.67. Restore those two
+# before averaging, so the mean is rounded once. A participant who answered 1 or 2 of a
+# rank's 3 items gives 0, 0.5 or 1, which are exact already.
+exact_thirds <- function(x) {
+  x[!is.na(x) & x == 0.33] <- 1 / 3
+  x[!is.na(x) & x == 0.67] <- 2 / 3
+  x
+}
+
+mean_of_answered <- function(x) {
+  if (all(is.na(x))) {
+    return(NA_real_)
+  }
+  round(mean(x, na.rm = TRUE), 2)
 }
