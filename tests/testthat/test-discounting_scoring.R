@@ -438,6 +438,43 @@ describe("mean_prop_ss", {
     expect_equal(sort(out$prop_ss), c(rep(0, 8), 0.17))
   })
 
+  # Questions 1, 9 and 13 are the 3 items at the lowest k rank (0.00016).
+  it("averages over the participants who answered when one skipped a whole k rank", {
+    a <- all_answers("A", 1)
+    a$response[a$questionid %in% c(1, 9, 13)] <- NA
+    out <- scoring$mean_prop_ss(rbind(a, all_answers("B", 0)))
+
+    # Lowest rank: only B answered, 3 of 3 smaller-sooner. Other ranks: A 0, B 1.
+    expect_equal(out$prop_ss[which.min(out$k_rank)], 1)
+    expect_equal(out$prop_ss[-which.min(out$k_rank)], rep(0.5, 8))
+  })
+
+  it("keeps one half as one half when a participant answered 2 of 3 items", {
+    # A answered questions 1 (0) and 9 (1) and skipped 13: 1 of 2 = 0.5. B: 0 of 3.
+    a <- all_answers("A", 1)
+    a$response[a$questionid == 1] <- 0
+    a$response[a$questionid == 13] <- NA
+    out <- scoring$mean_prop_ss(rbind(a, all_answers("B", 1)))
+
+    expect_equal(out$prop_ss[which.min(out$k_rank)], 0.25)
+  })
+
+  it("returns NA at a k rank that no participant answered", {
+    a <- all_answers("A", 0)
+    a$response[a$questionid %in% c(1, 9, 13)] <- NA
+    out <- scoring$mean_prop_ss(a)
+
+    expect_true(is.na(out$prop_ss[which.min(out$k_rank)]))
+    expect_equal(out$prop_ss[-which.min(out$k_rank)], rep(1, 8))
+  })
+
+  it("does not warn about missing responses, which the app reports itself", {
+    a <- all_answers("A", 1)
+    a$response[a$questionid == 13] <- NA
+
+    expect_no_warning(scoring$mean_prop_ss(rbind(a, all_answers("B", 1))))
+  })
+
   it("leaves a single participant's proportions as they are", {
     expect_equal(scoring$mean_prop_ss(all_answers("A", 0))$prop_ss, rep(1, 9))
   })

@@ -40,6 +40,12 @@
   warning, and a text cell stopped the scoring with a raw error.
 - **27-Item MCQ files** — a file in which a participant answers the same
   question twice, or a question number outside 1–27, is rejected at upload.
+- **27-Item MCQ proportion plot with missing responses** — the proportion of
+  smaller-sooner choices at each k rank is taken over the items a participant
+  answered. Before, a missing response was counted as a larger-later choice, so
+  the proportions were too low. A participant who answered none of a rank's 3
+  items is left out of that rank's average. Files with no missing responses,
+  and files scored with imputation that fills every response, are unaffected.
 
 ## Bug Fixes
 
@@ -108,7 +114,9 @@
 - **beezdiscounting** is pinned to GitHub commit `c616b4f` (0.4.0.9000) in
   place of CRAN 0.3.2. That version sorts by delay in `check_unsystematic()`
   and aligns imputed MCQ responses by question id; the app sorted before both
-  calls already, so results do not change.
+  calls already, so those results do not change. Its `prop_ss()` ignores
+  missing responses, which changes the MCQ proportion plot (see Breaking
+  Changes).
 - Log messages are written as data. A message containing `{` or `}` (for
   example from a column name) could fail to log or be evaluated as a template.
 
